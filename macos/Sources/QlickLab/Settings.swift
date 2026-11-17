@@ -246,11 +246,11 @@ struct SettingsView: View {
                 .inkDisabled(emptyingThumbnails || thumbnailBytes == 0)
             }
             ButtonRow {
-                Text(EditedThumbnailStore.shared.directory.path).font(.system(size: 11)).foregroundStyle(Theme.dim)
+                Text(model.editedThumbnails.directory.path).font(.system(size: 11)).foregroundStyle(Theme.dim)
                     .lineLimit(2).truncationMode(.middle).textSelection(.enabled)
             } button: {
                 Button("Show in Finder") {
-                    let folder = EditedThumbnailStore.shared.directory
+                    let folder = model.editedThumbnails.directory
                     try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
                     NSWorkspace.shared.activateFileViewerSelecting([folder])
                 }

@@ -11,9 +11,22 @@ import SwiftUI
 /// Past the limit the least recently used go first; emptied, they're made again as photographs are opened.
 enum PreviewStorage {
     static let folderKey = "qlick.previewsFolder", limitKey = "qlick.previewsLimitGB", proxiesKey = "qlick.proxies"
-    /// Whether proxies are built ahead for every photograph of a folder, or only as photographs are opened: a
+    /// When proxies are made: ahead for every photograph of a folder, when a photograph is opened, or never. A
     /// proxy is nine times a developed preview's size, which counts after a large import.
-    static var buildsProxiesAhead: Bool { UserDefaults.standard.string(forKey: proxiesKey) != "opened" }
+    enum ProxyMode: String, CaseIterable, Sendable {
+        case all, opened, never
+        var title: String {
+            switch self {
+            case .all: "Ahead, for every photograph"
+            case .opened: "When a photograph is opened"
+            case .never: "Never"
+            }
+        }
+    }
+    static var proxyMode: ProxyMode { UserDefaults.standard.string(forKey: proxiesKey).flatMap(ProxyMode.init) ?? .all }
+    static var buildsProxiesAhead: Bool { proxyMode == .all }
+    /// Never: the engine is given no folder for them, so it neither makes nor reads one.
+    static var usesProxies: Bool { proxyMode != .never }
     static let limits = [2, 5, 10, 20, 50, 100]
 
     static var defaultDirectory: URL { AppDataLocations.cachesDirectory.appendingPathComponent("Renders", isDirectory: true) }
@@ -102,15 +115,15 @@ enum PreviewStorage {
 
 extension EditorModel {
     func previewCacheSize() async -> Int {
-        let archive = renderArchive, thumbnails = editedThumbnails
-        return await Task.detached(priority: .utility) { archive.size() + thumbnails.size() + PreviewStorage.proxiesSize() }.value
+        let archive = renderArchive
+        return await Task.detached(priority: .utility) { archive.size() + PreviewStorage.proxiesSize() }.value
     }
 
     /// Removes every preview built ahead; they're built again as photographs are opened (or by Build Previews).
     func emptyPreviewCache() async {
         lab.previewBuilder.cancel()
-        let archive = renderArchive, thumbnails = editedThumbnails
-        await Task.detached(priority: .userInitiated) { archive.removeAll(); thumbnails.removeAll(); PreviewStorage.removeProxies() }.value
+        let archive = renderArchive
+        await Task.detached(priority: .userInitiated) { archive.removeAll(); PreviewStorage.removeProxies() }.value
     }
 
     /// Keeps the previews in `folder` (nil: the start-up disk's caches). Those already built are removed from the
@@ -145,6 +158,12 @@ extension EditorModel {
         lab.previewBuilder.folderChanged()
     }
 
+    /// Removes every proxy: none are made any more.
+    func removeProxies() async {
+        lab.previewBuilder.cancel()
+        await Task.detached(priority: .userInitiated) { PreviewStorage.removeProxies() }.value
+    }
+
     func setPreviewLimit(_ gigabytes: Int) {
         UserDefaults.standard.set(gigabytes, forKey: PreviewStorage.limitKey)
         renderArchive = PreviewStorage.store()
@@ -160,7 +179,7 @@ struct PreviewStorageSection: View {
     @State private var busy = false
     @State private var limit = PreviewStorage.limitGB
     @State private var folder = PreviewStorage.directory
-    @State private var proxies = PreviewStorage.buildsProxiesAhead ? "all" : "opened"
+    @State private var proxies = PreviewStorage.proxyMode
 
     var body: some View {
         InkSection(title: "Previews") {
@@ -180,12 +199,19 @@ struct PreviewStorageSection: View {
                 limit = value; model.setPreviewLimit(value)
                 Task { try? await Task.sleep(for: .seconds(1)); await refresh() }
             }
-            ChoiceRow(title: "Build proxies", items: [.option("For every photograph", tag: "all"), .option("Only as photographs are opened", tag: "opened")],
-                      selection: proxies) { tag in
-                proxies = tag
+            ChoiceRow(title: "Make proxies", items: PreviewStorage.ProxyMode.allCases.map { .option($0.title, tag: $0.rawValue) },
+                      selection: proxies.rawValue) { tag in
+                guard let mode = PreviewStorage.ProxyMode(rawValue: tag) else { return }
+                proxies = mode
                 UserDefaults.standard.set(tag, forKey: PreviewStorage.proxiesKey)
-                if tag == "all" { model.lab.previewBuilder.folderChanged() }
+                switch mode {
+                case .all: model.lab.previewBuilder.folderChanged()
+                // Never: those already made would never be read again, so they go.
+                case .never: Task { busy = true; await model.removeProxies(); await refresh(); busy = false }
+                case .opened: break
+                }
             }
+            HintText(proxyHint)
             ButtonRow {
                 Text(folder.path)
                     .font(.system(size: 11)).foregroundStyle(Theme.dim)
@@ -211,12 +237,21 @@ struct PreviewStorageSection: View {
                     .buttonStyle(OutlinedButtonStyle()).inkDisabled(busy)
                 }
             }
-            HintText("The previews, the proxies and the contact sheet's thumbnails. The oldest go first at the limit. In a new folder, previews and thumbnails go there at once, proxies from the next launch.")
+            HintText("The oldest go first at the limit. A new folder also takes the thumbnails; previews and thumbnails go there at once, proxies from the next launch.")
         }
         .task { await refresh() }
     }
 
     private func refresh() async { bytes = await model.previewCacheSize() }
+
+    private var proxyHint: String {
+        let what = "A proxy is a lighter copy of a RAW photograph, about 9 MB, that the lab opens and edits much faster than the RAW itself."
+        switch proxies {
+        case .all: return what + " Each photograph of a folder gets one in the background, so every one opens quickly."
+        case .opened: return what + " A photograph gets one the first time it’s opened: it opens quickly the next time."
+        case .never: return what + " Without them nothing is kept, and every photograph is read from its RAW: slower, especially on a network disk. Applies from the next launch."
+        }
+    }
 
     private func choose() {
         let panel = NSOpenPanel()

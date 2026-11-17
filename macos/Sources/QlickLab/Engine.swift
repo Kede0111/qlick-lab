@@ -340,7 +340,8 @@ final class EngineClient: @unchecked Sendable {
         // Qlick Lab: where the photographs' proxies are kept (`PreviewStorage.proxyDirectory`); tests keep none.
         if NSClassFromString("XCTestCase") == nil {
             var environment = ProcessInfo.processInfo.environment
-            environment["QLICK_PROXY_DIR"] = PreviewStorage.proxyDirectory.path
+            if PreviewStorage.usesProxies { environment["QLICK_PROXY_DIR"] = PreviewStorage.proxyDirectory.path }
+            else { environment["QLICK_PROXY_DIR"] = nil }
             child.environment = environment
         }
         if let quality { child.qualityOfService = quality }
