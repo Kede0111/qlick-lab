@@ -7,11 +7,12 @@ final class SupportTests: XCTestCase {
     private var suite = ""
 
     override func setUp() {
-        suite = "qlick-support-\(UUID().uuidString)"
+        suite = TestDefaults.name("qlick-support")
         defaults = UserDefaults(suiteName: suite)
     }
 
-    override func tearDown() { TestDefaults.remove(suite) }
+    // The test case outlives its test: its suite is let go first, or it writes its file again at the end.
+    override func tearDown() { defaults = nil; TestDefaults.remove(suite) }
 
     func testItWaitsForFiftyPhotographs() {
         for _ in 0..<49 { XCTAssertFalse(Support.record(1, in: defaults)) }

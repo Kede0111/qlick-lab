@@ -237,7 +237,7 @@ struct PreviewStorageSection: View {
                     .buttonStyle(OutlinedButtonStyle()).inkDisabled(busy)
                 }
             }
-            HintText("The oldest go first at the limit. A new folder also takes the thumbnails; previews and thumbnails go there at once, proxies from the next launch.")
+            HintText("The oldest go first when it’s full.")
         }
         .task { await refresh() }
     }
@@ -245,12 +245,7 @@ struct PreviewStorageSection: View {
     private func refresh() async { bytes = await model.previewCacheSize() }
 
     private var proxyHint: String {
-        let what = "A proxy is a lighter copy of a RAW photograph, about 9 MB, that the lab opens and edits much faster than the RAW itself."
-        switch proxies {
-        case .all: return what + " Each photograph of a folder gets one in the background, so every one opens quickly."
-        case .opened: return what + " A photograph gets one the first time it’s opened: it opens quickly the next time."
-        case .never: return what + " Without them nothing is kept, and every photograph is read from its RAW: slower, especially on a network disk. Applies from the next launch."
-        }
+        proxies == .never ? "Photographs open from their RAW: slower." : "Light copies of RAW files, for faster editing."
     }
 
     private func choose() {

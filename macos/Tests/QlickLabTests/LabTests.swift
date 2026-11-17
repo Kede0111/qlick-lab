@@ -206,7 +206,7 @@ final class GreasePencilTests: XCTestCase {
 
 @MainActor final class ShortcutStoreTests: XCTestCase {
     private func defaults() -> UserDefaults {
-        let name = "qlick-tests-\(UUID().uuidString)"
+        let name = TestDefaults.name("qlick-tests")
         let defaults = UserDefaults(suiteName: name)!
         addTeardownBlock { TestDefaults.remove(name) }
         return defaults

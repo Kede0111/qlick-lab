@@ -246,7 +246,7 @@ import XCTest
     }
 
     func testShowAllControlsMenuTogglesTheDefault() throws {
-        let suite = "qlick-ink-\(UUID().uuidString)"
+        let suite = TestDefaults.name("qlick-ink")
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
         defer { TestDefaults.remove(suite) }
         XCTAssertFalse(defaults.bool(forKey: AdjustmentInspector.allControlsKey))

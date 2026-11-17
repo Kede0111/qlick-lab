@@ -23,7 +23,7 @@ final class AppDataTests: XCTestCase {
         // cleanup target, even when recorded in the session or preferences.
         try JSONEncoder().encode(EditorSession(source: photo, state: EditState())).write(to: directories[0].appendingPathComponent("session.json"))
         try fm.createSymbolicLink(at: directories[1].appendingPathComponent("photographs"), withDestinationURL: originals)
-        let domain = "qlick-cleanup-test-\(UUID().uuidString)"
+        let domain = TestDefaults.name("qlick-cleanup-test")
         let unrelated = domain + "-other"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: domain))
         defer { TestDefaults.remove(domain); TestDefaults.remove(unrelated) }

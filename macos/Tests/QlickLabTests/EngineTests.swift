@@ -102,7 +102,7 @@ final class EngineTests: XCTestCase {
         defer { try? fm.removeItem(at: directory) }
         let helper = directory.appendingPathComponent("spektrafilm-native")
         try Data("#!/bin/sh\n".utf8).write(to: helper)
-        let suite = "qlick-tests-\(UUID().uuidString)"
+        let suite = TestDefaults.name("qlick-tests")
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
         defer { TestDefaults.remove(suite) }
         let paths = EnginePaths(helper: helper, exporter: helper, data: directory)
