@@ -206,6 +206,20 @@ struct LibraryFilter: Codable, Equatable, Sendable {
 
     /// Reads `photo`'s sidecar again now, pending writes included: after the
     /// app changed it in ways the summaries can't follow (duplicates, edits).
+    /// Qlick Lab: the photographs' sidecars as they now are, already read (by whoever changed them): one change
+    /// for all of them, without reading the disk here.
+    func update(_ reads: [URL: [LibraryItemRead]]) {
+        guard !reads.isEmpty else { return }
+        var updated = summaries
+        let before = looks
+        for (photo, read) in reads {
+            apply(read, for: photo, to: &updated)
+            for item in read.map(\.item) { revisions[item, default: 0] += 1 }
+        }
+        if updated != summaries { summaries = updated }
+        if looks != before { looksChanged?() }
+    }
+
     /// Qlick Lab: `reload` for several photographs, with one change at the end: a preset on thousands of frames
     /// doesn't recount the whole folder for each one.
     func reload(_ photos: [URL]) {

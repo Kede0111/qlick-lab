@@ -163,7 +163,7 @@ import Observation
             // The editor goes first, unless the preview is wanted now; one wanted now goes before this one.
             var deferred = false
             // Qlick Lab: the contact sheet's thumbnails go first, as they show the change.
-            while !Task.isCancelled, !urgent.contains(item), !model.backgroundMayRun || model.thumbnailsLeft > 0 {
+            while !Task.isCancelled, !urgent.contains(item), !model.backgroundMayRun || model.thumbnailsLeft > 0 || model.backgroundWork != nil {
                 if !urgent.isEmpty { deferred = true; break }
                 try? await Task.sleep(for: .milliseconds(300))
             }

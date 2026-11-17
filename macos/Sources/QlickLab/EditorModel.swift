@@ -2375,6 +2375,8 @@ import UserNotifications
     private(set) var thumbnailsLeft = 0
     /// Qlick Lab: work the lab does in the background that the sidebar shows, with how far it got.
     private(set) var backgroundWork: (title: String, done: Int, total: Int)?
+    /// Qlick Lab: the recipe being applied to many photographs; a new one, Stop or an undo cancels it.
+    @ObservationIgnored private var applyTask: Task<Void, Never>?
     /// The scan for the next thumbnails to develop.
     @ObservationIgnored private var thumbnailTask: Task<Void, Never>?
     @ObservationIgnored private var thumbnailsPumpAgain = false
@@ -3032,6 +3034,8 @@ import UserNotifications
     /// duplicate that's gone gives way to its photograph.
     private func restoreSidecars(_ files: [URL: JSONValue?], action: String) {
         guard let sidecars, !closing else { return }
+        // Qlick Lab: a recipe still balancing would write over what's put back.
+        applyTask?.cancel()
         sidecarWrite?.cancel(); sidecarWrite = nil
         var now: [URL: JSONValue?] = [:]
         for (photo, raw) in files {
@@ -5202,53 +5206,160 @@ import UserNotifications
     /// to the camera's, Exposure at 0: the recipe's look on photographs taken in any light.
     func labApply(_ preset: PresetFile, to items: [URL], adapting: Bool = false) {
         guard canChangePresets, canChangeEdits, !items.isEmpty, let engine else { return }
-        Task {
+        // A new recipe replaces the one still being applied: it stops after its batch, and this one starts.
+        applyTask?.cancel()
+        let previous = applyTask
+        applyTask = Task { [weak self] in
+            await previous?.value
+            guard let self, !Task.isCancelled else { return }
+            defer { self.backgroundWork = nil }
             do {
-                let text = try Self.presetText(try await presetLibrary.read(preset))
-                let (_, result) = try await engine.request(["command": .string("preset_import"), "text": .string(text), "params": plainState.params])
+                let text = try Self.presetText(try await self.presetLibrary.read(preset))
+                let (_, result) = try await engine.request(["command": .string("preset_import"), "text": .string(text), "params": self.plainState.params])
                 let (film, paper) = (result["film"].string, result["paper"].string)
-                guard films.contains(where: { $0.id == film }), papers.contains(where: { $0.id == paper }) else {
+                guard self.films.contains(where: { $0.id == film }), self.papers.contains(where: { $0.id == paper }) else {
                     throw EngineError(message: "This version of Qlick Lab doesn’t have the preset’s film or paper.")
                 }
-                let kept = catalog["preset_kept"].array.map(\.string), params = result["params"]
-                let balances = adapting ? await autoBalances(items) : [:]
+                guard !Task.isCancelled else { return }
+                let kept = self.catalog["preset_kept"].array.map(\.string), params = result["params"]
+                // Those on screen first: the change shows where you look.
+                let onScreen = self.thumbnailsOnScreen
+                let ordered = items.filter { onScreen.contains($0) } + items.filter { !onScreen.contains($0) }
                 let action = adapting ? "Apply Preset “\(preset.name)” with Auto Balance" : "Apply Preset “\(preset.name)”"
-                changeEdits(items, action: action, note: "Applied “\(preset.name)”" + (adapting ? ", balanced photograph by photograph" : "")) { item, base in
+                // The recipe, on every photograph at once.
+                let before = await self.changeEditsInBatches(ordered, title: "Applying “\(preset.name)”") { _, base in
                     var next = base
                     next.film = film; next.paper = paper; next.params = params
                     for path in kept { next.params[path] = base.params[path] }
                     if adapting {
-                        if let found = balances[item.photoFile] {
-                            next.params["io.raw_white_balance.mode"] = .string("custom")
-                            next.params["io.raw_white_balance.temperature"] = .number((found.temperature / 10).rounded() * 10)
-                            next.params["io.raw_white_balance.tint"] = .number(found.tint)
-                        }
                         next.brightnessMatch = BrightnessMatch()
                         next.params["prep.exposure_ev"] = .number(0)
                     }
                     return next
                 }
-                for item in items { notePresetApplied(preset.url, to: item) }
-                // Their previews are built again now, with the preset, each replacing the one before.
-                let stale = items.filter(lab.previewBuilder.needs)
-                if !stale.isEmpty { lab.previewBuilder.build(stale) }
+                if !before.isEmpty { self.registerSidecarUndo(before, action: action) }
+                self.libraryNote = LibraryNote(text: "Applied “\(preset.name)”" + (adapting ? ", balancing photograph by photograph" : ""), detail: nil,
+                                               count: items.count, serial: (self.libraryNote?.serial ?? 0) + 1)
+                for item in items { self.notePresetApplied(preset.url, to: item) }
+                // Then each RAW's own white balance, a few at a time, those on screen first. Each change shows as
+                // it's made; undo takes back the recipe and the balances together.
+                if adapting {
+                    let raws = ordered.filter { Self.rawExtensions.contains($0.photoFile.pathExtension.lowercased()) }
+                    var done = 0
+                    for start in stride(from: 0, to: raws.count, by: 8) {
+                        guard !Task.isCancelled else { break }
+                        let batch = Array(raws[start..<min(start + 8, raws.count)])
+                        let offset = done, total = raws.count
+                        let balances = await self.autoBalances(batch) { [weak self] index in self?.backgroundWork = ("Balancing", offset + index, total) }
+                        guard !Task.isCancelled else { break }
+                        done += batch.count
+                        _ = await self.changeEditsInBatches(batch, title: nil) { item, base in
+                            guard let found = balances[item.photoFile] else { return base }
+                            var next = base
+                            next.params["io.raw_white_balance.mode"] = .string("custom")
+                            next.params["io.raw_white_balance.temperature"] = .number((found.temperature / 10).rounded() * 10)
+                            next.params["io.raw_white_balance.tint"] = .number(found.tint)
+                            return next
+                        }
+                    }
+                }
+                // Their large previews after, each replacing the one before.
+                guard !Task.isCancelled else { return }
+                self.backgroundWork = nil
+                let stale = items.filter(self.lab.previewBuilder.needs)
+                if !stale.isEmpty { self.lab.previewBuilder.build(stale) }
             } catch {
-                report(error)
+                self.report(error)
             }
         }
     }
 
+    /// Stops the recipe being applied (and its balancing): what's done stays, and can be undone.
+    func stopApplying() { applyTask?.cancel() }
+
+    /// Qlick Lab: `changeEdits` for many photographs without holding up the lab. Their sidecars are read off the
+    /// main thread a batch at a time, changed here, queued and written, and the contact sheet learns each batch's
+    /// looks at once. Returns the sidecars as they were, for one undo; registers none itself. Stops between batches
+    /// when cancelled. The open photograph changes as `changeEdits` changes it.
+    private func changeEditsInBatches(_ items: [URL], title: String?, each transform: @escaping (URL, EditState) -> EditState) async -> [URL: JSONValue?] {
+        guard canChangeEdits, sidecarsEnabled, let sidecars, sidecars.writes, let lookup = sidecarLookup else {
+            if let open = sourceItem, items.contains(open) { apply(transform(open, state), action: title ?? "Change Edits") }
+            return [:]
+        }
+        flushSidecar()
+        var before: [URL: JSONValue?] = [:]
+        let open = sourceItem
+        if let open, items.contains(open), let context = photoSidecar, context.photo == open.photoFile, context.blocked == nil, !context.awaitingCatalog,
+           PhotoLibrary.canWrite(beside: open.photoFile) {
+            before[open.photoFile] = .some(try? sidecars.readPending(photo: open.photoFile))
+            replaceState(transform(open, state))
+            flushSidecar()
+            // Its own history is of edits that are gone.
+            undoManager?.removeAllActions(withTarget: self)
+            library.reload(open.photoFile)
+        }
+        let others = items.filter { $0 != open }
+        var current: [URL: JSONValue?] = [:]
+        for start in stride(from: 0, to: others.count, by: 64) {
+            if Task.isCancelled { break }
+            if let title { backgroundWork = (title, start, others.count) }
+            let batch = Array(others[start..<min(start + 64, others.count)])
+            let read = await Task.detached(priority: .userInitiated) { () -> [(item: URL, raw: JSONValue?)?] in
+                var writable: [URL: Bool] = [:]
+                return batch.map { item in
+                    let folder = item.photoFile.deletingLastPathComponent()
+                    let canWrite = writable[folder] ?? PhotoLibrary.canWrite(in: folder)
+                    writable[folder] = canWrite
+                    guard canWrite else { return nil }
+                    // No sidecar yet is nil here, and fine; only one that can't be read is left out.
+                    do { return (item, try sidecars.readPending(photo: item.photoFile)) } catch { return nil }
+                }
+            }.value
+            var reads: [URL: [LibraryItemRead]] = [:]
+            for entry in read {
+                guard let (item, read) = entry else { continue }
+                let photo = item.photoFile
+                // A photograph's duplicates in the same batch build on each other.
+                let raw = current[photo] ?? read
+                do {
+                    let sidecar = try raw.map(PhotoSidecar.init(raw:))
+                    let variant = item.variantID.map { id in sidecar?.variants.first { $0.id == id } } ?? sidecar?.variants.first
+                    if item.variantID != nil, variant == nil { continue }
+                    if before[photo] == nil { before[photo] = .some(read) }
+                    let version = sidecar?.defaultsVersion ?? SidecarDefaults.latest
+                    let table = try SidecarDefaults.load(version: version, data: lookup.data)
+                    let saved = try variant?.edits.map { try PhotoSidecar.decodeEdits($0, table: table) }
+                    let base = saved.map { restoredState($0.state, legacy: false) } ?? plainState
+                    let edits = PhotoSidecar.encodeEdits(transform(item, base), matchSolved: false, table: table)
+                    let patch = SidecarPatch(variant: variant?.id ?? SidecarRestore.newVariantID(), primary: item.variantID == nil,
+                                             edits: .some(edits), known: known(table), defaultsVersion: version, app: Self.appVersion)
+                    sidecars.enqueue(patch, for: photo)
+                    let next = try patch.applied(to: raw)
+                    current[photo] = .some(next)
+                    reads[photo] = try next.map { try PhotoSidecar(raw: $0).items(of: photo) } ?? [LibraryItemRead(item: photo)]
+                } catch {
+                    continue
+                }
+            }
+            library.update(reads)
+            writeSidecars()
+            await Task.yield()
+        }
+        return before
+    }
+
     /// Qlick Lab: each RAW photograph's Auto white balance, as the engine finds it (its preview's proxy answers at
     /// once; otherwise it reads the photograph), in a helper of its own. Photographs it can't balance are left out.
-    private func autoBalances(_ items: [URL]) async -> [URL: (temperature: Double, tint: Double)] {
+    private func autoBalances(_ items: [URL], progress: ((Int) -> Void)? = nil) async -> [URL: (temperature: Double, tint: Double)] {
         let photos = Array(Set(items.map(\.photoFile))).filter { Self.rawExtensions.contains($0.pathExtension.lowercased()) }
         guard !photos.isEmpty, let paths = labEnginePaths, let helper = try? EngineClient(paths: paths, quality: .utility) else { return [:] }
         helper.label = "balance"
         defer { Task.detached(priority: .utility) { helper.stop() } }
         var found: [URL: (temperature: Double, tint: Double)] = [:]
-        defer { backgroundWork = nil }
         for (index, photo) in photos.enumerated() {
-            backgroundWork = ("Balancing", index, photos.count)
+            // Qlick Lab: stopped, or replaced by another recipe.
+            if Task.isCancelled { break }
+            progress?(index)
             if let known = lab.asShot.autos[photo] { found[photo] = known; continue }
             status = "Balancing \(index + 1) of \(photos.count)…"
             let state = labEdits(for: photo).state

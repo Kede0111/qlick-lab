@@ -304,18 +304,23 @@ private struct WorkProgress: View {
     let model: EditorModel
     var body: some View {
         if let work = model.backgroundWork, work.total > 0 {
-            row(work.title, figure: "\(min(work.done + 1, work.total)) / \(work.total)", value: Double(work.done) / Double(work.total))
+            row(work.title, figure: "\(min(work.done + 1, work.total)) / \(work.total)", value: Double(work.done) / Double(work.total),
+                stop: { model.stopApplying() })
         } else if model.thumbnailsLeft > 0 {
-            row("Updating thumbnails", figure: "\(model.thumbnailsLeft) left", value: nil)
+            row("Thumbnails", figure: "\(model.thumbnailsLeft) to update", value: nil, stop: nil)
         }
     }
 
-    private func row(_ title: String, figure: String, value: Double?) -> some View {
+    private func row(_ title: String, figure: String, value: Double?, stop: (() -> Void)?) -> some View {
         VStack(alignment: .leading, spacing: 5) {
             HStack {
-                Text(title).font(.system(size: 10.5)).foregroundStyle(Q.dim)
+                Text(title).font(.system(size: 10.5)).foregroundStyle(Q.dim).lineLimit(1).truncationMode(.middle)
                 Spacer()
                 Text(figure).font(Q.value(10.5)).foregroundStyle(Q.dim)
+                if let stop {
+                    Button(action: stop) { Image(systemName: "xmark.circle.fill").font(.system(size: 10)).foregroundStyle(Q.dim) }
+                        .buttonStyle(.plain).help("Stop. What's done stays, and can be undone.")
+                }
             }
             if let value { ProgressView(value: value).progressViewStyle(.linear).tint(Q.red).controlSize(.mini) }
             else { ProgressView().progressViewStyle(.linear).tint(Q.red).controlSize(.mini) }
