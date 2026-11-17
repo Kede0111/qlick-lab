@@ -43,7 +43,7 @@ sheet with a red grease pencil, compare frames, develop the keepers and print.
 </p>
 
 ### Development
-- **About sixty film stocks and papers**: Portra, Ektar, Gold, Tri-X, Velvia, CineStill and more, each with its own
+- **[62 film stocks and papers](#film-stocks-and-papers)**: Portra, Ektar, Gold, Tri-X, Velvia, CineStill and more, each with its own
   measured curves, where it comes from and how far it can be trusted. Every stock shows a preview developed on *your*
   photograph.
 - Exposure, grain, halation, glare, DIR couplers, the print and the scan, crop, straighten, 35 mm borders.
@@ -75,6 +75,43 @@ sheet with a red grease pencil, compare frames, develop the keepers and print.
   in Settings › Shortcuts.
 - **Your photos stay on your Mac.** No account, no cloud, no tracking, no analytics. The app opens the network only
   when you click a link (GitHub, PayPal).
+
+## Film stocks and papers
+
+Every profile comes from spektrafilm and its community. Each is built from the manufacturer's published data, and the
+app shows where it comes from and how far it can be trusted. In the app, each one previews on your own photograph.
+
+**Colour negative (22)**
+
+Kodak Portra 160 · Portra 400 · Portra 800 · Portra 800 (Push 1) · Portra 800 (Push 2) · Ektar 100 · Gold 200 ·
+Ultramax 400 · Kodacolor 100 · Aerocolor IV 2460 · Fujifilm Pro 160NS · Pro 400H · C200 · Superia 200 ·
+Superia Reala 100 · X-Tra 400 · CineStill 400D · CineStill 800T · Harman Phoenix 200 · Lomography Color Negative 100 ·
+LomoChrome Metropolis · LomoChrome Turquoise
+
+**Slide (13)**
+
+Kodak Ektachrome 100 · Kodachrome 25 · Kodachrome 64 · Kodachrome 200 · Aerochrome III 1443 (infrared) ·
+Fujifilm Velvia 50 · Velvia 100 · Provia 100F · Astia 100F · Agfa Agfachrome 50 · Agfachrome 100 · Agfachrome 200 ·
+Infrared Color (creative)
+
+**Motion picture (9)**
+
+Kodak Vision3 50D · Vision3 200T · Vision3 250D · Vision3 500T · Verita 200D · Fujifilm Eterna 500 ·
+Eterna Vivid 500 · Reala 500D · F-64D
+
+**Black and white (8)**
+
+Kodak Tri-X 400 (experimental) · T-MAX 100 · Double-X 5222 · Tri-X Reversal 7266 · Ilford HP5 Plus · FP4 Plus ·
+Delta 3200 · Fujifilm Neopan 100 Acros II
+
+**Papers (7)**
+
+Kodak Professional Portra Endura · Supra Endura · Ultra Endura · Endura Premier · Ektacolor Edge ·
+Fujifilm Crystal Archive Type II · Ilford Multigrade RC Deluxe Grade 2 (experimental, black and white)
+
+**Cinema print films (3)**
+
+Kodak Vision 2383 · Vision Premier 2393 · Print Film 2302 (black and white)
 
 ## Install
 
