@@ -1,0 +1,31 @@
+name: Something doesn't work
+description: A crash, a wrong development, a button that does nothing.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, what you saw instead. Screenshots help.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Qlick Lab version
+      description: Qlick Lab › About Qlick Lab
+      placeholder: "0.1.0"
+    validations:
+      required: true
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version and Mac
+      placeholder: "macOS 26.1, MacBook Pro M3"
+    validations:
+      required: true
+  - type: input
+    id: camera
+    attributes:
+      label: Camera and file type, if it's about a photograph
+      placeholder: "Leica M11, DNG"

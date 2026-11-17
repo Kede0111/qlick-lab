@@ -1,0 +1,755 @@
+import AppKit
+import SwiftUI
+
+/// The grid (§4.6): a black sheet over the whole window below the title bar,
+/// with the inspector under it. A sentence at the top says what's shown and
+/// holds the filter; the photographs are packed in rows at their own
+/// proportions, without captions; the foot counts them and sizes the rows.
+/// Like the strip it shows embedded previews or developed thumbnails, so it
+/// never develops a RAW. A click selects a photograph and a double-click
+/// opens it and folds the grid; ⌘- and ⇧-clicks, the arrow keys and the
+/// rubber band select too, for the context menu.
+struct GridSheet: View {
+    let model: EditorModel
+
+    var body: some View {
+        // Built only while it shows, so the photograph view pays nothing for
+        // it; it stays while it folds back into the strip.
+        if model.mode == .grid || model.sheetFolding {
+            VStack(spacing: 0) {
+                SheetSentence(model: model)
+                SheetGrid(model: model)
+                SheetFoot(model: model)
+            }
+            .background(Theme.film)
+            // Where the cells report their places (`SheetFlight`).
+            .coordinateSpace(.named(ThumbnailPlaces.space))
+            .overlay(alignment: .topTrailing) {
+                HStack(spacing: 6) {
+                    // Qlick Lab: the contact sheet's views, to go back to the strips.
+                    if model.lab.workspace == .contactSheet { SheetStylePicker(lab: model.lab).padding(.top, 9) }
+                    SheetHandle(model: model)
+                }
+            }
+            .overlay {
+                // Qlick Lab: the frame seen large (Space), as over the contact sheet's strips.
+                if let loupe = model.lab.loupe {
+                    SheetLoupe(model: model, item: loupe).transition(.opacity)
+                }
+            }
+            .animation(Q.quick, value: model.lab.loupe)
+            .environment(\.colorScheme, .dark)
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel("All photographs")
+        }
+    }
+}
+
+// MARK: The sentence
+
+/// "Showing *all* 12 photographs", or when filtered "Showing 4 of 12 ·
+/// rated *★★★ or more*, *picks*, *edited* ×". Each underlined word opens the
+/// filter menu; × clears the filter. The filter lives only here (round 4).
+private struct SheetSentence: View {
+    let model: EditorModel
+
+    var body: some View {
+        let filter = model.library.filter
+        let total = model.library.items.count
+        HStack(spacing: 0) {
+            if filter.active {
+                Text("Showing \(model.shownPhotos.count) of \(total) · ")
+                ForEach(Array(SheetWords.words(for: filter).enumerated()), id: \.offset) { index, part in
+                    if index > 0 { Text(", ") }
+                    if !part.lead.isEmpty { Text(part.lead) }
+                    FilterWord(model: model, word: part.word, on: true)
+                }
+                Button { model.library.filter = LibraryFilter() } label: { ClearMark() }
+                    .buttonStyle(.plain)
+                    .padding(.leading, 8)
+                    .help("Clear Filter (⌥⌘L)")
+                    .accessibilityLabel("Clear Filter")
+            } else {
+                Text("Showing ")
+                FilterWord(model: model, word: "all", on: false)
+                Text(" " + SheetWords.photographs(total))
+            }
+        }
+        .font(Theme.serif(17, italic: true))
+        .foregroundStyle(Theme.dim)
+        .lineLimit(1)
+        .padding(.horizontal, 22)
+        .frame(maxWidth: .infinity, minHeight: 46, maxHeight: 46, alignment: .leading)
+    }
+}
+
+/// The sheet's words, worked out apart from the views so they can be tested.
+enum SheetWords {
+    struct Part: Equatable {
+        /// Words before the underlined one ("rated ").
+        let lead: String
+        let word: String
+    }
+
+    static func photographs(_ count: Int) -> String { count == 1 ? "1 photograph" : "\(count) photographs" }
+
+    /// What the filter lets through, as the sentence says it.
+    static func words(for filter: LibraryFilter) -> [Part] {
+        var parts: [Part] = []
+        switch filter.rating {
+        case .any: break
+        case .atLeast(5): parts.append(Part(lead: "rated ", word: "★★★★★"))
+        case .atLeast(let stars): parts.append(Part(lead: "rated ", word: String(repeating: "★", count: stars) + " or more"))
+        case .unrated: parts.append(Part(lead: "", word: "unrated"))
+        case .atMost(let stars): parts.append(Part(lead: "rated ", word: String(repeating: "★", count: stars) + " or fewer"))
+        case .exactly(let stars): parts.append(Part(lead: "rated exactly ", word: String(repeating: "★", count: stars)))
+        }
+        let flags = FilterMenu.flagChoices.filter { filter.flags.contains($0.flag) }.map { $0.title.lowercased() }
+        if !flags.isEmpty { parts.append(Part(lead: "", word: flags.joined(separator: " or "))) }
+        if filter.editedOnly { parts.append(Part(lead: "", word: "edited")) }
+        return parts
+    }
+
+    /// The foot's count: "12 photographs · 1 selected", or "4 of 12 photographs".
+    static func count(shown: Int, total: Int, selected: Int, filtered: Bool) -> String {
+        if filtered { return "\(shown) of \(photographs(total))" }
+        return selected > 0 ? "\(photographs(total)) · \(selected) selected" : photographs(total)
+    }
+}
+
+/// An underlined word with a ⌄ that opens the filter menu under it. While
+/// a filter is on, the pencil is under it instead of the plain line.
+private struct FilterWord: View {
+    let model: EditorModel
+    let word: String
+    let on: Bool
+    @State private var hovered = false
+    @State private var anchor = MenuAnchor()
+
+    var body: some View {
+        Button {
+            FilterMenu(model: model).popUp(below: anchor.view)
+        } label: {
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text(word)
+                    .font(Theme.serif(17))
+                    .foregroundStyle(Theme.paper)
+                    .overlay(alignment: .bottom) {
+                        if on {
+                            PencilStroke().pencil().frame(height: 5).offset(y: 5)
+                        } else {
+                            Rectangle().fill(hovered ? Theme.dim : Theme.track).frame(height: 1).offset(y: 3)
+                        }
+                    }
+                Text("⌄").font(Theme.ui(12)).foregroundStyle(Theme.dim).offset(y: -2)
+            }
+            .background(AnchorView(anchor: anchor))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovered = $0 }
+        .help("Filter photographs by rating and flag")
+        .accessibilityLabel("Filter: \(word)")
+    }
+}
+
+private struct ClearMark: View {
+    @State private var hovered = false
+    var body: some View {
+        Text("×").font(Theme.ui(13)).foregroundStyle(hovered ? Theme.paper : Theme.dim).onHover { hovered = $0 }
+    }
+}
+
+/// The filter menu, a native menu with today's items: Rating, Flags,
+/// Edited Only and Clear Filter (⌥⌘L).
+@MainActor final class FilterMenu: NSObject {
+    private let model: EditorModel
+    init(model: EditorModel) { self.model = model }
+
+    nonisolated static let flagChoices: [(flag: LibraryFilter.Flag, title: String)] = [(.pick, "Picks"), (.unflagged, "Unflagged"), (.reject, "Rejected")]
+
+    /// Opens it under `view` and returns once it closes.
+    func popUp(below view: NSView?) {
+        guard let view else { return }
+        let menu = NSMenu(title: "Filter")
+        menu.appearance = NSAppearance(named: .darkAqua)
+        fill(menu)
+        let y = view.isFlipped ? view.bounds.maxY + 6 : view.bounds.minY - 6
+        menu.popUp(positioning: nil, at: NSPoint(x: view.bounds.minX - 14, y: y), in: view)
+    }
+
+    /// Fills `menu` with the filter as it is now.
+    func fill(_ menu: NSMenu) {
+        let filter = model.library.filter
+        func add(_ title: String, _ action: Selector, on: Bool, tag: Int = 0) {
+            let item = menu.addItem(withTitle: title, action: action, keyEquivalent: "")
+            item.target = self; item.tag = tag; item.state = on ? .on : .off
+        }
+        menu.addItem(.sectionHeader(title: "Rating"))
+        add("Any Rating", #selector(rating(_:)), on: filter.rating == .any, tag: -1)
+        for stars in 1...5 {
+            add(stars == 5 ? "★★★★★" : "≥ " + String(repeating: "★", count: stars), #selector(rating(_:)), on: filter.rating == .atLeast(stars), tag: stars)
+        }
+        add("Unrated Only", #selector(rating(_:)), on: filter.rating == .unrated, tag: 0)
+        menu.addItem(.separator())
+        menu.addItem(.sectionHeader(title: "Flags"))
+        for (index, (flag, title)) in Self.flagChoices.enumerated() {
+            add(title, #selector(flag(_:)), on: filter.flags.contains(flag), tag: index)
+        }
+        menu.addItem(.separator())
+        add("Edited Only", #selector(edited), on: filter.editedOnly)
+        menu.addItem(.separator())
+        let clear = menu.addItem(withTitle: "Clear Filter", action: filter.active ? #selector(clear) : nil, keyEquivalent: "l")
+        clear.keyEquivalentModifierMask = [.command, .option]; clear.target = self
+    }
+
+    @objc private func rating(_ item: NSMenuItem) {
+        model.library.filter.rating = switch item.tag { case -1: .any; case 0: .unrated; default: .atLeast(item.tag) }
+    }
+    @objc private func flag(_ item: NSMenuItem) {
+        let flag = Self.flagChoices[item.tag].flag
+        if model.library.filter.flags.contains(flag) { model.library.filter.flags.remove(flag) } else { model.library.filter.flags.insert(flag) }
+    }
+    @objc private func edited() { model.library.filter.editedOnly.toggle() }
+    @objc private func clear() { model.library.filter = LibraryFilter() }
+}
+
+// MARK: The grid
+
+private struct SheetGrid: View {
+    let model: EditorModel
+    /// The rubber band, in the grid's coordinates, and the selection it adds to.
+    @State private var band: CGRect?
+    @State private var bandBase: Set<URL> = []
+    @State private var scroller = SheetScroller()
+    @FocusState private var focused: Bool
+    @Environment(\.displayScale) private var displayScale
+
+    var body: some View {
+        let library = model.library
+        let shown = library.filtering ? [] : model.shownPhotos
+        let ratios = model.aspects.ratios
+        let target = CGFloat(model.gridCellSize)
+        // Landscape pictures are about 1.5 × the row height across.
+        let size = PhotoThumbnails.Size.grid(points: target * 1.5, scale: displayScale)
+        GeometryReader { geometry in
+            let layout = SheetLayout(ratios: shown.map { ratios[$0.url] ?? PhotoAspects.fallback }, width: geometry.size.width, target: target)
+            grid(layout: layout, shown: shown, size: size, viewport: geometry.size)
+        }
+        .focusable()
+        .focusEffectDisabled()
+        .focused($focused)
+        .onAppear { focused = true }
+        // Qlick Lab: Space shows the current photograph large, as on the contact sheet's other views.
+        .onKeyPress(.space, phases: .down) { press in
+            guard press.modifiers.isDisjoint(with: [.command, .option, .control]), let current = model.selection.current else { return .ignored }
+            model.lab.loupe = model.lab.loupe == nil ? current : nil
+            return .handled
+        }
+        .onKeyPress(keys: [.leftArrow, .rightArrow, .upArrow, .downArrow], phases: [.down, .repeat]) { press in
+            guard press.modifiers.isDisjoint(with: [.command, .option, .control]) else { return .ignored }
+            let extending = press.modifiers.contains(.shift)
+            switch press.key {
+            case .leftArrow: model.move(by: -1, extending: extending)
+            case .rightArrow: model.move(by: 1, extending: extending)
+            case .upArrow: model.moveRow(by: -1, extending: extending)
+            default: model.moveRow(by: 1, extending: extending)
+            }
+            return .handled
+        }
+        .overlay {
+            if library.loading || library.filtering { ProgressView() }
+            else if library.failed { SheetNote(text: "This folder couldn’t be read.") }
+            else if library.files.isEmpty { SheetNote(text: "No supported photographs in this folder.") }
+            else if shown.isEmpty { SheetNote(text: "No photographs match the filter.") }
+        }
+        .accessibilityLabel("Photographs")
+    }
+
+    /// Cells are built this far above and below the grid's view.
+    static let margin: CGFloat = 300
+
+    private func grid(layout: SheetLayout, shown: [PhotoFile], size: PhotoThumbnails.Size, viewport: CGSize) -> some View {
+        let selection = model.selection
+        let currentIndex = selection.current.flatMap { current in shown.firstIndex { $0.url == current } }
+        let currentRow = currentIndex.flatMap(layout.row(of:))
+        // Only the cells in or near view are built, each where the layout puts it.
+        let top = scroller.watch.origin.y - Self.margin
+        let cells = layout.indices(from: top, to: top + Self.margin * 2 + ScrollWatch.step + viewport.height)
+            .map { (index: $0, file: shown[$0]) }
+        return ScrollView(.vertical) {
+            ZStack(alignment: .topLeading) {
+                SheetScrollHook(scroller: scroller)
+                    .frame(width: viewport.width, height: max(layout.height, viewport.height))
+                // Empty space: a click selects only the current
+                // photograph, a drag draws a rubber band.
+                Color.clear
+                    .frame(width: viewport.width, height: max(layout.height, viewport.height))
+                    .contentShape(Rectangle())
+                    .gesture(bandGesture(layout, shown))
+                    .onTapGesture {
+                        focused = true
+                        if NSEvent.modifierFlags.isDisjoint(with: [.command, .shift]) { model.deselectAll() }
+                    }
+                ForEach(cells, id: \.file.url) { cell in
+                    self.cell(cell.file, frame: layout.frames[cell.index], size: size)
+                }
+                // The boxes (a pick's cream one, selection's yellow one)
+                // reach past their pictures, over the 6 pt gaps and the
+                // thumbnails beside them, so they're drawn above every
+                // thumbnail, placed as the cells are. Not by raising the
+                // boxed cells: that would move them to the end for VoiceOver.
+                // All the cream boxes first, then all the yellow ones, so a
+                // selected photograph's box is over a neighbour's pick box.
+                ForEach(cells, id: \.file.url) { cell in
+                    box(cell.file, frame: layout.frames[cell.index], selection: false)
+                }
+                ForEach(cells, id: \.file.url) { cell in
+                    box(cell.file, frame: layout.frames[cell.index], selection: true)
+                }
+                if let band {
+                    Rectangle()
+                        .fill(Theme.paper.opacity(0.06))
+                        .overlay(Rectangle().strokeBorder(Theme.label.opacity(0.7), lineWidth: 1))
+                        .frame(width: band.width, height: band.height)
+                        .offset(x: band.minX, y: band.minY)
+                        .allowsHitTesting(false)
+                }
+            }
+        }
+        .scrollIndicators(.automatic)
+        .onAppear {
+            model.gridLayout = layout
+            model.gridThumbnailSize = size
+            scroller.layout = layout
+            scroller.magnify = { phase, magnification, point in magnify(phase, magnification, at: point) }
+            // Opens on the current photograph.
+            if let currentRow { scroller.centre(layout.rows[currentRow], in: layout, viewport: viewport.height) }
+        }
+        .onChange(of: layout) { old, layout in
+            model.gridLayout = layout
+            scroller.layoutChanged(from: old, to: layout, holding: currentIndex)
+        }
+        .onChange(of: size) { _, size in model.gridThumbnailSize = size; model.prefetchThumbnails() }
+        .onChange(of: selection.current) { _, _ in
+            guard band == nil, let currentIndex, let currentRow else { return }
+            // Far enough that its whole yellow box shows, which reaches
+            // past the picture and its row; else as near as the row.
+            if !scroller.reveal(layout.selectionBox(currentIndex, name: shown[currentIndex].name)) {
+                scroller.centre(layout.rows[currentRow], in: layout, viewport: viewport.height)
+            }
+        }
+        .onChange(of: model.library.filtering) { _, filtering in
+            if !filtering, let currentRow { scroller.centre(layout.rows[currentRow], in: layout, viewport: viewport.height) }
+        }
+    }
+
+    private func cell(_ file: PhotoFile, frame: CGRect, size: PhotoThumbnails.Size) -> some View {
+        let selection = model.selection, library = model.library
+        let url = file.url
+        return SheetCell(file: file, size: frame.size, thumbnail: size,
+                         waiting: model.sheetWaiting.contains(url),
+                         selected: SheetLayout.drawnSelected(url, selection: selection),
+                         current: url == selection.current, summary: library.summary(for: url),
+                         readOnly: library.readOnly, edited: model.editedThumbnail(for: url)) { visible in
+            model.thumbnailShown(file, visible)
+        } loaded: { image in
+            model.aspects.note(url, image: image)
+        } placed: { place in
+            model.places.sheet[url] = place
+        } click: {
+            focused = true
+            let modifiers = NSEvent.modifierFlags
+            model.click(url, command: modifiers.contains(.command), shift: modifiers.contains(.shift))
+        } open: {
+            // A double-click opens it and folds the grid.
+            model.click(url)
+            model.editCurrent()
+        }
+        .contextMenu { LibraryContextMenu(model: model, item: url) }
+        .offset(x: frame.minX, y: frame.minY)
+    }
+
+    /// A cell's boxes, where its cell is, rising with it as the grid
+    /// opens: a pick's in cream, and selection's in yellow over it.
+    private func box(_ file: PhotoFile, frame: CGRect, selection layer: Bool) -> some View {
+        let url = file.url
+        let waiting = model.sheetWaiting.contains(url)
+        let picked = model.library.summary(for: url).flag == .pick, selected = SheetLayout.drawnSelected(url, selection: model.selection)
+        return ZStack {
+            if layer ? selected : picked {
+                BoxInk(name: file.name, picked: !layer, selected: layer)
+            }
+        }
+        .frame(width: frame.width, height: frame.height)
+        .opacity(waiting ? 0 : 1)
+        .offset(x: frame.minX, y: frame.minY + (waiting ? 14 : 0))
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+
+    /// A pinch over the grid sizes its rows, as the foot's Size does, and
+    /// keeps the photograph under the fingers where it was. False outside
+    /// the grid (while it folds), so the photograph's own zoom gets it.
+    private func magnify(_ phase: NSEvent.Phase, _ magnification: CGFloat, at point: CGPoint) -> Bool {
+        guard model.mode == .grid else { return false }
+        if !phase.isDisjoint(with: [.ended, .cancelled]) {
+            scroller.endPinch()
+            return true
+        }
+        if phase.contains(.began) || !scroller.pinching { scroller.beginPinch(at: point, size: model.gridCellSize) }
+        if let size = scroller.pinch(by: magnification), size != model.gridCellSize { model.gridCellSize = size }
+        return true
+    }
+
+    /// A drag from empty space selects the photographs it touches; with ⌘
+    /// or ⇧ they're added to the selection.
+    private func bandGesture(_ layout: SheetLayout, _ shown: [PhotoFile]) -> some Gesture {
+        DragGesture(minimumDistance: 3)
+            .onChanged { value in
+                if band == nil {
+                    focused = true
+                    bandBase = NSEvent.modifierFlags.isDisjoint(with: [.command, .shift]) ? [] : model.selection.selected
+                }
+                let rect = CGRect(x: min(value.startLocation.x, value.location.x), y: min(value.startLocation.y, value.location.y),
+                                  width: abs(value.location.x - value.startLocation.x), height: abs(value.location.y - value.startLocation.y))
+                band = rect
+                model.band(layout.indices(in: rect).filter { shown.indices.contains($0) }.map { shown[$0].url }, adding: bandBase)
+            }
+            .onEnded { _ in band = nil; bandBase = [] }
+    }
+}
+
+extension SheetLayout {
+    /// The room left round a box scrolled into view, past its ink and halo.
+    static let boxMargin: CGFloat = 10
+
+    /// Where the `index`th photograph's yellow box is drawn, in the grid's
+    /// coordinates, with `boxMargin` round it: what scrolls into view.
+    func selectionBox(_ index: Int, name: String) -> CGRect {
+        let frame = frames[index]
+        let box = PickBox.selection(in: frame.size, name: name).path(in: frame.size).boundingRect
+        return box.offsetBy(dx: frame.minX, dy: frame.minY).insetBy(dx: -Self.boxMargin, dy: -Self.boxMargin)
+    }
+
+    /// The photograph at `point`, or else the nearest one: in the row
+    /// nearest it, the one nearest across. Nil without photographs.
+    func nearest(to point: CGPoint) -> Int? {
+        func distance(_ low: CGFloat, _ high: CGFloat, _ value: CGFloat) -> CGFloat { max(low - value, value - high, 0) }
+        guard let row = rows.min(by: { distance($0.y, $0.y + $0.height, point.y) < distance($1.y, $1.y + $1.height, point.y) }) else { return nil }
+        return row.range.min { distance(frames[$0].minX, frames[$0].maxX, point.x) < distance(frames[$1].minX, frames[$1].maxX, point.x) }
+    }
+}
+
+/// The grid's way into the AppKit scroll view under its SwiftUI one, which
+/// on macOS 14 can only scroll a view into view whole: to scroll exactly as
+/// far as a cell's box, which reaches past its row, and to keep the
+/// photograph under a pinch in place while the rows resize. Works in the
+/// grid's coordinates, through a view as big as the grid (`SheetScrollHook`).
+@MainActor final class SheetScroller {
+    fileprivate weak var view: SheetScrollView?
+    /// Where the grid is scrolled to: which cells are built.
+    let watch = ScrollWatch()
+    /// The grid as laid out now.
+    var layout: SheetLayout?
+    /// Told of each pinch over the grid: its phase, how much it scaled, and
+    /// where, in the grid's coordinates. True if it was taken.
+    var magnify: ((NSEvent.Phase, CGFloat, CGPoint) -> Bool)?
+    /// The pinch under way: the Size it started from, and how much it has scaled.
+    private var pinch: (start: Double, scale: Double)?
+    /// Ends a pinch whose end never came.
+    private var pinchTimeout: DispatchWorkItem?
+    /// The photograph held under a pinch: how far down its picture, and how
+    /// far from the top of the view, the fingers were.
+    private var anchor: (index: Int, down: CGFloat, fromTop: CGFloat)?
+    /// The photograph held in place while the grid is laid out anew
+    /// without a pinch, in the same terms.
+    private var held: (index: Int, down: CGFloat, fromTop: CGFloat)?
+
+    /// Scrolls up or down as little as shows `rect` whole. False before the
+    /// grid is on screen.
+    func reveal(_ rect: CGRect) -> Bool {
+        guard let view, view.window != nil else { return false }
+        // Up and down only: the rows fit across.
+        view.scrollToVisible(NSRect(x: view.visibleRect.minX, y: rect.minY, width: 1, height: rect.height))
+        return true
+    }
+
+    var pinching: Bool { pinch != nil }
+
+    /// Scrolls so `row` is in the middle of a view `viewport` high, as far
+    /// as the grid's ends let it; before the grid is on screen, once it is.
+    func centre(_ row: SheetLayout.Row, in layout: SheetLayout, viewport: CGFloat) {
+        let y = row.y + row.height / 2 - viewport / 2
+        watch.scroll(y: min(max(y, 0), max(layout.height - viewport, 0)))
+    }
+
+    /// The grid was laid out anew. In a pinch the photograph under the
+    /// fingers stays put; otherwise, when the photographs are the same (their
+    /// shapes were read, the window was resized), the current photograph
+    /// stays where it is on screen, or if it's out of view the one in the
+    /// middle, rather than the rows sliding under the view.
+    func layoutChanged(from old: SheetLayout, to new: SheetLayout, holding current: Int?) {
+        layout = new
+        if pinching { return keepAnchor() }
+        guard old.frames.count == new.frames.count, let view else { return }
+        let visible = view.visibleRect
+        guard visible.height > 0 else { return }
+        let index = current.flatMap { old.frames.indices.contains($0) && old.frames[$0].intersects(visible) ? $0 : nil }
+            ?? old.nearest(to: CGPoint(x: visible.midX, y: visible.midY))
+        guard let index else { return }
+        let frame = old.frames[index]
+        held = (index, 0.5, frame.midY - visible.minY)
+        keepAnchor()
+        // Again once the grid's height has followed, then let go.
+        DispatchQueue.main.async { [weak self] in
+            self?.keepAnchor()
+            self?.held = nil
+        }
+    }
+
+    /// A pinch starts at `point`, the rows `size` high: the photograph under
+    /// it is held there.
+    func beginPinch(at point: CGPoint, size: Double) {
+        pinch = (size, 1)
+        guard let view, let layout, let index = layout.nearest(to: point) else { anchor = nil; return }
+        let frame = layout.frames[index]
+        anchor = (index, (point.y - frame.minY) / max(frame.height, 1), point.y - view.visibleRect.minY)
+    }
+
+    /// The rows' height after the pinch scaled by `magnification` more.
+    func pinch(by magnification: CGFloat) -> Double? {
+        guard var pinch else { return nil }
+        let sizes = SheetLayout.sizes
+        // Held at the ends, so turning back resizes at once.
+        pinch.scale = min(max(pinch.scale * (1 + magnification), sizes.lowerBound / pinch.start), sizes.upperBound / pinch.start)
+        self.pinch = pinch
+        // Should its end go astray, the pinch ends once the fingers have
+        // been still a moment, so the photograph isn't held after it.
+        pinchTimeout?.cancel()
+        let timeout = DispatchWorkItem { [weak self] in self?.endPinch() }
+        pinchTimeout = timeout
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: timeout)
+        return (pinch.start * pinch.scale).rounded()
+    }
+
+    /// Scrolls so the held photograph is where it was under the fingers:
+    /// for each new layout, and again once the grid's height has followed.
+    func keepAnchor() {
+        guard let anchor = anchor ?? held, let view, let layout, layout.frames.indices.contains(anchor.index) else { return }
+        let frame = layout.frames[anchor.index]
+        let top = frame.minY + anchor.down * frame.height - anchor.fromTop
+        let visible = view.visibleRect
+        guard abs(visible.minY - top) >= 0.5 else { return }
+        view.scrollToVisible(NSRect(x: visible.minX, y: max(top, 0), width: visible.width, height: visible.height))
+    }
+
+    /// The pinch is over: once its last size is laid out, nothing is held.
+    func endPinch() {
+        pinch = nil
+        pinchTimeout?.cancel(); pinchTimeout = nil
+        DispatchQueue.main.async { [weak self] in
+            self?.keepAnchor()
+            self?.anchor = nil
+        }
+    }
+}
+
+/// An empty view as big as the grid, under it in the scroll view, through
+/// which `SheetScroller` reads and moves the scroll position and hears
+/// pinches. It never takes a click.
+private struct SheetScrollHook: NSViewRepresentable {
+    let scroller: SheetScroller
+
+    func makeNSView(context: Context) -> SheetScrollView {
+        let view = SheetScrollView()
+        view.scroller = scroller
+        scroller.view = view
+        return view
+    }
+
+    func updateNSView(_ view: SheetScrollView, context: Context) {
+        view.scroller = scroller
+        scroller.view = view
+    }
+}
+
+private final class SheetScrollView: NSView {
+    weak var scroller: SheetScroller?
+    private var monitor: Any?
+
+    override var isFlipped: Bool { true }
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+    override func setFrameSize(_ size: NSSize) {
+        let changed = size != frame.size
+        super.setFrameSize(size)
+        if changed { scroller?.keepAnchor() }
+    }
+
+    // A pinch goes to the view under it, and SwiftUI's keep it, so it's
+    // heard on its way into the window instead.
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        if let monitor { NSEvent.removeMonitor(monitor); self.monitor = nil }
+        scroller?.watch.attach(window == nil ? nil : enclosingScrollView)
+        guard window != nil else { return }
+        monitor = NSEvent.addLocalMonitorForEvents(matching: .magnify) { [weak self] event in
+            MainActor.assumeIsolated { self?.pinched(event) == true } ? nil : event
+        }
+    }
+
+    /// True if the pinch was over the grid and it took it.
+    private func pinched(_ event: NSEvent) -> Bool {
+        guard event.window === window, let scroll = enclosingScrollView,
+              scroll.bounds.contains(scroll.convert(event.locationInWindow, from: nil)), let magnify = scroller?.magnify else { return false }
+        return magnify(event.phase, event.magnification, convert(event.locationInWindow, from: nil))
+    }
+
+    deinit { if let monitor { NSEvent.removeMonitor(monitor) } }
+}
+
+private struct SheetNote: View {
+    let text: String
+    var body: some View { Text(text).font(Theme.serif(16, italic: true)).foregroundStyle(Theme.dim) }
+}
+
+/// One thumbnail: the picture filling its cell and the marks. A pick's box,
+/// and the yellow box round the current photograph and each one selected,
+/// are drawn by the layer above (`boxes`); `selected` tells VoiceOver.
+private struct SheetCell: View {
+    let file: PhotoFile
+    let size: CGSize
+    let thumbnail: PhotoThumbnails.Size
+    /// Hidden while the grid opens or folds (`SheetFlight`).
+    let waiting: Bool
+    let selected: Bool
+    let current: Bool
+    let summary: LibrarySummary
+    let readOnly: Bool
+    let edited: EditedThumbnail?
+    /// On and off screen: what's shown is developed first.
+    let shown: (Bool) -> Void
+    let loaded: (CGImage) -> Void
+    let placed: (ThumbnailPlaces.Place?) -> Void
+    let click: () -> Void
+    let open: () -> Void
+    @State private var image: CGImage?
+    @State private var visible = false
+
+    private struct Load: Hashable { let file: PhotoFile; let size: PhotoThumbnails.Size; let edited: EditedThumbnail? }
+
+    var body: some View {
+        ZStack {
+            if let image {
+                Image(decorative: image, scale: 2).resizable().aspectRatio(contentMode: .fill)
+            } else {
+                Theme.blank
+            }
+        }
+        .frame(width: size.width, height: size.height)
+        .clipped()
+        .opacity(summary.flag == .reject ? PhotoMarks.rejectOpacity(inStrip: false, current: current) : 1)
+        .overlay { PhotoMarks(summary: summary, name: file.name) }
+        .modifier(PlaceReport(image: image, placed: placed))
+        .opacity(waiting ? 0 : 1)
+        .offset(y: waiting ? 14 : 0)
+        .contentShape(Rectangle())
+        // A click selects at once; the second of a double-click opens.
+        .onTapGesture(count: 2, perform: open)
+        .simultaneousGesture(TapGesture().onEnded(click))
+        .help(PhotoMarks.help(file.name, summary: summary, readOnly: readOnly))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(PhotoMarks.accessibilityLabel(file.name, summary: summary))
+        .accessibilityAddTraits(selected ? [.isButton, .isSelected] : [.isButton])
+        .accessibilityAction { click() }
+        .accessibilityAction(named: "Edit", open)
+        .onAppear { visible = true; shown(true) }
+        .onDisappear { visible = false; image = nil; shown(false) }
+        .task(id: visible ? Load(file: file, size: thumbnail, edited: edited) : nil) {
+            guard visible else { return }
+            let file = file, thumbnail = thumbnail, edited = edited
+            let request = Task.detached(priority: .utility) {
+                await PhotoThumbnails.shared.image(for: file, size: thumbnail, look: edited?.look, edited: edited?.store)
+            }
+            let result = await withTaskCancellationHandler {
+                await request.value
+            } onCancel: { request.cancel() }
+            guard !Task.isCancelled else { return }
+            // A new size keeps the last one shown until it arrives.
+            if let result { image = result; loaded(result) }
+        }
+    }
+}
+
+// MARK: The foot and the handle
+
+/// "12 photographs · 1 selected" on the left, and the rows' Size on the right.
+private struct SheetFoot: View {
+    let model: EditorModel
+
+    var body: some View {
+        HStack(spacing: 16) {
+            // A rating or flag note takes the count's place for a moment (§4.7).
+            Group {
+                if let note = model.libraryNote {
+                    NoteWords(note: note)
+                } else {
+                    Text(SheetWords.count(shown: model.shownPhotos.count, total: model.library.items.count,
+                                          selected: model.selection.selected.count, filtered: model.library.filter.active))
+                }
+            }
+            .fixedSize()
+            .layoutPriority(1)
+            // Qlick Lab: the filters and the order, and Build Previews at work.
+            if model.lab.filterBarVisible {
+                Divider().frame(height: 14).overlay(Color.white.opacity(0.12))
+                LibraryFilterBar(model: model, inline: true).fixedSize()
+            }
+            Spacer(minLength: 0)
+            PreviewActivity(builder: model.lab.previewBuilder)
+            Button { model.lab.filterBarVisible.toggle() } label: {
+                Image(systemName: model.lab.filterBarVisible ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
+                    .font(.system(size: 13)).foregroundStyle(model.lab.filterBarVisible ? Theme.paper : Theme.dim)
+            }
+            .buttonStyle(.plain).help("Filters and sorting (\\)")
+            HStack(spacing: 14) {
+                Text("Size")
+                InkSlider(title: "Size", value: Binding(get: { model.gridCellSize }, set: { model.gridCellSize = $0.rounded() }),
+                          range: SheetLayout.sizes, step: 1, neutral: SheetLayout.sizes.lowerBound, changed: false, hovered: false,
+                          editing: { _ in }, reset: {}, toolTip: "Thumbnail size (⌘+ and ⌘−)", showsNeutral: false)
+                    .frame(width: 96, height: 20)
+            }
+        }
+        .font(Theme.ui(11))
+        .foregroundStyle(Theme.dim)
+        .padding(.horizontal, 18)
+        .frame(height: Theme.Size.statusLine)
+    }
+}
+
+/// The grid's handle: just the arrow, pointing down, at the top right, 14 pt
+/// from the edge and 7 below the title bar. A click (or E, Return or Esc)
+/// folds the grid back to the photograph.
+private struct SheetHandle: View {
+    let model: EditorModel
+    @State private var hovered = false
+
+    var body: some View {
+        Button { model.editCurrent() } label: {
+            // A 7 pt chevron with 1.5 pt strokes, turned to point down.
+            LeaderArrow(down: true)
+                .stroke(Theme.dim, style: StrokeStyle(lineWidth: 1.5, lineCap: .square))
+                .frame(width: 9.9, height: 4.95)
+                .offset(x: 0.5, y: hovered ? -0.5 : -3.5)
+                .frame(width: 36, height: 32)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { over in withAnimation(.easeOut(duration: 0.3)) { hovered = over } }
+        .padding(.trailing, 14)
+        .padding(.top, 7)
+        .help("Edit Photograph (E)")
+        .accessibilityLabel("Edit Photograph")
+    }
+}

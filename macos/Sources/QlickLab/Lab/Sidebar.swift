@@ -1,0 +1,307 @@
+// Qlick Lab — GPL-3.0-only.
+import SwiftUI
+import UniformTypeIdentifiers
+
+/// The lab's navigation: its rooms, then the projects and their rolls. It sits in the window's sidebar, which
+/// macOS 26 draws as a floating pane of Liquid Glass.
+struct LabSidebar: View {
+    let model: EditorModel
+    @State private var expanded: Set<UUID> = []
+    @State private var dropping = false
+
+    private var lab: LabState { model.lab }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Level with the traffic lights; the title bar takes the clicks here.
+            HStack(spacing: 9) {
+                QMark(size: 20)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Qlick Lab").font(.system(size: 13.5, weight: .semibold)).foregroundStyle(Q.text)
+                    CatalogMenu(lab: lab)
+                }
+                Spacer()
+            }
+            .padding(.leading, 20)
+            .frame(height: 40)
+
+            VStack(alignment: .leading, spacing: 2) {
+                ForEach(Workspace.ordered) { room in
+                    // A card that's in says so beside Import.
+                    RoomRow(room: room, on: lab.workspace == room, trailing: room == .importer ? lab.importer.cards.first?.name : nil) { lab.show(room) }
+                }
+            }
+            .padding(.horizontal, 10)
+            .padding(.top, 6)
+
+            HStack {
+                CapsLabel("Projects")
+                Spacer()
+                Button { lab.naming = LabState.ProjectNaming(name: lab.projects.uniqueName("New Project")) } label: {
+                    Image(systemName: "plus").font(.system(size: 11, weight: .semibold)).foregroundStyle(Q.dim).frame(width: 22, height: 22).contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("New project")
+            }
+            .padding(.leading, 20).padding(.trailing, 12)
+            .padding(.top, 22).padding(.bottom, 6)
+
+            ScrollView(.vertical) {
+                VStack(alignment: .leading, spacing: 1) {
+                    let current = lab.current
+                    ForEach(lab.projects.projects) { project in
+                        ProjectRows(model: model, project: project, currentRoll: current?.roll.id,
+                                    open: expanded.contains(project.id) || current?.project.id == project.id) {
+                            if expanded.contains(project.id) { expanded.remove(project.id) } else { expanded.insert(project.id) }
+                        }
+                    }
+                    if lab.projects.projects.isEmpty {
+                        Text("Drop a folder of photographs here to make a project.")
+                            .font(.system(size: 11.5)).foregroundStyle(Q.dim)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .padding(.horizontal, 10).padding(.top, 4)
+                    }
+                }
+                .padding(.horizontal, 10)
+                .padding(.bottom, 10)
+            }
+            .scrollIndicators(.never)
+
+            Spacer(minLength: 0)
+            ImportSidebarProgress(model: model)
+            PreviewProgress(builder: lab.previewBuilder)
+            Divider().overlay(Color.white.opacity(0.06))
+            RoomButton(symbol: "gearshape", title: "Settings", on: false) {
+                lab.openSettings()
+            }
+            .padding(.horizontal, 10).padding(.vertical, 8)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .overlay {
+            if dropping {
+                RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Q.red, lineWidth: 2).padding(6).allowsHitTesting(false)
+            }
+        }
+        .onDrop(of: [.fileURL], isTargeted: $dropping) { providers in LabDrop.load(providers) { lab.importFolders($0) } }
+        .environment(\.colorScheme, .dark)
+    }
+}
+
+private struct RoomRow: View {
+    let room: Workspace
+    let on: Bool
+    var trailing: String? = nil
+    let action: () -> Void
+    var body: some View {
+        RoomButton(symbol: room.symbol, title: room.title, on: on, trailing: trailing, action: action)
+            .help("\(room.title) (⌥⌘\(room.key))")
+    }
+}
+
+/// A row of the sidebar. The open room is marked by the pencil's red and a faint fill.
+struct RoomButton: View {
+    let symbol: String
+    let title: String
+    let on: Bool
+    var trailing: String? = nil
+    var action: () -> Void
+    @State private var hovered = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 9) {
+                Image(systemName: symbol).font(.system(size: 13, weight: .regular)).frame(width: 20)
+                    .foregroundStyle(on ? Q.red : Color(white: 0.72))
+                Text(title).font(.system(size: 13, weight: on ? .semibold : .regular)).foregroundStyle(on ? Q.text : Color(white: 0.82)).lineLimit(1)
+                Spacer(minLength: 4)
+                if let trailing { Text(trailing).font(Q.value(11)).foregroundStyle(Q.dim) }
+            }
+            .padding(.horizontal, 10)
+            .frame(height: 30)
+            .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.white.opacity(on ? 0.1 : hovered ? 0.05 : 0)))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovered = $0 }
+        .accessibilityAddTraits(on ? .isSelected : [])
+    }
+}
+
+private struct ProjectRows: View {
+    let model: EditorModel
+    let project: LabProject
+    let currentRoll: UUID?
+    let open: Bool
+    let toggle: () -> Void
+    @State private var hovered = false
+    @State private var dropping = false
+
+    private var lab: LabState { model.lab }
+
+    var body: some View {
+        let shown = lab.wholeProject?.id == project.id
+        Button { lab.openWhole(project); if !open { toggle() } } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "chevron.right").font(.system(size: 8.5, weight: .bold)).foregroundStyle(Q.dim)
+                    .rotationEffect(.degrees(open ? 90 : 0)).frame(width: 12)
+                    .contentShape(Rectangle())
+                    .onTapGesture(perform: toggle)
+                Text(project.name).font(.system(size: 12.5, weight: shown ? .semibold : .medium)).foregroundStyle(shown ? Q.text : Color(white: 0.86)).lineLimit(1)
+                Spacer(minLength: 4)
+                Text("\(project.rolls.count)").font(Q.value(11)).foregroundStyle(Q.faint)
+            }
+            .padding(.horizontal, 8)
+            .frame(height: 27)
+            .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(Color.white.opacity(dropping ? 0.12 : shown ? 0.08 : hovered ? 0.05 : 0)))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovered = $0 }
+        .onDrop(of: [.fileURL], isTargeted: $dropping) { providers in LabDrop.load(providers) { lab.importFolders($0, into: project.id) } }
+        .contextMenu {
+            Button("Show All Its Photographs") { lab.openWhole(project) }
+            Button("Add a Folder…") { lab.importPanel(into: project.id) }
+            Divider()
+            Button("Remove the Project from the Catalog") { lab.projects.remove(project.id) }
+        }
+        if open {
+            ForEach(project.rolls) { roll in
+                RollRow(roll: roll, stats: lab.projects.stats[roll.id], on: roll.id == currentRoll) { lab.open(roll, in: project) }
+                    .contextMenu {
+                        Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([roll.url]) }
+                        Divider()
+                        Button("Remove the Roll from the Project") { lab.projects.removeRoll(roll.id, from: project.id) }
+                    }
+            }
+        }
+    }
+}
+
+private struct RollRow: View {
+    let roll: LabRoll
+    let stats: RollStats?
+    let on: Bool
+    let action: () -> Void
+    @State private var hovered = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 7) {
+                Circle().fill(on ? Q.red : Color.clear).frame(width: 5, height: 5).frame(width: 12)
+                Text(roll.name).font(.system(size: 12.5, weight: on ? .semibold : .regular)).foregroundStyle(on ? Q.text : Color(white: 0.72)).lineLimit(1)
+                Spacer(minLength: 4)
+                if let stats, !stats.missing { Text("\(stats.total)").font(Q.value(11)).foregroundStyle(Q.faint) }
+                if stats?.missing == true { Image(systemName: "questionmark.folder").font(.system(size: 10)).foregroundStyle(Q.dim).help("Folder not found") }
+            }
+            .padding(.leading, 14).padding(.trailing, 8)
+            .frame(height: 25)
+            .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(Color.white.opacity(on ? 0.08 : hovered ? 0.05 : 0)))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovered = $0 }
+    }
+}
+
+/// Folders and files dropped from the Finder.
+enum LabDrop {
+    static func load(_ providers: [NSItemProvider], then: @escaping @MainActor ([URL]) -> Void) -> Bool {
+        let files = providers.filter { $0.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) }
+        guard !files.isEmpty else { return false }
+        let group = DispatchGroup()
+        let found = Found()
+        for provider in files {
+            group.enter()
+            _ = provider.loadObject(ofClass: URL.self) { url, _ in
+                if let url { found.add(url) }
+                group.leave()
+            }
+        }
+        group.notify(queue: .main) { MainActor.assumeIsolated { then(found.urls) } }
+        return true
+    }
+
+    private final class Found: @unchecked Sendable {
+        private let lock = NSLock()
+        private var list: [URL] = []
+        func add(_ url: URL) { lock.lock(); list.append(url); lock.unlock() }
+        var urls: [URL] { lock.lock(); defer { lock.unlock() }; return list.sorted { $0.path.localizedStandardCompare($1.path) == .orderedAscending } }
+    }
+}
+
+/// Asks a new project's name.
+struct ProjectNamingSheet: View {
+    let lab: LabState
+    @State var naming: LabState.ProjectNaming
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("New Project").font(Q.title(17)).foregroundStyle(Q.text)
+            Text(naming.folders.isEmpty ? "A project gathers rolls or sessions: folders of photographs, where they are."
+                 : "The folders chosen become this project's rolls. Nothing is copied or moved.")
+                .font(.system(size: 12)).foregroundStyle(Q.dim).fixedSize(horizontal: false, vertical: true)
+            TextField("Project name", text: $naming.name)
+                .textFieldStyle(.roundedBorder)
+                .focused($focused)
+                .onSubmit(create)
+            HStack {
+                Spacer()
+                Button("Cancel") { lab.naming = nil }.buttonStyle(QPillButtonStyle()).keyboardShortcut(.cancelAction)
+                Button("Create", action: create).buttonStyle(QPrimaryButtonStyle()).keyboardShortcut(.defaultAction)
+                    .disabled(naming.name.trimmingCharacters(in: .whitespaces).isEmpty)
+            }
+        }
+        .padding(22)
+        .frame(width: 400)
+        .background(Q.surface)
+        .environment(\.colorScheme, .dark)
+        .onAppear { focused = true }
+    }
+
+    private func create() {
+        guard !naming.name.trimmingCharacters(in: .whitespaces).isEmpty else { return }
+        lab.finishNaming(naming)
+    }
+}
+
+/// The open catalog's name, which opens the catalogs' commands.
+private struct CatalogMenu: View {
+    let lab: LabState
+    var body: some View {
+        Menu {
+            Button("New Catalog…") { lab.newCatalogPanel() }
+            Button("Open Catalog…") { lab.openCatalogPanel() }
+            Button("Save Catalog As…") { lab.saveCatalogAsPanel() }
+            Divider()
+            ForEach([CatalogList.defaultDirectory] + lab.catalogs.recent, id: \.self) { url in
+                Button(CatalogList.name(of: url) + (url.standardizedFileURL == lab.projects.directory.standardizedFileURL ? "  ✓" : "")) { lab.openCatalog(url) }
+            }
+        } label: {
+            Text(lab.catalogName + "  ⌄").font(.system(size: 10.5)).foregroundStyle(Q.dim).lineLimit(1)
+        }
+        .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
+        .help("The open catalog: a set of projects of its own, kept in a file you can copy, move or archive")
+    }
+}
+
+/// The previews being built in the background, while they are.
+private struct PreviewProgress: View {
+    let builder: PreviewBuilder
+    var body: some View {
+        if builder.running, builder.total > 0 {
+            VStack(alignment: .leading, spacing: 5) {
+                HStack {
+                    Text("Building previews").font(.system(size: 10.5)).foregroundStyle(Q.dim)
+                    Spacer()
+                    Text("\(min(builder.done + 1, builder.total)) / \(builder.total)").font(Q.value(10.5)).foregroundStyle(Q.dim)
+                    Button { builder.cancel() } label: { Image(systemName: "xmark.circle.fill").font(.system(size: 10)).foregroundStyle(Q.dim) }
+                        .buttonStyle(.plain).help("Stop building previews")
+                }
+                ProgressView(value: Double(builder.done), total: Double(max(builder.total, 1))).progressViewStyle(.linear).tint(Q.red).controlSize(.mini)
+            }
+            .padding(.horizontal, 20).padding(.bottom, 8)
+            .help(builder.current.map { "Developing \($0.lastPathComponent) ahead, so it opens at once" } ?? "")
+        }
+    }
+}
