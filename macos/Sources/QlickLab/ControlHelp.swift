@@ -48,6 +48,16 @@ enum ControlHelp {
         "camera.diffusion_filter.bloom_intensity": "The share of diffused light in the wide bloom. 1 is the filter’s own.",
         "camera.diffusion_filter.halo_size": "The mid-sized halo’s radius. 1 is the filter’s own.",
         "camera.diffusion_filter.bloom_size": "The wide bloom’s radius. 1 is the filter’s own.",
+        // Print Diffusion
+        "enlarger.diffusion_filter.filter_family": "The filter under the enlarger’s lens, while the print is exposed. The light comes through the negative’s thin parts, so it’s the print’s shadows that spread into the lighter parts around them: a soft, darker glow, the opposite of a filter on the camera. Glimmerglass is the subtlest; Black Pro-Mist a concentrated halo; Pro-Mist a wider glow; CineBloom the widest.",
+        "enlarger.diffusion_filter.strength": "The filter’s grade, as sold: 1/8, 1/4, 1/2, 1 and 2. More spreads more light on the paper, which softens the print and lowers its contrast.",
+        "enlarger.diffusion_filter.spatial_scale": "How far the glow spreads on the paper, without changing how much light it takes.",
+        "enlarger.diffusion_filter.halo_warmth": "Warms (right) or cools (left) the glow, on top of the filter’s own tint. 0 keeps the filter’s.",
+        "enlarger.diffusion_filter.core_intensity": "The share of diffused light kept close to each highlight. 1 is the filter’s own; the core, halo and bloom shares are balanced to add up.",
+        "enlarger.diffusion_filter.halo_intensity": "The share of diffused light in the mid-sized halo. 1 is the filter’s own.",
+        "enlarger.diffusion_filter.bloom_intensity": "The share of diffused light in the wide bloom. 1 is the filter’s own.",
+        "enlarger.diffusion_filter.halo_size": "The mid-sized halo’s radius. 1 is the filter’s own.",
+        "enlarger.diffusion_filter.bloom_size": "The wide bloom’s radius. 1 is the filter’s own.",
 
         // Film Curves
         "film_render.density_curves_morph.gamma_factor": "The film’s development contrast. 1 is normal development; higher is like pushing, lower like pulling.",
@@ -143,6 +153,7 @@ enum ControlHelp {
         "DIR Couplers": "Chemical crosstalk between the film’s colour layers: saturation and edge sharpness.",
         "Film Base": "The colour and density of the clear film, the orange mask of colour negatives.",
         "Enlarger": "Prints the negative: exposure time, colour filtration and preflash.",
+        "Print Diffusion": "A diffusion filter under the enlarger’s lens: the print’s shadows bleed softly into the lighter parts, for a gentle, darker glow. Only when the film is printed on a paper.",
         "Print Curves": "Shapes how the paper develops: its contrast, per layer and per colour.",
         "Print Base": "The colour and density of the paper itself, its whitest white.",
         "Glare": "Room light reflecting off the print’s surface.",

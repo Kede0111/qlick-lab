@@ -135,6 +135,19 @@ let adjustmentGroups: [AdjustmentGroup] = [
         .slider("Preflash magenta", "enlarger.preflash_m_filter_shift", -50...50, 0.1),
         .slider("Preflash yellow", "enlarger.preflash_y_filter_shift", -50...50, 0.1)
     ]),
+    // The same filters under the enlarger's lens, while the print is exposed. The light comes through the negative's
+    // thin parts, so the print's shadows spread into its lighter parts, as a darkroom diffuser's do.
+    .init(title: "Print Diffusion", symbol: "camera.filters", section: .print, enable: "enlarger.diffusion_filter.active", basic: 2, controls: [
+        .choice("Filter", "enlarger.diffusion_filter.filter_family", ["black_pro_mist", "glimmerglass", "pro_mist", "cinebloom"]),
+        .slider("Strength", "enlarger.diffusion_filter.strength", 0...2, 0.01),
+        .slider("Spatial scale", "enlarger.diffusion_filter.spatial_scale", 0.1...3, 0.01),
+        .slider("Halo warmth", "enlarger.diffusion_filter.halo_warmth", -1.5...1.5, 0.01),
+        .slider("Core intensity", "enlarger.diffusion_filter.core_intensity", 0...2, 0.01),
+        .slider("Halo intensity", "enlarger.diffusion_filter.halo_intensity", 0...2, 0.01),
+        .slider("Bloom intensity", "enlarger.diffusion_filter.bloom_intensity", 0...2, 0.01),
+        .slider("Halo size", "enlarger.diffusion_filter.halo_size", 0.1...3, 0.01),
+        .slider("Bloom size", "enlarger.diffusion_filter.bloom_size", 0.1...3, 0.01)
+    ]),
     .init(title: "Print Curves", symbol: "chart.xyaxis.line", section: .print, enable: "print_render.density_curves_morph.active", basic: 1, controls: [
         .slider("Gamma", "print_render.density_curves_morph.gamma_factor", 0.5...2, 0.01),
         .slider("Fast gamma", "print_render.density_curves_morph.gamma_factor_fast", 0.5...2, 0.01),

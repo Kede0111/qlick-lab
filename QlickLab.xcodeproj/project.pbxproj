@@ -39,6 +39,7 @@
 		2E532613C0154E36795FF8C8 /* ShortcutSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51FD93041E894B30684C5625 /* ShortcutSettings.swift */; };
 		30ADE5FE23E32413D2D00BBF /* ThemeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C3C058EE9B5C54276C69739 /* ThemeTests.swift */; };
 		3132D9975F3FD29DD0FF5B28 /* Parameters.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD8F3E4E356AFB1F80BDC97F /* Parameters.swift */; };
+		34F84F6C1953EF443F89506E /* SupportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2BA6ECCB7D4FEBEFDD2EA0E /* SupportTests.swift */; };
 		3652F9CE9A8AFF5E3CB3527D /* AppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = 2B2D5228817DCE0F36780230 /* AppIcon.icon */; };
 		3668CF73B9332BD38F932412 /* ImportPlan.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CC06E7A5C7B69D623F942A3 /* ImportPlan.swift */; };
 		36A6228A8671E8D3E97ED2A3 /* StatusLineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2BFA0490E75DEB676F4D2540 /* StatusLineTests.swift */; };
@@ -102,6 +103,7 @@
 		7773C953FCD36AE9330ACC66 /* HandStar.swift in Sources */ = {isa = PBXBuildFile; fileRef = D755E46C1B946430C473B74E /* HandStar.swift */; };
 		79312D496FD47A8B871B0D16 /* FilmCacheReleaseTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8BE6B3FDC84AD6F78A4887F /* FilmCacheReleaseTests.swift */; };
 		7B98B4F0BDCE67DB787524C3 /* CameraBrightnessReference.swift in Sources */ = {isa = PBXBuildFile; fileRef = EAFACA7213EDC6390D2B28C9 /* CameraBrightnessReference.swift */; };
+		7CC3D3C658C7E97084D84368 /* Support.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAD6203C17C1137389D3B447 /* Support.swift */; };
 		7EEEE784D99296834DF2A904 /* Engine.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4A4BA3F2769630EE573E5E1 /* Engine.swift */; };
 		7FD556A9D76478F14CB9F53F /* StockLibrary.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFAB7871FAFAD7719B2F6FFC /* StockLibrary.swift */; };
 		80EE6D94D17C736D791B341B /* Session.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC50B327F5F714EDBDFEDA51 /* Session.swift */; };
@@ -308,6 +310,7 @@
 		B6757B54BAF0FF9F8F8153E4 /* StripScrubber.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StripScrubber.swift; sourceTree = "<group>"; };
 		B79DB81FECE8BAC26063DCB6 /* ImportJournal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportJournal.swift; sourceTree = "<group>"; };
 		BA097536B1A180FD8DD8DCEF /* Catalogs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Catalogs.swift; sourceTree = "<group>"; };
+		BAD6203C17C1137389D3B447 /* Support.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Support.swift; sourceTree = "<group>"; };
 		BC1EE6547333AAD124FC14AE /* Shortcuts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shortcuts.swift; sourceTree = "<group>"; };
 		BE65D2EAE20BBDD39BD2D82A /* DevelopControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevelopControls.swift; sourceTree = "<group>"; };
 		BF9EA4C40008B929194253F6 /* LifecycleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LifecycleTests.swift; sourceTree = "<group>"; };
@@ -331,6 +334,7 @@
 		DC50B327F5F714EDBDFEDA51 /* Session.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Session.swift; sourceTree = "<group>"; };
 		DD8F3E4E356AFB1F80BDC97F /* Parameters.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Parameters.swift; sourceTree = "<group>"; };
 		E11DEFD5B757E68BA5283A1B /* Histogram.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Histogram.swift; sourceTree = "<group>"; };
+		E2BA6ECCB7D4FEBEFDD2EA0E /* SupportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupportTests.swift; sourceTree = "<group>"; };
 		E2CF6F00A870292B9B9102BA /* AccentColorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccentColorTests.swift; sourceTree = "<group>"; };
 		E32EDEDB18B32DE486FAB5E9 /* Presets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Presets.swift; sourceTree = "<group>"; };
 		E334E8949B78C322158D9BE6 /* ControlHelp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ControlHelp.swift; sourceTree = "<group>"; };
@@ -483,6 +487,7 @@
 				2D9A7B84206587FA89F42A3F /* Sidebar.swift */,
 				FFAB7871FAFAD7719B2F6FFC /* StockLibrary.swift */,
 				B6757B54BAF0FF9F8F8153E4 /* StripScrubber.swift */,
+				BAD6203C17C1137389D3B447 /* Support.swift */,
 				74102C222E8A7CD64D38554A /* Import */,
 			);
 			path = Lab;
@@ -560,6 +565,7 @@
 				E545FE9F3FD013AB65CD8511 /* SidecarTests.swift */,
 				07FAECE8B068BFB362DFCDA2 /* SmallStatesTests.swift */,
 				2BFA0490E75DEB676F4D2540 /* StatusLineTests.swift */,
+				E2BA6ECCB7D4FEBEFDD2EA0E /* SupportTests.swift */,
 				401A05957C294D834C8F4BDC /* TabEditsTests.swift */,
 				2C3C058EE9B5C54276C69739 /* ThemeTests.swift */,
 				2D8BDDEC236E9FC1D7981304 /* TitleBarTests.swift */,
@@ -847,6 +853,7 @@
 				A85244F85912017C1B92BA23 /* StatusLine.swift in Sources */,
 				7FD556A9D76478F14CB9F53F /* StockLibrary.swift in Sources */,
 				93F5471328E551BD4B2C2C19 /* StripScrubber.swift in Sources */,
+				7CC3D3C658C7E97084D84368 /* Support.swift in Sources */,
 				90E86ACB92E5E05A64A23030 /* TabEdits.swift in Sources */,
 				CB99E1554F7764123A28C977 /* Theme.swift in Sources */,
 				557E3E88F8F41F002E2EE833 /* TitleBar.swift in Sources */,
@@ -911,6 +918,7 @@
 				4CA986787D07BC40A1422A3A /* SidecarTests.swift in Sources */,
 				52921B57D73F564AD9C65003 /* SmallStatesTests.swift in Sources */,
 				36A6228A8671E8D3E97ED2A3 /* StatusLineTests.swift in Sources */,
+				34F84F6C1953EF443F89506E /* SupportTests.swift in Sources */,
 				60F6419944260A9B888FC46C /* TabEditsTests.swift in Sources */,
 				30ADE5FE23E32413D2D00BBF /* ThemeTests.swift in Sources */,
 				2784885747C34AA7AC33D4C2 /* TitleBarTests.swift in Sources */,
@@ -965,7 +973,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -986,7 +994,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.1.0;
+				MARKETING_VERSION = 0.1.1;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -1090,7 +1098,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
@@ -1105,7 +1113,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.1.0;
+				MARKETING_VERSION = 0.1.1;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";

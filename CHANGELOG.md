@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.1
+
+- **Print Diffusion**: the diffusion filters (Black Pro-Mist, Glimmerglass, Pro-Mist, CineBloom) can now go under the
+  enlarger's lens too, in the Print section, as well as on the camera. On the print, the shadows bleed softly into
+  the lighter parts, the way a darkroom diffuser works.
+
 ## 0.1.0 — first public version
 
 Qlick Lab's first release as an open-source project.
