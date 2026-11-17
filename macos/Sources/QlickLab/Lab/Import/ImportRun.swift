@@ -11,6 +11,8 @@ enum ImportFrameState: Sendable { case waiting, copying, verified, failed }
     let totalBytes: Int
     let sourceName: String
     let order: [URL]
+    /// Add in Place: nothing is copied, each photograph is taken in where it lies.
+    let adding: Bool
     let started = Date()
     private(set) var done = 0
     private(set) var doneBytes = 0
@@ -40,6 +42,7 @@ enum ImportFrameState: Sendable { case waiting, copying, verified, failed }
         totalBytes = journal.totalBytes
         sourceName = journal.sourceName
         order = journal.items.map(\.id)
+        adding = false
         // A resumed import starts from what was done.
         for item in journal.items where item.settled {
             done += 1
@@ -49,6 +52,24 @@ enum ImportFrameState: Sendable { case waiting, copying, verified, failed }
         }
         doneBytes = journal.doneBytes
         failures = journal.failures
+    }
+
+    /// Add in Place: the photographs taken in where they lie, one by one.
+    init(adding photos: [URL], sourceName: String) {
+        total = photos.count
+        totalBytes = 0
+        self.sourceName = sourceName
+        order = photos
+        adding = true
+    }
+
+    /// Add in Place: a photograph is taken in, its marks written beside it (or not, and why).
+    func added(_ id: URL, failure: String?) {
+        done += 1
+        states[id] = failure == nil ? .verified : .failed
+        written[id] = id
+        if let failure { failed += 1; failures.append((id.lastPathComponent, failure)) }
+        note(folder: id.deletingLastPathComponent())
     }
 
     var fraction: Double { totalBytes > 0 ? min(Double(doneBytes) / Double(totalBytes), 1) : (total > 0 ? Double(done) / Double(total) : 1) }
@@ -87,8 +108,10 @@ enum ImportFrameState: Sendable { case waiting, copying, verified, failed }
     var figures: String {
         let size = ByteCountFormatter()
         size.countStyle = .file
-        var parts = ["\(min(done + (finished ? 0 : 1), total)) / \(total)", "\(size.string(fromByteCount: Int64(doneBytes))) of \(size.string(fromByteCount: Int64(totalBytes)))"]
-        if !finished {
+        var parts = ["\(min(done + (finished ? 0 : 1), total)) / \(total)"]
+        if !adding { parts.append("\(size.string(fromByteCount: Int64(doneBytes))) of \(size.string(fromByteCount: Int64(totalBytes)))") }
+        if !finished, adding, done > 0, elapsed > 2 { parts.append(Self.duration(elapsed / Double(done) * Double(total - done)) + " left") }
+        if !finished, !adding {
             if rate > 1 { parts.append("\(size.string(fromByteCount: Int64(rate)))/s") }
             if let remaining { parts.append(Self.duration(remaining) + " left") }
         }
@@ -143,14 +166,19 @@ extension ImportSession {
         for frame in frames { if let captured = frame.captured { times[frame.id] = captured } }
         let marks = marks
         if options.mode == .add { return addInPlace(frames, marks: marks) }
+        starting = true
         Task {
+            defer { self.starting = false }
             // The plan once more, now, on the disk as it is.
             let plan = await Task.detached(priority: .userInitiated) { () -> ImportPlan in
                 var world = ImportPlan.World()
                 world.imported = { file, captured in options.skipDuplicates ? ledger.imported(file, captured: captured) : nil }
                 return ImportPlan.make(frames, options: options, card: source.name, world: world)
             }.value
-            guard !plan.toCopy.isEmpty, plan.problems.isEmpty, self.run == nil else { return }
+            guard self.run == nil else { return }
+            // Never nothing at all: what stands in the way is said.
+            if let problem = plan.problems.first { self.model.error = problem; self.replan(); return }
+            if plan.toCopy.isEmpty { self.model.error = "Nothing is left to import: everything checked is already there."; self.replan(); return }
             let journal = ImportJournal(plan: plan, options: options, marks: marks, times: times, volume: source.uuid, sourceName: source.name, sourceRoot: source.root)
             self.begin(journal)
         }
@@ -286,7 +314,7 @@ extension ImportSession {
     }
 
     /// Stops the import after the file being copied. What's done stays; the rest can be taken up later.
-    func stop() { runner?.cancel() }
+    func stop() { runner?.cancel(); adding?.cancel() }
     func togglePause() {
         guard let runner, let run else { return }
         runner.paused.toggle()
@@ -295,27 +323,70 @@ extension ImportSession {
     /// Leaves the finished import's account and goes back to the source.
     func dismissRun() { if run?.finished == true { run = nil } }
 
-    /// Add in Place: nothing is copied. Each folder becomes a roll, and the marks made here are written beside
-    /// the photographs where they lie.
+    /// Add in Place: nothing is copied. Each folder becomes a roll of the project, and the marks, recipes and words
+    /// chosen here are written beside the photographs where they lie, a few at a time, with the progress in sight.
     private func addInPlace(_ frames: [ImportFrame], marks: [URL: ImportMarks]) {
-        Task {
+        let run = ImportRun(adding: frames.map(\.id), sourceName: source?.name ?? "")
+        self.run = run
+        let options = options
+        let project = options.project.trimmingCharacters(in: .whitespaces)
+        activity = ProcessInfo.processInfo.beginActivity(options: [.idleSystemSleepDisabled, .userInitiated], reason: "Adding photographs")
+        adding = Task { [weak self] in
+            guard let self else { return }
             var recipes: [String: EditState] = [:]
             for name in Set(marks.values.compactMap(\.recipe)) {
-                if let preset = model.presets.first(where: { $0.name == name }), let state = await model.labRecipeState(preset) { recipes[name] = state }
+                guard let preset = model.presets.first(where: { $0.name == name }) else { run.notes.append("The recipe “\(name)” isn’t there any more."); continue }
+                if let state = await model.labRecipeState(preset) { recipes[name] = state } else { run.notes.append("The recipe “\(name)” couldn’t be read.") }
             }
-            for frame in frames {
-                guard let mark = marks[frame.id] else { continue }
-                model.labWriteImported(frame.id, marks: mark, recipe: mark.recipe.flatMap { recipes[$0] })
+            let metadata = ImportMetadata(options: options)
+            // The rights to each folder, asked once: a disk on the network answers slowly.
+            var writable: [URL: Bool] = [:]
+            for folder in Set(frames.map { $0.file.url.deletingLastPathComponent() }) {
+                writable[folder] = await Task.detached(priority: .userInitiated) { PhotoLibrary.canWrite(in: folder) }.value
             }
-            await model.labFlushSidecars()
-            var folders: [URL] = []
-            for frame in frames {
-                let folder = frame.file.url.deletingLastPathComponent()
-                if !folders.contains(folder) { folders.append(folder) }
+            for start in stride(from: 0, to: frames.count, by: 12) {
+                if Task.isCancelled { break }
+                let batch = Array(frames[start..<min(start + 12, frames.count)])
+                if let first = batch.first { run.began(first.id, name: first.file.name) }
+                var balances: [URL: (temperature: Double, tint: Double)] = [:]
+                if options.balanceEach {
+                    let photos = batch.filter { marks[$0.id]?.recipe != nil }.map(\.id)
+                    if !photos.isEmpty { balances = await model.labAutoBalances(photos) }
+                }
+                var failures: [URL: String] = [:]
+                for frame in batch {
+                    guard let mark = marks[frame.id], !mark.isEmpty else { continue }
+                    guard writable[frame.file.url.deletingLastPathComponent()] != false else {
+                        failures[frame.id] = "its folder can’t be written to, so its marks and recipe weren’t saved"
+                        continue
+                    }
+                    let recipe = mark.recipe.flatMap { recipes[$0] }
+                    if !model.labWriteImported(frame.id, marks: mark, recipe: recipe, balance: balances[frame.id], matchExposure: options.balanceEach) {
+                        failures[frame.id] = "its marks or recipe couldn’t be saved"
+                    }
+                    if let name = mark.recipe, recipe != nil, let preset = model.presets.first(where: { $0.name == name }) { model.notePresetApplied(preset.url, to: frame.id) }
+                }
+                for (photo, reason) in await model.labFlushSidecars() { failures[photo] = reason }
+                if !metadata.isEmpty {
+                    let photos = batch.map(\.id)
+                    Task.detached(priority: .utility) { for photo in photos { metadata.write(beside: photo) } }
+                }
+                for frame in batch {
+                    let failure = failures[frame.id] ?? failures[frame.id.standardizedFileURL]
+                    run.added(frame.id, failure: failure)
+                }
+                // The project is there, and grows, while the photographs are taken in.
+                if !project.isEmpty { addRolls(run.folders, project: project) }
             }
-            let name = options.project.trimmingCharacters(in: .whitespaces)
-            if name.isEmpty { model.lab.importFolders(folders) } else { addRolls(folders, project: name) }
-            if let first = folders.first { model.lab.open(folder: first) }
+            if let activity { ProcessInfo.processInfo.endActivity(activity); self.activity = nil }
+            adding = nil
+            run.finish(stopped: Task.isCancelled)
+            model.library.refreshNow()
+            model.lab.projects.countAll()
+            // Without a project's name, the lab asks for one.
+            if project.isEmpty, !run.folders.isEmpty { model.lab.importFolders(run.folders) }
+            importedNow()
+            if NSApp?.isActive == false { NSApp.requestUserAttention(.informationalRequest) }
         }
     }
 

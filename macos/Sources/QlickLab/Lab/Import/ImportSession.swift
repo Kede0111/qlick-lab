@@ -215,6 +215,10 @@ enum ImportProgressStyle: String, CaseIterable, Sendable {
     /// An import a quit, a crash or a pulled card left unfinished.
     private(set) var unfinished: ImportJournal?
     @ObservationIgnored var runner: ImportRunner?
+    /// Between Import and the first file: the plan is made once more, on the disk as it is.
+    var starting = false
+    /// Add in Place as it runs: Stop cancels it.
+    @ObservationIgnored var adding: Task<Void, Never>?
     @ObservationIgnored var activity: NSObjectProtocol?
 
     @ObservationIgnored private var scan: Task<Void, Never>?
@@ -486,6 +490,7 @@ enum ImportProgressStyle: String, CaseIterable, Sendable {
     /// Why the import can't start, in the user's words; nil when it can.
     var blocker: String? {
         if run != nil { return "An import is running." }
+        if starting { return "Getting ready…" }
         guard source != nil else { return "Choose a source." }
         if scanning { return "Reading the source…" }
         if frames.isEmpty { return "No photographs here." }

@@ -299,7 +299,7 @@ private struct RollStrip: View {
         .task(id: names) {
             for name in names where images[name] == nil {
                 let file = PhotoFile(url: folder.appendingPathComponent(name))
-                let image = await Task.detached(priority: .utility) { await PhotoThumbnails.shared.image(for: file, size: .medium) }.value
+                let image = await PhotoThumbnails.shared.image(for: file, size: .medium)
                 guard !Task.isCancelled else { return }
                 if let image { images[name] = image }
             }

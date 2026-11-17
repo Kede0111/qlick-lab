@@ -29,17 +29,20 @@ struct ImportProgressView: View {
                     if let waiting = run.waitingFor {
                         Text("Waiting for “\(waiting)”. Put it back and the import goes on where it stopped.").font(.system(size: 11.5)).foregroundStyle(Theme.warn)
                     } else if let name = run.currentName, !run.finished {
-                        Text(run.paused ? "Paused" : "Copying \(name)").font(Q.value(11.5)).foregroundStyle(Q.dim)
+                        Text(run.paused ? "Paused" : "\(run.adding ? "Adding" : "Copying") \(name)").font(Q.value(11.5)).foregroundStyle(Q.dim)
                     }
                 }
                 Spacer(minLength: 8)
                 if !run.finished {
                     Picker("", selection: $session.progressStyle) { ForEach(ImportProgressStyle.allCases, id: \.self) { Text($0.title).tag($0) } }
                         .labelsHidden().controlSize(.small).fixedSize().help("How the import is shown")
-                    Button(run.paused ? "Resume" : "Pause") { session.togglePause() }.buttonStyle(QPillButtonStyle())
-                        .help("Waits after the file being copied")
+                    if !run.adding {
+                        Button(run.paused ? "Resume" : "Pause") { session.togglePause() }.buttonStyle(QPillButtonStyle())
+                            .help("Waits after the file being copied")
+                    }
                     Button("Stop") { session.stop() }.buttonStyle(QPillButtonStyle())
-                        .help("Stops after the file being copied. What’s copied stays, and the rest can be taken up later.")
+                        .help(run.adding ? "Stops after the photographs being added. Those added stay in the project."
+                                         : "Stops after the file being copied. What’s copied stays, and the rest can be taken up later.")
                 }
             }
             .padding(.horizontal, 18).frame(height: 54)
@@ -71,6 +74,10 @@ struct ImportProgressView: View {
     }
 
     private var title: String {
+        if run.adding {
+            if run.finished { return run.stopped ? "Adding stopped" : run.failed > 0 ? "Added, with errors" : "Added" }
+            return "Adding from “\(run.sourceName)”"
+        }
         if run.finished { return run.stopped ? "Import stopped" : run.failed > 0 ? "Imported, with errors" : "Imported" }
         return "Importing from “\(run.sourceName)”"
     }
@@ -183,7 +190,7 @@ private struct FilmFrame: View {
         .task(id: source) {
             // The grid's own thumbnail, already read: the card isn't asked again while it's being copied.
             let file = PhotoFile(url: source)
-            let loaded = await Task.detached(priority: .utility) { await PhotoThumbnails.shared.image(for: file, size: .medium) }.value
+            let loaded = await PhotoThumbnails.shared.image(for: file, size: .medium)
             if !Task.isCancelled { image = loaded }
         }
     }
@@ -235,7 +242,7 @@ private struct SheetThumb: View {
         }
         .task(id: url) {
             let file = PhotoFile(url: url)
-            let loaded = await Task.detached(priority: .utility) { await PhotoThumbnails.shared.image(for: file, size: .medium) }.value
+            let loaded = await PhotoThumbnails.shared.image(for: file, size: .medium)
             if !Task.isCancelled { image = loaded }
         }
     }
@@ -257,10 +264,10 @@ private struct ImportList: View {
                             Text("\(index + 1)").font(Q.value(10.5)).foregroundStyle(Q.faint).frame(width: 44, alignment: .trailing)
                             Image(systemName: symbol(state)).font(.system(size: 11)).foregroundStyle(state == .failed ? Theme.warn : state == .verified ? Q.text : Q.dim).frame(width: 16)
                             Text(id.lastPathComponent).font(Q.value(11.5)).foregroundStyle(state == .waiting ? Q.dim : Q.text).frame(width: 190, alignment: .leading).lineLimit(1)
-                            Text(run.written[id].map { $0.deletingLastPathComponent().lastPathComponent + " / " + $0.lastPathComponent } ?? "").font(Q.value(11)).foregroundStyle(Q.dim)
+                            Text(run.adding ? "" : run.written[id].map { $0.deletingLastPathComponent().lastPathComponent + " / " + $0.lastPathComponent } ?? "").font(Q.value(11)).foregroundStyle(Q.dim)
                                 .lineLimit(1).truncationMode(.middle)
                             Spacer(minLength: 4)
-                            Text(word(state)).font(.system(size: 11)).foregroundStyle(state == .failed ? Theme.warn : Q.dim)
+                            Text(word(state, adding: run.adding)).font(.system(size: 11)).foregroundStyle(state == .failed ? Theme.warn : Q.dim)
                         }
                         .padding(.horizontal, 16).frame(height: 24)
                         .background(state == .copying ? Color.white.opacity(0.06) : .clear)
@@ -283,12 +290,12 @@ private struct ImportList: View {
         case .failed: "exclamationmark.triangle.fill"
         }
     }
-    private func word(_ state: ImportFrameState) -> String {
+    private func word(_ state: ImportFrameState, adding: Bool) -> String {
         switch state {
         case .waiting: "Waiting"
-        case .copying: "Copying"
-        case .verified: "Copied and checked"
-        case .failed: "Failed"
+        case .copying: adding ? "Adding" : "Copying"
+        case .verified: adding ? "Added" : "Copied and checked"
+        case .failed: adding ? "Added, marks not saved" : "Failed"
         }
     }
 }
@@ -306,20 +313,27 @@ private struct ImportAccount: View {
         let good = run.done - run.failed
         let left = run.total - run.done
         let checked = session.options.verify
+        let project = session.options.project.trimmingCharacters(in: .whitespaces)
         ScrollView(.vertical) {
             VStack(alignment: .leading, spacing: 14) {
                 HStack(spacing: 12) {
                     Image(systemName: run.failed > 0 || run.stopped ? "exclamationmark.circle" : "checkmark.circle")
                         .font(.system(size: 30, weight: .light)).foregroundStyle(run.failed > 0 ? Theme.warn : Q.text)
                     VStack(alignment: .leading, spacing: 3) {
-                        Text("\(good) \(good == 1 ? "photograph" : "photographs") copied\(checked ? " and checked" : "")").font(Q.title(18)).foregroundStyle(Q.text)
-                        Text("in \(ImportRun.duration(run.elapsed)), to \(run.folders.count) \(run.folders.count == 1 ? "folder" : "folders")").font(.system(size: 12.5)).foregroundStyle(Q.dim)
+                        if run.adding {
+                            Text("\(run.done) \(run.done == 1 ? "photograph" : "photographs") added").font(Q.title(18)).foregroundStyle(Q.text)
+                            Text("in \(ImportRun.duration(run.elapsed)), as \(run.folders.count) \(run.folders.count == 1 ? "roll" : "rolls")\(project.isEmpty ? "" : " of “\(project)”")").font(.system(size: 12.5)).foregroundStyle(Q.dim)
+                        } else {
+                            Text("\(good) \(good == 1 ? "photograph" : "photographs") copied\(checked ? " and checked" : "")").font(Q.title(18)).foregroundStyle(Q.text)
+                            Text("in \(ImportRun.duration(run.elapsed)), to \(run.folders.count) \(run.folders.count == 1 ? "folder" : "folders")").font(.system(size: 12.5)).foregroundStyle(Q.dim)
+                        }
                     }
                 }
                 if run.stopped, left > 0 {
-                    line("\(left) still to copy. Nothing is lost: take the import up again whenever you like.")
+                    line(run.adding ? "\(left) not added. Add them again whenever you like: those already in the project are left as they are."
+                                    : "\(left) still to copy. Nothing is lost: take the import up again whenever you like.")
                 }
-                if !run.stopped, run.failed == 0, session.source?.kind == .card {
+                if !run.adding, !run.stopped, run.failed == 0, session.source?.kind == .card {
                     let skipped = session.frames.count - run.total
                     line(checked
                          ? "Every photograph you chose has a copy that was read back and matches the card." + (skipped > 0 ? " \(skipped) on the card were left out." : " The card can be formatted in the camera.")
@@ -328,7 +342,7 @@ private struct ImportAccount: View {
                 }
                 if !run.failures.isEmpty {
                     VStack(alignment: .leading, spacing: 4) {
-                        CapsLabel("Not copied", color: Theme.warn)
+                        CapsLabel(run.adding ? "Marks not saved" : "Not copied", color: Theme.warn)
                         ForEach(Array(run.failures.prefix(50).enumerated()), id: \.offset) { _, failure in
                             Text("\(failure.name): \(failure.reason)").font(.system(size: 11.5)).foregroundStyle(Q.text).fixedSize(horizontal: false, vertical: true)
                         }
@@ -343,7 +357,7 @@ private struct ImportAccount: View {
                         }
                     }
                 }
-                line("An import report with every file’s SHA-256 is in each folder.")
+                if !run.adding { line("An import report with every file’s SHA-256 is in each folder.") }
                 HStack(spacing: 8) {
                     if !run.folders.isEmpty {
                         Button { session.openImported() } label: { Label("Open the Contact Sheet", systemImage: "film") }.buttonStyle(QPrimaryButtonStyle())
@@ -376,7 +390,7 @@ struct ImportSidebarProgress: View {
             Button { model.lab.show(.importer) } label: {
                 VStack(alignment: .leading, spacing: 5) {
                     HStack {
-                        Text(run.waitingFor != nil ? "Import waiting" : run.paused ? "Import paused" : "Importing").font(.system(size: 10.5)).foregroundStyle(run.waitingFor != nil ? Theme.warn : Q.dim)
+                        Text(run.waitingFor != nil ? "Import waiting" : run.paused ? "Import paused" : run.adding ? "Adding" : "Importing").font(.system(size: 10.5)).foregroundStyle(run.waitingFor != nil ? Theme.warn : Q.dim)
                         Spacer()
                         Text("\(run.done) / \(run.total)").font(Q.value(10.5)).foregroundStyle(Q.dim)
                     }

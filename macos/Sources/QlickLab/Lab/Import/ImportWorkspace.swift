@@ -386,7 +386,7 @@ struct ImportCell: View {
         .task(id: id) {
             let file = PhotoFile(url: id)
             let large = side > 190
-            let loaded = await Task.detached(priority: .userInitiated) { await PhotoThumbnails.shared.image(for: file, size: large ? .large : .medium) }.value
+            let loaded = await PhotoThumbnails.shared.image(for: file, size: large ? .large : .medium)
             if !Task.isCancelled { image = loaded }
         }
     }
