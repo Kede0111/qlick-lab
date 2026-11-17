@@ -19,8 +19,8 @@ enum SettingsTab: String, CaseIterable {
     private let band = TitleBand()
     private let host: NSHostingView<SettingsView>
 
-    init(updates: UpdateController, model: EditorModel, removeAppData: @escaping () -> Void) {
-        host = NSHostingView(rootView: SettingsView(updates: updates, model: model, removeAppData: removeAppData))
+    init(updates: UpdateController, model: EditorModel) {
+        host = NSHostingView(rootView: SettingsView(updates: updates, model: model))
         host.sizingOptions = []
         host.safeAreaRegions = []
         host.identifier = InkKeyLoop.inspectorIdentifier
@@ -91,7 +91,6 @@ struct SettingsView: View {
     @AppStorage(SidecarStorage.defaultsKey) private var dngStorage = SidecarStorage.insideDNG.rawValue
     @ObservedObject var updates: UpdateController
     var model: EditorModel
-    var removeAppData: () -> Void
     /// Called with the page's height, for the window to fit it.
     var resize: (CGFloat) -> Void = { _ in }
     @AppStorage("settingsTab") private var tab = SettingsTab.photographs
@@ -260,20 +259,6 @@ struct SettingsView: View {
         .task { thumbnailBytes = await model.thumbnailCacheSize() }
         // Qlick Lab: the previews built ahead: where, how much room, emptied.
         PreviewStorageSection(model: model)
-        InkSection(title: "App data") {
-            ButtonRow {
-                EmptyView()
-            } button: {
-                Button("Remove All App Data and Quit…", role: .destructive, action: removeAppData).buttonStyle(OutlinedButtonStyle())
-                    .inkDisabled(model.saving || model.exporting || updates.installing || updates.sessionInProgress)
-            }
-            if model.saving || model.exporting {
-                HintText("Wait for the current save or export to finish before removing app data.", reason: true)
-            } else if updates.sessionInProgress || updates.installing {
-                HintText("Finish or close the update dialog before removing app data.", reason: true)
-            }
-            HintText("Your photographs and exports are kept.")
-        }
     }
 
     /// A stock menu's items, one section per group.

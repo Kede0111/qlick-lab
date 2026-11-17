@@ -29,12 +29,10 @@ import SwiftUI
     private var menu: MainMenu?
     private var editor: EditorWindowController?
     private var terminating = false
-    private var removingAppData = false
     /// The quit questions are open in the alert sheet.
     private var askingToQuit = false
     /// Qlick Lab: the questions are answered and the last writes made (or given up): the next quit goes through.
     private var quitApproved = false
-    private var appDataRemovalFinished = false
 
     func applicationWillFinishLaunching(_ notification: Notification) {
         // The helper starts while AppKit builds the window, and the cached
@@ -65,7 +63,7 @@ import SwiftUI
             restoration = Task { try await store.load(sidecars: sidecars) }
         }
         Task { await model.start(restoration: restoration) }
-        menu = MainMenu(model: model, updates: updates) { [weak self] in self?.removeAllAppData() }
+        menu = MainMenu(model: model, updates: updates)
         NSApp.mainMenu = menu?.menu
         editor = EditorWindowController(model: model)
     }
@@ -139,8 +137,6 @@ import SwiftUI
     }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        // Cleanup intentionally discards the session. Never recreate it here.
-        if removingAppData { return appDataRemovalFinished ? .terminateNow : .terminateCancel }
         // Qlick Lab: what had to be asked and saved is done; this is the quit that follows.
         if quitApproved { return .terminateNow }
         // Saving already: Quit again shows what it waits for.
@@ -258,41 +254,6 @@ import SwiftUI
         NSApp.terminate(nil)
     }
 
-    private func removeAllAppData() {
-        guard !removingAppData, !terminating, !model.saving, !model.exporting, !model.batchRunning, !updates.installing, !updates.sessionInProgress else { return }
-        Task {
-            let answer = await model.ask(AppAlert(
-                title: "Remove all Qlick Lab app data and quit?",
-                detail: "This removes your settings, presets, saved editing session, recent-file history, and caches. Your current adjustments will be discarded. Original photographs and exported images are kept.\n\nQlick Lab remains installed. You can move it to the Trash after it quits.",
-                buttons: [.init(title: "Cancel", role: .cancel), .init(title: "Remove App Data and Quit", role: .destructive)]))
-            guard answer.button == 1 else { return }
-            // Anything started while it was asking keeps the data.
-            guard !removingAppData, !terminating, !model.saving, !model.exporting, !model.batchRunning, !updates.installing, !updates.sessionInProgress else { return }
-            removingAppData = true
-            updates.stopForAppDataRemoval()
-            editor?.prepareForAppDataRemoval()
-            menu?.prepareForAppDataRemoval()
-            model.shutdown()
-            await model.flushPreviewCache()
-            // Wait for an in-flight startup load before deleting session files.
-            await sessions.finishPendingIO()
-            let locations = AppDataLocations.current
-            while true {
-                NSDocumentController.shared.clearRecentDocuments(nil)
-                var failures = await Task.detached(priority: .userInitiated) { AppDataCleaner.removeFiles(at: locations) }.value
-                if !AppDataCleaner.removePreferences(domain: locations.preferencesDomain) {
-                    failures.append("The saved preferences could not be cleared.")
-                }
-                if failures.isEmpty { break }
-                // The window is gone, so the sheet stands on its own.
-                let retry = await model.ask(AppAlert(title: "Some app data could not be removed.", detail: failures.joined(separator: "\n\n"),
-                                                     buttons: [.init(title: "Retry"), .init(title: "Quit", role: .cancel)]))
-                if retry.button != 0 { break }
-            }
-            appDataRemovalFinished = true
-            NSApp.terminate(nil)
-        }
-    }
     func applicationWillTerminate(_ notification: Notification) { updates.stop(); model.shutdown() }
 }
 

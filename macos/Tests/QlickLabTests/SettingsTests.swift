@@ -12,7 +12,7 @@ import XCTest
         addTeardownBlock { defaults.set(saved, forKey: "settingsTab") }
         let model = EditorModel(sidecars: SidecarStore())
         addTeardownBlock { model.shutdown() }
-        return (SettingsWindowController(updates: UpdateController(), model: model, removeAppData: {}), model)
+        return (SettingsWindowController(updates: UpdateController(), model: model), model)
     }
 
     func testTheWindowHasTheTitleBandAndNoSystemTitle() throws {

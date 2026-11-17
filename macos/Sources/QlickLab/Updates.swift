@@ -111,13 +111,5 @@ import SwiftUI
         launchTask?.cancel()
         installTask?.cancel()
     }
-
-    func stopForAppDataRemoval() {
-        stop()
-        controller?.updater.automaticallyChecksForUpdates = false
-        observations.removeAll()
-        controller = nil
-        canCheck = false
-    }
 }
 

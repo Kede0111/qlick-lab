@@ -331,7 +331,7 @@ final class AlertPanel: NSPanel {
             // Over everything, the grid's sheet too.
             root.addSubview(cover, positioned: .above, relativeTo: nil)
             returnFocus = window.firstResponder
-            // Asked from another window (Settings' Remove All App Data):
+            // Asked from another window (Settings):
             // this one takes the keys, so Return and Esc answer the sheet.
             if !window.isKeyWindow { takeKeys(window) }
         }

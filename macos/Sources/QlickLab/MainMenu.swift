@@ -8,7 +8,6 @@ import SwiftUI
     let menu = NSMenu()
     private let model: EditorModel
     private let updates: UpdateController
-    private let removeAppData: () -> Void
     private let recent = NSMenu(title: "Open Recent")
     private var settings: SettingsWindowController?
     // Qlick Lab
@@ -19,12 +18,9 @@ import SwiftUI
         let keys = model.lab.keys
         for (item, action) in zip(flagItems, [SheetAction.pick, .reject, .unmark]) { item.keyEquivalent = keys.key(action) }
     }
-    private var removingAppData = false
-
-    init(model: EditorModel, updates: UpdateController, removeAppData: @escaping () -> Void) {
+    init(model: EditorModel, updates: UpdateController) {
         self.model = model
         self.updates = updates
-        self.removeAppData = removeAppData
         super.init()
         let name = "Qlick Lab"
         model.lab.openSettings = { [weak self] in self?.showSettings() }
@@ -235,11 +231,10 @@ import SwiftUI
     }
     @objc private func showSettings() {
         if settings == nil {
-            settings = SettingsWindowController(updates: updates, model: model, removeAppData: removeAppData)
+            settings = SettingsWindowController(updates: updates, model: model)
         }
         settings?.window?.makeKeyAndOrderFront(nil)
     }
-    func prepareForAppDataRemoval() { removingAppData = true; settings?.window?.orderOut(nil) }
     @objc private func openPhotograph() { model.openPanel() }
     @objc private func showRecent() {}
     @objc private func openRecent(_ item: NSMenuItem) { if let url = item.representedObject as? URL { model.open(url) } }
@@ -320,7 +315,7 @@ import SwiftUI
 
     func validateMenuItem(_ item: NSMenuItem) -> Bool {
         // The alert sheet is answered first, as a system alert's would be.
-        if removingAppData || model.alert != nil { return false }
+        if model.alert != nil { return false }
         let photo = model.source != nil
         // The grid shows no photograph to adjust, zoom or crop.
         let editing = photo && model.mode == .photo && model.lab.workspace == .develop

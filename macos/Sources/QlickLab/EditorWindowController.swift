@@ -200,13 +200,6 @@ final class EdgeSplitView: NSSplitView {
 
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 
-    /// Prevent window closure during data removal from restoring preferences.
-    func prepareForAppDataRemoval() {
-        window?.setFrameAutosaveName("")
-        editorFrame.split.splitView.autosaveName = nil
-        window?.orderOut(nil)
-    }
-
     // MARK: State
 
     private func windowChangedOcclusion() {
