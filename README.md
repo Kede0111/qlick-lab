@@ -78,8 +78,8 @@ sheet with a red grease pencil, compare frames, develop the keepers and print.
 
 ## Film stocks and papers
 
-Every profile comes from spektrafilm and its community. Each is built from the manufacturer's published data, and the
-app shows where it comes from and how far it can be trusted. In the app, each one previews on your own photograph.
+The profiles come from spektrafilm, Fotufilm and Negs, built from the manufacturers' published data (a few are
+creative or experimental, and say so). The app shows where it comes from and how far it can be trusted. In the app, each one previews on your own photograph.
 
 **Colour negative (22)**
 
