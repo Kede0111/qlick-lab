@@ -78,7 +78,9 @@ import Observation
     }
 
     /// A proxy that couldn't be made: its thumbnail is developed from the RAW instead of waiting.
-    var failedProxyPhotos: Set<URL> { failedProxies }
+    /// The photographs whose proxy is waiting or being made: their thumbnails wait for it. One whose proxy was
+    /// removed since (the cache at its limit) isn't here, and its thumbnail is developed from the RAW.
+    var pendingProxies: Set<URL> { Set(proxyQueue).union(makingProxies ? [current].compactMap { $0 } : []) }
 
     /// Builds `items`' previews; `front` puts them before what's waiting. Asked for by hand, it says so at once,
     /// and says when there was nothing to build.

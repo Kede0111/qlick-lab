@@ -2622,7 +2622,7 @@ import UserNotifications
             let developing = Set(self.thumbnailsDeveloping.values.map(\.item)), onlyOnScreen = self.lowPowerMode
             // Qlick Lab: with proxies made ahead, a RAW's thumbnail waits for its proxy (the camera's JPEG shows
             // meanwhile): developed from it, it takes milliseconds instead of seconds.
-            let waitForProxies = PreviewStorage.buildsProxiesAhead, proxyFailures = self.lab.previewBuilder.failedProxyPhotos
+            let pendingProxies = PreviewStorage.buildsProxiesAhead ? self.lab.previewBuilder.pendingProxies : []
             self.thumbnailsPumpAgain = false
             // Each item but the open one, whose thumbnail comes from its
             // preview, and those developing, on screen first, then outward
@@ -2637,8 +2637,7 @@ import UserNotifications
                     if file.url == open { openIndex = index; continue }
                     if onScreen.contains(file.url) { onScreenIndices.append(index) }
                     guard !developing.contains(file.url), let look = looks.look(for: file.url), failures[file.url] != look else { continue }
-                    if waitForProxies, Self.rawExtensions.contains(file.url.photoFile.pathExtension.lowercased()),
-                       !proxyFailures.contains(file.url.photoFile), !PreviewBuilder.hasProxy(file.url.photoFile) { continue }
+                    if pendingProxies.contains(file.url.photoFile) { continue }
                     if let checked = checked[file.url], checked.look == look, checked.present { continue }
                     if onScreen.contains(file.url) { shown.append((file, look)) } else if !onlyOnScreen { rest.append((index, file, look)) }
                 }
