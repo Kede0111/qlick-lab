@@ -16,9 +16,9 @@
   <a href="https://github.com/Kede0111/qlick-lab/issues">Report a problem</a>
 </p>
 
-<!-- Screenshot: the main window, contact sheet with red pencil marks.
-<p align="center"><img src="docs/screenshots/contact-sheet.webp" alt="The contact sheet"></p>
--->
+<p align="center">
+  <img src="docs/screenshots/develop.webp" alt="Qlick Lab developing a Leica M11 DNG on Kodak Portra 400, with the roll's marked frames in the film strip below">
+</p>
 
 Qlick Lab treats each digital photograph like a frame of film. It doesn't lay a filter on top. It
 **develops the picture**: the light goes through a simulated film stock (its dyes, grain and halation), is printed on a
@@ -37,6 +37,11 @@ sheet with a red grease pencil, compare frames, develop the keepers and print.
 - Three layouts (film strips, tight strips, large frames with their facts), a light table, a loupe.
 - **Print it**: the sheet as a vector PDF, paginated (A4, A3, Letter, 8 × 10, 24 × 30), with or without your marks.
 
+<p align="center">
+  <img src="docs/screenshots/contact-sheet.webp" width="49%" alt="A roll as a contact sheet, frames circled and crossed out in red pencil">
+  <img src="docs/screenshots/print.webp" width="49%" alt="Printing the contact sheet to PDF">
+</p>
+
 ### Development
 - **About sixty film stocks and papers**: Portra, Ektar, Gold, Tri-X, Velvia, CineStill and more, each with its own
   measured curves, where it comes from and how far it can be trusted. Every stock shows a preview developed on *your*
@@ -48,6 +53,10 @@ sheet with a red grease pencil, compare frames, develop the keepers and print.
 - **Compare**: neighbouring frames, stocks, recipes, versions or before/after, with linked zoom and pan. Each view is
   a real development, not an approximation.
 
+<p align="center">
+  <img src="docs/screenshots/develop-inspector.webp" alt="Developing on Kodak Portra 400: white balance, brightness, tone and colour in a Liquid Glass panel">
+</p>
+
 ### Library, import and export
 - **Catalogues and projects**: a roll is a folder, wherever it is. Nothing is copied and no original is ever changed.
 - **Import** from a memory card, with a journal that survives an interruption.
@@ -55,19 +64,17 @@ sheet with a red grease pencil, compare frames, develop the keepers and print.
 - Export 8- or 16-bit JPEG, TIFF or PNG with an ICC profile, one at a time or in batches. The rating goes into the
   file's XMP. Film looks can also go out as a `.cube` LUT.
 
+<p align="center">
+  <img src="docs/screenshots/library.webp" width="49%" alt="The library: a project of twenty rolls, each shown as a strip of film">
+  <img src="docs/screenshots/import.webp" width="49%" alt="Importing 3,202 photographs with a recipe, as rolls of a project">
+</p>
+
 ### A Mac app
 - Native AppKit and SwiftUI, with **Liquid Glass** panels on macOS 26.
 - Keyboard first: P / X / U to mark, 0–5 to rate, Space for a large view, C to compare. Every key can be changed
   in Settings › Shortcuts.
 - **Your photos stay on your Mac.** No account, no cloud, no tracking, no analytics. The app opens the network only
   when you click a link (GitHub, PayPal).
-
-<!-- Screenshots: development, compare, film library.
-<p align="center">
-  <img src="docs/screenshots/develop.webp" width="49%" alt="Developing a photograph">
-  <img src="docs/screenshots/compare.webp" width="49%" alt="Comparing film stocks">
-</p>
--->
 
 ## Install
 
