@@ -2371,6 +2371,10 @@ import UserNotifications
     @ObservationIgnored private var thumbnailEngines: [Int: EngineClient] = [:]
     /// Each slot's thumbnail developing now, and its job.
     @ObservationIgnored private var thumbnailsDeveloping: [Int: (item: URL, task: Task<Void, Never>)] = [:]
+    /// Qlick Lab: the folder's thumbnails still to develop, as the pump last counted them (those developing too).
+    private(set) var thumbnailsLeft = 0
+    /// Qlick Lab: work the lab does in the background that the sidebar shows, with how far it got.
+    private(set) var backgroundWork: (title: String, done: Int, total: Int)?
     /// The scan for the next thumbnails to develop.
     @ObservationIgnored private var thumbnailTask: Task<Void, Never>?
     @ObservationIgnored private var thumbnailsPumpAgain = false
@@ -2610,7 +2614,8 @@ import UserNotifications
             let store = self.editedThumbnails, lookup = self.sidecarLookup
             // Copies (the dictionaries copy on write): a folder of thousands
             // is scanned for every thumbnail, which must stay off the main actor.
-            let items = self.library.items, open = self.sourceItem, onScreen = self.thumbnailsOnScreen, looks = self.thumbnailLooks
+            // Qlick Lab: on the contact sheet the open photograph isn't developed, so the pump makes its thumbnail too.
+            let items = self.library.items, open = self.mode == .grid ? nil : self.sourceItem, onScreen = self.thumbnailsOnScreen, looks = self.thumbnailLooks
             let failures = self.thumbnailFailures, checked = self.thumbnailsChecked, emptied = self.thumbnailsEmptied
             let developing = Set(self.thumbnailsDeveloping.values.map(\.item)), onlyOnScreen = self.lowPowerMode
             self.thumbnailsPumpAgain = false
@@ -2620,7 +2625,7 @@ import UserNotifications
             // next ones scrolled to or opened are ready: the first without a
             // thumbnail on disk, one for each free helper. Those with one are
             // noted. In Low Power Mode, those on screen only.
-            let found = await Task.detached(priority: .utility) { () -> (present: [(URL, String)], next: [(file: PhotoFile, look: String)]) in
+            let found = await Task.detached(priority: .utility) { () -> (present: [(URL, String)], next: [(file: PhotoFile, look: String)], missing: Int) in
                 var shown: [(file: PhotoFile, look: String)] = [], rest: [(index: Int, file: PhotoFile, look: String)] = []
                 var onScreenIndices: [Int] = [], openIndex: Int?
                 for (index, file) in items.enumerated() {
@@ -2632,13 +2637,17 @@ import UserNotifications
                 }
                 let centre = Self.thumbnailCentre(onScreen: onScreenIndices, open: openIndex)
                 let ordered = shown + Self.outward(rest.map { ($0.index, (file: $0.file, look: $0.look)) }, from: centre)
-                var present: [(URL, String)] = [], next: [(file: PhotoFile, look: String)] = []
+                var present: [(URL, String)] = [], next: [(file: PhotoFile, look: String)] = [], missing = 0
+                // Every one is looked at, to count those still missing for the sidebar.
                 for (file, look) in ordered {
                     guard let key = store.key(for: file, look: look) else { continue }
-                    if store.contains(key) { present.append((file.url, look)) } else { next.append((file, look)) }
-                    if next.count == free.count { break }
+                    if store.contains(key) { present.append((file.url, look)) }
+                    else {
+                        missing += 1
+                        if next.count < free.count { next.append((file, look)) }
+                    }
                 }
-                return (present, next)
+                return (present, next, missing + developing.count)
             }.value
             guard !self.closing else { return }
             guard emptied == self.thumbnailsEmptied else {
@@ -2646,6 +2655,7 @@ import UserNotifications
                 return self.pumpThumbnails()
             }
             for (item, look) in found.present { self.thumbnailsChecked[item] = (look, true) }
+            if self.thumbnailsLeft != found.missing { self.thumbnailsLeft = found.missing }
             for (slot, (file, look)) in zip(free, found.next) {
                 self.thumbnailIdle?.cancel(); self.thumbnailIdle = nil
                 self.thumbnailsChecked[file.url] = (look, false)
@@ -2662,6 +2672,7 @@ import UserNotifications
             if self.thumbnailsPumpAgain {
                 self.pumpThumbnails()
             } else if self.thumbnailsDeveloping.isEmpty {
+                if self.thumbnailsLeft != 0, found.next.isEmpty { self.thumbnailsLeft = 0 }
                 self.stopThumbnailEngineSoon()
             }
         }
@@ -2898,7 +2909,7 @@ import UserNotifications
                     failure = failure ?? "“\(library.name(of: item))” couldn’t be removed: its .qlick file can’t be changed."
                 }
             }
-            for photo in before.keys { library.reload(photo) }
+            library.reload(Array(before.keys))
         }
         library.remove(plan.files)
 
@@ -5235,7 +5246,9 @@ import UserNotifications
         helper.label = "balance"
         defer { Task.detached(priority: .utility) { helper.stop() } }
         var found: [URL: (temperature: Double, tint: Double)] = [:]
+        defer { backgroundWork = nil }
         for (index, photo) in photos.enumerated() {
+            backgroundWork = ("Balancing", index, photos.count)
             if let known = lab.asShot.autos[photo] { found[photo] = known; continue }
             status = "Balancing \(index + 1) of \(photos.count)…"
             let state = labEdits(for: photo).state

@@ -51,8 +51,8 @@ import Observation
     /// Builds `items`' previews; `front` puts them before what's waiting. Asked for by hand, it says so at once,
     /// and says when there was nothing to build.
     func build(_ items: [URL], front: Bool = true) {
-        let waiting = Set(queue)
-        let new = items.filter { !waiting.contains($0) && needs($0) }
+        let waiting = Set(queue), files = filesByURL
+        let new = items.filter { !waiting.contains($0) && needs($0, files: files) }
         if front {
             asked = true
             if new.isEmpty && queue.isEmpty && task == nil {
@@ -102,13 +102,19 @@ import Observation
     }
 
     /// The archive's name for `item`'s preview as it opens now, if it has a look to name it by.
-    private func key(_ item: URL) -> String? {
-        guard let look = model.thumbnailLook(for: item), let file = model.library.items.first(where: { $0.url == item }) else { return nil }
+    private func key(_ item: URL, files: [URL: PhotoFile]? = nil) -> String? {
+        guard let look = model.thumbnailLook(for: item),
+              let file = files?[item] ?? model.library.items.first(where: { $0.url == item }) else { return nil }
         return model.renderArchive.key(for: file, look: look)
     }
 
-    func needs(_ item: URL) -> Bool {
-        guard let key = key(item) else { return false }
+    /// The folder's photographs by URL: looked up once for a whole build, not once per photograph.
+    private var filesByURL: [URL: PhotoFile] { Dictionary(model.library.items.map { ($0.url, $0) }, uniquingKeysWith: { a, _ in a }) }
+
+    func needs(_ item: URL) -> Bool { needs(item, files: nil) }
+
+    private func needs(_ item: URL, files: [URL: PhotoFile]?) -> Bool {
+        guard let key = key(item, files: files) else { return false }
         return !failed.contains(key) && (!model.renderArchive.contains(key) || needsProxy(item))
     }
 
@@ -126,10 +132,11 @@ import Observation
     private func next() -> URL? {
         guard !queue.isEmpty else { return nil }
         if let index = queue.firstIndex(where: urgent.contains) { return queue.remove(at: index) }
-        let order = model.library.items.map(\.url)
-        let centre = model.sourceItem.flatMap { order.firstIndex(of: $0) } ?? 0
+        var order: [URL: Int] = [:]
+        for (index, file) in model.library.items.enumerated() where order[file.url] == nil { order[file.url] = index }
+        let centre = model.sourceItem.flatMap { order[$0] } ?? 0
         let index = queue.indices.min { a, b in
-            abs((order.firstIndex(of: queue[a]) ?? .max / 2) - centre) < abs((order.firstIndex(of: queue[b]) ?? .max / 2) - centre)
+            abs((order[queue[a]] ?? .max / 2) - centre) < abs((order[queue[b]] ?? .max / 2) - centre)
         } ?? 0
         return queue.remove(at: index)
     }
@@ -155,7 +162,8 @@ import Observation
         while !Task.isCancelled, let item = next() {
             // The editor goes first, unless the preview is wanted now; one wanted now goes before this one.
             var deferred = false
-            while !Task.isCancelled, !urgent.contains(item), !model.backgroundMayRun {
+            // Qlick Lab: the contact sheet's thumbnails go first, as they show the change.
+            while !Task.isCancelled, !urgent.contains(item), !model.backgroundMayRun || model.thumbnailsLeft > 0 {
                 if !urgent.isEmpty { deferred = true; break }
                 try? await Task.sleep(for: .milliseconds(300))
             }

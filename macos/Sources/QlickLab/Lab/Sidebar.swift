@@ -73,6 +73,7 @@ struct LabSidebar: View {
 
             Spacer(minLength: 0)
             ImportSidebarProgress(model: model)
+            WorkProgress(model: model)
             PreviewProgress(builder: lab.previewBuilder)
             Divider().overlay(Color.white.opacity(0.06))
             RoomButton(symbol: "gearshape", title: "Settings", on: false) {
@@ -297,6 +298,32 @@ private struct CatalogMenu: View {
 }
 
 /// The previews being built in the background, while they are.
+/// What the lab does in the background besides the previews: balancing photographs for a recipe, and the
+/// contact sheet's thumbnails being developed again after a change.
+private struct WorkProgress: View {
+    let model: EditorModel
+    var body: some View {
+        if let work = model.backgroundWork, work.total > 0 {
+            row(work.title, figure: "\(min(work.done + 1, work.total)) / \(work.total)", value: Double(work.done) / Double(work.total))
+        } else if model.thumbnailsLeft > 0 {
+            row("Updating thumbnails", figure: "\(model.thumbnailsLeft) left", value: nil)
+        }
+    }
+
+    private func row(_ title: String, figure: String, value: Double?) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            HStack {
+                Text(title).font(.system(size: 10.5)).foregroundStyle(Q.dim)
+                Spacer()
+                Text(figure).font(Q.value(10.5)).foregroundStyle(Q.dim)
+            }
+            if let value { ProgressView(value: value).progressViewStyle(.linear).tint(Q.red).controlSize(.mini) }
+            else { ProgressView().progressViewStyle(.linear).tint(Q.red).controlSize(.mini) }
+        }
+        .padding(.horizontal, 20).padding(.bottom, 8)
+    }
+}
+
 private struct PreviewProgress: View {
     let builder: PreviewBuilder
     var body: some View {

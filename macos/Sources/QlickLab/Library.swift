@@ -206,6 +206,17 @@ struct LibraryFilter: Codable, Equatable, Sendable {
 
     /// Reads `photo`'s sidecar again now, pending writes included: after the
     /// app changed it in ways the summaries can't follow (duplicates, edits).
+    /// Qlick Lab: `reload` for several photographs, with one change at the end: a preset on thousands of frames
+    /// doesn't recount the whole folder for each one.
+    func reload(_ photos: [URL]) {
+        let callback = looksChanged
+        looksChanged = nil
+        let before = looks
+        for photo in photos { reload(photo) }
+        looksChanged = callback
+        if looks != before { looksChanged?() }
+    }
+
     func reload(_ photo: URL) {
         guard let store else { return }
         let read: [LibraryItemRead]
