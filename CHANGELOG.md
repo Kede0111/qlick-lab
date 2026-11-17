@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.1.2 — fixes from users' reports
+
+- **Import, Add in Place**: Add now shows its progress (the film strip or the list, the counter, the time left,
+  Stop) and makes the project as the photographs are added, instead of seeming to do nothing. It ends with what was
+  added and a button to open the contact sheet. Copy and Move say "Getting ready…" and why they can't start.
+- **Thumbnails from a slow disk**: a frame scrolled away no longer keeps the disk busy reading its thumbnail, so the
+  import, the contact sheet and the progress show quickly even from a network disk.
+- **Quitting never freezes**: the lab no longer waits with Quit greyed. It saves, then quits by itself; after a few
+  seconds it says what it's still writing and offers Quit Now.
+- **Removing a project** asks first, closes its contact sheet and removes its previews from the cache. Photographs
+  and their marks stay where they are.
+- **Sidebar**: a project's arrow only folds and unfolds its rolls; it no longer opens the whole project.
+- **Previews folder**: the contact sheet's thumbnails now follow the folder chosen for the previews (another disk).
+- **Proxies**: Settings › Upkeep › Make proxies offers Never, and says plainly when they're made.
+- **Settings**: Remove All App Data and Quit is gone.
+
 ## 0.1.1
 
 - **Print Diffusion**: the diffusion filters (Black Pro-Mist, Glimmerglass, Pro-Mist, CineBloom) can now go under the
