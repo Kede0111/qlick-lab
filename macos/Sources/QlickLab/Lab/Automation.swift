@@ -126,6 +126,8 @@ import AppKit
             guard let name = fields.first else { break }
             let project = lab.projects.projects.first { $0.name == name } ?? lab.projects.create(named: name)
             lab.add(fields.dropFirst().map { URL(fileURLWithPath: $0, isDirectory: true) }, to: project.id)
+        case "removeproject": if let project = lab.projects.projects.first(where: { $0.name == rest }) { lab.removeProject(project) }
+        case "modelanswer": model.answerAlert(Int(rest) ?? 0)
         case "wholeproject": if let project = lab.projects.projects.first(where: { $0.name == rest }) { lab.openWhole(project) }
         case "catalog":
             // catalog new <path> | open <path> | saveas <path>

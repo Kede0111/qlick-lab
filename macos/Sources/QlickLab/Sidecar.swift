@@ -433,6 +433,9 @@ final class SidecarStore: Sendable {
         return try PhotoSidecar(data: data).raw
     }
 
+    /// How many photographs have changes still to write.
+    var pendingCount: Int { queue.all.count }
+
     /// Queues `patch`; `flush` writes it.
     func enqueue(_ patch: SidecarPatch, for photo: URL) {
         queue.add(patch, for: photo.standardizedFileURL)

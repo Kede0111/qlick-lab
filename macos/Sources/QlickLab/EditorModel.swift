@@ -576,6 +576,18 @@ import UserNotifications
         updateHistogram()
     }
 
+    /// Qlick Lab: closes the open photograph and its folder, as when the lab has nothing open. Its edits are
+    /// written to its sidecar first.
+    func closeFolder() {
+        guard !cropping else { return }
+        flushSidecar()
+        forgetPhotograph()
+        libraryRoot = nil
+        selection = LibrarySelection()
+        library.close()
+        mode = .grid
+    }
+
     /// No photograph open, and nothing of the last one written to its sidecar.
     private func forgetPhotograph() {
         endTray(keep: true)

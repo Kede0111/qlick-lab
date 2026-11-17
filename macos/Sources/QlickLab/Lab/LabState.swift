@@ -210,6 +210,52 @@ struct SheetOptions: Codable, Equatable, Sendable {
     /// The project shown whole, all its rolls on one sheet.
     var wholeProject: LabProject? { projects.project(viewFolder: model.library.directory) }
 
+    /// Removes a project from the catalogue, once asked. Its photographs and their sidecars stay where they are;
+    /// its contact sheet closes, its previews leave the cache and the import forgets it, so it can come back whole.
+    func removeProject(_ project: LabProject) {
+        Task {
+            let answer = await model.ask(AppAlert(
+                title: "Remove “\(project.name)” from the catalog?",
+                detail: "Its photographs and their marks stay where they are: its folders can be added again at any time. Its previews are removed from the cache.",
+                buttons: [.init(title: "Cancel", role: .cancel), .init(title: "Remove", role: .destructive)]))
+            guard answer.button == 1, projects.projects.contains(where: { $0.id == project.id }) else { return }
+            let others = Set(projects.projects.filter { $0.id != project.id }.flatMap { $0.rolls.map(\.folder) })
+            let folders = project.rolls.compactMap { projects.resolve($0, in: project.id) }.filter { !others.contains($0.standardizedFileURL.path) }
+            // What's open of it closes: its contact sheet, its photograph.
+            let open = model.library.directory?.standardizedFileURL.path
+            let showing = wholeProject?.id == project.id || folders.contains { $0.standardizedFileURL.path == open }
+            if showing { model.closeFolder() }
+            previewBuilder.cancel()
+            // Shown whole, its photographs are reached through its folder of links: their previews are named by
+            // those paths too. Read before the folder goes.
+            let links = projects.directory.appendingPathComponent("Views", isDirectory: true).appendingPathComponent(project.id.uuidString, isDirectory: true)
+            var aliases: [URL: [URL]] = [:]
+            for link in (try? FileManager.default.contentsOfDirectory(at: links, includingPropertiesForKeys: nil)) ?? [] {
+                guard let target = try? FileManager.default.destinationOfSymbolicLink(atPath: link.path) else { continue }
+                let real = URL(fileURLWithPath: target).standardizedFileURL
+                if let folder = folders.first(where: { $0.standardizedFileURL.path == real.path }) { aliases[folder, default: []].append(link) }
+            }
+            projects.remove(project.id)
+            if showing || workspace == .contactSheet || workspace == .develop { show(.library) }
+            // The cache and the import's memory, off the main thread: a disk on the network answers slowly.
+            importer.ledger.forget(folders: Set(folders.map { $0.standardizedFileURL.path }))
+            let archive = model.renderArchive
+            Task.detached(priority: .utility) {
+                for folder in folders {
+                    guard let photos = try? PhotoFolder.listing(in: folder).photos else { continue }
+                    for photo in photos {
+                        // The photograph as its folder lists it, and as its project's folder of links did.
+                        let places = [photo.url] + (aliases[folder] ?? []).map { $0.appendingPathComponent(photo.url.lastPathComponent) }
+                        for place in places {
+                            archive.removePreview(of: PhotoFile(url: place))
+                            for lens in [false, true] { if let proxy = PreviewStorage.proxyFile(for: photo.url, as: place, lensCorrection: lens) { try? FileManager.default.removeItem(at: proxy) } }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     /// Opens every roll of a project on one contact sheet.
     func openWhole(_ project: LabProject) {
         guard !project.rolls.isEmpty else { return show(.library) }

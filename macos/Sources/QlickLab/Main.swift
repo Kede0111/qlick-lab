@@ -32,6 +32,8 @@ import SwiftUI
     private var removingAppData = false
     /// The quit questions are open in the alert sheet.
     private var askingToQuit = false
+    /// Qlick Lab: the questions are answered and the last writes made (or given up): the next quit goes through.
+    private var quitApproved = false
     private var appDataRemovalFinished = false
 
     func applicationWillFinishLaunching(_ notification: Notification) {
@@ -139,26 +141,33 @@ import SwiftUI
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         // Cleanup intentionally discards the session. Never recreate it here.
         if removingAppData { return appDataRemovalFinished ? .terminateNow : .terminateCancel }
-        guard !terminating else { return .terminateLater }
+        // Qlick Lab: what had to be asked and saved is done; this is the quit that follows.
+        if quitApproved { return .terminateNow }
+        // Saving already: Quit again shows what it waits for.
+        if terminating { showSavingWait(now: true); return .terminateCancel }
         if model.saving || (updates.installing && model.exporting) || askingToQuit { return .terminateCancel }
         // A question already open is answered first.
         if model.alerts.shown != nil { NSSound.beep(); return .terminateCancel }
         let questions = quitQuestions()
-        guard !questions.isEmpty else { return saveAndTerminate(sender) }
+        if questions.isEmpty, !needsSaving { return .terminateNow }
+        // Qlick Lab: the questions and the last writes happen with the lab running as usual, and the lab quits by
+        // itself once they're done. Never `.terminateLater`: AppKit then waits in a loop of its own, and when the
+        // quit began on the main queue the work it waits for could never run (Quit greyed, the lab frozen).
         askingToQuit = true
         Task {
             for (alert, quit) in questions where await model.ask(alert).button != quit {
                 askingToQuit = false
-                return sender.reply(toApplicationShouldTerminate: false)
+                return
             }
             askingToQuit = false
-            switch saveAndTerminate(sender) {
-            case .terminateNow: sender.reply(toApplicationShouldTerminate: true)
-            case .terminateCancel: sender.reply(toApplicationShouldTerminate: false)
-            default: break
-            }
+            await saveThenQuit()
         }
-        return .terminateLater
+        return .terminateCancel
+    }
+
+    /// The editing session to keep at quit.
+    private var needsSaving: Bool {
+        model.session != nil && ProcessInfo.processInfo.environment["SPEKTRAFILM_BENCHMARK_PHOTO"] == nil
     }
 
     /// What quitting now would stop, as questions in the alert sheet, each
@@ -173,7 +182,13 @@ import SwiftUI
                 buttons: [.init(title: "Quit"), .init(title: "Cancel", role: .cancel)]), 0))
         }
         // Qlick Lab: an import under way is kept in its journal.
-        if let run = model.lab.importer.run, !run.finished {
+        if let run = model.lab.importer.run, !run.finished, run.adding {
+            let left = run.total - run.done
+            questions.append((AppAlert(
+                title: "Stop adding \(left == 1 ? "the last photograph" : "the \(left) remaining photographs")?",
+                detail: "Those already added stay in the project with their marks. The others can be added again next time.",
+                buttons: [.init(title: "Quit"), .init(title: "Cancel", role: .cancel)]), 0))
+        } else if let run = model.lab.importer.run, !run.finished {
             let left = run.total - run.done
             questions.append((AppAlert(
                 title: "Finish importing \(left == 1 ? "the last photograph" : "the \(left) remaining photographs") next time?",
@@ -190,26 +205,57 @@ import SwiftUI
     }
 
     /// Save once at quit/relaunch, not on slider changes or the rendering path.
-    /// A failed write cancels termination instead of silently losing the
+    /// A failed write cancels the quit instead of silently losing the
     /// session. The photograph's edits go to its sidecar first; one that
-    /// can't be written was already reported and doesn't keep Negs open.
-    private func saveAndTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        guard let session = model.session,
-              ProcessInfo.processInfo.environment["SPEKTRAFILM_BENCHMARK_PHOTO"] == nil else { return .terminateNow }
+    /// can't be written was already reported and doesn't keep the lab open.
+    private func saveThenQuit() async {
+        guard let session = model.session, needsSaving else { return quit() }
         terminating = true
-        Task {
-            do {
-                await model.flushSidecars()
-                try await sessions.save(session)
-                await model.flushPreviewCache()
-                sender.reply(toApplicationShouldTerminate: true)
-            } catch {
-                terminating = false
-                sender.reply(toApplicationShouldTerminate: false)
-                model.error = "Could not save the editing session. Qlick Lab stayed open. \(error.localizedDescription)"
-            }
+        // Qlick Lab: what works in the background stops first, so the last writes have the disks to themselves.
+        model.lab.previewBuilder.cancel()
+        model.lab.importer.stop()
+        // Never a quit that waits without a word: after a moment it says what it waits for, and offers to quit now.
+        let watch = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(3))
+            guard !Task.isCancelled else { return }
+            self?.showSavingWait(now: false)
         }
-        return .terminateLater
+        do {
+            await model.flushSidecars()
+            try await sessions.save(session)
+            await model.flushPreviewCache()
+            watch.cancel()
+            model.alerts.withdraw(titled: Self.savingTitle, answering: 0)
+            quit()
+        } catch {
+            watch.cancel()
+            model.alerts.withdraw(titled: Self.savingTitle, answering: 0)
+            guard !quitApproved else { return }
+            terminating = false
+            model.error = "Could not save the editing session. Qlick Lab stayed open. \(error.localizedDescription)"
+        }
+    }
+
+    private static let savingTitle = "Qlick Lab is still saving."
+
+    /// What a quit waits for, with Quit Now. `now`: asked again (a second Quit), not after the wait.
+    private func showSavingWait(now: Bool) {
+        guard terminating, !quitApproved, model.alerts.shown?.alert.title != Self.savingTitle else { return }
+        let left = model.sidecars?.pendingCount ?? 0
+        let detail = left > 0
+            ? "The marks and edits of \(left == 1 ? "one photograph are" : "\(left) photographs are") still being written beside \(left == 1 ? "it" : "them"). On a network disk this can take a while.\n\nQuit Now leaves what isn’t written yet unsaved."
+            : "The editing session is still being saved.\n\nQuit Now leaves it as it was saved last."
+        Task {
+            let answer = await model.ask(AppAlert(title: Self.savingTitle, detail: detail,
+                                                  buttons: [.init(title: "Keep Waiting", role: .cancel), .init(title: "Quit Now", role: .destructive)]))
+            if answer.button == 1 { quit() }
+        }
+    }
+
+    private func quit() {
+        guard !quitApproved else { return }
+        quitApproved = true
+        NSApp.terminate(nil)
     }
 
     private func removeAllAppData() {

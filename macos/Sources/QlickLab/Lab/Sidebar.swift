@@ -140,29 +140,36 @@ private struct ProjectRows: View {
 
     var body: some View {
         let shown = lab.wholeProject?.id == project.id
-        Button { lab.openWhole(project); if !open { toggle() } } label: {
-            HStack(spacing: 6) {
+        HStack(spacing: 0) {
+            // The arrow only folds or unfolds the project's rolls: nothing opens.
+            Button(action: toggle) {
                 Image(systemName: "chevron.right").font(.system(size: 8.5, weight: .bold)).foregroundStyle(Q.dim)
-                    .rotationEffect(.degrees(open ? 90 : 0)).frame(width: 12)
+                    .rotationEffect(.degrees(open ? 90 : 0))
+                    .frame(width: 26, height: 27)
                     .contentShape(Rectangle())
-                    .onTapGesture(perform: toggle)
-                Text(project.name).font(.system(size: 12.5, weight: shown ? .semibold : .medium)).foregroundStyle(shown ? Q.text : Color(white: 0.86)).lineLimit(1)
-                Spacer(minLength: 4)
-                Text("\(project.rolls.count)").font(Q.value(11)).foregroundStyle(Q.faint)
             }
-            .padding(.horizontal, 8)
-            .frame(height: 27)
-            .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(Color.white.opacity(dropping ? 0.12 : shown ? 0.08 : hovered ? 0.05 : 0)))
-            .contentShape(Rectangle())
+            .buttonStyle(.plain)
+            .help(open ? "Hide the rolls" : "Show the rolls")
+            Button { lab.openWhole(project); if !open { toggle() } } label: {
+                HStack(spacing: 6) {
+                    Text(project.name).font(.system(size: 12.5, weight: shown ? .semibold : .medium)).foregroundStyle(shown ? Q.text : Color(white: 0.86)).lineLimit(1)
+                    Spacer(minLength: 4)
+                    Text("\(project.rolls.count)").font(Q.value(11)).foregroundStyle(Q.faint)
+                }
+                .padding(.trailing, 8)
+                .frame(height: 27)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
         }
-        .buttonStyle(.plain)
+        .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(Color.white.opacity(dropping ? 0.12 : shown ? 0.08 : hovered ? 0.05 : 0)))
         .onHover { hovered = $0 }
         .onDrop(of: [.fileURL], isTargeted: $dropping) { providers in LabDrop.load(providers) { lab.importFolders($0, into: project.id) } }
         .contextMenu {
             Button("Show All Its Photographs") { lab.openWhole(project) }
             Button("Add a Folder…") { lab.importPanel(into: project.id) }
             Divider()
-            Button("Remove the Project from the Catalog") { lab.projects.remove(project.id) }
+            Button("Remove the Project from the Catalog…") { lab.removeProject(project) }
         }
         if open {
             ForEach(project.rolls) { roll in

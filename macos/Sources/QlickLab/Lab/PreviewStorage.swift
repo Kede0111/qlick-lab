@@ -46,9 +46,15 @@ enum PreviewStorage {
     /// `photo`'s proxy file, named as the engine names it (`proxy_file` in the helper): its path, size, modification
     /// time in whole seconds and lens correction.
     static func proxyFile(for photo: URL, lensCorrection: Bool) -> URL? {
+        proxyFile(for: photo, as: photo, lensCorrection: lensCorrection)
+    }
+
+    /// `proxyFile` for `photo` reached at another path, `place` (through a link): the name is the path's, the
+    /// size and date the file's.
+    static func proxyFile(for photo: URL, as place: URL, lensCorrection: Bool) -> URL? {
         guard let values = try? photo.resourceValues(forKeys: [.fileSizeKey, .contentModificationDateKey]),
               let size = values.fileSize, let modified = values.contentModificationDate else { return nil }
-        let name = "\(photo.path)|\(size)|\(Int(modified.timeIntervalSince1970.rounded(.down)))|\(lensCorrection ? 1 : 0)|v\(proxyVersion)"
+        let name = "\(place.path)|\(size)|\(Int(modified.timeIntervalSince1970.rounded(.down)))|\(lensCorrection ? 1 : 0)|v\(proxyVersion)"
         var hash: UInt64 = 0xcbf2_9ce4_8422_2325
         for byte in name.utf8 { hash ^= UInt64(byte); hash = hash &* 0x0000_0100_0000_01b3 }
         return proxyDirectory.appendingPathComponent(String(format: "%016llx", hash) + "." + proxyExtension)

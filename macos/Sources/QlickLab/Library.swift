@@ -278,6 +278,13 @@ struct LibraryFilter: Codable, Equatable, Sendable {
     /// An active filter is waiting for sidecars still being read.
     var filtering: Bool { filter.active && (loading || !summariesLoaded) }
 
+    /// Qlick Lab: no folder open any more (its project was removed from the catalogue).
+    func close() {
+        directory = nil
+        files = []; sidecarFiles = [:]; duplicates = [:]; summaries = [:]; looks = [:]
+        summariesLoaded = false; failed = false; loading = false
+    }
+
     /// Lists the folder again, such as when the window becomes key: file
     /// events on network shares get lost.
     func refreshNow() {

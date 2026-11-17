@@ -87,6 +87,12 @@ struct AlertAnswer: Equatable {
         }
     }
 
+    /// Takes back an alert that's no longer needed, as if `button` had been chosen: shown or still waiting.
+    func withdraw(titled title: String, answering button: Int) {
+        if let request = shown, request.alert.title == title { return answer(button) }
+        if let index = waiting.firstIndex(where: { $0.alert.title == title }) { waiting.remove(at: index).answer(button) }
+    }
+
     /// Answers the alert shown with one of its buttons, and shows the next.
     func answer(_ button: Int) {
         guard let request = shown, request.alert.buttons.indices.contains(button) else { return }

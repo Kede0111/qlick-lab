@@ -158,6 +158,25 @@ final class ImportLedger: @unchecked Sendable {
         return entry.destination
     }
 
+    /// Qlick Lab: forgets what was imported into `folders` (their paths), so a later import takes it again.
+    func forget(folders: Set<String>) {
+        guard !folders.isEmpty else { return }
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        encoder.outputFormatting = [.withoutEscapingSlashes]
+        lock.withLock {
+            let before = entries.count
+            entries = entries.filter { !folders.contains((($0.value.destination as NSString).deletingLastPathComponent as NSString).standardizingPath) }
+            guard entries.count != before else { return }
+            var text = Data()
+            for entry in entries.values.sorted(by: { $0.imported < $1.imported }) {
+                guard let line = try? encoder.encode(entry) else { continue }
+                text.append(line); text.append(10)
+            }
+            try? text.write(to: url, options: .atomic)
+        }
+    }
+
     func record(_ file: ImportFile, captured: CaptureTime?, hash: String?, destination: URL) {
         let entry = Entry(name: file.name, size: file.size, captured: captured?.text ?? "", hash: hash, destination: destination.path, imported: Date())
         let encoder = JSONEncoder()

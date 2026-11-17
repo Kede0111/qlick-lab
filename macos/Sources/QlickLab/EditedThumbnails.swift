@@ -104,6 +104,17 @@ final class EditedThumbnailStore: @unchecked Sendable {
         return Self.digest(Data("photo|1|\(photo)|\(file.url.variantID ?? "")".utf8))
     }
 
+    /// Qlick Lab: removes `file`'s kept preview and its link.
+    func removePreview(of file: PhotoFile) {
+        let current = currentLink(photoKey(for: file))
+        lock.withLock {
+            if let target = try? FileManager.default.destinationOfSymbolicLink(atPath: current.path) {
+                try? FileManager.default.removeItem(at: directory.appendingPathComponent(target))
+            }
+            try? FileManager.default.removeItem(at: current)
+        }
+    }
+
     func url(for key: String) -> URL { directory.appendingPathComponent(key + ".jpg") }
     private func link(_ loose: String) -> URL { directory.appendingPathComponent(loose + ".latest") }
     private func currentLink(_ photo: String) -> URL { directory.appendingPathComponent(photo + ".current") }

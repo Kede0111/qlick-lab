@@ -128,8 +128,11 @@ struct RollStats: Equatable, Sendable {
 
     /// Forgets the project. Its photographs and their sidecars stay where they are.
     func remove(_ id: UUID) {
+        for roll in projects.first(where: { $0.id == id })?.rolls ?? [] { counting[roll.id]?.cancel(); stats[roll.id] = nil }
         projects.removeAll { $0.id == id }
         try? FileManager.default.removeItem(at: file(id))
+        // Its own folder of links, made to show it whole.
+        try? FileManager.default.removeItem(at: directory.appendingPathComponent("Views", isDirectory: true).appendingPathComponent(id.uuidString, isDirectory: true))
     }
 
     // MARK: Rolls

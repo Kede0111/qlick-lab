@@ -141,7 +141,7 @@ private struct ProjectSection: View {
                     Button("Rename") { name = project.name; renaming = true }
                     Button(project.notes.isEmpty ? "Add a Note" : "Edit the Note") { notes = project.notes; editingNotes = true }
                     Divider()
-                    Button("Remove the Project from the Catalog") { lab.projects.remove(project.id) }
+                    Button("Remove the Project from the Catalog…") { lab.removeProject(project) }
                 } label: {
                     Image(systemName: "ellipsis").font(.system(size: 13, weight: .semibold)).foregroundStyle(Q.dim).frame(width: 28, height: 24).contentShape(Rectangle())
                 }
