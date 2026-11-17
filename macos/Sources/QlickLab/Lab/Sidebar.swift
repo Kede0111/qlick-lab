@@ -7,6 +7,8 @@ import UniformTypeIdentifiers
 struct LabSidebar: View {
     let model: EditorModel
     @State private var expanded: Set<UUID> = []
+    /// Folded by hand: stays folded even while one of its rolls is open.
+    @State private var folded: Set<UUID> = []
     @State private var dropping = false
 
     private var lab: LabState { model.lab }
@@ -50,9 +52,11 @@ struct LabSidebar: View {
                 VStack(alignment: .leading, spacing: 1) {
                     let current = lab.current
                     ForEach(lab.projects.projects) { project in
-                        ProjectRows(model: model, project: project, currentRoll: current?.roll.id,
-                                    open: expanded.contains(project.id) || current?.project.id == project.id) {
-                            if expanded.contains(project.id) { expanded.remove(project.id) } else { expanded.insert(project.id) }
+                        // The project being worked on unfolds by itself, unless it was folded by hand.
+                        let open = expanded.contains(project.id) || (current?.project.id == project.id && !folded.contains(project.id))
+                        ProjectRows(model: model, project: project, currentRoll: current?.roll.id, open: open) {
+                            if open { expanded.remove(project.id); folded.insert(project.id) }
+                            else { expanded.insert(project.id); folded.remove(project.id) }
                         }
                     }
                     if lab.projects.projects.isEmpty {
