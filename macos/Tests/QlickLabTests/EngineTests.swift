@@ -104,7 +104,7 @@ final class EngineTests: XCTestCase {
         try Data("#!/bin/sh\n".utf8).write(to: helper)
         let suite = "qlick-tests-\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
-        defer { defaults.removePersistentDomain(forName: suite) }
+        defer { TestDefaults.remove(suite) }
         let paths = EnginePaths(helper: helper, exporter: helper, data: directory)
         let catalog = JSONValue.object(["protocol": .number(1), "profiles": .array([.object(["id": .string("kodak_gold_200")])])])
         XCTAssertNil(CatalogCache.load(for: paths, defaults: defaults))

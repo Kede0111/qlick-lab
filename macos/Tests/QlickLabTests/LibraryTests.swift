@@ -101,7 +101,9 @@ final class LibraryFormatTests: XCTestCase {
     }
 
     func testTheFilterIsRememberedForTheApp() throws {
-        let defaults = try XCTUnwrap(UserDefaults(suiteName: "qlick-library-tests-\(UUID().uuidString)"))
+        let suite = "qlick-library-tests-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { TestDefaults.remove(suite) }
         XCTAssertEqual(LibraryFilter.load(defaults), LibraryFilter())
         let filter = LibraryFilter(rating: .atLeast(2), flags: [.reject], editedOnly: true)
         filter.save(defaults)
@@ -158,7 +160,9 @@ final class LibraryFormatTests: XCTestCase {
     }
 
     private func library() throws -> PhotoLibrary {
-        let defaults = try XCTUnwrap(UserDefaults(suiteName: "qlick-library-tests-\(UUID().uuidString)"))
+        let suite = "qlick-library-tests-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        addTeardownBlock { TestDefaults.remove(suite) }
         return PhotoLibrary(store: SidecarStore(), defaults: defaults)
     }
 

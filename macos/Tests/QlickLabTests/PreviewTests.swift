@@ -188,7 +188,7 @@ final class PreviewTests: XCTestCase {
 
     @MainActor func testMissingSettingMeansPreviewsOn() {
         let suite = "qlick-previews-\(UUID().uuidString)", defaults = UserDefaults(suiteName: suite)!
-        defer { defaults.removePersistentDomain(forName: suite) }
+        defer { TestDefaults.remove(suite) }
         let previews = Previews(defaults: defaults)
         XCTAssertTrue(previews.enabled)
         previews.enabled = false
@@ -197,7 +197,7 @@ final class PreviewTests: XCTestCase {
 
     @MainActor func testMissingSettingMeansThePaperFollowsTheFilm() {
         let suite = "qlick-keep-paper-\(UUID().uuidString)", defaults = UserDefaults(suiteName: suite)!
-        defer { defaults.removePersistentDomain(forName: suite) }
+        defer { TestDefaults.remove(suite) }
         let previews = Previews(defaults: defaults)
         XCTAssertFalse(previews.keepPaper)
         previews.keepPaper = true
@@ -207,7 +207,7 @@ final class PreviewTests: XCTestCase {
 
     @MainActor func testFavoritesKeepTheOrderStarredAndPersist() {
         let suite = "qlick-favorites-\(UUID().uuidString)", defaults = UserDefaults(suiteName: suite)!
-        defer { defaults.removePersistentDomain(forName: suite) }
+        defer { TestDefaults.remove(suite) }
         let previews = Previews(defaults: defaults)
         XCTAssertTrue(previews.favorites(in: stocks, paper: false).isEmpty)
         previews.toggleFavorite("trix", paper: false)
@@ -249,7 +249,7 @@ final class PreviewTests: XCTestCase {
 
     @MainActor func testNewUsersStartWithDefaultFavoritesAndKeepTheirOwnList() {
         let suite = "qlick-favorites-default-\(UUID().uuidString)", defaults = UserDefaults(suiteName: suite)!
-        defer { defaults.removePersistentDomain(forName: suite) }
+        defer { TestDefaults.remove(suite) }
         XCTAssertEqual(Previews(defaults: defaults).favoriteFilms, Previews.defaultFavoriteFilms)
         XCTAssertEqual(Previews(defaults: defaults).favoritePapers, [])
         for id in Previews.defaultFavoriteFilms { Previews(defaults: defaults).toggleFavorite(id, paper: false) }
@@ -258,7 +258,7 @@ final class PreviewTests: XCTestCase {
 
     @MainActor func testAFavoriteMissingFromTheCatalogIsKeptButNotShown() {
         let suite = "qlick-favorites-missing-\(UUID().uuidString)", defaults = UserDefaults(suiteName: suite)!
-        defer { defaults.removePersistentDomain(forName: suite) }
+        defer { TestDefaults.remove(suite) }
         defaults.set(["gone", "velvia"], forKey: Previews.favoriteFilmsKey)
         let previews = Previews(defaults: defaults)
         XCTAssertEqual(previews.favorites(in: stocks, paper: false).map(\.id), ["velvia"])

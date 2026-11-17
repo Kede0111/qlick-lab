@@ -26,7 +26,7 @@ final class AppDataTests: XCTestCase {
         let domain = "qlick-cleanup-test-\(UUID().uuidString)"
         let unrelated = domain + "-other"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: domain))
-        defer { defaults.removePersistentDomain(forName: domain); defaults.removePersistentDomain(forName: unrelated) }
+        defer { TestDefaults.remove(domain); TestDefaults.remove(unrelated) }
         defaults.set(exported.path, forKey: "lastSaveFolder")
         defaults.set([photo.path], forKey: "recentFiles")
         defaults.setPersistentDomain(["keep": "other application"], forName: unrelated)

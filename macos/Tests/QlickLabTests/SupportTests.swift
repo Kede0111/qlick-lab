@@ -11,7 +11,7 @@ final class SupportTests: XCTestCase {
         defaults = UserDefaults(suiteName: suite)
     }
 
-    override func tearDown() { defaults.removePersistentDomain(forName: suite) }
+    override func tearDown() { TestDefaults.remove(suite) }
 
     func testItWaitsForFiftyPhotographs() {
         for _ in 0..<49 { XCTAssertFalse(Support.record(1, in: defaults)) }

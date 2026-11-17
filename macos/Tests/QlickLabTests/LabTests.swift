@@ -208,7 +208,7 @@ final class GreasePencilTests: XCTestCase {
     private func defaults() -> UserDefaults {
         let name = "qlick-tests-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: name)!
-        addTeardownBlock { defaults.removePersistentDomain(forName: name) }
+        addTeardownBlock { TestDefaults.remove(name) }
         return defaults
     }
 
