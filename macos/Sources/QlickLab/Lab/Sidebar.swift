@@ -335,7 +335,7 @@ private struct PreviewProgress: View {
         if builder.running, builder.total > 0 {
             VStack(alignment: .leading, spacing: 5) {
                 HStack {
-                    Text("Building previews").font(.system(size: 10.5)).foregroundStyle(Q.dim)
+                    Text(builder.makingProxies ? "Making proxies" : "Building previews").font(.system(size: 10.5)).foregroundStyle(Q.dim)
                     Spacer()
                     Text("\(min(builder.done + 1, builder.total)) / \(builder.total)").font(Q.value(10.5)).foregroundStyle(Q.dim)
                     Button { builder.cancel() } label: { Image(systemName: "xmark.circle.fill").font(.system(size: 10)).foregroundStyle(Q.dim) }

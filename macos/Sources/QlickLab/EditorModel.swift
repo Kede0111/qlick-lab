@@ -2620,6 +2620,9 @@ import UserNotifications
             let items = self.library.items, open = self.mode == .grid ? nil : self.sourceItem, onScreen = self.thumbnailsOnScreen, looks = self.thumbnailLooks
             let failures = self.thumbnailFailures, checked = self.thumbnailsChecked, emptied = self.thumbnailsEmptied
             let developing = Set(self.thumbnailsDeveloping.values.map(\.item)), onlyOnScreen = self.lowPowerMode
+            // Qlick Lab: with proxies made ahead, a RAW's thumbnail waits for its proxy (the camera's JPEG shows
+            // meanwhile): developed from it, it takes milliseconds instead of seconds.
+            let waitForProxies = PreviewStorage.buildsProxiesAhead, proxyFailures = self.lab.previewBuilder.failedProxyPhotos
             self.thumbnailsPumpAgain = false
             // Each item but the open one, whose thumbnail comes from its
             // preview, and those developing, on screen first, then outward
@@ -2634,6 +2637,8 @@ import UserNotifications
                     if file.url == open { openIndex = index; continue }
                     if onScreen.contains(file.url) { onScreenIndices.append(index) }
                     guard !developing.contains(file.url), let look = looks.look(for: file.url), failures[file.url] != look else { continue }
+                    if waitForProxies, Self.rawExtensions.contains(file.url.photoFile.pathExtension.lowercased()),
+                       !proxyFailures.contains(file.url.photoFile), !PreviewBuilder.hasProxy(file.url.photoFile) { continue }
                     if let checked = checked[file.url], checked.look == look, checked.present { continue }
                     if onScreen.contains(file.url) { shown.append((file, look)) } else if !onlyOnScreen { rest.append((index, file, look)) }
                 }
@@ -2763,19 +2768,18 @@ import UserNotifications
         do {
             let matchable = raw || state.params["io.input_interpretation.mode"].string == "auto"
             if state.brightnessMatch != nil, !matchSolved, matchable {
-                // The decode first, which the match is solved on: the whole
-                // photograph for a match that's stored, so opening it finds
-                // the same value; else the thumbnail's own reduced read.
-                // Not developed, and the camera preview's colour space read
-                // meanwhile.
+                // The decode first, which the match is solved on: the thumbnail's own reduced read (the proxy,
+                // when there's one). Qlick Lab: never the whole photograph — reading a 60 MP RAW for each
+                // thumbnail took seconds, for a match within 0.01 EV of the one Develop solves when it opens.
+                // Not developed, and the camera preview's colour space read meanwhile.
                 guard await waitForThumbnailTurn() else { return false }
-                var decode = command(state, longSide: storeMatch == nil ? longSide : 16)
-                if storeMatch != nil { decode["reduced_decode"] = .bool(false) }
+                var decode = command(state, longSide: longSide)
                 decode["decode_only"] = .bool(true)
                 if raw { decode["preview_colour_space"] = .bool(true) }
                 // The camera preview read meanwhile (~35 ms).
                 let prepared = raw ? Task.detached(priority: .utility) { CameraBrightnessReference.Prepared(from: photo) } : nil
-                let cacheKey = storeMatch != nil ? matchCacheKey(photo, request: matchSolveState(state), paths: paths) : nil
+                // Solved on a reduced read: not kept for Develop, which solves on the whole photograph.
+                let cacheKey: String? = nil
                 let (_, decoded) = try await engine.request(decode)
                 let size = CGSize(width: decoded["source_width"].double, height: decoded["source_height"].double)
                 guard await waitForThumbnailTurn() else { return false }

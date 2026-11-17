@@ -303,6 +303,8 @@ extension ImportSession {
             }
         }
         if journal.remaining > 0 { setUnfinished(journal) } else { ImportJournal.remove() }
+        // Qlick Lab: their proxies straight away, so their thumbnails develop in milliseconds.
+        model.lab.previewBuilder.makeProxies(journal.items.filter(\.done).compactMap(\.photo))
         // The folder open meanwhile shows what arrived; the previews follow by themselves.
         model.library.refreshNow()
         model.lab.projects.countAll()
@@ -380,6 +382,8 @@ extension ImportSession {
             }
             if let activity { ProcessInfo.processInfo.endActivity(activity); self.activity = nil }
             adding = nil
+            // Qlick Lab: their proxies straight away, so their thumbnails develop in milliseconds.
+            model.lab.previewBuilder.makeProxies(run.order.filter { run.state(of: $0) == .verified })
             run.finish(stopped: Task.isCancelled)
             model.library.refreshNow()
             model.lab.projects.countAll()

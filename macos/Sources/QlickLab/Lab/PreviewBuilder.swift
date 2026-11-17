@@ -25,6 +25,11 @@ import Observation
     @ObservationIgnored private var waiters: [URL: [CheckedContinuation<Void, Never>]] = [:]
 
     @ObservationIgnored private var queue: [URL] = []
+    /// Qlick Lab: photographs whose proxy comes first, before any preview and before their thumbnails: the
+    /// thumbnails are developed from it, in milliseconds instead of seconds from the RAW.
+    @ObservationIgnored private var proxyQueue: [URL] = []
+    /// What it's doing, for the progress.
+    private(set) var makingProxies = false
     @ObservationIgnored private var task: Task<Void, Never>?
     @ObservationIgnored private var engine: EngineClient?
     @ObservationIgnored private var idle: Task<Void, Never>?
@@ -44,9 +49,36 @@ import Observation
 
     /// The folder's photographs or their edits changed: what's missing is built, if that's on.
     func folderChanged() {
-        guard automatic, NSClassFromString("XCTestCase") == nil else { return }
+        guard NSClassFromString("XCTestCase") == nil else { return }
+        // Their proxies, first, whatever the previews setting: the thumbnails wait for them.
+        makeProxies(model.library.items.map(\.url))
+        guard automatic else { return }
         build(model.library.items.map(\.url), front: false)
     }
+
+    /// Qlick Lab: makes the proxies these photographs don't have yet (an import's, a folder's), before anything
+    /// else; nothing when proxies are made only as photographs open, or never.
+    func makeProxies(_ items: [URL]) {
+        guard PreviewStorage.buildsProxiesAhead, NSClassFromString("XCTestCase") == nil else { return }
+        let waiting = Set(proxyQueue)
+        var seen = Set<URL>()
+        let photos = items.map(\.photoFile).filter { photo in
+            guard seen.insert(photo).inserted, !waiting.contains(photo), !failedProxies.contains(photo) else { return false }
+            return EditorModel.rawExtensions.contains(photo.pathExtension.lowercased())
+        }
+        guard !photos.isEmpty else { return }
+        proxyQueue += photos
+        total = done + queue.count + proxyQueue.count
+        start()
+    }
+
+    /// Whether `photo` has its proxy, with either lens correction (the app keeps one).
+    nonisolated static func hasProxy(_ photo: URL) -> Bool {
+        [false, true].contains { lens in PreviewStorage.proxyFile(for: photo, lensCorrection: lens).map { FileManager.default.fileExists(atPath: $0.path) } ?? false }
+    }
+
+    /// A proxy that couldn't be made: its thumbnail is developed from the RAW instead of waiting.
+    var failedProxyPhotos: Set<URL> { failedProxies }
 
     /// Builds `items`' previews; `front` puts them before what's waiting. Asked for by hand, it says so at once,
     /// and says when there was nothing to build.
@@ -61,7 +93,7 @@ import Observation
         }
         guard !new.isEmpty || front else { return }
         if front { queue = new + queue.filter { !Set(new).contains($0) } } else { queue += new }
-        total = done + queue.count
+        total = done + queue.count + proxyQueue.count
         start()
     }
 
@@ -95,7 +127,7 @@ import Observation
     }
 
     func cancel() {
-        queue = []
+        queue = []; proxyQueue = []; makingProxies = false
         task?.cancel(); task = nil
         done = 0; total = 0; current = nil; asked = false
         for item in Array(waiters.keys) { finished(item) }
@@ -142,14 +174,15 @@ import Observation
     }
 
     private func start() {
-        guard task == nil, !queue.isEmpty else { return }
+        guard task == nil, !queue.isEmpty || !proxyQueue.isEmpty else { return }
         idle?.cancel(); idle = nil
         task = Task { [weak self] in
             await self?.run()
             guard let self else { return }
             self.task = nil
             self.current = nil
-            if self.queue.isEmpty {
+            self.makingProxies = false
+            if self.queue.isEmpty && self.proxyQueue.isEmpty {
                 if self.asked, self.total > 0 { self.say(self.total == 1 ? "Preview built" : "\(self.total) previews built") }
                 self.done = 0; self.total = 0; self.asked = false
             }
@@ -159,7 +192,32 @@ import Observation
     }
 
     private func run() async {
-        while !Task.isCancelled, let item = next() {
+        while !Task.isCancelled, !proxyQueue.isEmpty || !queue.isEmpty {
+            // Qlick Lab: the proxies first, those on screen first; only the editor goes before them.
+            if !proxyQueue.isEmpty {
+                let onScreen = Set(model.thumbnailsOnScreen.map(\.photoFile))
+                let photo = proxyQueue.remove(at: proxyQueue.firstIndex(where: onScreen.contains) ?? 0)
+                while !Task.isCancelled, !model.backgroundMayRun { try? await Task.sleep(for: .milliseconds(300)) }
+                guard !Task.isCancelled else { return }
+                defer { done += 1 }
+                let present = await Task.detached(priority: .utility) { Self.hasProxy(photo) }.value
+                guard !present, let paths = model.labEnginePaths else { continue }
+                if engine == nil { engine = try? EngineClient(paths: paths, quality: .utility); engine?.label = "previews" }
+                guard let engine else { return }
+                makingProxies = true; current = photo
+                let state = model.labEdits(for: photo).state
+                do {
+                    _ = try await engine.request(["command": .string("make_proxy"), "input": .string(photo.path), "params": state.params])
+                } catch {
+                    failedProxies.insert(photo)
+                }
+                PreviewStorage.pruneProxies()
+                // Its thumbnail can be developed now, from it.
+                model.pumpThumbnails()
+                continue
+            }
+            makingProxies = false
+            guard let item = next() else { break }
             // The editor goes first, unless the preview is wanted now; one wanted now goes before this one.
             var deferred = false
             // Qlick Lab: the contact sheet's thumbnails go first, as they show the change.

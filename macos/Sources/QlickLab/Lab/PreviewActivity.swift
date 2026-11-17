@@ -11,7 +11,7 @@ struct PreviewActivity: View {
         if builder.running, builder.asked, builder.total > 0 {
             HStack(spacing: 7) {
                 ProgressView().controlSize(.mini).tint(Q.red)
-                Text("Building previews").font(.system(size: 11)).foregroundStyle(Color(white: 0.8))
+                Text(builder.makingProxies ? "Making proxies" : "Building previews").font(.system(size: 11)).foregroundStyle(Color(white: 0.8))
                 Text("\(min(builder.done + 1, builder.total)) of \(builder.total)").font(Q.value(11)).foregroundStyle(Q.dim)
                 Button { builder.cancel() } label: {
                     Image(systemName: "xmark.circle.fill").font(.system(size: 11)).foregroundStyle(Q.dim)
