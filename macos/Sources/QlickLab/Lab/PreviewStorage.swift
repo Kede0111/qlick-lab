@@ -28,6 +28,12 @@ enum PreviewStorage {
 
     static func store() -> EditedThumbnailStore { EditedThumbnailStore(directory: directory, limit: rendersLimit) }
 
+    /// The grid's edited thumbnails: beside the previews when another folder is chosen, else in the caches.
+    static var thumbnailsDirectory: URL {
+        chosenFolder != nil ? directory.appendingPathComponent("Thumbnails", isDirectory: true)
+                            : AppDataLocations.cachesDirectory.appendingPathComponent("Thumbnails", isDirectory: true)
+    }
+
     /// The proxies' folder, inside the previews'.
     static var proxyDirectory: URL { directory.appendingPathComponent("Proxies", isDirectory: true) }
 
@@ -96,27 +102,38 @@ enum PreviewStorage {
 
 extension EditorModel {
     func previewCacheSize() async -> Int {
-        let archive = renderArchive
-        return await Task.detached(priority: .utility) { archive.size() + PreviewStorage.proxiesSize() }.value
+        let archive = renderArchive, thumbnails = editedThumbnails
+        return await Task.detached(priority: .utility) { archive.size() + thumbnails.size() + PreviewStorage.proxiesSize() }.value
     }
 
     /// Removes every preview built ahead; they're built again as photographs are opened (or by Build Previews).
     func emptyPreviewCache() async {
         lab.previewBuilder.cancel()
-        let archive = renderArchive
-        await Task.detached(priority: .userInitiated) { archive.removeAll(); PreviewStorage.removeProxies() }.value
+        let archive = renderArchive, thumbnails = editedThumbnails
+        await Task.detached(priority: .userInitiated) { archive.removeAll(); thumbnails.removeAll(); PreviewStorage.removeProxies() }.value
     }
 
     /// Keeps the previews in `folder` (nil: the start-up disk's caches). Those already built are removed from the
     /// old place, not moved: they're quick to build again, and a copy across disks would take long.
     func movePreviews(to folder: URL?) async {
         lab.previewBuilder.cancel()
-        let old = renderArchive, oldProxies = PreviewStorage.proxyDirectory
+        let old = renderArchive, oldProxies = PreviewStorage.proxyDirectory, oldThumbnails = editedThumbnails
         if let folder { UserDefaults.standard.set(folder.path, forKey: PreviewStorage.folderKey) }
         else { UserDefaults.standard.removeObject(forKey: PreviewStorage.folderKey) }
         guard PreviewStorage.directory.standardizedFileURL != old.directory.standardizedFileURL else { return }
         renderArchive = PreviewStorage.store()
+        // The grid's thumbnails go along: made again as the grid shows them.
+        if PreviewStorage.thumbnailsDirectory.standardizedFileURL != oldThumbnails.directory.standardizedFileURL {
+            editedThumbnails = EditedThumbnailStore(directory: PreviewStorage.thumbnailsDirectory)
+        }
+        let newThumbnails = editedThumbnails
         await Task.detached(priority: .utility) {
+            if oldThumbnails !== newThumbnails {
+                oldThumbnails.removeAll()
+                if (try? FileManager.default.contentsOfDirectory(atPath: oldThumbnails.directory.path))?.isEmpty == true {
+                    try? FileManager.default.removeItem(at: oldThumbnails.directory)
+                }
+            }
             old.removeAll()
             PreviewStorage.removeProxies(in: oldProxies)
             try? FileManager.default.removeItem(at: oldProxies)
@@ -194,7 +211,7 @@ struct PreviewStorageSection: View {
                     .buttonStyle(OutlinedButtonStyle()).inkDisabled(busy)
                 }
             }
-            HintText("The oldest go first at the limit. A new folder takes effect at the next launch.")
+            HintText("The previews, the proxies and the contact sheet's thumbnails. The oldest go first at the limit. In a new folder, previews and thumbnails go there at once, proxies from the next launch.")
         }
         .task { await refresh() }
     }

@@ -16,7 +16,7 @@ final class EditedThumbnailStore: @unchecked Sendable {
     /// The app's; under XCTest a temporary folder, never the user's Caches.
     static let shared = NSClassFromString("XCTestCase") != nil
         ? EditedThumbnailStore(directory: FileManager.default.temporaryDirectory.appendingPathComponent("qlick-thumbnails-\(UUID().uuidString)", isDirectory: true))
-        : EditedThumbnailStore()
+        : EditedThumbnailStore(directory: PreviewStorage.thumbnailsDirectory)
 
     /// Each photograph's last develop, screen-sized (`renderLongSide`) and
     /// uncropped, kept as it's left: it stands in when the photograph next
