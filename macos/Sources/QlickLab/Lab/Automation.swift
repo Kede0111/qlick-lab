@@ -315,6 +315,9 @@ import AppKit
         case "applyselected": if let preset = model.presets.first(where: { $0.name == rest }) { model.labApply(preset, to: model.ratingTargets) }
         case "applyauto": if let preset = model.presets.first(where: { $0.name == rest }) { model.labApply(preset, to: model.ratingTargets, adapting: true) }
         case "newpreset": model.newPreset(named: rest.isEmpty ? nil : rest)
+        // applydevelop on|off: recipes apply their Develop part too. developgroups tone,color…: what New Preset saves of it.
+        case "applydevelop": model.recipesApplyDevelop = rest != "off"
+        case "developgroups": DevelopGroup.saved = Set(rest.split(separator: ",").compactMap { DevelopGroup(rawValue: String($0)) })
         case "renamepreset": model.renamingPreset = model.presets.first { $0.name == rest }?.url
         case "selectall": model.selectAll()
         // type <text>, or type ⏎ / ⎋: keys through the event queue, as typed.

@@ -173,12 +173,20 @@ private struct RecipeDetail: View {
                         fact("Film", model.films.first { $0.id == film }?.name ?? film)
                         fact("Print", scan ? "Film scanned directly" : (model.papers.first { $0.id == paper }?.name ?? paper))
                         fact("Carries", "Film, paper, grain, halation, couplers, print, scan")
-                        fact("Kept", "Each photograph's white balance, crop, lens corrections and size")
+                        // Qlick Lab: the Develop settings saved with it, applied with the box ticked.
+                        let develop = model.labPresetText(preset).flatMap(RecipeDevelop.read)
+                        fact("Develop", develop.map { $0.summary.prefix(1).uppercased() + $0.summary.dropFirst() } ?? "Not saved")
+                        fact("Kept", "Each photograph's crop, lens corrections and size")
                     }
                 } else if case .invalid(let reason) = model.presetStatus[preset] {
                     Text(reason).font(.system(size: 12)).foregroundStyle(Theme.warn).fixedSize(horizontal: false, vertical: true)
                 }
                 VStack(spacing: 8) {
+                    Toggle(isOn: Binding(get: { model.recipesApplyDevelop }, set: { model.recipesApplyDevelop = $0 })) {
+                        Text("Apply Develop settings too").font(.system(size: 12)).foregroundStyle(Color(white: 0.86))
+                    }
+                    .toggleStyle(.checkbox).tint(Q.red).help(RecipeDevelop.applyHelp)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     Button(targets.count > 1 ? "Apply to the \(targets.count) Selected Frames" : "Apply to the Photograph") {
                         model.labApply(preset, to: targets)
                     }

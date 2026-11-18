@@ -749,9 +749,13 @@ struct LibraryContextMenu: View {
         Button("Paste from Previous" + several) { model.pasteFromPrevious(onto: targets) }.disabled(!editing || model.previousEdits == nil)
         Menu("Apply Preset" + several) {
             ForEach(model.presets) { preset in Button(preset.name) { model.labApply(preset, to: targets) } }
+            Divider()
+            Toggle("Apply Develop Settings Too", isOn: Binding(get: { model.recipesApplyDevelop }, set: { model.recipesApplyDevelop = $0 }))
         }.disabled(!editing || !model.canChangePresets || model.presets.isEmpty)
         Menu("Apply Preset with Auto WB & Exposure" + several) {
             ForEach(model.presets) { preset in Button(preset.name) { model.labApply(preset, to: targets, adapting: true) } }
+            Divider()
+            Toggle("Apply Develop Settings Too", isOn: Binding(get: { model.recipesApplyDevelop }, set: { model.recipesApplyDevelop = $0 }))
         }.disabled(!editing || !model.canChangePresets || model.presets.isEmpty)
         .help("The preset's look, with each photograph's own white balance and exposure, for photographs taken in different light")
         Button("New Version (Virtual Copy)") { model.duplicate(targets) }.disabled(!editing)

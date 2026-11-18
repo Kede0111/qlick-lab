@@ -447,6 +447,12 @@ import UserNotifications
     var interacting: Bool { interactionStart != nil }
 
     @ObservationIgnored let presetLibrary: PresetLibrary
+    /// Qlick Lab: applying a recipe also applies its Develop part, where it has one. Remembered.
+    var recipesApplyDevelop = UserDefaults.standard.bool(forKey: "recipeAppliesDevelop") {
+        didSet { UserDefaults.standard.set(recipesApplyDevelop, forKey: "recipeAppliesDevelop") }
+    }
+    /// The Develop part to apply with a recipe's text: nil when the box is off or the recipe has none.
+    func recipeDevelop(_ text: String) -> RecipeDevelop? { recipesApplyDevelop ? RecipeDevelop.read(text) : nil }
     /// Film and paper preview grids (`Previews.swift`).
     @ObservationIgnored let previews = Previews()
     /// Where photographs' sidecars are read and written; nil, none are.
@@ -4867,6 +4873,7 @@ import UserNotifications
                     }
                     var next = state
                     next.film = film; next.paper = paper; next.params = result["params"]
+                    if let develop = recipeDevelop(text) { next = develop.applied(to: next, photo: snapshot) }
                     apply(next, action: "Apply Preset “\(preset.name)”")
                     notePresetApplied(preset.url)
                     status = "Applied preset “\(preset.name)”"
@@ -4883,20 +4890,24 @@ import UserNotifications
     /// film's, to begin with). Cancel saves nothing.
     func newPreset(named name: String? = nil) {
         guard canChangePresets, let engine else { return }
-        let snapshot = state, snapshotItem = sourceItem
+        let snapshot = state, snapshotItem = sourceItem, exposureOffset = exposureOffset.wrappedValue
         let taken = Set(presets.map { PresetName.key($0.name) })
         let suggested = PresetName.unique(PresetName.from(fileName: filmName), taken: taken)
-        let asking: (@escaping (String?) -> Void) -> Void = { [weak self] done in
-            if let name { done(name) } else { self?.askPresetName(suggested, done) }
+        // Qlick Lab: the Develop groups to save with it, chosen beside the name (remembered).
+        let asking: (@escaping (String?, Set<DevelopGroup>) -> Void) -> Void = { [weak self] done in
+            if let name { done(name, DevelopGroup.saved) } else { self?.askPresetName(suggested, groups: DevelopGroup.saved, done) }
         }
-        asking { [weak self] name in
+        asking { [weak self] name, groups in
             guard let self, let name else { return }
+            DevelopGroup.saved = groups
             self.showPane(.presets)
             Task {
                 do {
                     let (_, result) = try await engine.request(["command": .string("preset_export"), "film": .string(snapshot.film),
                                                                 "paper": .string(snapshot.paper), "params": snapshot.params])
-                    let file = try await self.presetLibrary.add(Data(result["text"].string.utf8), name: name)
+                    var text = result["text"].string
+                    if !groups.isEmpty { text = RecipeDevelop.taking(groups, from: snapshot, exposureOffset: exposureOffset).adding(to: text) }
+                    let file = try await self.presetLibrary.add(Data(text.utf8), name: name)
                     // The photograph's settings are this preset's: it's the one ringed.
                     self.notePresetApplied(file.url, to: snapshotItem)
                     await self.refreshPresets()
@@ -4906,36 +4917,54 @@ import UserNotifications
         }
     }
 
-    /// Asks for a new preset's name over the window, the suggestion selected; nil if it's cancelled. A name that
-    /// can't be a file's is refused and asked for again.
-    private func askPresetName(_ suggested: String, refused: String? = nil, _ done: @escaping (String?) -> Void) {
+    /// Asks for a new preset's name over the window, the suggestion selected, and which Develop groups it also keeps
+    /// (`groups` ticked); nil if it's cancelled. A name that can't be a file's is refused and asked for again.
+    private func askPresetName(_ suggested: String, groups: Set<DevelopGroup>, refused: String? = nil,
+                               _ done: @escaping (String?, Set<DevelopGroup>) -> Void) {
         let alert = NSAlert()
         alert.messageText = "Save as a New Preset"
         alert.informativeText = refused ?? "The film, the paper and their settings, to use on other photographs."
         alert.addButton(withTitle: "Save")
         alert.addButton(withTitle: "Cancel")
         let field = NSTextField(string: suggested)
-        field.frame = NSRect(x: 0, y: 0, width: 280, height: 24)
         field.placeholderString = "Preset name"
         field.setAccessibilityLabel("Preset name")
-        alert.accessoryView = field
+        field.widthAnchor.constraint(equalToConstant: 300).isActive = true
+        // Qlick Lab: the Develop tab's settings it also keeps, none ticked to keep none.
+        let heading = NSTextField(labelWithString: "Also save from Develop:")
+        heading.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
+        heading.textColor = .secondaryLabelColor
+        let boxes = DevelopGroup.allCases.map { group in
+            let box = NSButton(checkboxWithTitle: group.title, target: nil, action: nil)
+            box.state = groups.contains(group) ? .on : .off
+            box.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
+            return box
+        }
+        let stack = NSStackView(views: [field, heading] + boxes)
+        stack.orientation = .vertical
+        stack.alignment = .leading
+        stack.spacing = 5
+        stack.setCustomSpacing(12, after: field)
+        stack.frame = NSRect(origin: .zero, size: stack.fittingSize)
+        alert.accessoryView = stack
         alert.window.initialFirstResponder = field
         alert.window.appearance = NSAppearance(named: .darkAqua)
         let answer: (NSApplication.ModalResponse) -> Void = { [weak self] response in
-            guard response == .alertFirstButtonReturn else { return done(nil) }
+            guard response == .alertFirstButtonReturn else { return done(nil, groups) }
             let name = field.stringValue.trimmingCharacters(in: .whitespaces)
+            let chosen = Set(zip(DevelopGroup.allCases, boxes).filter { $0.1.state == .on }.map(\.0))
             if let problem = PresetName.problem(name) {
                 // Asked again once this sheet is gone.
-                DispatchQueue.main.async { self?.askPresetName(name.isEmpty ? suggested : name, refused: problem, done) }
+                DispatchQueue.main.async { self?.askPresetName(name.isEmpty ? suggested : name, groups: chosen, refused: problem, done) }
                 return
             }
-            done(name)
+            done(name, chosen)
         }
         if let window = NSApp.windows.first(where: { $0 is EditorWindow }) {
             alert.beginSheetModal(for: window, completionHandler: answer)
         } else if NSClassFromString("XCTestCase") != nil {
             // No one to ask under tests: the suggestion.
-            done(suggested)
+            done(suggested, groups)
         } else {
             answer(alert.runModal())
         }
@@ -5132,11 +5161,18 @@ import UserNotifications
         // edits first, as applying it does, so the match is solved for the recipe: what is seen here (the import's
         // loupe) is what the photograph develops to once the recipe is written into its edits. The engine can't
         // decode alone under a preset.
+        // A recipe applied with its Develop part is made the edits too: the engine applies only spektrafilm's settings.
         var preset = preset
-        if let text = preset, state.brightnessMatch != nil, !matchSolved,
+        let develop = preset.flatMap(recipeDevelop)
+        if let text = preset, (state.brightnessMatch != nil && !matchSolved) || develop != nil,
            let (_, applied) = try? await engine.request(["command": .string("preset_import"), "text": .string(text), "params": state.params]),
            films.contains(where: { $0.id == applied["film"].string }), papers.contains(where: { $0.id == applied["paper"].string }) {
+            let photo = state
             state.film = applied["film"].string; state.paper = applied["paper"].string; state.params = applied["params"]
+            if let develop {
+                state = develop.applied(to: state, photo: photo)
+                if develop.groups.contains(.brightness) { matchSolved = false }
+            }
             preset = nil
         }
         let generation: Int
@@ -5225,6 +5261,8 @@ import UserNotifications
                 }
                 guard !Task.isCancelled else { return }
                 let kept = self.catalog["preset_kept"].array.map(\.string), params = result["params"]
+                // Qlick Lab: its Develop part, with the box ticked; adapting's own balance and match still win.
+                let develop = self.recipeDevelop(text)
                 // Those on screen first: the change shows where you look.
                 let onScreen = self.thumbnailsOnScreen
                 let ordered = items.filter { onScreen.contains($0) } + items.filter { !onScreen.contains($0) }
@@ -5234,6 +5272,7 @@ import UserNotifications
                     var next = base
                     next.film = film; next.paper = paper; next.params = params
                     for path in kept { next.params[path] = base.params[path] }
+                    if let develop { next = develop.applied(to: next, photo: base) }
                     if adapting {
                         next.brightnessMatch = BrightnessMatch()
                         next.params["prep.exposure_ev"] = .number(0)
@@ -5468,6 +5507,8 @@ import UserNotifications
             guard films.contains(where: { $0.id == film }), papers.contains(where: { $0.id == paper }) else { return nil }
             var next = base
             next.film = film; next.paper = paper; next.params = result["params"]
+            // Qlick Lab: its Develop part, with the box ticked; the import's balance and match are written after.
+            if let develop = recipeDevelop(text) { next = develop.applied(to: next, photo: base) }
             return next
         } catch {
             return nil

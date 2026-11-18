@@ -717,6 +717,9 @@ import SwiftUI
                 let entry = presets.addItem(withTitle: preset.name, action: action, keyEquivalent: "")
                 entry.tag = index; entry.target = self; entry.representedObject = self
             }
+            presets.addItem(.separator())
+            let develop = presets.addItem(withTitle: "Apply Develop Settings Too", action: #selector(toggleRecipeDevelop), keyEquivalent: "")
+            develop.target = self; develop.representedObject = self; develop.state = model.recipesApplyDevelop ? .on : .off
             let applying = menu.addItem(withTitle: title + several, action: nil, keyEquivalent: "")
             if model.canChangeEdits, model.canChangePresets, !model.presets.isEmpty { applying.submenu = presets } else { applying.isEnabled = false }
         }
@@ -747,6 +750,7 @@ import SwiftUI
         guard shownPresets.indices.contains(sender.tag) else { return }
         model.labApply(shownPresets[sender.tag], to: model.ratingTargets, adapting: true)
     }
+    @objc private func toggleRecipeDevelop() { model.recipesApplyDevelop.toggle() }
     @objc private func pick() { sheet.lab.toggleMark(.pick) }
     @objc private func reject() { sheet.lab.toggleMark(.reject) }
     @objc private func unmark() { model.setFlag(nil) }

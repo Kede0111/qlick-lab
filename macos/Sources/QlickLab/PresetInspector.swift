@@ -31,6 +31,10 @@ struct PresetInspector: View {
             if model.presets.isEmpty {
                 PresetsEmpty(model: model)
             } else {
+                // Qlick Lab: presets saved with Develop settings apply them too, with this ticked.
+                TickRow(title: "Apply Develop settings too", isOn: Binding(get: { model.recipesApplyDevelop }, set: { model.recipesApplyDevelop = $0 }),
+                        changed: model.recipesApplyDevelop, help: RecipeDevelop.applyHelp)
+                InkRule()
                 tiles
                 PresetsFoot(dropping: dropTargeted)
             }
