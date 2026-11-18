@@ -18,6 +18,8 @@
   shows its progress and can be stopped; a new one replaces the one still running.
 - **Before / After zoomed in**: the original is as sharp as the developed photograph at 100%.
 - **Develop panel**: a module's arrow opens all its controls; "Hide" folds it back to the few that matter most.
+- **One language**: menus and dialogs provided by macOS no longer appear in French on an English Mac; the app is in
+  English throughout.
 
 ## 0.1.2 — fixes from users' reports
 
