@@ -231,10 +231,11 @@ extension ImportSession {
                 if !news.settled.isEmpty {
                     await self.finish(news.settled, journal: journal, recipes: recipes, run: run)
                     unwritten += news.settled.count
-                    if unwritten >= 20 { unwritten = 0; await self.flushMarks(run) }
+                    // Written in the background: the copying never waits for it.
+                    if unwritten >= 20 { unwritten = 0; self.flushMarksLater(run) }
                 }
                 if let end = news.finished {
-                    await self.flushMarks(run)
+                    self.flushMarksLater(run)
                     self.ended(end, run: run, stopped: runner.cancelled)
                     return
                 }
@@ -245,16 +246,12 @@ extension ImportSession {
     /// A photograph's copy is checked: its marks, its recipe and its words are written, and its folder joins the project.
     private func finish(_ items: [ImportJournal.Item], journal: ImportJournal, recipes: [String: EditState], run: ImportRun, counted: Bool = false) async {
         let options = journal.options
-        var balances: [URL: (temperature: Double, tint: Double)] = [:]
-        if options.balanceEach {
-            let photos = items.filter { $0.done && $0.marks.recipe != nil }.compactMap(\.photo)
-            if !photos.isEmpty { balances = await model.labAutoBalances(photos) }
-        }
+        // Each photograph's own white balance comes after, in the background (`ended`): the import doesn't wait.
         for item in items {
             if !counted { run.settled(item) }
             guard item.done, let photo = item.photo else { continue }
             let recipe = item.marks.recipe.flatMap { recipes[$0] }
-            if !model.labWriteImported(photo, marks: item.marks, recipe: recipe, balance: balances[photo], matchExposure: options.balanceEach), run.notes.count < 20 {
+            if !model.labWriteImported(photo, marks: item.marks, recipe: recipe, matchExposure: options.balanceEach), run.notes.count < 20 {
                 run.notes.append("\(photo.lastPathComponent): its marks or recipe couldn’t be saved.")
             }
             if let name = item.marks.recipe, recipe != nil, let preset = model.presets.first(where: { $0.name == name }) { model.notePresetApplied(preset.url, to: photo) }
@@ -269,6 +266,13 @@ extension ImportSession {
     private func flushMarks(_ run: ImportRun) async {
         let failures = await model.labFlushSidecars()
         for (photo, reason) in failures where run.notes.count < 20 { run.notes.append("\(photo.lastPathComponent): \(reason)") }
+    }
+
+    /// Qlick Lab: the marks and recipes written in the background (into a DNG, a fraction of a second each), the
+    /// photographs already there to work on: what's queued is what the lab shows. The progress shows in the sidebar.
+    private func flushMarksLater(_ run: ImportRun) {
+        Task { [weak self] in await self?.flushMarks(run) }
+        model.labWatchSaving()
     }
 
     /// The folders photographs arrived in become rolls of the project named (made if it isn't there).
@@ -304,7 +308,10 @@ extension ImportSession {
         }
         if journal.remaining > 0 { setUnfinished(journal) } else { ImportJournal.remove() }
         // Qlick Lab: their proxies straight away, so their thumbnails develop in milliseconds.
-        model.lab.previewBuilder.makeProxies(journal.items.filter(\.done).compactMap(\.photo))
+        let arrived = journal.items.filter(\.done)
+        model.lab.previewBuilder.makeProxies(arrived.compactMap(\.photo))
+        // Then each one's own white balance, from its proxy as it's made.
+        if journal.options.balanceEach { model.labBalanceImported(arrived.filter { $0.marks.recipe != nil }.compactMap(\.photo)) }
         // The folder open meanwhile shows what arrived; the previews follow by themselves.
         model.library.refreshNow()
         model.lab.projects.countAll()
@@ -346,15 +353,12 @@ extension ImportSession {
             for folder in Set(frames.map { $0.file.url.deletingLastPathComponent() }) {
                 writable[folder] = await Task.detached(priority: .userInitiated) { PhotoLibrary.canWrite(in: folder) }.value
             }
-            for start in stride(from: 0, to: frames.count, by: 12) {
+            // The recipes and marks at once, a batch at a time; each photograph's own white balance after, in the
+            // background, so the photographs are there to work on straight away.
+            for start in stride(from: 0, to: frames.count, by: 64) {
                 if Task.isCancelled { break }
-                let batch = Array(frames[start..<min(start + 12, frames.count)])
+                let batch = Array(frames[start..<min(start + 64, frames.count)])
                 if let first = batch.first { run.began(first.id, name: first.file.name) }
-                var balances: [URL: (temperature: Double, tint: Double)] = [:]
-                if options.balanceEach {
-                    let photos = batch.filter { marks[$0.id]?.recipe != nil }.map(\.id)
-                    if !photos.isEmpty { balances = await model.labAutoBalances(photos) }
-                }
                 var failures: [URL: String] = [:]
                 for frame in batch {
                     guard let mark = marks[frame.id], !mark.isEmpty else { continue }
@@ -363,12 +367,11 @@ extension ImportSession {
                         continue
                     }
                     let recipe = mark.recipe.flatMap { recipes[$0] }
-                    if !model.labWriteImported(frame.id, marks: mark, recipe: recipe, balance: balances[frame.id], matchExposure: options.balanceEach) {
+                    if !model.labWriteImported(frame.id, marks: mark, recipe: recipe, matchExposure: options.balanceEach) {
                         failures[frame.id] = "its marks or recipe couldn’t be saved"
                     }
                     if let name = mark.recipe, recipe != nil, let preset = model.presets.first(where: { $0.name == name }) { model.notePresetApplied(preset.url, to: frame.id) }
                 }
-                for (photo, reason) in await model.labFlushSidecars() { failures[photo] = reason }
                 if !metadata.isEmpty {
                     let photos = batch.map(\.id)
                     Task.detached(priority: .utility) { for photo in photos { metadata.write(beside: photo) } }
@@ -379,13 +382,19 @@ extension ImportSession {
                 }
                 // The project is there, and grows, while the photographs are taken in.
                 if !project.isEmpty { addRolls(run.folders, project: project) }
+                await Task.yield()
             }
+            // Written in the background: the lab shows what's queued, so the photographs can be worked on now.
+            flushMarksLater(run)
             if let activity { ProcessInfo.processInfo.endActivity(activity); self.activity = nil }
             adding = nil
             // Qlick Lab: their proxies straight away, so their thumbnails develop in milliseconds.
-            model.lab.previewBuilder.makeProxies(run.order.filter { run.state(of: $0) == .verified })
+            let added = run.order.filter { run.state(of: $0) == .verified }
+            model.lab.previewBuilder.makeProxies(added)
+            if options.balanceEach { model.labBalanceImported(added.filter { marks[$0]?.recipe != nil }) }
             run.finish(stopped: Task.isCancelled)
             model.library.refreshNow()
+            model.library.reload(added)
             model.lab.projects.countAll()
             // Without a project's name, the lab asks for one.
             if project.isEmpty, !run.folders.isEmpty { model.lab.importFolders(run.folders) }

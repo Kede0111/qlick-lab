@@ -436,6 +436,9 @@ final class SidecarStore: Sendable {
     /// How many photographs have changes still to write.
     var pendingCount: Int { queue.all.count }
 
+    /// Whether `photo` has changes still to write.
+    func isPending(_ photo: URL) -> Bool { !queue.patches(for: photo.standardizedFileURL).isEmpty }
+
     /// Queues `patch`; `flush` writes it.
     func enqueue(_ patch: SidecarPatch, for photo: URL) {
         queue.add(patch, for: photo.standardizedFileURL)
@@ -447,7 +450,8 @@ final class SidecarStore: Sendable {
         await queue.chain { [queue, self] in
             var failures: [URL: String] = [:]
             let storage = self.storage()
-            for (photo, patches) in queue.all {
+            // In the order of their names: the order an import's photographs come in, and have their proxies made.
+            for (photo, patches) in queue.all.sorted(by: { $0.key.path.localizedStandardCompare($1.key.path) == .orderedAscending }) {
                 do { try Self.write(patches, photo: photo, storage: storage) } catch { failures[photo] = error.localizedDescription }
                 queue.written(patches.count, for: photo)
             }
@@ -471,7 +475,16 @@ final class SidecarStore: Sendable {
         if DNGMetadata.isDNG(photo) {
             if storage == .insideDNG {
                 do {
+                    // Qlick Lab: the proxy is named after the file's size, which the first XMP written into it
+                    // changes; the pixels don't change (the write checks it), so the proxy follows.
+                    let proxies = [false, true].map { PreviewStorage.proxyFile(for: photo, lensCorrection: $0) }
                     try DNGMetadata.write(raw, to: photo)
+                    for (lens, before) in zip([false, true], proxies) {
+                        guard let before, let after = PreviewStorage.proxyFile(for: photo, lensCorrection: lens), after != before,
+                              FileManager.default.fileExists(atPath: before.path) else { continue }
+                        try? FileManager.default.removeItem(at: after)
+                        try? FileManager.default.moveItem(at: before, to: after)
+                    }
                     do { try FileManager.default.removeItem(at: file) } catch CocoaError.fileNoSuchFile {}
                     return
                 } catch {

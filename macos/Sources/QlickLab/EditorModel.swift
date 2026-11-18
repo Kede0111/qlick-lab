@@ -5246,26 +5246,7 @@ import UserNotifications
                 for item in items { self.notePresetApplied(preset.url, to: item) }
                 // Then each RAW's own white balance, a few at a time, those on screen first. Each change shows as
                 // it's made; undo takes back the recipe and the balances together.
-                if adapting {
-                    let raws = ordered.filter { Self.rawExtensions.contains($0.photoFile.pathExtension.lowercased()) }
-                    var done = 0
-                    for start in stride(from: 0, to: raws.count, by: 8) {
-                        guard !Task.isCancelled else { break }
-                        let batch = Array(raws[start..<min(start + 8, raws.count)])
-                        let offset = done, total = raws.count
-                        let balances = await self.autoBalances(batch) { [weak self] index in self?.backgroundWork = ("Balancing", offset + index, total) }
-                        guard !Task.isCancelled else { break }
-                        done += batch.count
-                        _ = await self.changeEditsInBatches(batch, title: nil) { item, base in
-                            guard let found = balances[item.photoFile] else { return base }
-                            var next = base
-                            next.params["io.raw_white_balance.mode"] = .string("custom")
-                            next.params["io.raw_white_balance.temperature"] = .number((found.temperature / 10).rounded() * 10)
-                            next.params["io.raw_white_balance.tint"] = .number(found.tint)
-                            return next
-                        }
-                    }
-                }
+                if adapting { await self.balanceInBatches(ordered) }
                 // Their large previews after, each replacing the one before.
                 guard !Task.isCancelled else { return }
                 self.backgroundWork = nil
@@ -5278,7 +5259,72 @@ import UserNotifications
     }
 
     /// Stops the recipe being applied (and its balancing): what's done stays, and can be undone.
-    func stopApplying() { applyTask?.cancel() }
+    func stopApplying() { applyTask?.cancel(); lab.previewBuilder.stopBalancing() }
+
+    /// Qlick Lab: each RAW's own Auto white balance, a few at a time, written as it's found. Stops between batches.
+    private func balanceInBatches(_ items: [URL]) async {
+        let raws = items.filter { Self.rawExtensions.contains($0.photoFile.pathExtension.lowercased()) }
+        var done = 0
+        for start in stride(from: 0, to: raws.count, by: 8) {
+            guard !Task.isCancelled else { break }
+            let batch = Array(raws[start..<min(start + 8, raws.count)])
+            let offset = done, total = raws.count
+            let balances = await autoBalances(batch) { [weak self] index in self?.backgroundWork = ("Balancing", offset + index, total) }
+            guard !Task.isCancelled else { break }
+            done += batch.count
+            await writeBalances(balances, to: batch)
+        }
+    }
+
+    private func writeBalances(_ balances: [URL: (temperature: Double, tint: Double)], to items: [URL]) async {
+        let items = items.filter { balances[$0.photoFile] != nil }
+        guard !items.isEmpty else { return }
+        _ = await changeEditsInBatches(items, title: nil) { item, base in
+            guard let found = balances[item.photoFile] else { return base }
+            var next = base
+            next.params["io.raw_white_balance.mode"] = .string("custom")
+            next.params["io.raw_white_balance.temperature"] = .number((found.temperature / 10).rounded() * 10)
+            next.params["io.raw_white_balance.tint"] = .number(found.tint)
+            return next
+        }
+    }
+
+    /// Qlick Lab: an import's photographs, given their recipe at once, get their own Auto white balance afterwards,
+    /// in the background: from each one's proxy as soon as it's made (no RAW read again), or, without proxies made
+    /// ahead, a few at a time. A recipe applied meanwhile, or Stop, ends it.
+    func labBalanceImported(_ photos: [URL]) {
+        let raws = photos.filter { Self.rawExtensions.contains($0.photoFile.pathExtension.lowercased()) }
+        guard !raws.isEmpty else { return }
+        if PreviewStorage.buildsProxiesAhead {
+            lab.previewBuilder.balanceAfterProxies(raws)
+            return
+        }
+        let onScreen = thumbnailsOnScreen
+        let ordered = raws.filter { onScreen.contains($0) } + raws.filter { !onScreen.contains($0) }
+        let previous = applyTask
+        applyTask = Task { [weak self] in
+            await previous?.value
+            guard let self, !Task.isCancelled else { return }
+            defer { self.backgroundWork = nil }
+            await self.balanceInBatches(ordered)
+        }
+    }
+
+    /// Qlick Lab: one photograph's Auto white balance, through a helper already running (its proxy answers at once),
+    /// written to its edits.
+    func labBalance(_ photo: URL, with helper: EngineClient) async {
+        let balances = await autoBalances([photo], helper: helper)
+        // Open in front of you: an edit of its own, which undo takes back, rather than a sidecar changed under it.
+        if let open = sourceItem, open.photoFile == photo.photoFile, let found = balances[photo.photoFile] {
+            var next = state
+            next.params["io.raw_white_balance.mode"] = .string("custom")
+            next.params["io.raw_white_balance.temperature"] = .number((found.temperature / 10).rounded() * 10)
+            next.params["io.raw_white_balance.tint"] = .number(found.tint)
+            apply(next, action: "Auto White Balance")
+            return
+        }
+        await writeBalances(balances, to: [photo])
+    }
 
     /// Qlick Lab: `changeEdits` for many photographs without holding up the lab. Their sidecars are read off the
     /// main thread a batch at a time, changed here, queued and written, and the contact sheet learns each batch's
@@ -5353,21 +5399,25 @@ import UserNotifications
 
     /// Qlick Lab: each RAW photograph's Auto white balance, as the engine finds it (its preview's proxy answers at
     /// once; otherwise it reads the photograph), in a helper of its own. Photographs it can't balance are left out.
-    private func autoBalances(_ items: [URL], progress: ((Int) -> Void)? = nil) async -> [URL: (temperature: Double, tint: Double)] {
+    private func autoBalances(_ items: [URL], helper given: EngineClient? = nil, progress: ((Int) -> Void)? = nil) async -> [URL: (temperature: Double, tint: Double)] {
         let photos = Array(Set(items.map(\.photoFile))).filter { Self.rawExtensions.contains($0.pathExtension.lowercased()) }
-        guard !photos.isEmpty, let paths = labEnginePaths, let helper = try? EngineClient(paths: paths, quality: .utility) else { return [:] }
-        helper.label = "balance"
-        defer { Task.detached(priority: .utility) { helper.stop() } }
+        guard !photos.isEmpty, let paths = labEnginePaths, let helper = given ?? (try? EngineClient(paths: paths, quality: .utility)) else { return [:] }
+        if given == nil {
+            helper.label = "balance"
+        }
+        defer { if given == nil { Task.detached(priority: .utility) { helper.stop() } } }
+        // A helper shared with other work takes a generation of its own, so it doesn't mistake its source for this one.
+        let generationBase = given == nil ? 0 : Double(UInt32.random(in: 1_000_000...UInt32.max))
         var found: [URL: (temperature: Double, tint: Double)] = [:]
         for (index, photo) in photos.enumerated() {
             // Qlick Lab: stopped, or replaced by another recipe.
             if Task.isCancelled { break }
             progress?(index)
             if let known = lab.asShot.autos[photo] { found[photo] = known; continue }
-            status = "Balancing \(index + 1) of \(photos.count)…"
+            if given == nil { status = "Balancing \(index + 1) of \(photos.count)…" }
             let state = labEdits(for: photo).state
             let command: [String: JSONValue] = ["command": .string("prepare_balance"), "input": .string(photo.path),
-                                                "source_generation": .number(Double(index + 1)), "params": state.params,
+                                                "source_generation": .number(generationBase + Double(index + 1)), "params": state.params,
                                                 "read_long_side": .number(1024)]
             // The helper reads in the background and answers at once; asked again, it says once it's done.
             for _ in 0..<60 {
@@ -5424,9 +5474,6 @@ import UserNotifications
         }
     }
 
-    /// Each RAW photograph's own Auto white balance, for an import that balances photograph by photograph.
-    func labAutoBalances(_ photos: [URL]) async -> [URL: (temperature: Double, tint: Double)] { await autoBalances(photos) }
-
     /// Writes what an import decided for a photograph it just copied and checked: its rating, its mark, how it's
     /// turned and its recipe, in its sidecar (or inside a DNG, where Settings keeps them). False when nothing could
     /// be written. Queued: `labFlushSidecars` writes them.
@@ -5467,6 +5514,25 @@ import UserNotifications
 
     /// Writes the queued sidecar changes; the photographs it couldn't write, with why.
     @discardableResult func labFlushSidecars() async -> [URL: String] { await sidecars?.flush() ?? [:] }
+
+    /// Qlick Lab: how many photographs' edits are still being written (into DNGs, a fraction of a second each).
+    private(set) var savingLeft = 0
+    @ObservationIgnored private var savingWatch: Task<Void, Never>?
+
+    /// Qlick Lab: keeps `savingLeft` up to date until everything is written.
+    func labWatchSaving() {
+        guard savingWatch == nil, let sidecars else { return }
+        savingWatch = Task { [weak self] in
+            while !Task.isCancelled {
+                let left = sidecars.pendingCount
+                guard let self else { return }
+                self.savingLeft = left
+                if left == 0 { break }
+                try? await Task.sleep(for: .milliseconds(500))
+            }
+            self?.savingWatch = nil
+        }
+    }
 
     func shutdown() {
         cancelBrightnessMatch()

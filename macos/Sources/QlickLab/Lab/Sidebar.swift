@@ -309,6 +309,9 @@ private struct WorkProgress: View {
         } else if model.thumbnailsLeft > 0 {
             row("Thumbnails", figure: "\(model.thumbnailsLeft) to update", value: nil, stop: nil)
         }
+        if model.savingLeft > 1 {
+            row("Saving edits", figure: "\(model.savingLeft) left", value: nil, stop: nil)
+        }
     }
 
     private func row(_ title: String, figure: String, value: Double?, stop: (() -> Void)?) -> some View {

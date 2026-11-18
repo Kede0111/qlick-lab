@@ -28,6 +28,8 @@ import Observation
     /// Qlick Lab: photographs whose proxy comes first, before any preview and before their thumbnails: the
     /// thumbnails are developed from it, in milliseconds instead of seconds from the RAW.
     @ObservationIgnored private var proxyQueue: [URL] = []
+    /// Qlick Lab: an import's photographs that get their own Auto white balance from their proxy, once it's made.
+    @ObservationIgnored private var balancing: Set<URL> = []
     /// What it's doing, for the progress.
     private(set) var makingProxies = false
     @ObservationIgnored private var task: Task<Void, Never>?
@@ -63,7 +65,7 @@ import Observation
         let waiting = Set(proxyQueue)
         var seen = Set<URL>()
         let photos = items.map(\.photoFile).filter { photo in
-            guard seen.insert(photo).inserted, !waiting.contains(photo), !failedProxies.contains(photo) else { return false }
+            guard seen.insert(photo).inserted, !waiting.contains(photo), !failedProxies.contains(photo), !haveProxies.contains(photo) else { return false }
             return EditorModel.rawExtensions.contains(photo.pathExtension.lowercased())
         }
         guard !photos.isEmpty else { return }
@@ -71,6 +73,21 @@ import Observation
         total = done + queue.count + proxyQueue.count
         start()
     }
+
+    /// Qlick Lab: these photographs' proxies, and right after each, its own Auto white balance read from it; their
+    /// thumbnails wait for both, and are developed once.
+    func balanceAfterProxies(_ items: [URL]) {
+        guard NSClassFromString("XCTestCase") == nil else { return }
+        let waiting = Set(proxyQueue).union(makingProxies ? [current].compactMap { $0 } : [])
+        let photos = items.map(\.photoFile).filter { balancing.insert($0).inserted }
+        // A proxy that couldn't be made is still balanced, from the RAW.
+        proxyQueue += photos.filter { !waiting.contains($0) }
+        total = done + queue.count + proxyQueue.count
+        start()
+    }
+
+    /// Stops the balancing still to come; the proxies are still made.
+    func stopBalancing() { balancing = [] }
 
     /// Whether `photo` has its proxy, with either lens correction (the app keeps one).
     nonisolated static func hasProxy(_ photo: URL) -> Bool {
@@ -80,7 +97,7 @@ import Observation
     /// A proxy that couldn't be made: its thumbnail is developed from the RAW instead of waiting.
     /// The photographs whose proxy is waiting or being made: their thumbnails wait for it. One whose proxy was
     /// removed since (the cache at its limit) isn't here, and its thumbnail is developed from the RAW.
-    var pendingProxies: Set<URL> { Set(proxyQueue).union(makingProxies ? [current].compactMap { $0 } : []) }
+    var pendingProxies: Set<URL> { Set(proxyQueue).union(balancing).union(makingProxies ? [current].compactMap { $0 } : []) }
 
     /// Builds `items`' previews; `front` puts them before what's waiting. Asked for by hand, it says so at once,
     /// and says when there was nothing to build.
@@ -129,7 +146,7 @@ import Observation
     }
 
     func cancel() {
-        queue = []; proxyQueue = []; makingProxies = false
+        queue = []; proxyQueue = []; balancing = []; makingProxies = false
         task?.cancel(); task = nil
         done = 0; total = 0; current = nil; asked = false
         for item in Array(waiters.keys) { finished(item) }
@@ -161,6 +178,10 @@ import Observation
         return !FileManager.default.fileExists(atPath: file.path)
     }
     @ObservationIgnored private var failedProxies: Set<URL> = []
+    @ObservationIgnored private var remade: Set<URL> = []
+    /// Qlick Lab: the photographs known to have their proxy, so a folder's every change doesn't queue them again
+    /// (their thumbnails would wait on a queue that keeps filling).
+    @ObservationIgnored private var haveProxies: Set<URL> = []
 
     /// The next to build: the nearest to the open photograph.
     private func next() -> URL? {
@@ -198,22 +219,38 @@ import Observation
             // Qlick Lab: the proxies first, those on screen first; only the editor goes before them.
             if !proxyQueue.isEmpty {
                 let onScreen = Set(model.thumbnailsOnScreen.map(\.photoFile))
-                let photo = proxyQueue.remove(at: proxyQueue.firstIndex(where: onScreen.contains) ?? 0)
+                // Qlick Lab: a photograph whose edits are written first (writing into a DNG can change its size,
+                // and its proxy's name with it); those on screen first.
+                let store = model.sidecarLookup?.store
+                let written = { (photo: URL) in store?.isPending(photo) != true }
+                let index = proxyQueue.firstIndex { onScreen.contains($0) && written($0) } ?? proxyQueue.firstIndex(where: written)
+                    ?? proxyQueue.firstIndex(where: onScreen.contains) ?? 0
+                let photo = proxyQueue.remove(at: index)
                 while !Task.isCancelled, !model.backgroundMayRun { try? await Task.sleep(for: .milliseconds(300)) }
                 guard !Task.isCancelled else { return }
                 defer { done += 1 }
                 let present = await Task.detached(priority: .utility) { Self.hasProxy(photo) }.value
-                guard !present, let paths = model.labEnginePaths else { continue }
+                if present { haveProxies.insert(photo) }
+                let balances = balancing.contains(photo)
+                // The last of the queue: the thumbnails that waited on it go now.
+                guard !present || balances, let paths = model.labEnginePaths else { if proxyQueue.isEmpty { model.pumpThumbnails() }; continue }
                 if engine == nil { engine = try? EngineClient(paths: paths, quality: .utility); engine?.label = "previews" }
                 guard let engine else { return }
                 makingProxies = true; current = photo
-                let state = model.labEdits(for: photo).state
-                do {
-                    _ = try await engine.request(["command": .string("make_proxy"), "input": .string(photo.path), "params": state.params])
-                } catch {
-                    failedProxies.insert(photo)
+                if !present, !failedProxies.contains(photo) {
+                    let state = model.labEdits(for: photo).state
+                    do {
+                        _ = try await engine.request(["command": .string("make_proxy"), "input": .string(photo.path), "params": state.params])
+                        // Its file changed while it was being made (its edits written into it): once more.
+                        let there = await Task.detached(priority: .utility) { Self.hasProxy(photo) }.value
+                        if there { haveProxies.insert(photo) } else if remade.insert(photo).inserted { proxyQueue.append(photo); total += 1 }
+                    } catch {
+                        failedProxies.insert(photo)
+                    }
+                    PreviewStorage.pruneProxies()
                 }
-                PreviewStorage.pruneProxies()
+                // An import's photograph: its own white balance, read from the proxy just made.
+                if balancing.remove(photo) != nil, !Task.isCancelled { await model.labBalance(photo, with: engine) }
                 // Its thumbnail can be developed now, from it.
                 model.pumpThumbnails()
                 continue

@@ -85,6 +85,7 @@ import AppKit
             case "keywords": session.options.keywords = argument
             case "card": if let card = session.cards.first(where: { argument.isEmpty || $0.name == argument }) { session.open(card) }
             case "skipdup": session.options.skipDuplicates = argument != "0"
+            case "balance": session.options.balanceEach = argument != "0"
             case "verify": session.options.verify = argument != "0"
             case "eject": session.options.ejectAfter = argument != "0"
             case "view": if let view = ImportView(rawValue: argument) { session.view = view }
