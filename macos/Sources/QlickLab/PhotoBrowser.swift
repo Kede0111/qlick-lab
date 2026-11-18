@@ -767,6 +767,8 @@ struct LibraryContextMenu: View {
         Button("New Version (Virtual Copy)") { model.duplicate(targets) }.disabled(!editing)
         Button("Reset Edits" + several) { model.resetEdits(of: targets) }.disabled(!editing)
         Divider()
+        Button("Build Thumbnail" + (targets.count > 1 ? "s" : "") + several) { model.buildThumbnails(targets) }
+            .help("Develop their thumbnails now, before the rest of the folder, rather than as they're scrolled to")
         Button("Build Preview" + (targets.count > 1 ? "s" : "") + several) { lab.previewBuilder.build(targets) }
         Button("Export" + several + "…") { model.exportPanel() }.disabled(!model.canExport)
         Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting(Array(Set(targets.map(\.photoFile)))) }

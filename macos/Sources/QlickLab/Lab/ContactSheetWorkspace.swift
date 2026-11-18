@@ -66,7 +66,7 @@ private struct SheetToolbar: View {
                 .background(Capsule().fill(Color.white.opacity(0.07)))
             }
             Spacer(minLength: 8)
-            PreviewActivity(builder: lab.previewBuilder)
+            BackgroundActivity(model: model)
             SheetStylePicker(lab: lab)
             if lab.sheet.style == .classic || lab.sheet.style == .compact {
                 QIconButton(symbol: "film", help: lab.sheet.showFilm ? "Hide the film: the photographs alone" : "Show the film under the photographs", active: lab.sheet.showFilm) { lab.sheet.showFilm.toggle() }

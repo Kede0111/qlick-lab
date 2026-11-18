@@ -29,8 +29,11 @@ import AppKit
         add("Before / After", #selector(beforeAfter), "b", [.command, .option])
         add("See Larger", #selector(loupe), "")
         menu.addItem(.separator())
+        add("Build Thumbnails for Selection", #selector(buildThumbnailsSelected), "")
+        add("Build All Thumbnails", #selector(buildAllThumbnails), "")
         add("Build Previews for Selection", #selector(buildSelected), "")
         add("Build All Previews", #selector(buildAll), "")
+        add("Stop All Background Work", #selector(stopAllWork), "")
         menu.addItem(.separator())
         add("Red Pencil", #selector(togglePencil), "")
         add("Light Table", #selector(toggleLightTable), "l", [.command, .shift, .option])
@@ -120,6 +123,9 @@ import AppKit
     }
     @objc private func buildSelected() { lab.previewBuilder.build(model.ratingTargets) }
     @objc private func buildAll() { lab.previewBuilder.build(model.library.items.map(\.url)) }
+    @objc private func buildThumbnailsSelected() { model.buildThumbnails(model.ratingTargets) }
+    @objc private func buildAllThumbnails() { model.buildThumbnails(model.library.items.map(\.url)) }
+    @objc private func stopAllWork() { BackgroundWork.stopAll(model) }
     @objc private func loupe() { if let current = model.selection.current { lab.loupe = lab.loupe == nil ? current : nil } }
     @objc private func togglePencil() { lab.sheet.tool = lab.sheet.tool == .pencil ? .pointer : .pencil }
     @objc private func toggleLightTable() { lab.sheet.lightTable.toggle() }
@@ -141,6 +147,9 @@ import AppKit
         case #selector(toggleLightTable): item.state = lab.sheet.lightTable ? .on : .off; return sheet
         case #selector(toggleInfo): item.state = lab.sheet.showInfo ? .on : .off; return sheet
         case #selector(toggleSidebar): item.state = lab.sidebarVisible ? .on : .off; return true
+        case #selector(buildThumbnailsSelected): return !model.ratingTargets.isEmpty
+        case #selector(buildAllThumbnails): return !model.library.items.isEmpty
+        case #selector(stopAllWork): return BackgroundWork.tasks(model).contains { $0.stop != nil }
         case #selector(togglePhotoInfo):
             item.state = lab.infoVisible ? .on : .off
             return photo && lab.workspace == .develop && model.mode == .photo

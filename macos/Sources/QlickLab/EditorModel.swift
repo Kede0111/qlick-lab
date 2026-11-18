@@ -2402,6 +2402,15 @@ import UserNotifications
     @ObservationIgnored private var thumbnailsDeveloping: [Int: (item: URL, task: Task<Void, Never>)] = [:]
     /// Qlick Lab: the folder's thumbnails still to develop, as the pump last counted them (those developing too).
     private(set) var thumbnailsLeft = 0
+    /// Qlick Lab: the thumbnails asked for (Build Thumbnails), in the order asked: developed before the rest of the
+    /// folder, on screen or not, in Low Power Mode too.
+    @ObservationIgnored private var thumbnailsWanted: [URL] = []
+    /// How many of those asked for are done, of how many.
+    private(set) var thumbnailsAsked = (done: 0, total: 0)
+    /// Qlick Lab: the folder whose thumbnails off screen were stopped: only those on screen are developed there
+    /// until another folder opens or thumbnails are asked for.
+    @ObservationIgnored private var thumbnailsHeldIn: URL?
+    var thumbnailsHeld: Bool { thumbnailsHeldIn != nil && thumbnailsHeldIn == library.directory }
     /// Qlick Lab: work the lab does in the background that the sidebar shows, with how far it got.
     private(set) var backgroundWork: (title: String, done: Int, total: Int)?
     /// Qlick Lab: the recipe being applied to many photographs; a new one, Stop or an undo cancels it.
@@ -2576,6 +2585,58 @@ import UserNotifications
         thumbnailsChecked[item] = (look, true)
         thumbnailVersions[item, default: 0] += 1
         prefetchThumbnails()
+        settleWantedThumbnails()
+    }
+
+    /// Qlick Lab: Build Thumbnails. These photographs' thumbnails are developed before the rest of the folder,
+    /// whether they're on screen or not (a folder on another computer is otherwise read only as it's scrolled),
+    /// their proxies first.
+    func buildThumbnails(_ items: [URL]) {
+        guard !items.isEmpty else { return }
+        thumbnailsHeldIn = nil
+        let asked = Set(items)
+        if thumbnailsWanted.isEmpty { thumbnailsAsked = (0, 0) }
+        thumbnailsWanted = items + thumbnailsWanted.filter { !asked.contains($0) }
+        thumbnailsAsked.total = thumbnailsAsked.done + thumbnailsWanted.count
+        lab.proxyMaker.make(items, first: true)
+        settleWantedThumbnails()
+        if thumbnailsWanted.isEmpty {
+            libraryNote = LibraryNote(text: items.count == 1 ? "Its thumbnail is already there" : "All \(items.count) thumbnails are already there",
+                                      detail: nil, count: items.count, serial: (libraryNote?.serial ?? 0) + 1)
+        }
+        pumpThumbnails()
+    }
+
+    /// Qlick Lab: those asked for that are there now, or can't be made, are done.
+    private func settleWantedThumbnails() {
+        guard !thumbnailsWanted.isEmpty else { return }
+        let open = mode == .grid ? nil : sourceItem
+        let before = thumbnailsWanted.count, listed = Set(library.items.map(\.url))
+        thumbnailsWanted.removeAll { item in
+            if item == open || !listed.contains(item) { return true }
+            guard let look = thumbnailLook(for: item) else { return library.summariesLoaded }
+            if thumbnailFailures[item] == look { return true }
+            return thumbnailsChecked[item].map { $0.look == look && $0.present } ?? false
+        }
+        guard thumbnailsWanted.count != before else { return }
+        thumbnailsAsked.done += before - thumbnailsWanted.count
+        if thumbnailsWanted.isEmpty { thumbnailsAsked = (0, 0) }
+    }
+
+    /// Qlick Lab: stops developing thumbnails in the background: those asked for, and the rest of the folder off
+    /// screen. The ones developing off screen stop now (their helpers are quit); those on screen still develop.
+    func stopThumbnails() {
+        thumbnailsHeldIn = library.directory
+        thumbnailsWanted = []; thumbnailsAsked = (0, 0)
+        let onScreen = thumbnailsOnScreen
+        var stopped: [EngineClient] = []
+        for (slot, job) in thumbnailsDeveloping where !onScreen.contains(job.item) {
+            job.task.cancel()
+            thumbnailsDeveloping[slot] = nil
+            if let engine = thumbnailEngines.removeValue(forKey: slot) { stopped.append(engine) }
+        }
+        if !stopped.isEmpty { Task.detached(priority: .utility) { stopped.forEach { $0.stop() } } }
+        pumpThumbnails()
     }
 
     /// The open photograph's developed thumbnail, made from the preview on
@@ -2648,10 +2709,11 @@ import UserNotifications
             // Qlick Lab: on the contact sheet the open photograph isn't developed, so the pump makes its thumbnail too.
             let items = self.library.items, open = self.mode == .grid ? nil : self.sourceItem, onScreen = self.thumbnailsOnScreen, looks = self.thumbnailLooks
             let failures = self.thumbnailFailures, checked = self.thumbnailsChecked, emptied = self.thumbnailsEmptied
-            let developing = Set(self.thumbnailsDeveloping.values.map(\.item)), onlyOnScreen = self.lowPowerMode
+            let developing = Set(self.thumbnailsDeveloping.values.map(\.item)), onlyOnScreen = self.lowPowerMode || self.thumbnailsHeld
+            let wanted = self.thumbnailsWanted, wantedSet = Set(wanted)
             // Qlick Lab: with proxies made ahead, a RAW's thumbnail waits for its proxy (the camera's JPEG shows
             // meanwhile): developed from it, it takes milliseconds instead of seconds.
-            let pendingProxies = PreviewStorage.buildsProxiesAhead ? self.lab.previewBuilder.pendingProxies : []
+            let pendingProxies = PreviewStorage.buildsProxiesAhead ? self.lab.proxyMaker.pending : []
             self.thumbnailsPumpAgain = false
             // Each item but the open one, whose thumbnail comes from its
             // preview, and those developing, on screen first, then outward
@@ -2661,6 +2723,7 @@ import UserNotifications
             // noted. In Low Power Mode, those on screen only.
             let found = await Task.detached(priority: .utility) { () -> (present: [(URL, String)], next: [(file: PhotoFile, look: String)], missing: Int) in
                 var shown: [(file: PhotoFile, look: String)] = [], rest: [(index: Int, file: PhotoFile, look: String)] = []
+                var asked: [URL: (file: PhotoFile, look: String)] = [:]
                 var onScreenIndices: [Int] = [], openIndex: Int?
                 for (index, file) in items.enumerated() {
                     if file.url == open { openIndex = index; continue }
@@ -2668,10 +2731,13 @@ import UserNotifications
                     guard !developing.contains(file.url), let look = looks.look(for: file.url), failures[file.url] != look else { continue }
                     if pendingProxies.contains(file.url.photoFile) { continue }
                     if let checked = checked[file.url], checked.look == look, checked.present { continue }
-                    if onScreen.contains(file.url) { shown.append((file, look)) } else if !onlyOnScreen { rest.append((index, file, look)) }
+                    if onScreen.contains(file.url) { shown.append((file, look)) }
+                    else if wantedSet.contains(file.url) { asked[file.url] = (file, look) }
+                    else if !onlyOnScreen { rest.append((index, file, look)) }
                 }
                 let centre = Self.thumbnailCentre(onScreen: onScreenIndices, open: openIndex)
-                let ordered = shown + Self.outward(rest.map { ($0.index, (file: $0.file, look: $0.look)) }, from: centre)
+                // Qlick Lab: on screen first, then those asked for, in the order asked, then outward.
+                let ordered = shown + wanted.compactMap { asked[$0] } + Self.outward(rest.map { ($0.index, (file: $0.file, look: $0.look)) }, from: centre)
                 var present: [(URL, String)] = [], next: [(file: PhotoFile, look: String)] = [], missing = 0
                 // Every one is looked at, to count those still missing for the sidebar.
                 for (file, look) in ordered {
@@ -2690,13 +2756,17 @@ import UserNotifications
                 return self.pumpThumbnails()
             }
             for (item, look) in found.present { self.thumbnailsChecked[item] = (look, true) }
+            self.settleWantedThumbnails()
             if self.thumbnailsLeft != found.missing { self.thumbnailsLeft = found.missing }
             for (slot, (file, look)) in zip(free, found.next) {
                 self.thumbnailIdle?.cancel(); self.thumbnailIdle = nil
                 self.thumbnailsChecked[file.url] = (look, false)
                 let task = Task { [weak self] in
                     guard let self else { return }
-                    if await !self.developThumbnail(file, look: look, lookup: lookup, paths: paths, slot: slot) { self.thumbnailFailures[file.url] = look }
+                    let made = await self.developThumbnail(file, look: look, lookup: lookup, paths: paths, slot: slot)
+                    // Qlick Lab: stopped (`stopThumbnails`): not the photograph's failure, and its slot is free already.
+                    guard !Task.isCancelled else { return }
+                    if !made { self.thumbnailFailures[file.url] = look; self.settleWantedThumbnails() }
                     self.thumbnailsDeveloping[slot] = nil
                     if slot >= self.thumbnailHelpersNow { self.stopSpareThumbnailEngines() }
                     self.pumpThumbnails()
@@ -5386,7 +5456,7 @@ import UserNotifications
     }
 
     /// Stops the recipe being applied (and its balancing): what's done stays, and can be undone.
-    func stopApplying() { applyTask?.cancel(); lab.previewBuilder.stopBalancing() }
+    func stopApplying() { applyTask?.cancel(); lab.proxyMaker.stopBalancing() }
 
     /// Qlick Lab: each RAW's own Auto white balance, a few at a time, written as it's found. Stops between batches.
     private func balanceInBatches(_ items: [URL]) async {
@@ -5423,7 +5493,7 @@ import UserNotifications
         let raws = photos.filter { Self.rawExtensions.contains($0.photoFile.pathExtension.lowercased()) }
         guard !raws.isEmpty else { return }
         if PreviewStorage.buildsProxiesAhead {
-            lab.previewBuilder.balanceAfterProxies(raws)
+            lab.proxyMaker.balanceAfter(raws)
             return
         }
         let onScreen = thumbnailsOnScreen
@@ -5673,7 +5743,7 @@ import UserNotifications
         thumbnailsDeveloping.values.forEach { $0.task.cancel() }; thumbnailEngines.values.forEach { $0.stop() }
         exportJob?.cancel(); batch?.job?.cancel(); batchEngine?.stop(); engine?.stop()
         // Qlick Lab's own helpers.
-        lab.previewBuilder.shutdown(); lab.compareModel.developer.shutdown()
+        lab.previewBuilder.shutdown(); lab.proxyMaker.shutdown(); lab.compareModel.developer.shutdown()
         // An import under way stops after its file; its journal takes it up next time.
         lab.importer.runner?.cancel()
     }

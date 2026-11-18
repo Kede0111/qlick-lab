@@ -73,8 +73,7 @@ struct LabSidebar: View {
 
             Spacer(minLength: 0)
             ImportSidebarProgress(model: model)
-            WorkProgress(model: model)
-            PreviewProgress(builder: lab.previewBuilder)
+            SidebarWork(model: model)
             Divider().overlay(Color.white.opacity(0.06))
             RoomButton(symbol: "gearshape", title: "Settings", on: false) {
                 lab.openSettings()
@@ -297,57 +296,11 @@ private struct CatalogMenu: View {
     }
 }
 
-/// The previews being built in the background, while they are.
-/// What the lab does in the background besides the previews: balancing photographs for a recipe, and the
-/// contact sheet's thumbnails being developed again after a change.
-private struct WorkProgress: View {
+/// Qlick Lab: what the lab does in the background, each with its progress and its Stop (`BackgroundWork`); the
+/// import has its own, larger, above.
+private struct SidebarWork: View {
     let model: EditorModel
     var body: some View {
-        if let work = model.backgroundWork, work.total > 0 {
-            row(work.title, figure: "\(min(work.done + 1, work.total)) / \(work.total)", value: Double(work.done) / Double(work.total),
-                stop: { model.stopApplying() })
-        } else if model.thumbnailsLeft > 0 {
-            row("Thumbnails", figure: "\(model.thumbnailsLeft) to update", value: nil, stop: nil)
-        }
-        if model.savingLeft > 1 {
-            row("Saving edits", figure: "\(model.savingLeft) left", value: nil, stop: nil)
-        }
-    }
-
-    private func row(_ title: String, figure: String, value: Double?, stop: (() -> Void)?) -> some View {
-        VStack(alignment: .leading, spacing: 5) {
-            HStack {
-                Text(title).font(.system(size: 10.5)).foregroundStyle(Q.dim).lineLimit(1).truncationMode(.middle)
-                Spacer()
-                Text(figure).font(Q.value(10.5)).foregroundStyle(Q.dim)
-                if let stop {
-                    Button(action: stop) { Image(systemName: "xmark.circle.fill").font(.system(size: 10)).foregroundStyle(Q.dim) }
-                        .buttonStyle(.plain).help("Stop. What's done stays, and can be undone.")
-                }
-            }
-            if let value { ProgressView(value: value).progressViewStyle(.linear).tint(Q.red).controlSize(.mini) }
-            else { ProgressView().progressViewStyle(.linear).tint(Q.red).controlSize(.mini) }
-        }
-        .padding(.horizontal, 20).padding(.bottom, 8)
-    }
-}
-
-private struct PreviewProgress: View {
-    let builder: PreviewBuilder
-    var body: some View {
-        if builder.running, builder.total > 0 {
-            VStack(alignment: .leading, spacing: 5) {
-                HStack {
-                    Text(builder.makingProxies ? "Making proxies" : "Building previews").font(.system(size: 10.5)).foregroundStyle(Q.dim)
-                    Spacer()
-                    Text("\(min(builder.done + 1, builder.total)) / \(builder.total)").font(Q.value(10.5)).foregroundStyle(Q.dim)
-                    Button { builder.cancel() } label: { Image(systemName: "xmark.circle.fill").font(.system(size: 10)).foregroundStyle(Q.dim) }
-                        .buttonStyle(.plain).help("Stop building previews")
-                }
-                ProgressView(value: Double(builder.done), total: Double(max(builder.total, 1))).progressViewStyle(.linear).tint(Q.red).controlSize(.mini)
-            }
-            .padding(.horizontal, 20).padding(.bottom, 8)
-            .help(builder.current.map { "Developing \($0.lastPathComponent) ahead, so it opens at once" } ?? "")
-        }
+        ForEach(BackgroundWork.tasks(model).filter { $0.kind != .importing }) { task in BackgroundTaskRow(task: task) }
     }
 }

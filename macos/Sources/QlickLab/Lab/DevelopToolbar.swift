@@ -70,7 +70,7 @@ struct DevelopToolbar: View {
                 tool("info.circle", "Photograph Information: what the camera recorded (⌘I)", on: lab.infoVisible) { lab.infoVisible.toggle() }.disabled(!photo)
             }
             Spacer(minLength: 8)
-            PreviewActivity(builder: lab.previewBuilder).padding(.trailing, 8)
+            BackgroundActivity(model: model).padding(.trailing, 8)
             Button { model.exportPanel() } label: {
                 Label(model.exportTitle.replacingOccurrences(of: "…", with: ""), systemImage: "square.and.arrow.up")
                     .font(.system(size: 11.5, weight: .semibold))
