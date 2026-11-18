@@ -6,13 +6,14 @@ import SwiftUI
 /// not only its progress.
 struct BackgroundTask: Identifiable {
     enum Kind: String, CaseIterable {
-        case export, importing, recipe, proxies, thumbnails, previews, saving
+        case export, importing, recipe, reading, proxies, thumbnails, previews, saving
         /// One word, where there's little room: the pill and the sidebar.
         var word: String {
             switch self {
             case .export: "Export"
             case .importing: "Import"
             case .recipe: "Recipe"
+            case .reading: "Thumbnails"
             case .proxies: "Proxies"
             case .thumbnails: "Thumbnails"
             case .previews: "Previews"
@@ -62,6 +63,12 @@ struct BackgroundTask: Identifiable {
         if let work = model.backgroundWork, work.total > 0 {
             tasks.append(BackgroundTask(kind: .recipe, title: work.title, detail: nil, done: work.done, total: work.total,
                                         stop: { model.stopApplying() }, stopHelp: "Stop: what's done stays, and can be undone"))
+        }
+        if model.embeddedRead.total > 0 {
+            tasks.append(BackgroundTask(kind: .reading, title: "Reading thumbnails", detail: "From the files, kept on this Mac",
+                                        done: model.embeddedRead.done, total: model.embeddedRead.total,
+                                        stop: { model.stopReadingThumbnails() },
+                                        stopHelp: "Stop reading: those read stay, the rest are read as they're shown"))
         }
         let proxies = lab.proxyMaker
         if proxies.total > 0, proxies.busy {

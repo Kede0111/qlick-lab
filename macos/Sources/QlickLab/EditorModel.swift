@@ -2588,12 +2588,44 @@ import UserNotifications
         settleWantedThumbnails()
     }
 
-    /// Qlick Lab: Build Thumbnails. These photographs' thumbnails are developed before the rest of the folder,
-    /// whether they're on screen or not (a folder on another computer is otherwise read only as it's scrolled),
-    /// their proxies first.
+    /// Qlick Lab: the photographs' own pictures being read ahead by Build Thumbnails, how many of how many.
+    private(set) var embeddedRead = (done: 0, total: 0)
+    @ObservationIgnored private var embeddedTask: Task<Void, Never>?
+
+    /// Qlick Lab: Build Thumbnails. First each photograph's own picture (a RAW's embedded JPEG, a JPEG or PNG) is
+    /// read and kept on this Mac, several at a time, so the whole selection shows at once even from another
+    /// computer (`EmbeddedThumbnails`). Then their thumbnails are developed before the rest of the folder, whether
+    /// they're on screen or not, their proxies first.
     func buildThumbnails(_ items: [URL]) {
         guard !items.isEmpty else { return }
         thumbnailsHeldIn = nil
+        embeddedTask?.cancel()
+        let asked = Set(items)
+        let photos = library.items.filter { asked.contains($0.url) }
+        embeddedRead = (0, photos.count)
+        let progress: @Sendable (Int) async -> Void = { [weak self] done in await self?.noteEmbeddedRead(done) }
+        embeddedTask = Task { [weak self] in
+            await EmbeddedThumbnails.extract(photos, progress: progress)
+            guard !Task.isCancelled, let self else { return }
+            self.embeddedRead = (0, 0)
+            self.embeddedTask = nil
+            self.developThumbnails(items)
+        }
+    }
+
+    private func noteEmbeddedRead(_ done: Int) {
+        if embeddedRead.total > 0 { embeddedRead.done = done }
+    }
+
+    /// Qlick Lab: stops reading the photographs' own pictures ahead (those read stay kept).
+    func stopReadingThumbnails() {
+        embeddedTask?.cancel()
+        embeddedTask = nil
+        embeddedRead = (0, 0)
+    }
+
+    /// Qlick Lab: these photographs' thumbnails developed before the rest of the folder, their proxies first.
+    private func developThumbnails(_ items: [URL]) {
         let asked = Set(items)
         if thumbnailsWanted.isEmpty { thumbnailsAsked = (0, 0) }
         thumbnailsWanted = items + thumbnailsWanted.filter { !asked.contains($0) }
@@ -2627,6 +2659,7 @@ import UserNotifications
     /// screen. The ones developing off screen stop now (their helpers are quit); those on screen still develop.
     func stopThumbnails() {
         thumbnailsHeldIn = library.directory
+        stopReadingThumbnails()
         thumbnailsWanted = []; thumbnailsAsked = (0, 0)
         let onScreen = thumbnailsOnScreen
         var stopped: [EngineClient] = []

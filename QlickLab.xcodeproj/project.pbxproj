@@ -45,6 +45,7 @@
 		3652F9CE9A8AFF5E3CB3527D /* AppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = 2B2D5228817DCE0F36780230 /* AppIcon.icon */; };
 		3668CF73B9332BD38F932412 /* ImportPlan.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CC06E7A5C7B69D623F942A3 /* ImportPlan.swift */; };
 		36A6228A8671E8D3E97ED2A3 /* StatusLineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2BFA0490E75DEB676F4D2540 /* StatusLineTests.swift */; };
+		3734D22AB3497A07FACBA605 /* EmbeddedThumbnails.swift in Sources */ = {isa = PBXBuildFile; fileRef = F41A697F7962399ABEB0347D /* EmbeddedThumbnails.swift */; };
 		37A40DDA7F626E57C5026DC7 /* ViewerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 389111DA2BEED9F470B4A07C /* ViewerSheet.swift */; };
 		3936441ED569F82DCB914F7A /* BatchExport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 155C675A483AC685DFB30512 /* BatchExport.swift */; };
 		3AF1D102C325DF77239F64B0 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 87A6B6AE37A11BC0CA50BB8A /* Sparkle */; };
@@ -132,6 +133,7 @@
 		9C275CB8B1A262AE415E904B /* ImportPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 071D0027E5EA7E609408C672 /* ImportPanel.swift */; };
 		9DE2AB4580AC63AD498D1A67 /* ControlHelpTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCE7C4FB8741018067CCB746 /* ControlHelpTests.swift */; };
 		9F0F7965F8026A8A4353D3C7 /* LightTable.swift in Sources */ = {isa = PBXBuildFile; fileRef = 232BD9796D537C1BDCF4C406 /* LightTable.swift */; };
+		A552AAC7DE09CEA67D4306D6 /* EmbeddedThumbnailsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F051FE58212183C99403243 /* EmbeddedThumbnailsTests.swift */; };
 		A85244F85912017C1B92BA23 /* StatusLine.swift in Sources */ = {isa = PBXBuildFile; fileRef = F558ED8847ADA97B7DE96B96 /* StatusLine.swift */; };
 		ACB1F0665C2672EF46AF0AA9 /* AutoStraighten.swift in Sources */ = {isa = PBXBuildFile; fileRef = F87AF332784F18B2A5909B6F /* AutoStraighten.swift */; };
 		ACC77E6B2581A48C48D26E00 /* ToneGraph.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9A06B3F341719CF4EB2822D /* ToneGraph.swift */; };
@@ -243,6 +245,7 @@
 		3BAEA13ADF0854FE8C96964B /* ProxyMaker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProxyMaker.swift; sourceTree = "<group>"; };
 		3CC06E7A5C7B69D623F942A3 /* ImportPlan.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportPlan.swift; sourceTree = "<group>"; };
 		3D495F134F453961559694E3 /* SheetFlight.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetFlight.swift; sourceTree = "<group>"; };
+		3F051FE58212183C99403243 /* EmbeddedThumbnailsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmbeddedThumbnailsTests.swift; sourceTree = "<group>"; };
 		401A05957C294D834C8F4BDC /* TabEditsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabEditsTests.swift; sourceTree = "<group>"; };
 		420C41A1BB0A3266576F74E5 /* Selection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Selection.swift; sourceTree = "<group>"; };
 		4319DCB548AE62BAC18BBBC9 /* AppDataTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDataTests.swift; sourceTree = "<group>"; };
@@ -365,6 +368,7 @@
 		EF0595EF2EAD6C0DB3284B65 /* ExposurePlacementTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExposurePlacementTests.swift; sourceTree = "<group>"; };
 		F124403EC221823011F47C8F /* LabDeveloper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LabDeveloper.swift; sourceTree = "<group>"; };
 		F340E9AB29103446BF9604F3 /* AppIcon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppIcon.swift; sourceTree = "<group>"; };
+		F41A697F7962399ABEB0347D /* EmbeddedThumbnails.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmbeddedThumbnails.swift; sourceTree = "<group>"; };
 		F558ED8847ADA97B7DE96B96 /* StatusLine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusLine.swift; sourceTree = "<group>"; };
 		F5CAA12B958ED600FDAECEF6 /* AlertSheetTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertSheetTests.swift; sourceTree = "<group>"; };
 		F7FE521B29FC373FD1A2AADA /* InteractionBenchmark.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteractionBenchmark.swift; sourceTree = "<group>"; };
@@ -410,6 +414,7 @@
 				28106E2C1B89AF5B709197C4 /* EditorModel.swift */,
 				56B686DA0CBD91B1F21BB030 /* EditorWindowController.swift */,
 				7379EA747F38CE3190FBBFBA /* Edits.swift */,
+				F41A697F7962399ABEB0347D /* EmbeddedThumbnails.swift */,
 				E4A4BA3F2769630EE573E5E1 /* Engine.swift */,
 				C15A5CF0CE01AE918A063F60 /* FilmCacheRelease.swift */,
 				B37549C371A5D338FDF5C738 /* FitDownscale.swift */,
@@ -542,6 +547,7 @@
 				FCE7C4FB8741018067CCB746 /* ControlHelpTests.swift */,
 				9798D2896C38F7F2B5A0ACB8 /* CropTests.swift */,
 				2FDB2A5D10B5F056AD1D51D3 /* DNGMetadataTests.swift */,
+				3F051FE58212183C99403243 /* EmbeddedThumbnailsTests.swift */,
 				19FFACDFBC430508B75334F0 /* EngineTests.swift */,
 				D7CE0BE0F32152055985010B /* ExportRatingTests.swift */,
 				32DE2EAE2832DE09CF88A00C /* ExportSizeTests.swift */,
@@ -803,6 +809,7 @@
 				9686FF214F76E8E2CB52ADDE /* EditorModel.swift in Sources */,
 				0F5857029814EB9AFF16CE64 /* EditorWindowController.swift in Sources */,
 				3F1F056160214035B6BE76CA /* Edits.swift in Sources */,
+				3734D22AB3497A07FACBA605 /* EmbeddedThumbnails.swift in Sources */,
 				7EEEE784D99296834DF2A904 /* Engine.swift in Sources */,
 				BAB6E8E197DD8C81D468C4CE /* ExportFinisher.swift in Sources */,
 				2BA21D869F95A193FE21B6E5 /* FilmCacheRelease.swift in Sources */,
@@ -902,6 +909,7 @@
 				9DE2AB4580AC63AD498D1A67 /* ControlHelpTests.swift in Sources */,
 				4C052E4A07329B7922857755 /* CropTests.swift in Sources */,
 				68BBF9C166555A27E2AE631D /* DNGMetadataTests.swift in Sources */,
+				A552AAC7DE09CEA67D4306D6 /* EmbeddedThumbnailsTests.swift in Sources */,
 				56DF6BACE40DE03C8564277D /* EngineTests.swift in Sources */,
 				CA1871A14E1156D58711F0E5 /* ExportRatingTests.swift in Sources */,
 				6E1C4DFABC98C8938B451FC2 /* ExportSizeTests.swift in Sources */,

@@ -173,18 +173,11 @@ actor PhotoThumbnails {
         let url = file.url
         if let cached = cache.object(forKey: url as NSURL), cached.file == file, cached.look == nil { count(ahead, hit: true); return cached.image }
         count(ahead, hit: false)
-        let image: CGImage? = autoreleasepool {
-            guard let source = CGImageSourceCreateWithURL(url as CFURL,
-                [kCGImageSourceShouldCache: false] as CFDictionary) else { return nil }
-            var options: [CFString: Any] = [
-                kCGImageSourceCreateThumbnailWithTransform: true,
-                kCGImageSourceThumbnailMaxPixelSize: size.rawValue,
-                kCGImageSourceShouldCacheImmediately: true
-            ]
-            if !EditorModel.rawExtensions.contains(url.pathExtension.lowercased()) {
-                options[kCGImageSourceCreateThumbnailFromImageAlways] = true
-            }
-            return CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary)
+        // Qlick Lab: the copy kept on this Mac first; else the file is read once, and its copy kept for next time.
+        var image = EmbeddedThumbnails.cached(file, maxPixels: size.rawValue)
+        if image == nil, let read = EmbeddedThumbnails.read(file) {
+            EmbeddedThumbnails.store(read, for: file)
+            image = size.rawValue >= EmbeddedThumbnails.side ? read : EmbeddedThumbnails.cached(file, maxPixels: size.rawValue) ?? read
         }
         guard !Task.isCancelled else { return nil }
         if let image { cache.setObject(Cached(file: file, look: nil, image: image), forKey: url as NSURL, cost: image.bytesPerRow * image.height) }
