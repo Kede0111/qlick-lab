@@ -384,6 +384,8 @@ private struct CompareToolbar: View {
             QSegmented(options: CompareSetup.Kind.allCases.map { ($0, $0.title, $0.help) },
                        selection: Binding(get: { lab.compare.kind }, set: { compare.setKind($0) }))
             Spacer(minLength: 8)
+            // Qlick Lab: the background work, here as in the other rooms.
+            BackgroundActivity(model: model)
             if lab.compare.kind != .beforeAfter {
                 QIconButton(symbol: compare.linked ? "link" : "link.badge.plus", help: "Zoom and pan linked across the panes", active: compare.linked) {
                     compare.linked.toggle(); compare.push()

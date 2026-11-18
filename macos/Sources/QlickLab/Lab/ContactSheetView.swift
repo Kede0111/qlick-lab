@@ -735,6 +735,7 @@ import SwiftUI
         add("New Version (Virtual Copy)", #selector(duplicate), enabled: model.canChangeEdits)
         add("Reset Edits" + several, #selector(resetEdits), enabled: model.canChangeEdits)
         menu.addItem(.separator())
+        add("Build Thumbnail" + (count > 1 ? "s" : "") + several, #selector(buildThumbnails))
         add("Build Preview" + (count > 1 ? "s" : "") + several, #selector(buildPreviews))
         add("Export" + several + "…", #selector(export), enabled: model.canExport)
         add("Show in Finder", #selector(reveal))
@@ -773,6 +774,7 @@ import SwiftUI
     @objc private func resetEdits() { model.resetEdits() }
     @objc private func export() { model.exportPanel() }
     @objc private func buildPreviews() { sheet.lab.previewBuilder.build(model.ratingTargets) }
+    @objc private func buildThumbnails() { model.buildThumbnails(model.ratingTargets) }
     @objc private func pasteFromPrevious() { model.pasteFromPrevious(onto: model.ratingTargets) }
     @objc private func trash() { model.requestDelete(model.ratingTargets, asking: true) }
     @objc private func reveal() { NSWorkspace.shared.activateFileViewerSelecting(model.ratingTargets.map(\.photoFile)) }

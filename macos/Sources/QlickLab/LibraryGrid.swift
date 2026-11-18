@@ -707,7 +707,7 @@ private struct SheetFoot: View {
                 LibraryFilterBar(model: model, inline: true).fixedSize()
             }
             Spacer(minLength: 0)
-            PreviewActivity(builder: model.lab.previewBuilder)
+            BackgroundActivity(model: model)
             Button { model.lab.filterBarVisible.toggle() } label: {
                 Image(systemName: model.lab.filterBarVisible ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
                     .font(.system(size: 13)).foregroundStyle(model.lab.filterBarVisible ? Theme.paper : Theme.dim)

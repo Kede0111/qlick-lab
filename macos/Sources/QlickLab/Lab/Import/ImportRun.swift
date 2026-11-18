@@ -309,7 +309,7 @@ extension ImportSession {
         if journal.remaining > 0 { setUnfinished(journal) } else { ImportJournal.remove() }
         // Qlick Lab: their proxies straight away, so their thumbnails develop in milliseconds.
         let arrived = journal.items.filter(\.done)
-        model.lab.previewBuilder.makeProxies(arrived.compactMap(\.photo))
+        model.lab.proxyMaker.make(arrived.compactMap(\.photo), first: true)
         // Then each one's own white balance, from its proxy as it's made.
         if journal.options.balanceEach { model.labBalanceImported(arrived.filter { $0.marks.recipe != nil }.compactMap(\.photo)) }
         // The folder open meanwhile shows what arrived; the previews follow by themselves.
@@ -390,7 +390,7 @@ extension ImportSession {
             adding = nil
             // Qlick Lab: their proxies straight away, so their thumbnails develop in milliseconds.
             let added = run.order.filter { run.state(of: $0) == .verified }
-            model.lab.previewBuilder.makeProxies(added)
+            model.lab.proxyMaker.make(added, first: true)
             if options.balanceEach { model.labBalanceImported(added.filter { marks[$0]?.recipe != nil }) }
             run.finish(stopped: Task.isCancelled)
             model.library.refreshNow()

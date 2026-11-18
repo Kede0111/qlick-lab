@@ -209,6 +209,7 @@ import SwiftUI
         terminating = true
         // Qlick Lab: what works in the background stops first, so the last writes have the disks to themselves.
         model.lab.previewBuilder.cancel()
+        model.lab.proxyMaker.cancel()
         model.lab.importer.stop()
         // Never a quit that waits without a word: after a moment it says what it waits for, and offers to quit now.
         let watch = Task { [weak self] in

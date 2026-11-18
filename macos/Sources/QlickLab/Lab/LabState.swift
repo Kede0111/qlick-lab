@@ -85,6 +85,10 @@ struct SheetOptions: Codable, Equatable, Sendable {
     let catalogs = CatalogList()
     /// Builds the photographs' previews ahead, in the background.
     @ObservationIgnored private(set) lazy var previewBuilder = PreviewBuilder(model: model)
+    /// Qlick Lab: moves to open the background work's panel (automation, the menu).
+    var workPanelAsked = 0
+    /// Qlick Lab: the RAW photographs' proxies, made ahead.
+    @ObservationIgnored private(set) lazy var proxyMaker = ProxyMaker(model: model)
     /// The import room: its source, what's chosen of it, and the import running.
     let importer: ImportSession
 
@@ -225,7 +229,7 @@ struct SheetOptions: Codable, Equatable, Sendable {
             let open = model.library.directory?.standardizedFileURL.path
             let showing = wholeProject?.id == project.id || folders.contains { $0.standardizedFileURL.path == open }
             if showing { model.closeFolder() }
-            previewBuilder.cancel()
+            previewBuilder.cancel(); proxyMaker.cancel()
             // Shown whole, its photographs are reached through its folder of links: their previews are named by
             // those paths too. Read before the folder goes.
             let links = projects.directory.appendingPathComponent("Views", isDirectory: true).appendingPathComponent(project.id.uuidString, isDirectory: true)

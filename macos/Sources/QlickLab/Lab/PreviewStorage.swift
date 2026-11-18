@@ -90,6 +90,12 @@ enum PreviewStorage {
 
     static func proxiesSize() -> Int { proxies().reduce(0) { $0 + $1.size } }
 
+    /// How many proxies the cache holds, and their bytes: what a proxy takes, on average, for the room left.
+    static func proxiesStats() -> (count: Int, bytes: Int) {
+        let entries = proxies()
+        return (entries.count, entries.reduce(0) { $0 + $1.size })
+    }
+
     /// The least recently used proxies go until they're under their share of the limit (three quarters of it, so it
     /// isn't done at every one).
     static func pruneProxies() {
@@ -121,7 +127,7 @@ extension EditorModel {
 
     /// Removes every preview built ahead; they're built again as photographs are opened (or by Build Previews).
     func emptyPreviewCache() async {
-        lab.previewBuilder.cancel()
+        lab.previewBuilder.cancel(); lab.proxyMaker.cancel()
         let archive = renderArchive
         await Task.detached(priority: .userInitiated) { archive.removeAll(); PreviewStorage.removeProxies() }.value
     }
@@ -129,7 +135,7 @@ extension EditorModel {
     /// Keeps the previews in `folder` (nil: the start-up disk's caches). Those already built are removed from the
     /// old place, not moved: they're quick to build again, and a copy across disks would take long.
     func movePreviews(to folder: URL?) async {
-        lab.previewBuilder.cancel()
+        lab.previewBuilder.cancel(); lab.proxyMaker.cancel()
         let old = renderArchive, oldProxies = PreviewStorage.proxyDirectory, oldThumbnails = editedThumbnails
         if let folder { UserDefaults.standard.set(folder.path, forKey: PreviewStorage.folderKey) }
         else { UserDefaults.standard.removeObject(forKey: PreviewStorage.folderKey) }
@@ -160,7 +166,7 @@ extension EditorModel {
 
     /// Removes every proxy: none are made any more.
     func removeProxies() async {
-        lab.previewBuilder.cancel()
+        lab.previewBuilder.cancel(); lab.proxyMaker.cancel()
         await Task.detached(priority: .userInitiated) { PreviewStorage.removeProxies() }.value
     }
 
@@ -169,6 +175,8 @@ extension EditorModel {
         renderArchive = PreviewStorage.store()
         let archive = renderArchive
         Task.detached(priority: .utility) { archive.prune(); PreviewStorage.pruneProxies() }
+        // Qlick Lab: the proxies' room changed: those left out for want of it may fit now.
+        lab.proxyMaker.roomChanged()
     }
 }
 
@@ -208,7 +216,7 @@ struct PreviewStorageSection: View {
                 case .all: model.lab.previewBuilder.folderChanged()
                 // Never: those already made would never be read again, so they go.
                 case .never: Task { busy = true; await model.removeProxies(); await refresh(); busy = false }
-                case .opened: break
+                case .opened: model.lab.proxyMaker.cancel()
                 }
             }
             HintText(proxyHint)
