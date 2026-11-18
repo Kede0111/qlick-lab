@@ -175,7 +175,7 @@ struct DevelopTag: View {
 
     var body: some View {
         VStack(spacing: 5) {
-            Text(L(title)).font(Theme.serif(17, italic: true)).foregroundStyle(Theme.paper).fixedSize()
+            Text(title).font(Theme.serif(17, italic: true)).foregroundStyle(Theme.paper).fixedSize()
             RunningLine().frame(width: 64)
         }
         .fixedSize()

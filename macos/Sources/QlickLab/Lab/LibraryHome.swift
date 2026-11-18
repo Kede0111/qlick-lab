@@ -222,7 +222,7 @@ private struct RollCard: View {
                 }
                 if let stats {
                     if stats.missing {
-                        Text("Dossier introuvable").font(.system(size: 11.5)).foregroundStyle(Theme.warn)
+                        Text("Folder not found").font(.system(size: 11.5)).foregroundStyle(Theme.warn)
                     } else {
                         HStack(spacing: 9) {
                             Text("\(stats.total) frames").font(Q.value(11.5)).foregroundStyle(Q.dim)

@@ -19,7 +19,7 @@ struct CompareSetup: Equatable, Sendable {
 
         var title: String {
             switch self {
-            case .photographs: "Photographies"
+            case .photographs: "Photographs"
             case .films: "Films"
             case .recipes: "Recipes"
             case .versions: "Versions"
@@ -403,7 +403,7 @@ private struct CompareToolbar: View {
             .help("Zoom: from a quarter of the fitted size to 32 times it")
             Text("\(Int((compare.magnification * 100).rounded())) %").font(Q.value(11.5)).foregroundStyle(Q.dim).frame(width: 46, alignment: .trailing)
             if compare.canAddPane {
-                QIconButton(symbol: "plus.rectangle.on.rectangle", help: lab.compare.kind == .versions ? "Nouvelle version de cette photographie" : "Add a pane") { compare.addPane() }
+                QIconButton(symbol: "plus.rectangle.on.rectangle", help: lab.compare.kind == .versions ? "New version of this photograph" : "Add a pane") { compare.addPane() }
             }
         }
         .padding(.horizontal, 16)
@@ -466,7 +466,7 @@ private struct PaneLabel: View {
                 Spacer()
                 switch kind {
                 case .films: Button("Develop on This Film") { compare.adopt(pane) }.buttonStyle(QPillButtonStyle())
-                case .recipes: Button("Appliquer cette recette") { compare.adopt(pane) }.buttonStyle(QPillButtonStyle())
+                case .recipes: Button("Apply this recipe") { compare.adopt(pane) }.buttonStyle(QPillButtonStyle())
                 case .photographs, .versions: Button("Develop") { compare.adopt(pane) }.buttonStyle(QPillButtonStyle())
                 case .beforeAfter: EmptyView()
                 }

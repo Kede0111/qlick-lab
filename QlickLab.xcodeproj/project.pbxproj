@@ -688,11 +688,11 @@
 				};
 			};
 			buildConfigurationList = D5B64FA54E65759D27197115 /* Build configuration list for PBXProject "QlickLab" */;
-			developmentRegion = fr;
+			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				Base,
-				fr,
+				en,
 			);
 			mainGroup = 520D1D40D0A5C3339ECB4949;
 			minimizedProjectReferenceProxies = 1;

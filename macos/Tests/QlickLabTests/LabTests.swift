@@ -402,10 +402,13 @@ final class LabWordsTests: XCTestCase {
         XCTAssertEqual(Workspace.contactSheet.title, "Contact Sheet")
     }
 
-    func testFrenchKeepsAWordItDoesNotKnow() {
-        XCTAssertEqual(French.words["Highlights"], "Hautes lumières")
-        XCTAssertNil(French.words["A control added upstream tomorrow"])
-        XCTAssertFalse(French.words.values.contains(""))
+    /// The app has no localizations of its own, so macOS shows its own menu items, panels and alert buttons in the
+    /// bundle's development region: English, as the rest of the lab.
+    func testTheBundleSpeaksEnglish() throws {
+        let plist = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent().appendingPathComponent("QlickLab-Info.plist")
+        let info = try XCTUnwrap(NSDictionary(contentsOf: plist))
+        XCTAssertEqual(info["CFBundleDevelopmentRegion"] as? String, "en")
     }
 
     func testSheetOptionsSurviveARoundTrip() throws {

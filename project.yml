@@ -9,7 +9,7 @@ options:
   deploymentTarget:
     macOS: "14.0"
   createIntermediateGroups: true
-  developmentLanguage: fr
+  developmentLanguage: en
 settings:
   base:
     MARKETING_VERSION: "0.1.1"

@@ -173,13 +173,13 @@ import SwiftUI
     }
 
     private func submenu(_ title: String) -> NSMenu {
-        let submenu = NSMenu(title: L(title))
-        menu.addItem(withTitle: L(title), action: nil, keyEquivalent: "").submenu = submenu
+        let submenu = NSMenu(title: title)
+        menu.addItem(withTitle: title, action: nil, keyEquivalent: "").submenu = submenu
         return submenu
     }
 
     private func command(_ menu: NSMenu, _ title: String, _ action: Selector, _ key: String, _ modifiers: NSEvent.ModifierFlags = .command) {
-        let item = menu.addItem(withTitle: L(title), action: action, keyEquivalent: key)
+        let item = menu.addItem(withTitle: title, action: action, keyEquivalent: key)
         item.keyEquivalentModifierMask = modifiers
         item.target = self
     }

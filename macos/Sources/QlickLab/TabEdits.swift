@@ -167,7 +167,7 @@ struct TabEditsList: View {
                         VStack(spacing: 0) {
                             InkRule()
                             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                                Text(L(edit.title)).font(Theme.ui(12)).foregroundStyle(Theme.label).lineLimit(2)
+                                Text(edit.title).font(Theme.ui(12)).foregroundStyle(Theme.label).lineLimit(2)
                                 Spacer(minLength: 8)
                                 Text(edit.value).font(Theme.ui(12)).monospacedDigit().foregroundStyle(Theme.dim).lineLimit(1)
                                 Button { model.resetEdits([edit.target], action: "Reset \(edit.title)") } label: {

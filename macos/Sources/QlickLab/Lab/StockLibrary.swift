@@ -84,9 +84,9 @@ enum StockFacts {
         var title: String {
             switch self {
             case .colourNegative: "Colour negative"
-            case .slide: "Diapositives"
+            case .slide: "Slides"
             case .cinema: "Cinema films"
-            case .infrared: "Infrarouge"
+            case .infrared: "Infrared"
             case .blackAndWhite: "Black & white"
             case .colourPaper: "Colour papers"
             case .cinemaPrint: "Cinema print films"
@@ -108,10 +108,10 @@ enum StockFacts {
         case .colourNegative: "Colour negative"
         case .slide: "Colour slide"
         case .cinema: "Cinema negative"
-        case .infrared: "Infrarouge couleur"
+        case .infrared: "Colour infrared"
         case .blackAndWhite: stock.positive ? "Black & white slide" : "Black & white negative"
         case .colourPaper: "Colour paper"
-        case .cinemaPrint: "Film de tirage"
+        case .cinemaPrint: "Cinema print film"
         case .blackAndWhitePaper: "Black & white paper"
         }
     }
@@ -313,12 +313,12 @@ private struct StockDetail: View {
                     Text(StockFacts.kind(stock, family: family)).font(.system(size: 12)).foregroundStyle(Q.dim)
                 }
                 VStack(alignment: .leading, spacing: 7) {
-                    fact("Fabricant", StockFacts.maker(stock))
+                    fact("Maker", StockFacts.maker(stock))
                     if let speed = StockFacts.speed(stock) { fact("Speed", "ISO \(speed)") }
                     if let profile {
-                        if !profile.use.isEmpty { fact("Usage", profile.use == "still" ? "Photographie" : profile.use == "cine" ? "Cinema" : profile.use) }
-                        if !profile.referenceIlluminant.isEmpty, !stock.paper { fact("Équilibre", profile.referenceIlluminant == "TH-KG3" ? "Tungsten" : "Daylight (\(profile.referenceIlluminant))") }
-                        if !profile.antihalation.isEmpty, !stock.paper { fact("Antihalo", ["strong": "Forte", "weak": "Faible", "no": "Aucune", "none": "Aucune"][profile.antihalation] ?? profile.antihalation) }
+                        if !profile.use.isEmpty { fact("Usage", profile.use == "still" ? "Still photography" : profile.use == "cine" ? "Cinema" : profile.use) }
+                        if !profile.referenceIlluminant.isEmpty, !stock.paper { fact("Balanced for", profile.referenceIlluminant == "TH-KG3" ? "Tungsten" : "Daylight (\(profile.referenceIlluminant))") }
+                        if !profile.antihalation.isEmpty, !stock.paper { fact("Anti-halation", ["strong": "Strong", "weak": "Weak", "no": "None", "none": "None"][profile.antihalation] ?? profile.antihalation) }
                     }
                     if !stock.paper, let paper = model.papers.first(where: { $0.id == stock.target }) { fact("Suggested print", paper.name) }
                     if stock.positive, !stock.paper { fact("Print", "Scanned directly (slide)") }

@@ -57,7 +57,7 @@ struct PrintLabel: View {
     /// The space under the photograph: always two rows (§2.3).
     static let band: CGFloat = 68
 
-    static func kind(scanning: Bool) -> String { scanning ? (French.active ? "non tiré — film numérisé" : "not printed — scanning the film") : L("printed on") }
+    static func kind(scanning: Bool) -> String { scanning ? "not printed — scanning the film" : "printed on" }
 
     static func width(_ text: String, font: CTFont, tracking: CGFloat = 0) -> CGFloat {
         var attributes: [NSAttributedString.Key: Any] = [.font: font]

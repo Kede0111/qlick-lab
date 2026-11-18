@@ -26,7 +26,7 @@ enum SettingsTab: String, CaseIterable {
         host.identifier = InkKeyLoop.inspectorIdentifier
         let window = SettingsWindow(contentRect: NSRect(x: 0, y: 0, width: Self.width, height: 480),
                                     styleMask: [.titled, .closable, .fullSizeContentView], backing: .buffered, defer: true)
-        window.title = L("Settings")
+        window.title = "Settings"
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
         window.titlebarSeparatorStyle = .none
@@ -40,7 +40,7 @@ enum SettingsTab: String, CaseIterable {
         window.backgroundColor = Theme.NS.panel
         window.isReleasedWhenClosed = false
         window.isRestorable = false
-        band.title = L("Settings")
+        band.title = "Settings"
         let frame = EditorFrameView(band: band, content: host)
         frame.layer?.backgroundColor = Theme.NS.panel.cgColor
         frame.addSubview(host)
@@ -102,7 +102,7 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .firstTextBaseline, spacing: 24) {
                 ForEach(SettingsTab.allCases, id: \.self) { item in
-                    TabWord(title: L(item.rawValue), chosen: tab == item) { tab = item }
+                    TabWord(title: item.rawValue, chosen: tab == item) { tab = item }
                 }
                 Spacer(minLength: 0)
             }

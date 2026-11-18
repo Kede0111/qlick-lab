@@ -29,7 +29,7 @@ struct SheetPrintOptions: Codable, Equatable, Sendable {
     }
     enum Background: String, Codable, CaseIterable, Sendable {
         case black, white
-        var title: String { self == .black ? "Feuille noire" : "White paper" }
+        var title: String { self == .black ? "Black paper" : "White paper" }
     }
     enum Frames: String, Codable, CaseIterable, Sendable {
         case all, shown, picks
@@ -165,7 +165,7 @@ struct SheetPagination: Equatable {
         guard let consumer = CGDataConsumer(data: data as CFMutableData),
               let context = CGContext(consumer: consumer, mediaBox: &box, [kCGPDFContextCreator: "Qlick Lab", kCGPDFContextTitle: heading.title] as CFDictionary) else { return nil }
         let palette: SheetPalette = options.background == .black ? .blackPaper : .paper
-        let date = Date().formatted(.dateTime.day().month(.wide).year().locale(Locale(identifier: "fr_FR")))
+        let date = Date().formatted(.dateTime.day().month(.wide).year().locale(Locale(identifier: "en_GB")))
         var done = 0
         for page in 0..<pagination.pages {
             guard !Task.isCancelled else { return nil }
@@ -258,8 +258,8 @@ struct SheetPrintDialog: View {
                     row("Format") {
                         Picker("", selection: $options.paper) { ForEach(SheetPrintOptions.Paper.allCases, id: \.self) { Text($0.title).tag($0) } }.labelsHidden()
                     }
-                    row("Sens") {
-                        QSegmented(options: [(false, "Portrait", "Page en hauteur"), (true, "Paysage", "Page en largeur")], selection: $options.landscape)
+                    row("Orientation") {
+                        QSegmented(options: [(false, "Portrait", "Upright page"), (true, "Landscape", "Sideways page")], selection: $options.landscape)
                     }
                     row("Background") {
                         QSegmented(options: SheetPrintOptions.Background.allCases.map { ($0, $0.title, $0 == .black ? "The sheet as on screen: strips on black" : "Black strips on white paper: less ink") },
@@ -267,18 +267,18 @@ struct SheetPrintDialog: View {
                     }
                 }
                 group("Sheet") {
-                    row("Vues") {
+                    row("Frames") {
                         Picker("", selection: $options.frames) { ForEach(SheetPrintOptions.Frames.allCases, id: \.self) { Text($0.title).tag($0) } }.labelsHidden()
                     }
-                    row("Par bande") {
+                    row("Per strip") {
                         Stepper(value: $options.columns, in: SheetPrintOptions.columnRange) { Text("\(options.columns) frames").font(Q.value(12)).foregroundStyle(Q.text) }
                     }
-                    row("Bandes") {
-                        QSegmented(options: [(false, "Classiques", "With file names"), (true, "Tight", "More frames a page")], selection: $options.compact)
+                    row("Strips") {
+                        QSegmented(options: [(false, "Classic", "With file names"), (true, "Tight", "More frames a page")], selection: $options.compact)
                     }
                 }
-                group("Inscriptions") {
-                    Toggle("Annotations au crayon rouge", isOn: $options.marks)
+                group("Writing") {
+                    Toggle("Red pencil marks", isOn: $options.marks)
                     Toggle("Frame numbers", isOn: $options.numbers)
                     Toggle("File names", isOn: $options.names).disabled(options.compact)
                     Toggle("Heading: roll, project, film, notes", isOn: $options.heading)

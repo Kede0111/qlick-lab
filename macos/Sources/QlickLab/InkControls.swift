@@ -188,7 +188,7 @@ struct RowLabel: View {
     var bright = false
 
     var body: some View {
-        Text(L(title)).font(Theme.ui(12)).foregroundStyle(bright ? Theme.paper : Theme.label).lineLimit(1)
+        Text(title).font(Theme.ui(12)).foregroundStyle(bright ? Theme.paper : Theme.label).lineLimit(1)
     }
 }
 
@@ -471,7 +471,7 @@ struct WordButton: View {
 
     var body: some View {
         Button(action: action) {
-            Text(L(title)).font(Theme.serif(size, italic: true))
+            Text(title).font(Theme.serif(size, italic: true))
                 .foregroundStyle(hovered ? Theme.paper : Theme.label)
                 .underline(true, color: hovered ? Theme.dim : Theme.track)
         }
@@ -512,7 +512,7 @@ struct InkSection<Content: View>: View {
         VStack(alignment: .leading, spacing: 0) {
             if let title {
                 HStack(spacing: 0) {
-                    Text(L(title).uppercased())
+                    Text(title.uppercased())
                         .font(Theme.serif(11, weight: 700)).tracking(11 * 0.13)
                         .foregroundStyle(skipped == nil ? Theme.label : Theme.dim)
                         .overlay { if skipped != nil { PencilStroke().pencil().frame(height: 5).offset(y: 1) } }
@@ -586,7 +586,7 @@ struct InkModule<Content: View>: View {
                     .frame(width: 15, alignment: .leading)
                     .padding(.trailing, 4)
                     .accessibilityHidden(true)
-                Text(L(title))
+                Text(title)
                     .font(Theme.serif(16, weight: off || skipped ? 400 : 600))
                     .foregroundStyle(off || skipped ? Theme.dim : Theme.paper)
                     .overlay { if skipped { PencilStroke().pencil().frame(height: 5).offset(y: 1) } }

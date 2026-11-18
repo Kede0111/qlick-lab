@@ -178,7 +178,7 @@ private struct StatusLink: View {
 
     var body: some View {
         Button(action: action) {
-            Text(L(title))
+            Text(title)
                 .foregroundStyle(hovered ? Theme.label : Theme.dim)
                 .overlay(alignment: .bottom) {
                     if underlined { Rectangle().fill(Theme.track).frame(height: 1).offset(y: 2) }
@@ -225,7 +225,7 @@ private struct ZoomWord: View {
 
     var body: some View {
         Button(action: action) {
-            Text(L(title))
+            Text(title)
                 .foregroundStyle(on ? Theme.paper : hovered ? Theme.label : Theme.dim)
                 .contentShape(Rectangle())
         }

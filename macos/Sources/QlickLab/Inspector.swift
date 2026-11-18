@@ -221,7 +221,7 @@ struct AdjustmentControl: View {
                             RunningLine().frame(width: 44)
                         }
                     } else {
-                        Text(L(title))
+                        Text(title)
                     }
                 }
                 .buttonStyle(OutlinedButtonStyle())
@@ -730,7 +730,7 @@ struct PaneHeader: View {
     private func paneWord(_ title: String, pane: InspectorPane, help: String) -> some View {
         let chosen = model.inspectorPane == pane
         return Button { model.inspectorPane = pane } label: {
-            Text(L(title)).font(Theme.ui(12, weight: .medium)).foregroundStyle(chosen ? Theme.paper : Theme.dim)
+            Text(title).font(Theme.ui(12, weight: .medium)).foregroundStyle(chosen ? Theme.paper : Theme.dim)
         }
         .buttonStyle(InkPressStyle())
         .inkFocus { model.inspectorPane = pane }
@@ -824,9 +824,9 @@ struct TabWord: View {
             Button(action: choose) {
                 // Both weights' widths, so the word is the same size chosen or not.
                 ZStack(alignment: .leading) {
-                    Text(L(title)).font(Theme.serif(Self.size, weight: 700)).tracking(Self.tracking(title, chosen: true)).hidden()
-                    Text(L(title)).font(Theme.serif(Self.size, weight: 500)).tracking(Self.tracking(title, chosen: false)).hidden()
-                    Text(L(title)).font(Theme.serif(Self.size, weight: chosen ? 700 : 500)).tracking(Self.tracking(title, chosen: chosen))
+                    Text(title).font(Theme.serif(Self.size, weight: 700)).tracking(Self.tracking(title, chosen: true)).hidden()
+                    Text(title).font(Theme.serif(Self.size, weight: 500)).tracking(Self.tracking(title, chosen: false)).hidden()
+                    Text(title).font(Theme.serif(Self.size, weight: chosen ? 700 : 500)).tracking(Self.tracking(title, chosen: chosen))
                         .foregroundStyle(chosen ? Theme.paper : hovered ? Theme.label : Theme.dim)
                 }
                 .padding(.bottom, 5)
