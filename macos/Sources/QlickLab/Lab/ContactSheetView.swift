@@ -723,6 +723,15 @@ import SwiftUI
             let applying = menu.addItem(withTitle: title + several, action: nil, keyEquivalent: "")
             if model.canChangeEdits, model.canChangePresets, !model.presets.isEmpty { applying.submenu = presets } else { applying.isEnabled = false }
         }
+        // Qlick Lab: the user's own Grain and Halation presets, that section alone.
+        for section in PresetSection.allCases {
+            let presets = NSMenu()
+            for preset in SectionPresets.shared.list(section) {
+                presets.addItem(ClosureMenuItem(preset.name) { [model] in model.labApplySection(preset, section, to: model.ratingTargets) })
+            }
+            let applying = menu.addItem(withTitle: "Apply \(section.title)" + several, action: nil, keyEquivalent: "")
+            if model.canChangeEdits, presets.numberOfItems > 0 { applying.submenu = presets } else { applying.isEnabled = false }
+        }
         add("New Version (Virtual Copy)", #selector(duplicate), enabled: model.canChangeEdits)
         add("Reset Edits" + several, #selector(resetEdits), enabled: model.canChangeEdits)
         menu.addItem(.separator())

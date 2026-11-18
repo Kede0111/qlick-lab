@@ -404,6 +404,13 @@ import UserNotifications
     @ObservationIgnored private var originalLoad: Task<Void, Never>?
     /// The Original button is held; `original` is nil until its decode finishes.
     private(set) var holdingOriginal = false
+    /// Qlick Lab: zoomed in on the original, the part on screen at the photograph's own pixels, drawn over it as
+    /// `detail` is over the developed image. `rect` is in `imageSize`'s pixels from the top left.
+    struct OriginalDetail { let image: IOSurface; let rect: CGRect; let generation: Int }
+    private(set) var originalDetail: OriginalDetail?
+    @ObservationIgnored private var originalDetailLoad: Task<Void, Never>?
+    /// The original's detail to draw: this photograph's, while the original shows.
+    var shownOriginalDetail: OriginalDetail? { original != nil ? originalDetail.flatMap { $0.generation == sourceGeneration ? $0 : nil } : nil }
 
     /// The stocks and defaults are known, from the helper or the last launch's
     /// catalog. Edits are possible; rendering waits for `ready`.
@@ -421,7 +428,18 @@ import UserNotifications
     var paperGroups: [StockGroup] { StockGroup.papers(papers) }
     var filmName: String { films.first { $0.id == film }?.name ?? film }
     var paperName: String { papers.first { $0.id == paper }?.name ?? paper }
-    var canSave: Bool { previewCurrent && image != nil && !rendering && !saving && !cropping }
+    var canSave: Bool { previewCurrent && image != nil && !rendering && !saving && !cropping && !showsHalationMask && !imageIsMask }
+    /// The frame shown was developed as Halation's mask: never kept as a thumbnail, a kept develop or a file.
+    @ObservationIgnored private var imageIsMask = false
+    /// Qlick Lab: Halation › Show mask: the open photograph shows the halation alone, on black. Only shown: never
+    /// in its edits, its thumbnail, a saved preview or an export.
+    var halationMask = false {
+        didSet { if halationMask != oldValue { changed(invalidateCache: false) } }
+    }
+    /// The mask shows while the halation is on: not on a scanned negative printed with no film, which has none.
+    var showsHalationMask: Bool {
+        halationMask && state.params["film_render.halation.active"].bool && !(state.params["io.no_film"].bool && !state.params["io.scan_film"].bool)
+    }
     var cropping: Bool { cropSession != nil }
     var canShowOriginal: Bool { image != nil && !cropping }
     /// The shown photograph's size after cropping, before rotation; zero
@@ -600,12 +618,14 @@ import UserNotifications
         trialImage = nil
         photoSidecar = nil; sidecarWrite?.cancel(); sidecarWrite = nil
         sourceGeneration += 1
+        imageIsMask = false
         photoFacts = nil
         source = nil; sourceVariant = nil; image = nil; placeholder = nil; standIn = nil; previewCurrent = false; developFailure = nil; screenFrameScale = nil; detail = nil
         imageSize = .zero; placeholderSize = .zero; sourceSize = .zero; workingSize = .zero; previewScale = 1
         showingCachedPreview = false; isRaw = false; inputColour = .null; lensCorrectionSupported = false
         interactionStart = nil; cropSession = nil
         original = nil; originalCache = nil; originalLoad?.cancel(); originalLoad = nil; holdingOriginal = false
+        originalDetail = nil; originalDetailLoad?.cancel(); originalDetailLoad = nil
         imageOnly = false; upsideDown = false
         undoManager?.removeAllActions(withTarget: self)
     }
@@ -917,8 +937,9 @@ import UserNotifications
             if tray.paper == paper { return }
             endTray(keep: true)
         }
-        // A slide is scanned: there's no paper to choose.
+        // A slide is scanned: there's no paper to choose. Qlick Lab: nor a film with no film.
         if paper, state.params["io.scan_film"].bool { return }
+        if !paper, state.params["io.no_film"].bool { return }
         tray = TrayVisit(paper: paper, before: state)
         if paper { previews.paperOpen = true } else { previews.filmOpen = true }
         pumpPreviews()
@@ -1306,7 +1327,9 @@ import UserNotifications
         updateHistogram()
         interactionStart = nil; cropSession = nil
         original = nil; originalCache = nil; originalLoad?.cancel(); originalLoad = nil; holdingOriginal = false
+        originalDetail = nil; originalDetailLoad?.cancel(); originalDetailLoad = nil
         sourceGeneration += 1
+        imageIsMask = false
         let generation = sourceGeneration
         customFilmFormat = false
         photoFacts = nil
@@ -2560,7 +2583,7 @@ import UserNotifications
     /// or the grid. One without edits only while it shows what a new
     /// photograph opens with (it may predate a new default).
     private func saveOpenThumbnail() {
-        guard let item = sourceItem, let surface = image, previewCurrent, !showingInteractiveFrame, heldPreview == nil, cropSession == nil,
+        guard let item = sourceItem, let surface = image, !imageIsMask, previewCurrent, !showingInteractiveFrame, heldPreview == nil, cropSession == nil,
               !brightnessMatchPending, let look = thumbnailLook(for: item), thumbnailsChecked[item].map({ $0.look != look || !$0.present }) ?? true,
               library.looks[item] != nil || Self.uneditedLook(of: state) == look,
               let file = library.items.first(where: { $0.url == item }), let key = editedThumbnails.key(for: file, look: look) else { return }
@@ -2580,7 +2603,7 @@ import UserNotifications
     /// it's left so it stands in when the photograph next opens (`renderArchive`).
     /// Under the same conditions as its thumbnail, off the main actor.
     private func saveOpenRender() {
-        guard let item = sourceItem, let surface = image, previewCurrent, !showingInteractiveFrame, heldPreview == nil, cropSession == nil,
+        guard let item = sourceItem, let surface = image, !imageIsMask, previewCurrent, !showingInteractiveFrame, heldPreview == nil, cropSession == nil,
               !brightnessMatchPending, let look = thumbnailLook(for: item),
               library.looks[item] != nil || Self.uneditedLook(of: state) == look,
               let file = library.items.first(where: { $0.url == item }), let key = renderArchive.key(for: file, look: look) else { return }
@@ -3094,7 +3117,7 @@ import UserNotifications
     /// The original is framed like the developed image only with the same lens correction.
     @ObservationIgnored private var originalLensCorrection = false
     private func dropStaleOriginal() {
-        if originalLensCorrection != value(Self.lensCorrectionPath).bool { originalCache = nil }
+        if originalLensCorrection != value(Self.lensCorrectionPath).bool { originalCache = nil; originalDetail = nil }
     }
 
     /// Shows the original in place of the developed photograph while held.
@@ -3117,10 +3140,35 @@ import UserNotifications
         holdingOriginal = true
         dropStaleOriginal()
         if let cached = originalCache {
-            if cached.makeNonVolatile() { original = cached; return }
+            if cached.makeNonVolatile() { original = cached; loadOriginalDetail(); return }
             originalCache = nil
         }
         loadOriginal()
+    }
+
+    /// Qlick Lab: zoomed in past the original's own pixels, decodes the part on screen at the photograph's, once
+    /// the zoom or the scroll has stopped, unless the part already decoded has it all.
+    func loadOriginalDetail(after delay: Duration = .zero) {
+        guard holdingOriginal, let original, let source, imageSize.width > 0,
+              let visible = canvasScale.visiblePhotoRect, let wanted = canvasScale.screenPixelsPerPhotoPixel else { return }
+        // The original's pixels for each of the photograph's.
+        let has = CGFloat(max(original.width, original.height)) / max(imageSize.width, imageSize.height)
+        guard wanted > has * 1.1 else { return }
+        if let detail = originalDetail, detail.generation == sourceGeneration, Self.detailCovers(detail.rect, visible: visible, photo: imageSize) { return }
+        let region = Self.detailRegion(visible: visible), raw = isRaw, generation = sourceGeneration
+        let lensCorrection = value(Self.lensCorrectionPath).bool, size = imageSize
+        originalDetailLoad?.cancel()
+        originalDetailLoad = Task { [weak self] in
+            if delay > .zero { try? await Task.sleep(for: delay) }
+            guard !Task.isCancelled else { return }
+            let surface = await Task.detached(priority: .userInitiated) {
+                OriginalImage.load(source, raw: raw, lensCorrection: lensCorrection, region: region)
+            }.value
+            guard let self, !Task.isCancelled, generation == self.sourceGeneration, let surface else { return }
+            self.originalDetailLoad = nil
+            let rect = CGRect(x: region.minX * size.width, y: region.minY * size.height, width: region.width * size.width, height: region.height * size.height)
+            self.originalDetail = OriginalDetail(image: surface, rect: rect, generation: generation)
+        }
     }
 
     /// Decodes at the developed preview's resolution, so it is as sharp at
@@ -3146,7 +3194,7 @@ import UserNotifications
                 return
             }
             self.originalCache = surface
-            if self.holdingOriginal { self.original = surface } else { surface.makeVolatile() }
+            if self.holdingOriginal { self.original = surface; self.loadOriginalDetail() } else { surface.makeVolatile() }
         }
     }
 
@@ -3331,10 +3379,14 @@ import UserNotifications
             guard revision == currentRevision, generation == sourceGeneration else { return scheduleRender() }
         }
         let buffer = engine.directory.appendingPathComponent("preview.rgba")
+        // Qlick Lab: Show mask goes to this render alone, never into the edits.
+        let masked = showsHalationMask
+        var params = snapshot.params
+        if masked { params["film_render.halation.show_mask"] = .bool(true) }
         var command: [String: JSONValue] = [
             "command": .string("render"), "input": .string(source.path),
             "source_generation": .number(Double(generation)),
-            "film": .string(snapshot.film), "paper": .string(snapshot.paper), "params": snapshot.params,
+            "film": .string(snapshot.film), "paper": .string(snapshot.paper), "params": params,
             "limit_preview": .bool(snapshot.limitPreview), "preview_path": .string(buffer.path)
         ]
         // The target describes the cropped photograph; the helper sizes the frame from the crop.
@@ -3409,7 +3461,7 @@ import UserNotifications
         do {
             // The cache's name stats the helper's data (~18 ms): worked out
             // while the helper renders, not before (ticket 39).
-            let cacheKeyTask = interactiveScale == nil && step != .detail ? Task.detached(priority: .utility) {
+            let cacheKeyTask = interactiveScale == nil && step != .detail && !masked ? Task.detached(priority: .utility) {
                 RenderedPreviewCache.key(source: source, state: snapshot, paths: engine.paths)
             } : nil
             guard shouldShow(currentRevision, generation) else { cacheKeyTask?.cancel(); return }
@@ -3474,6 +3526,7 @@ import UserNotifications
                 showingInteractiveFrame = !settledFrame
                 quickFrame = quick ? frame : nil
                 image = developed; placeholder = nil; standIn = nil
+                imageIsMask = masked
                 if revision == currentRevision { trialImage = nil }
                 updateHistogram()
                 let film = FilmHistogram(result["film_histogram"])
@@ -3492,7 +3545,7 @@ import UserNotifications
                     renderID = id; previewCurrent = true; hideActivity()
                     showingCachedPreview = false
                     prepareBalanceSoon()
-                    renderAtExportSize = result["export_resolution"].bool
+                    renderAtExportSize = result["export_resolution"].bool && !masked
                     renderOnGPU = ExportEngine.ranOnGPU(backend: result["backend"].string)
                     if let cacheKey { previewCache.save(developed, photoSize: imageSize, sourceSize: sourceSize, workingSize: workingSize, raw: isRaw, key: cacheKey) }
                 }
@@ -3594,6 +3647,7 @@ import UserNotifications
     /// Qlick Lab: the canvas shows more pixels than the settled frame has (zoomed in, or a larger window):
     /// develops it again at that size, or whole past `screenPreviewMaximumScale`.
     func canvasScaleChanged() {
+        if holdingOriginal { loadOriginalDetail(after: .milliseconds(160)) }
         guard fastPreview, ready, source != nil, !closing, !interacting, previewCurrent, let shown = screenFrameScale,
               let wanted = canvasScale.screenPixelsPerPhotoPixel, wanted > shown * 1.1 else { return }
         // Zoomed in with the part on screen at its own pixels already: nothing sharper to develop.
@@ -3614,6 +3668,7 @@ import UserNotifications
     /// Qlick Lab: the canvas scrolled while a detail shows: once it has stopped, the part now on screen is
     /// developed if the detail hasn't all of it. Until then the image shows there, with fewer pixels.
     func canvasMoved() {
+        if holdingOriginal { loadOriginalDetail(after: .milliseconds(120)) }
         guard fastPreview, detail != nil, ready, source != nil, !closing, !interacting, previewCurrent, !cropping,
               (canvasScale.screenPixelsPerPhotoPixel ?? 0) > Self.screenPreviewMaximumScale, !detailCurrent else { return }
         panRender?.cancel()
@@ -5294,6 +5349,39 @@ import UserNotifications
             } catch {
                 self.report(error)
             }
+        }
+    }
+
+    /// Qlick Lab: a Grain or Halation preset (`SectionPreset`) on the photographs given: only that section's settings
+    /// change. The open photograph alone is an ordinary edit; several change together, as a recipe does, in one undo
+    /// step, those on screen first.
+    func labApplySection(_ preset: SectionPreset, _ section: PresetSection, to items: [URL]) {
+        let settings = preset.settings(section)
+        guard canChangeEdits, !items.isEmpty, !settings.isEmpty else { return }
+        if items == [sourceItem] {
+            setParams(settings)
+            return
+        }
+        applyTask?.cancel()
+        let previous = applyTask
+        applyTask = Task { [weak self] in
+            await previous?.value
+            guard let self, !Task.isCancelled else { return }
+            defer { self.backgroundWork = nil }
+            let onScreen = self.thumbnailsOnScreen
+            let ordered = items.filter { onScreen.contains($0) } + items.filter { !onScreen.contains($0) }
+            let before = await self.changeEditsInBatches(ordered, title: "Applying “\(preset.name)”") { _, base in
+                var next = base
+                for (path, value) in settings { next.params[path] = value }
+                return next
+            }
+            if !before.isEmpty { self.registerSidecarUndo(before, action: "Apply \(section.title) “\(preset.name)”") }
+            self.libraryNote = LibraryNote(text: "Applied “\(preset.name)”", detail: nil, count: items.count,
+                                           serial: (self.libraryNote?.serial ?? 0) + 1)
+            guard !Task.isCancelled else { return }
+            self.backgroundWork = nil
+            let stale = items.filter(self.lab.previewBuilder.needs)
+            if !stale.isEmpty { self.lab.previewBuilder.build(stale) }
         }
     }
 

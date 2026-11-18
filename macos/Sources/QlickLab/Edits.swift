@@ -22,7 +22,7 @@ enum EditGroup: String, CaseIterable, Codable, Sendable {
     static let standard: Set<EditGroup> = [.filmAndPaper, .prep, .lab, .border, .output]
 
     private static let io: [String: EditGroup] = [
-        "scan_film": .filmAndPaper,
+        "scan_film": .filmAndPaper, "no_film": .filmAndPaper,
         "raw_white_balance": .prep,
         "output_gamut_compress": .lab, "input_gamut_compress": .lab,
         "photo_long_side_px": .output, "upscale_factor": .output, "output_color_space": .output, "output_cctf_encoding": .output,

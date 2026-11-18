@@ -537,6 +537,9 @@ pub struct GrainGpuParams {
     /// One shared noise field across all channels (B&W single emulsion)
     /// instead of independent per-channel RNG streams.
     pub monochrome: bool,
+    /// Qlick Lab: colourless grain: the green layer's change in density added
+    /// to all three (`spektrafilm_model::grain::GrainLanes::Luminance`).
+    pub luminance_only: bool,
 }
 
 impl GrainGpuParams {
@@ -622,6 +625,9 @@ pub struct HalationGpuParams {
     pub halation_n_bounces: u32,
     pub halation_bounce_decay: f32,
     pub halation_renormalize: bool,
+    /// Qlick Lab: the halation alone, on black (Show mask): the bounced light
+    /// replaces the image instead of being added to it.
+    pub mask: bool,
 }
 
 pub struct Lut3D {

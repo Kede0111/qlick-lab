@@ -581,8 +581,12 @@ mod tests {
 
     /// Negs values a preset sets to Negs's default: Python's GUI has no such
     /// setting and renders with the same default.
-    const QLICK_DEFAULTS: [&str; 8] = [
+    /// Qlick Lab's own: a preset (a Python file) can't hold colourless grain or
+    /// no film, so applying one sets the film's grain and the film back.
+    const QLICK_DEFAULTS: [&str; 10] = [
         "film_render.grain.monochrome",
+        "film_render.grain.luminance_only",
+        "io.no_film",
         "film_render.glare",
         "enlarger.normalize_print_exposure",
         "enlarger.y_filter_neutral",

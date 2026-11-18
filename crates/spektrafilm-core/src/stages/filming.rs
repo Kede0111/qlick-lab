@@ -433,37 +433,11 @@ pub(crate) fn prepare_input_from(
     Ok(rgb)
 }
 
-/// Expose: convert RGB to film raw exposure.
-///
-/// `autoexposure_ev` is the metered compensation (0 with auto exposure off;
-/// see [`measure_raw_autoexposure_ev`]). Upstream scales the film raw; the
-/// upsampler is homogeneous in the input RGB, so scaling the RGB first is
-/// the same.
-#[allow(clippy::too_many_arguments)]
-pub fn expose(
-    image: ImageBuf,
-    _film: &Profile,
-    params: &RuntimeParams,
-    backend: &dyn ComputeBackend,
-    tc_lut: Option<&TcLut>,
-    front_illuminant: &[f32],
-    bw_filming_correction: f64,
-    autoexposure_ev: f64,
-) -> ImageBuf {
-    let pix_um = pixel_size_um(params.camera.film_format_mm, image.width, image.height);
-
-    let mut raw = {
-        // Consume the input so optical scratch does not overlap an RGB copy.
-        let rgb = prepare_input(image, params, autoexposure_ev)
-            .expect("Invalid Prep settings or pixels");
-
-        // RGB → film raw exposure; the simplified fallback treats RGB values
-        // as proportional to raw exposure.
-        rgb_to_film_raw(&rgb, params, backend, tc_lut, front_illuminant)
-            .unwrap_or(rgb)
-    };
-    crate::pipeline::dump_if_env("SPEKTRAFILM_DUMP_FILM_RAW", &raw);
-
+/// What happens to the light on its way into the emulsion, on linear values:
+/// the highlight boost, the camera's diffusion filter and lens blur, and the
+/// halation. Qlick Lab: also the effects added with no film (`io.no_film`).
+pub fn optical_effects(mut raw: ImageBuf, params: &RuntimeParams, backend: &dyn ComputeBackend) -> ImageBuf {
+    let pix_um = pixel_size_um(params.camera.film_format_mm, raw.width, raw.height);
     // Order mirrors Python filming: boost → diffusion → lens_blur → halation.
 
     // Highlight boost: reconstruct pre-clip highlight irradiance before the
@@ -524,9 +498,44 @@ pub fn expose(
             halation.halation_n_bounces,
             halation.halation_bounce_decay,
             halation.halation_renormalize,
+            halation.show_mask,
             backend,
         );
     }
+
+    raw
+}
+
+/// Expose: convert RGB to film raw exposure.
+///
+/// `autoexposure_ev` is the metered compensation (0 with auto exposure off;
+/// see [`measure_raw_autoexposure_ev`]). Upstream scales the film raw; the
+/// upsampler is homogeneous in the input RGB, so scaling the RGB first is
+/// the same.
+#[allow(clippy::too_many_arguments)]
+pub fn expose(
+    image: ImageBuf,
+    _film: &Profile,
+    params: &RuntimeParams,
+    backend: &dyn ComputeBackend,
+    tc_lut: Option<&TcLut>,
+    front_illuminant: &[f32],
+    bw_filming_correction: f64,
+    autoexposure_ev: f64,
+) -> ImageBuf {
+    let raw = {
+        // Consume the input so optical scratch does not overlap an RGB copy.
+        let rgb = prepare_input(image, params, autoexposure_ev)
+            .expect("Invalid Prep settings or pixels");
+
+        // RGB → film raw exposure; the simplified fallback treats RGB values
+        // as proportional to raw exposure.
+        rgb_to_film_raw(&rgb, params, backend, tc_lut, front_illuminant)
+            .unwrap_or(rgb)
+    };
+    crate::pipeline::dump_if_env("SPEKTRAFILM_DUMP_FILM_RAW", &raw);
+
+    let mut raw = optical_effects(raw, params, backend);
 
     // B&W / slide scanner exposure correction (Python applies this last,
     // before the log10). No-op at factor 1.0.
@@ -630,19 +639,33 @@ pub fn develop(
     if crate::grain::grain_active(params) {
         let t = Instant::now();
         let pixel_size_um = grain_pixel_size_um(params, density_cmy.width, density_cmy.height);
-        density_cmy = spektrafilm_model::grain::apply_grain(
+        density_cmy = spektrafilm_model::grain::apply_grain_lanes(
             density_cmy,
             pixel_size_um,
             &crate::grain::grain_settings(film, &params.film_render.grain),
             &crate::grain::grain_curves(film),
             film.is_positive(),
-            params.film_render.grain.monochrome,
+            grain_lanes(params),
             params.settings.serial_grain,
         );
         print_stage_timing(stage_timings, "filming_develop.grain", t);
     }
 
     density_cmy
+}
+
+/// How the grain is shared between the dye layers: a black-and-white film's
+/// one emulsion, colourless grain when asked for, else each layer its own.
+pub fn grain_lanes(params: &RuntimeParams) -> spektrafilm_model::grain::GrainLanes {
+    use spektrafilm_model::grain::GrainLanes;
+    let grain = &params.film_render.grain;
+    if grain.monochrome {
+        GrainLanes::Monochrome
+    } else if grain.luminance_only {
+        GrainLanes::Luminance
+    } else {
+        GrainLanes::Independent
+    }
 }
 
 /// Full filming stage: expose + develop.

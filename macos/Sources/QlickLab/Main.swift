@@ -542,7 +542,8 @@ struct CanvasArea: View {
         PreviewCanvas(image: image, size: size, rotation: rotation, crop: model.crop, border: model.border.shown(for: model.crop.size(of: size)), filmTexture: model.filmTexture,
                       filmStrip: model.filmStrip, zoomCommand: model.zoomCommand, fit: model.fitImage, scale: model.canvasScale, geometry: geometry,
                       upsideDown: model.upsideDown, settled: model.original != nil || model.showsSettledFrame,
-                      detail: image === model.image ? model.shownDetail.map { ($0.image, $0.rect) } : nil,
+                      detail: image === model.image ? model.shownDetail.map { ($0.image, $0.rect) }
+                          : image === model.original ? model.shownOriginalDetail.map { ($0.image, $0.rect) } : nil,
                       doubleClick: { [model] in model.doubleClickPhotograph(zoomed: $0) })
     }
 }

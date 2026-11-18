@@ -173,7 +173,7 @@ import AppKit
             let u = words.count > 2 ? Double(words[1]) ?? 0.5 : 0.5, v = words.count > 2 ? Double(words[2]) ?? 0.5 : 0.5
             let frame = sheet.layout.frame
             sheet.hover(at: CGPoint(x: centre.x + (u - 0.5) * frame.width * 0.9, y: centre.y + (v - 0.5) * frame.height * 0.9))
-        case "default": if words.count == 2 { UserDefaults.standard.set(words[1], forKey: words[0]) }
+        case "default": if words.count >= 2 { UserDefaults.standard.set(words.dropFirst().joined(separator: " "), forKey: words[0]) }
         case "action": if let action = SheetAction(rawValue: rest) { sheet?.perform(action) }
         case "rate": if let stars = Int(rest) { model.setRating(stars) }
         case "flag": model.setFlag(rest == "pick" ? .pick : rest == "reject" ? .reject : nil)
@@ -285,6 +285,7 @@ import AppKit
                 }
             }
         case "setstr": if words.count == 2 { model.set(words[0], .string(words[1])) }
+        case "setbool": if words.count == 2 { model.set(words[0], .bool(words[1] == "true")) }
         case "drag-set":
             // drag-set <path> <from> <to>: a slider dragged over a second, then let go.
             guard words.count == 3, let from = Double(words[1]), let to = Double(words[2]) else { break }
@@ -315,6 +316,16 @@ import AppKit
         case "applyselected": if let preset = model.presets.first(where: { $0.name == rest }) { model.labApply(preset, to: model.ratingTargets) }
         case "applyauto": if let preset = model.presets.first(where: { $0.name == rest }) { model.labApply(preset, to: model.ratingTargets, adapting: true) }
         case "newpreset": model.newPreset(named: rest.isEmpty ? nil : rest)
+        // sectionsave grain|halation <name>: the open photograph's grain or halation as a preset of the user's.
+        // sectionapply grain|halation <name>: that preset on the photographs selected, as its list in Develop does.
+        case "sectionsave", "sectionapply":
+            guard words.count >= 2, let section = PresetSection(rawValue: words[0]) else { break }
+            let name = words.dropFirst().joined(separator: " ")
+            if command == "sectionsave" { SectionPresets.shared.save(name, values: model.sectionValues(section), in: section) }
+            else if let preset = SectionPresets.shared.list(section).first(where: { $0.name == name }) { model.labApplySection(preset, section, to: model.editTargets) }
+        case "sectiondelete": if words.count >= 2, let section = PresetSection(rawValue: words[0]) { SectionPresets.shared.delete(words.dropFirst().joined(separator: " "), in: section) }
+        // halationmask on|off: Halation › Show mask.
+        case "halationmask": model.halationMask = rest != "off"
         // applydevelop on|off: recipes apply their Develop part too. developgroups tone,color…: what New Preset saves of it.
         case "applydevelop": model.recipesApplyDevelop = rest != "off"
         case "developgroups": DevelopGroup.saved = Set(rest.split(separator: ",").compactMap { DevelopGroup(rawValue: String($0)) })
@@ -342,6 +353,7 @@ import AppKit
             // zoomto <screen pixels per photograph pixel> | fit
             if rest == "fit" { model.canvasScale.zoom(to: nil) } else if let ratio = Double(rest) { model.canvasScale.zoom(to: CGFloat(ratio)) }
         case "devzoom": model.zoom(fit: rest != "100")
+        case "original": model.holdOriginal(rest != "off")
         case "pan":
             // pan <dx> <dy>: scrolls the photograph by this many points of the canvas.
             if words.count == 2, let dx = Double(words[0]), let dy = Double(words[1]), let scroll = model.canvasScale.view {

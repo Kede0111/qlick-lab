@@ -10,6 +10,9 @@ import SwiftUI
 // curve where it is looked for. The engine's parameters are NEgs's; these are other handles on them.
 
 extension EditorModel {
+    /// Qlick Lab: no film: the image is taken as it is (the engine's `io.no_film`).
+    static let noFilmPath = "io.no_film"
+
     /// Several parameters in one edit, one undo and one develop.
     func setParams(_ values: [(String, JSONValue)]) {
         var next = state
@@ -283,10 +286,26 @@ struct StockPicker: View {
 
     var body: some View {
         let scanning = model.value("io.scan_film").bool
+        let noFilm = model.value(EditorModel.noFilmPath).bool
         let film = model.films.first { $0.id == model.film }
         VStack(spacing: 0) {
-            PickerRow(model: model, paper: false, caption: nil, name: model.filmName, detail: film.map { Self.detail($0, name: model.filmName) },
-                      opens: true, canister: film)
+            HStack(spacing: 0) {
+                if noFilm {
+                    PickerRow(model: model, paper: false, caption: nil, name: "No film",
+                              detail: scanning ? "The image as it is, with the effects" : "The image is printed as a negative", opens: false, canister: nil)
+                } else {
+                    PickerRow(model: model, paper: false, caption: nil, name: model.filmName, detail: film.map { Self.detail($0, name: model.filmName) },
+                              opens: true, canister: film)
+                }
+                Button { model.toggle(EditorModel.noFilmPath).wrappedValue.toggle() } label: {
+                    Image(systemName: noFilm ? "film" : "xmark.circle")
+                        .font(.system(size: 12)).foregroundStyle(noFilm ? Q.red : Theme.dim)
+                        .frame(width: 30, height: 56).contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help(noFilm ? "Use a film again" : "No film: take the image as it is, for a scanned negative or effects alone")
+                .padding(.trailing, 4)
+            }
             Rectangle().fill(Color.white.opacity(0.07)).frame(height: 1).padding(.horizontal, 12)
             HStack(spacing: 0) {
                 PickerRow(model: model, paper: true, caption: "Printed on", name: scanning ? "No paper: the film is scanned" : model.paperName,
@@ -403,10 +422,17 @@ private struct PickerRow: View {
 struct GrainSimpleRows: View {
     let model: EditorModel
     static let amount = "film_render.grain.rms_granularity", size = "film_render.grain.particle_scale_sublayers"
+    /// Qlick Lab: colourless grain on a colour film.
+    static let monochrome = "film_render.grain.luminance_only"
 
     var body: some View {
+        SectionPresetRow(model: model, section: .grain)
         row("Amount", Self.amount, limits: 0...80, help: "How strong the grain is, in percent of the film's own. 100 is the film as it is.")
         row("Size", Self.size, limits: 0.05...2, help: "How large the grains are, in percent of the film's own. Larger grain reads as a faster film.")
+        if !model.filmIsBW {
+            TickRow(title: "Monochrome", isOn: model.toggle(Self.monochrome), changed: model.isModified(Self.monochrome),
+                    help: "Colourless grain, as on black and white film.")
+        }
     }
 
     private func row(_ title: String, _ path: String, limits: ClosedRange<Double>, help: String) -> some View {
@@ -415,6 +441,18 @@ struct GrainSimpleRows: View {
                              range: 0...300, step: 1, unit: "%", defaultValue: 100, modified: abs(percent - 100) > 0.5,
                              reset: { model.set(path, .null) },
                              editing: { $0 ? model.beginInteraction() : model.endInteraction() }, help: help)
+    }
+}
+
+/// Halation's own rows: its presets, the anti-halation layer, and Show mask.
+struct HalationRows: View {
+    let model: EditorModel
+
+    var body: some View {
+        SectionPresetRow(model: model, section: .halation)
+        AntiHalationRow(model: model)
+        TickRow(title: "Show mask", isOn: Binding(get: { model.halationMask }, set: { model.halationMask = $0 }), changed: model.halationMask,
+                help: "Shows the halation alone, on black. Only on screen: never saved or exported.")
     }
 }
 
@@ -463,12 +501,14 @@ struct CurveSection: View {
                 ToneGraphView(model: model).padding(.horizontal, Theme.Size.gutter).padding(.vertical, 6)
             }
             let on = model.value(Self.filmActive).bool
-            LabeledSlider(title: "Film contrast", value: Binding(get: { on ? model.value(Self.filmGamma).double : 1 },
-                                                                 set: { model.setParams([(Self.filmActive, .bool(true)), (Self.filmGamma, .number(EditorModel.snap($0, to: 0.5...2, step: 0.01)))]) }),
-                          range: 0.5...2, step: 0.01, defaultValue: 1, modified: on && model.isModified(Self.filmGamma),
-                          reset: { model.resetValue(Self.filmGamma) },
-                          editing: { $0 ? model.beginInteraction() : model.endInteraction() },
-                          help: ControlHelp.text(Self.filmGamma))
+            if !model.value(EditorModel.noFilmPath).bool {
+                LabeledSlider(title: "Film contrast", value: Binding(get: { on ? model.value(Self.filmGamma).double : 1 },
+                                                                     set: { model.setParams([(Self.filmActive, .bool(true)), (Self.filmGamma, .number(EditorModel.snap($0, to: 0.5...2, step: 0.01)))]) }),
+                              range: 0.5...2, step: 0.01, defaultValue: 1, modified: on && model.isModified(Self.filmGamma),
+                              reset: { model.resetValue(Self.filmGamma) },
+                              editing: { $0 ? model.beginInteraction() : model.endInteraction() },
+                              help: ControlHelp.text(Self.filmGamma))
+            }
             if !scanning {
                 SliderRow(model: model, title: "Print exposure", path: ToneGraphPaths.printExposure, range: ToneGraphPaths.exposureRange, step: 0.01)
             }

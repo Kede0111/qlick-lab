@@ -506,6 +506,7 @@ fn film_side_signature(p: &crate::FilmChainParams<'_>, image_name: &[u8], diffus
         halation_n_bounces,
         halation_bounce_decay,
         halation_renormalize,
+        mask,
     }) = halation
     {
         s.f32s(&[*scatter_amount, *halation_amount, *halation_bounce_decay]);
@@ -516,6 +517,7 @@ fn film_side_signature(p: &crate::FilmChainParams<'_>, image_name: &[u8], diffus
         s.f64s(halation_first_sigma_px);
         s.u64(*halation_n_bounces as u64);
         s.bool(*halation_renormalize);
+        s.bool(*mask);
     }
     s.bool(dir_couplers.is_some());
     if let Some(crate::DirCouplersGpuParams {
@@ -563,6 +565,7 @@ fn film_side_signature(p: &crate::FilmChainParams<'_>, image_name: &[u8], diffus
         mult_usm,
         base_seed,
         monochrome,
+        luminance_only,
     }) = grain
     {
         for rows in [interp_x, interp_inv_dx, curves_layers, density_min_layers, density_max_layers, n_particles_per_pixel, dye_cloud_sigma_px] {
@@ -580,6 +583,7 @@ fn film_side_signature(p: &crate::FilmChainParams<'_>, image_name: &[u8], diffus
         s.f32s(&[*blur_px]);
         s.u64(*base_seed as u64);
         s.bool(*monochrome);
+        s.bool(*luminance_only);
     }
     s.0
 }
@@ -3994,6 +3998,8 @@ struct HalationState {
     halation_blurs: Vec<RefBlur>, // one per bounce, accumulating into buf_d
     halation_final_add: DispatchJob,
     halation_renormalize: Option<DispatchJob>,
+    /// Show mask: the final pass replaces the image, even with no bounces.
+    mask: bool,
 }
 
 #[cfg(feature = "wgpu-backend")]
@@ -4614,6 +4620,9 @@ fn build_halation_state(
     // channel has any strength.
     let n = hp.halation_n_bounces as usize;
     let active = n >= 1 && hp.halation_a_tot.iter().any(|&a| a > 0.0);
+    // Qlick Lab: Show mask without any halation is black: the final pass runs
+    // anyway, at a scale of 0, and replaces the image.
+    let replace = hp.mask;
     let mut decay: Vec<f64> = (0..n).map(|k| (hp.halation_bounce_decay as f64).powi(k as i32)).collect();
     let decay_sum: f64 = decay.iter().sum();
     for d in &mut decay {
@@ -4671,15 +4680,14 @@ fn build_halation_state(
         label: Some("halation_final_add_params"),
         contents: bytemuck::bytes_of(&AddScaledPerChannelParams {
             n_pixels: n_pixels as u32,
-            _pad0: 0,
+            _pad0: replace as u32,
             _pad1: 0,
             _pad2: 0,
-            scale: [
-                hp.halation_a_tot[0],
-                hp.halation_a_tot[1],
-                hp.halation_a_tot[2],
-                0.0,
-            ],
+            scale: if active {
+                [hp.halation_a_tot[0], hp.halation_a_tot[1], hp.halation_a_tot[2], 0.0]
+            } else {
+                [0.0; 4]
+            },
         }),
         usage: wgpu::BufferUsages::UNIFORM,
     });
@@ -4775,6 +4783,7 @@ fn build_halation_state(
         halation_blurs,
         halation_final_add,
         halation_renormalize,
+        mask: replace,
     }
 }
 
@@ -4813,6 +4822,8 @@ impl HalationState {
             if let Some(rn) = &self.halation_renormalize {
                 dispatch_linear(encoder, rn);
             }
+        } else if self.mask {
+            dispatch_linear(encoder, &self.halation_final_add);
         }
     }
 }
@@ -6608,14 +6619,16 @@ fn build_grain_state(
     struct FinalizeParams {
         n_pixels: u32,
         use_ratio: u32,
-        _pad: [u32; 2],
+        luminance: u32,
+        _pad: u32,
         density_min: [f32; 4],
     }
     let finalize = |use_ratio: bool, src: &wgpu::Buffer, sums: &wgpu::Buffer| {
         let params = FinalizeParams {
             n_pixels,
             use_ratio: use_ratio as u32,
-            _pad: [0; 2],
+            luminance: (gp.luminance_only && !gp.monochrome) as u32,
+            _pad: 0,
             density_min: vec4(gp.density_min),
         };
         GrainPass::Linear(job(&finalize_pipe, "grain_finalize", bytemuck::bytes_of(&params), &[src, sums, den]), n_pixels)
@@ -7527,6 +7540,48 @@ mod grain_tests {
         out
     }
 
+    /// Qlick Lab: colourless grain on the GPU: every channel's change in
+    /// density is the green one's.
+    #[test]
+    fn luminance_grain_changes_every_channel_alike() {
+        let Some(backend) = WgpuBackend::new() else {
+            eprintln!("no GPU adapter; skipping");
+            return;
+        };
+        let (width, height) = (64u32, 64u32);
+        let n = (width * height) as usize;
+        let density = [0.3f32, 1.2, 0.8];
+        let gp = crate::GrainGpuParams {
+            interp_x: vec![[0.0; 3], [3.0; 3]],
+            positive: false,
+            interp_inv_dx: vec![[1.0 / 3.0; 3], [0.0; 3]],
+            curves_layers: vec![[0.0; 3], [3.0; 3]],
+            density_min_layers: vec![[0.03; 3]],
+            density_max_layers: vec![[2.53; 3]],
+            n_particles_per_pixel: vec![[40.0; 3]],
+            dye_cloud_sigma_px: vec![[0.0; 3]],
+            grain_uniformity: [0.98; 3],
+            density_min: [0.03; 3],
+            micro_structure: None,
+            blur_px: 0.5,
+            mult_usm: Some([0.7, 1.5]),
+            base_seed: 0,
+            monochrome: false,
+            luminance_only: true,
+        };
+        let data: Vec<f32> = (0..n).flat_map(|_| density).collect();
+        let out = backend.run_grain(&ImageBuf::from_data(width, height, f32_to_scalars(data)), &gp);
+        let mut moved = 0;
+        for px in out.data.chunks_exact(3) {
+            let change: Vec<f64> = (0..3).map(|c| px[c] as f64 - density[c] as f64).collect();
+            assert!((change[0] - change[1]).abs() < 1e-4 && (change[2] - change[1]).abs() < 1e-4, "{change:?}");
+            if change[1].abs() > 1e-3 {
+                moved += 1;
+            }
+        }
+        assert!(moved > n / 2, "the grain moved {moved} of {n} pixels");
+    }
+
     /// Poisson(λ) thinned by Binomial(·, p) is Poisson(λp), so on a flat
     /// density the GPU grain has a known mean and variance. The three
     /// channels exercise every sampler branch: Poisson multiplication (λ < 10)
@@ -7562,6 +7617,7 @@ mod grain_tests {
             mult_usm: None,
             base_seed: 0,
             monochrome: false,
+            luminance_only: false,
         };
         let data: Vec<f32> = (0..n).flat_map(|_| density).collect();
         let out = backend.run_grain(&ImageBuf::from_data(width, height, f32_to_scalars(data)), &gp);
@@ -7643,6 +7699,7 @@ mod film_cache_tests {
                 halation_n_bounces: 3,
                 halation_bounce_decay: 0.5,
                 halation_renormalize: true,
+                mask: false,
             }),
             dir_couplers: Some(crate::DirCouplersGpuParams {
                 couplers_matrix_scaled: [[0.3, 0.1, 0.0], [0.1, 0.3, 0.1], [0.0, 0.1, 0.3]],
@@ -7672,6 +7729,7 @@ mod film_cache_tests {
                 mult_usm: None,
                 base_seed: 7,
                 monochrome: false,
+                luminance_only: false,
             }),
             glare: Some(crate::GlareGpuParams { mu: -3.0, sigma: 0.5, blur_px: 0.5, base_seed: 42, rgb_offset: [0.01; 3] }),
             gamut: None,
@@ -7738,6 +7796,7 @@ mod film_cache_tests {
             ("halation sigma", |p| p.halation.as_mut().unwrap().halation_first_sigma_px[1] = 11.5),
             ("halation bounces", |p| p.halation.as_mut().unwrap().halation_n_bounces = 4),
             ("halation renormalize", |p| p.halation.as_mut().unwrap().halation_renormalize = false),
+            ("halation mask", |p| p.halation.as_mut().unwrap().mask = true),
             ("DIR off", |p| p.dir_couplers = None),
             ("DIR matrix", |p| p.dir_couplers.as_mut().unwrap().couplers_matrix_scaled[1][0] = 0.2),
             ("DIR donor", |p| p.dir_couplers.as_mut().unwrap().donor = None),
@@ -7751,6 +7810,7 @@ mod film_cache_tests {
             ("grain micro-structure", |p| p.grain.as_mut().unwrap().micro_structure = None),
             ("grain unsharp", |p| p.grain.as_mut().unwrap().mult_usm = Some([1.0, 0.2])),
             ("grain monochrome", |p| p.grain.as_mut().unwrap().monochrome = true),
+            ("grain luminance", |p| p.grain.as_mut().unwrap().luminance_only = true),
             ("grain uniformity", |p| p.grain.as_mut().unwrap().grain_uniformity[0] = 0.97),
             ("grain layers", |p| p.grain.as_mut().unwrap().curves_layers.push([0.5; 3])),
         ];

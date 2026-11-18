@@ -632,13 +632,15 @@ extension AdjustmentInspector {
         var count = adjustmentGroups.filter { $0.section == section }.map { Self.count($0, model) }.reduce(0, +)
         switch section {
         case .camera: count += ["camera.exposure_compensation_ev", FilmFormatPicker.path, "camera.lens_blur_um"].filter(model.isModified).count
-        case .film: count += model.isModified(filmDevelopmentPath) ? 1 : 0
+        case .film: count += [filmDevelopmentPath, EditorModel.noFilmPath, GrainSimpleRows.monochrome].filter(model.isModified).count
         case .print: count += (scanFilmModified(model) ? 1 : 0) + (model.isModified(printDevelopmentPath) ? 1 : 0)
         case .scan: count += outputCount(model)
         }
         return count
     }
     static let filmDevelopmentPath = "film_render.development_time", printDevelopmentPath = "print_render.development_time"
+    /// Qlick Lab: the modules of a film's own process, hidden with no film.
+    static let filmOnlyGroups: Set<String> = ["Film Curves", "DIR Couplers"]
     /// "Profile default", then each time the stock was measured at.
     static func developmentItems(_ stock: Stock) -> [ChoiceItem] {
         [.option("Profile default", tag: "")] + stock.times.map { .option("\($0.formatted()) min", tag: "\($0)") }
@@ -1043,8 +1045,10 @@ struct AdjustmentInspector: View {
     /// Whether a section's loose control shows: it's revealed, or changed.
     private func shows(_ path: String, section: InspectorSection) -> Bool { shows(section: section) || model.isModified(path) }
     private func shows(_ group: AdjustmentGroup) -> Bool {
-        // Qlick Lab: Grain always shows, with its two plain sliders before the emulsions' detail.
-        group.title == "Grain" || reveal.shows(group, edits: InspectorEdits.count(group, model))
+        // Qlick Lab: Grain always shows, with its two plain sliders before the emulsions' detail. With no film, the
+        // film's own curves and couplers don't apply.
+        if model.value(EditorModel.noFilmPath).bool, InspectorEdits.filmOnlyGroups.contains(group.title) { return false }
+        return group.title == "Grain" || reveal.shows(group, edits: InspectorEdits.count(group, model))
     }
     private func shownControls(_ group: AdjustmentGroup) -> [Adjustment] {
         reveal.controls(group) { InspectorEdits.isModified($0, model) }
@@ -1089,7 +1093,7 @@ struct AdjustmentInspector: View {
                    fewer: fewer, showFewer: { hideMore(group.title) }) {
                 if group.title == "Print Curves" { ToneGraphView(model: model).padding(.horizontal, Theme.Size.gutter).padding(.vertical, 6) }
                 if group.title == "Grain" { GrainSimpleRows(model: model) }
-                if group.title == "Halation" { AntiHalationRow(model: model) }
+                if group.title == "Halation" { HalationRows(model: model) }
                 ForEach(shown) { control($0) }
             }
         }
@@ -1105,6 +1109,8 @@ struct AdjustmentInspector: View {
                 var titles = expanded.split(separator: ",").map(String.init).filter { $0 != title }
                 if open { titles.append(title) }
                 expanded = titles.joined(separator: ",")
+                // Qlick Lab: opened, a module shows all its controls; its "Hide" line folds it back to the basics.
+                if open { revealMore(title) }
             })
         return InkModule(title: title, help: help, enabled: enabled, summary: summary, edited: edited, skipped: skipped, ruled: ruled,
                          open: open, more: more, showMore: showMore, fewer: fewer, showFewer: showFewer, content: content)

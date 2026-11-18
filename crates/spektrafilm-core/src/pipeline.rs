@@ -408,6 +408,7 @@ impl Pipeline {
             && !p.camera.diffusion_filter.active
             && !(p.enlarger.diffusion_filter.active && !p.io.scan_film)
             && p.film_render.halation.boost_ev == 0.0
+            && !p.io.no_film
     }
 
     /// Qlick Lab: how far, in pixels of a `width` × `height` frame, the blurs of
@@ -477,7 +478,8 @@ impl Pipeline {
     /// The EV `process` applies to `image`, the full frame it was given: the
     /// metering preview's EV if the caller supplied one, else `image`'s.
     pub fn frame_autoexposure_ev(&self, image: &ImageBuf) -> f64 {
-        if !self.params.camera.auto_exposure {
+        // Qlick Lab: with no film, the image keeps its own brightness.
+        if !self.params.camera.auto_exposure || self.params.io.no_film {
             return 0.0;
         }
         if let Some(ev) = self.autoexposure_ev {
@@ -998,7 +1000,7 @@ impl Pipeline {
         // extended resident chain, including camera/scanner lens blur,
         // highlight boost, and enlarger diffusion. Backends that do not
         // implement the resident chain return `None` and fall through.
-        if self.tc_lut.is_some() {
+        if self.tc_lut.is_some() && !self.params.io.no_film {
             let run = |params: &spektrafilm_gpu::FilmChainParams<'_>| backend.try_run_film_chain(params);
             match self.try_gpu_resident(&image, None, false, backend, &color_ref, autoexposure_ev, run) {
                 Ok(Some(out)) => {
@@ -1013,6 +1015,13 @@ impl Pipeline {
                 }
                 Ok(None) => {}
             }
+        }
+
+        if self.params.io.no_film {
+            let t = Instant::now();
+            let result = self.process_no_film(image, backend, &color_ref);
+            print_stage_timing(stage_timings, "no_film", t);
+            return Ok((result, backend.name()));
         }
 
         let t = Instant::now();
@@ -1079,6 +1088,36 @@ impl Pipeline {
         Ok((result, backend.name()))
     }
 
+    /// Qlick Lab: no film (`io.no_film`, [`stages::no_film`]). With no paper,
+    /// the image with the effects added; on a paper, the image read as a
+    /// scanned negative and printed.
+    fn process_no_film(
+        &self,
+        image: ImageBuf,
+        backend: &dyn ComputeBackend,
+        color_ref: &crate::color_reference::ColorReference,
+    ) -> ImageBuf {
+        let linear = stages::no_film::prepare(image, &self.params);
+        if self.params.io.scan_film {
+            let linear = stages::no_film::effects(linear, &self.film, &self.params, backend);
+            return stages::no_film::output(linear, &self.params, &self.output_gamut);
+        }
+        let density = stages::no_film::negative_density(linear, &self.film, &self.params);
+        let density = stages::no_film::grain(density, &self.film, &self.params);
+        let printed = stages::printing::process_with_calibration(
+            density,
+            &self.film,
+            &self.print,
+            &self.params,
+            backend,
+            &self.print_illuminant,
+            self.print_exposure_factor,
+            self.preflash_raw,
+            color_ref.printing_exposure_correction,
+        );
+        stages::scanning::process(printed, &self.print, &self.params, backend, color_ref, &self.output_gamut)
+    }
+
     /// The CPU chain on a small image, keeping its taps: the film's log10
     /// exposure, the paper's log10 exposure (`None` when the film is
     /// scanned directly), and the scan. For the tone graph
@@ -1095,6 +1134,7 @@ impl Pipeline {
             self.print_exposure_factor,
             self.preflash_raw,
         );
+        let no_film = self.params.io.no_film.then(|| image.clone());
         let log_film = stages::filming::expose(
             image,
             &self.film,
@@ -1105,6 +1145,28 @@ impl Pipeline {
             color_ref.filming_exposure_correction,
             0.0,
         );
+        if let Some(image) = no_film {
+            // The film's exposure stands for the image's own light.
+            let image_copy = image.clone();
+            let scan = self.process_no_film(image, backend, &color_ref);
+            if self.params.io.scan_film {
+                return (log_film, None, scan);
+            }
+            let linear = stages::no_film::prepare(image_copy, &self.params);
+            let density = stages::no_film::negative_density(linear, &self.film, &self.params);
+            let log_paper = stages::printing::expose_calibrated(
+                density,
+                &self.film,
+                &self.print,
+                &self.params,
+                backend,
+                &self.print_illuminant,
+                self.print_exposure_factor,
+                self.preflash_raw,
+                color_ref.printing_exposure_correction,
+            );
+            return (log_film, Some(log_paper), scan);
+        }
         let filmed = stages::filming::develop(log_film.clone(), &self.film, &self.params, backend);
         if self.params.io.scan_film {
             let scan = stages::scanning::process(filmed, &self.film, &self.params, backend, &color_ref, &self.output_gamut);
@@ -1247,7 +1309,8 @@ impl Pipeline {
     ) -> Option<T> {
         self.tc_lut.as_ref()?;
         let io = &self.params.io;
-        if io.photo_long_side_px.is_some() || (io.upscale_factor - 1.0).abs() >= 1e-6 {
+        // Qlick Lab: no film runs on the CPU (`process_no_film`).
+        if io.no_film || io.photo_long_side_px.is_some() || (io.upscale_factor - 1.0).abs() >= 1e-6 {
             return None;
         }
         match self.window {
@@ -1579,6 +1642,7 @@ impl Pipeline {
                 halation_n_bounces: h.halation_n_bounces,
                 halation_bounce_decay: h.halation_bounce_decay as f32,
                 halation_renormalize: h.halation_renormalize,
+                mask: h.show_mask,
             })
         } else {
             None
@@ -1633,13 +1697,15 @@ impl Pipeline {
         // exact Poisson/binomial algorithms as `apply_grain`; only the random
         // stream differs.
         let grain = crate::grain::grain_active(&self.params).then(|| {
-            spektrafilm_model::grain::gpu_params(
+            let mut gp = spektrafilm_model::grain::gpu_params(
                 &crate::grain::grain_curves(&self.film),
                 &crate::grain::grain_settings(&self.film, &self.params.film_render.grain),
                 stages::filming::grain_pixel_size_um(&self.params, frame_size.0, frame_size.1),
                 self.film.is_positive(),
                 self.params.film_render.grain.monochrome,
-            )
+            );
+            gp.luminance_only = self.params.film_render.grain.luminance_only;
+            gp
         });
 
         // Glare in the resident chain — applied after scan_spectral on the

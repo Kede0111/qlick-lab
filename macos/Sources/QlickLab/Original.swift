@@ -21,9 +21,28 @@ enum OriginalImage {
         autoreleasepool { render(url, raw: raw, lensCorrection: lensCorrection, maxPixels: maxPixels) }
     }
 
+    /// Qlick Lab: the part of the original at `region` (fractions of the photograph, from the top left), at the
+    /// photograph's own pixels: what's on screen zoomed in, as sharp as the developed detail beside it.
+    nonisolated static func load(_ url: URL, raw: Bool, lensCorrection: Bool, region: CGRect) -> IOSurface? {
+        autoreleasepool {
+            guard let full = (raw ? developed(url, lensCorrection: lensCorrection, maxPixels: .max) : nil)
+                    ?? decoded(url, maxPixels: .max) else { return nil }
+            let extent = full.extent
+            // Core Image counts from the bottom.
+            let part = CGRect(x: extent.minX + region.minX * extent.width, y: extent.minY + (1 - region.maxY) * extent.height,
+                              width: region.width * extent.width, height: region.height * extent.height).integral.intersection(extent)
+            guard !part.isEmpty else { return nil }
+            return render(full.cropped(to: part))
+        }
+    }
+
     private static func render(_ url: URL, raw: Bool, lensCorrection: Bool, maxPixels: Int) -> IOSurface? {
         guard let image = (raw ? developed(url, lensCorrection: lensCorrection, maxPixels: maxPixels) : nil)
                 ?? decoded(url, maxPixels: maxPixels) else { return nil }
+        return render(image)
+    }
+
+    private static func render(_ image: CIImage) -> IOSurface? {
         let extent = image.extent.integral
         let width = Int(extent.width), height = Int(extent.height)
         guard width > 0, height > 0, let surface = IOSurface(properties: [

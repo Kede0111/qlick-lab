@@ -78,7 +78,9 @@ struct TabEdit: Identifiable, Equatable {
             }
             path("Lens blur (µm)", "camera.lens_blur_um")
         case .film:
+            path("No film", EditorModel.noFilmPath)
             path("Film development", filmDevelopmentPath, unit: " min")
+            path("Grain · Monochrome", GrainSimpleRows.monochrome)
         case .print:
             if scanFilmModified(model) {
                 out.append(TabEdit(title: "Scan film directly", value: model.value("io.scan_film").bool ? "On" : "Off", target: .scanFilm))

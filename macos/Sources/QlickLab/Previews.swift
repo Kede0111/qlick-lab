@@ -25,6 +25,8 @@ enum PreviewRules {
             return next
         }
         next.film = id
+        // Qlick Lab: a film chosen is a film used.
+        next.params["io.no_film"] = .bool(false)
         next.params["film_render.development_time"] = .null
         // A new film brings its own grain, DIR and halation presets, as upstream applies them.
         for path in Stock.presetPaths { next.params[path] = .null }

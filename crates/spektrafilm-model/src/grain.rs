@@ -467,6 +467,33 @@ pub fn apply_grain(
     monochrome: bool,
     serial_channels: bool,
 ) -> ImageBuf {
+    let lanes = if monochrome { GrainLanes::Monochrome } else { GrainLanes::Independent };
+    apply_grain_lanes(density_cmy, pixel_size_um, settings, curves, positive, lanes, serial_channels)
+}
+
+/// How the grain's noise is shared between the three dye layers.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GrainLanes {
+    /// Each layer its own grain: a colour film's.
+    Independent,
+    /// One emulsion, copied to the three lanes: a black-and-white film's.
+    Monochrome,
+    /// Qlick Lab: the green-sensitive layer's grain only, moving all three
+    /// densities alike: colourless grain on a colour film.
+    Luminance,
+}
+
+/// [`apply_grain`] with the lanes' sharing chosen.
+#[allow(clippy::too_many_arguments)]
+pub fn apply_grain_lanes(
+    density_cmy: ImageBuf,
+    pixel_size_um: f64,
+    settings: &GrainSettings,
+    curves: &GrainCurves,
+    positive: bool,
+    lanes: GrainLanes,
+    serial_channels: bool,
+) -> ImageBuf {
     let stage_timings = stage_timings_enabled();
     let (w, h) = (density_cmy.width, density_cmy.height);
     let lp = layer_grain_params(curves, settings, pixel_size_um);
@@ -535,7 +562,11 @@ pub fn apply_grain(
         grain
     };
 
-    let channels: Vec<usize> = if monochrome { vec![0] } else { vec![0, 1, 2] };
+    let channels: Vec<usize> = match lanes {
+        GrainLanes::Independent => vec![0, 1, 2],
+        GrainLanes::Monochrome => vec![0],
+        GrainLanes::Luminance => vec![1],
+    };
     let n_layers = lp.n_layers();
     // wasm can't spawn the parallel path's OS threads (the browser's CPU
     // engine panicked on any grain); the paths are bit-identical.
@@ -569,14 +600,27 @@ pub fn apply_grain(
     };
     // Every channel worker has finished reading the density; reuse it.
     let mut out = density_cmy;
-    if monochrome {
-        let (_, plane) = out_planes.pop().expect("channel 0");
-        for ch in 0..3 {
-            out.write_channel(ch, &plane);
+    match lanes {
+        GrainLanes::Monochrome => {
+            let (_, plane) = out_planes.pop().expect("channel 0");
+            for ch in 0..3 {
+                out.write_channel(ch, &plane);
+            }
         }
-    } else {
-        for (ch, plane) in out_planes {
-            out.write_channel(ch, &plane);
+        GrainLanes::Luminance => {
+            // The green layer's change, grained less clean, added to every layer.
+            let (_, plane) = out_planes.pop().expect("channel 1");
+            out.data.par_chunks_exact_mut(3).zip(plane.par_iter()).for_each(|(px, &grained)| {
+                let change = grained - px[1];
+                px[0] += change;
+                px[1] = grained;
+                px[2] += change;
+            });
+        }
+        GrainLanes::Independent => {
+            for (ch, plane) in out_planes {
+                out.write_channel(ch, &plane);
+            }
         }
     }
     out
@@ -641,6 +685,7 @@ pub fn gpu_params(
             .then_some([settings.mult_usm_sigma as f32, settings.mult_usm_amount as f32]),
         base_seed: 0,
         monochrome,
+        luminance_only: false,
     }
 }
 
@@ -711,6 +756,28 @@ mod tests {
                 }
             }
         }
+    }
+
+    /// Qlick Lab: colourless grain moves the three densities by the same
+    /// amount at each pixel, and does move them.
+    #[test]
+    fn luminance_grain_changes_every_layer_alike() {
+        let mut density = ImageBuf::new(32, 32);
+        for (i, px) in density.pixels_mut().enumerate() {
+            let v = (i % 23) as f64 * 0.08;
+            px.copy_from_slice(&[from_f64(v), from_f64(v * 0.8 + 0.1), from_f64(v * 1.1)]);
+        }
+        let before = density.clone();
+        let out = apply_grain_lanes(density, 2.0, &settings(), &curves(), false, GrainLanes::Luminance, false);
+        let mut moved = 0;
+        for (a, b) in out.pixels().zip(before.pixels()) {
+            let change: Vec<f64> = (0..3).map(|c| a[c] as f64 - b[c] as f64).collect();
+            assert!((change[0] - change[1]).abs() < 1e-5 && (change[2] - change[1]).abs() < 1e-5, "{change:?}");
+            if change[1].abs() > 1e-4 {
+                moved += 1;
+            }
+        }
+        assert!(moved > 32 * 32 / 2, "the grain moved {moved} pixels");
     }
 
     #[test]

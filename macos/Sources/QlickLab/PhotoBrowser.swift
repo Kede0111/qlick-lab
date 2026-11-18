@@ -758,6 +758,12 @@ struct LibraryContextMenu: View {
             Toggle("Apply Develop Settings Too", isOn: Binding(get: { model.recipesApplyDevelop }, set: { model.recipesApplyDevelop = $0 }))
         }.disabled(!editing || !model.canChangePresets || model.presets.isEmpty)
         .help("The preset's look, with each photograph's own white balance and exposure, for photographs taken in different light")
+        ForEach(PresetSection.allCases, id: \.self) { section in
+            let presets = SectionPresets.shared.list(section)
+            Menu("Apply \(section.title)" + several) {
+                ForEach(presets, id: \.name) { preset in Button(preset.name) { model.labApplySection(preset, section, to: targets) } }
+            }.disabled(!editing || presets.isEmpty)
+        }
         Button("New Version (Virtual Copy)") { model.duplicate(targets) }.disabled(!editing)
         Button("Reset Edits" + several) { model.resetEdits(of: targets) }.disabled(!editing)
         Divider()

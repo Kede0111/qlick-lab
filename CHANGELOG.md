@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.1.3
+
+- **Grain and Halation presets**: each section has its own list of presets, holding only the ones you save. Picking
+  one changes only that section, on every selected photograph at once; the contact sheet's menu has them too.
+- **Monochrome grain**: Grain can be colourless on a colour film.
+- **Halation › Show mask**: shows the halation alone, to see what it does and where. Never saved or exported.
+- **No film**: develops with no film. With a paper, the photograph is read as a scanned negative and printed; with
+  no paper, the image stays as it is and only the effects (grain, halation, diffusion) are added.
+- **Recipes and Develop**: a recipe can also keep chosen Develop settings (white balance, brightness, tone…), and one
+  tick box says whether applying it applies them too.
+- **Imports with a recipe are there at once**: the photographs join their project straight away; their edits are
+  written, their proxies made and their own white balance found in the background ("Saving edits" and "Making
+  proxies" in the sidebar).
+- **Thumbnails**: proxies are made first, at import and when a folder opens, and thumbnails develop from them in a
+  fraction of a second, also after a preset on many photographs. A recipe on thousands of frames applies at once,
+  shows its progress and can be stopped; a new one replaces the one still running.
+- **Before / After zoomed in**: the original is as sharp as the developed photograph at 100%.
+- **Develop panel**: a module's arrow opens all its controls; "Hide" folds it back to the few that matter most.
+
 ## 0.1.2 — fixes from users' reports
 
 - **Import, Add in Place**: Add now shows its progress (the film strip or the list, the counter, the time left,

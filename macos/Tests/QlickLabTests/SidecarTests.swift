@@ -315,6 +315,8 @@ final class SidecarFormatTests: XCTestCase {
         defaults[EditorModel.lensCorrectionPath] = .bool(true)
         // Qlick Lab's effects aren't in the table: a sidecar keeps them as stored values, which NEgs passes over.
         if case .object(var object) = defaults { object["effects"] = nil; defaults = .object(object) }
+        // Nor are colourless grain and no film: kept as stored values the same way, so 0.1.2 still reads the sidecars.
+        for path in ["film_render.grain.luminance_only", "io.no_film"] { defaults = defaults.removing(path) }
         let table = try SidecarDefaults.load(version: SidecarDefaults.latest, data: data)
         XCTAssertEqual(defaults, table.params, "The engine's defaults changed. Write the next table with scripts/sidecar_defaults.py and raise SidecarDefaults.latest; old photographs keep theirs.")
     }
@@ -591,5 +593,15 @@ final class SidecarFormatTests: XCTestCase {
         XCTAssertEqual(relaunched.value("prep.highlights"), .number(-65))
         XCTAssertEqual(relaunched.crop.rect, saved.crop.rect)
         XCTAssertFalse(relaunched.inspectorVisible)
+    }
+}
+
+private extension JSONValue {
+    /// The object without the value at `path` (dotted keys).
+    func removing(_ path: String) -> JSONValue {
+        let keys = path.split(separator: ".").map(String.init)
+        guard case .object(var object) = self, let first = keys.first else { return self }
+        if keys.count == 1 { object[first] = nil } else if let child = object[first] { object[first] = child.removing(keys.dropFirst().joined(separator: ".")) }
+        return .object(object)
     }
 }

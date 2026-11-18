@@ -61,6 +61,7 @@ pub fn apply_halation_um(
     halation_n_bounces: u32,
     halation_bounce_decay: f64,
     halation_renormalize: bool,
+    mask: bool,
     _backend: &dyn ComputeBackend,
 ) -> ImageBuf {
     // Per-channel implementation matching Python's `apply_halation_um`.
@@ -123,6 +124,9 @@ pub fn apply_halation_um(
         halation_strength[2] * halation_amount,
     ];
 
+    // Qlick Lab: Show mask keeps only the bounced light; a channel without
+    // any is black.
+    let mut bounced: [Option<Vec<Scalar>>; 3] = [None, None, None];
     if halation_n_bounces >= 1 && (a_tot[0] > 0.0 || a_tot[1] > 0.0 || a_tot[2] > 0.0) {
         let n_bounces = halation_n_bounces as usize;
         // Decay computed in f64 to match Python's `rho ** (k - 1)` and
@@ -155,8 +159,18 @@ pub fn apply_halation_um(
                 }
             }
             let a_c = from_f64(a_tot[c]);
+            if mask {
+                hb.iter_mut().for_each(|v| *v *= a_c);
+                bounced[c] = Some(hb);
+                continue;
+            }
             for i in 0..n_pix {
                 channels[c][i] += a_c * hb[i];
+            }
+        }
+        if mask {
+            for c in 0..3 {
+                channels[c] = bounced[c].take().unwrap_or_else(|| vec![ZERO; n_pix]);
             }
         }
 
@@ -168,6 +182,13 @@ pub fn apply_halation_um(
                     *v /= denom;
                 }
             }
+        }
+    }
+
+    if mask && bounced.iter().all(Option::is_none) && !(halation_n_bounces >= 1 && a_tot.iter().any(|&a| a > 0.0)) {
+        // No halation at all: nothing to show.
+        for channel in &mut channels {
+            channel.iter_mut().for_each(|v| *v = ZERO);
         }
     }
 

@@ -220,6 +220,11 @@ pub struct GrainParams {
     /// (upstream n_channels==1 has a single emulsion); not user-facing.
     #[serde(default)]
     pub monochrome: bool,
+    /// Qlick Lab: colourless grain on a colour film. The green-sensitive
+    /// layer's grain (the one that carries most of the lightness) moves all
+    /// three dye densities alike, so the grain has no colour of its own.
+    #[serde(default)]
+    pub luminance_only: bool,
 }
 
 fn default_grain_blur() -> f64 {
@@ -252,6 +257,7 @@ impl Default for GrainParams {
             blur_dye_clouds_um: default_blur_dye_clouds_um(),
             micro_structure: default_micro_structure(),
             monochrome: false,
+            luminance_only: false,
         }
     }
 }
@@ -297,6 +303,11 @@ pub struct HalationParams {
     pub halation_bounce_decay: f64,
     #[serde(default = "default_true")]
     pub halation_renormalize: bool,
+    /// Qlick Lab: the halation alone, on black, to see where it falls. A
+    /// display aid for the open photograph: read from a render request, never
+    /// written out, so no sidecar, recipe or export ever carries it.
+    #[serde(default, skip_serializing)]
+    pub show_mask: bool,
 }
 
 fn default_one_f64() -> f64 {
@@ -349,6 +360,7 @@ impl Default for HalationParams {
             halation_n_bounces: 3,
             halation_bounce_decay: 0.5,
             halation_renormalize: true,
+            show_mask: false,
         }
     }
 }
@@ -687,6 +699,12 @@ pub struct IoParams {
     pub photo_long_side_px: Option<u32>,
     #[serde(default)]
     pub scan_film: bool,
+    /// Qlick Lab: no film. The image is taken as it is, with no film's
+    /// colour or process: printed on the paper, it is read as a scanned
+    /// negative; with no paper either, it is the photograph itself, and only
+    /// the effects (grain, halation, diffusion) are added to it.
+    #[serde(default)]
+    pub no_film: bool,
     #[serde(default)]
     pub output_gamut_compress: OutputGamutCompressParams,
     #[serde(default)]
@@ -715,6 +733,7 @@ impl Default for IoParams {
             upscale_factor: 1.0,
             photo_long_side_px: None,
             scan_film: false,
+            no_film: false,
             output_gamut_compress: OutputGamutCompressParams::default(),
             input_gamut_compress: InputGamutCompressParams::default(),
             rotate_cw: 0,

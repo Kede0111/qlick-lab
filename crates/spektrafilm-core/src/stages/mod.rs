@@ -1,5 +1,6 @@
 mod debug_compare;
 pub mod filming;
+pub mod no_film;
 pub mod printing;
 pub mod scanning;
 
@@ -321,6 +322,152 @@ mod integration_tests {
                 fresh.process(img.clone(), &backend).data,
                 "image {case}"
             );
+        }
+    }
+
+    /// Qlick Lab: Show mask is what the halation adds, alone: with no
+    /// scatter and no renormalizing, the image less its halation.
+    #[test]
+    fn the_halation_mask_is_what_the_halation_adds() {
+        let backend = spektrafilm_gpu::cpu_backend::CpuBackend;
+        let mut data = vec![from_f64(0.02); 48 * 48 * 3];
+        for c in 0..3 {
+            data[(24 * 48 + 24) * 3 + c] = from_f64(50.0);
+        }
+        let image = ImageBuf::from_data(48, 48, data);
+        let halate = |mask| {
+            spektrafilm_model::diffusion::apply_halation_um(
+                &image, 5.0, 0.0, 1.0, [2.0; 3], [9.0; 3], [0.7; 3], 1.0, 1.0, [0.2, 0.05, 0.0], [20.0; 3], 3, 0.5, false, mask,
+                &backend,
+            )
+        };
+        let (shown, mask) = (halate(false), halate(true));
+        for i in 0..shown.data.len() {
+            let added = shown.data[i] - image.data[i];
+            assert!((added - mask.data[i]).abs() < 1e-5, "{i}: {added} vs {}", mask.data[i]);
+        }
+        // Blue has no halation: black.
+        assert!(mask.data.iter().skip(2).step_by(3).all(|&v| v == from_f64(0.0)));
+        assert!(mask.data[(24 * 48 + 30) * 3] > from_f64(0.0));
+    }
+
+    /// Qlick Lab: with no film and no paper, a photograph without effects
+    /// comes out as it went in.
+    #[test]
+    fn no_film_and_no_paper_keep_the_photograph() {
+        let dir = data_dir();
+        let film = profile::load_profile_by_name(&dir, "kodak_portra_400").unwrap();
+        let mut params = RuntimeParams::default();
+        params.io.no_film = true;
+        params.io.scan_film = true;
+        params.io.input_color_space = "sRGB".into();
+        params.io.input_cctf_decoding = true;
+        params.io.output_color_space = "sRGB".into();
+        params.io.output_cctf_encoding = true;
+        params.io.output_gamut_compress.algorithm = "off".into();
+        params.film_render.grain.active = false;
+        params.film_render.halation.active = false;
+        let data: Vec<_> = (0..16 * 16 * 3).map(|i| from_f64(((i * 37) % 251) as f64 / 250.0)).collect();
+        let image = ImageBuf::from_data(16, 16, data.clone());
+        let pipeline = Pipeline::new_with_spectral(film.clone(), film, params, &dir).unwrap();
+        let out = pipeline.process(image, &spektrafilm_gpu::cpu_backend::CpuBackend);
+        for (a, b) in out.data.iter().zip(&data) {
+            assert!((a - b).abs() < 2e-3, "{a} vs {b}");
+        }
+    }
+
+    /// Qlick Lab: grain added with no film keeps saturated colours what they
+    /// are: finite, near their value, never black.
+    #[test]
+    fn no_film_grain_keeps_saturated_colours() {
+        let dir = data_dir();
+        let film = profile::load_profile_by_name(&dir, "kodak_portra_400").unwrap();
+        let mut params = RuntimeParams::default();
+        params.io.no_film = true;
+        params.io.scan_film = true;
+        params.io.input_color_space = "sRGB".into();
+        params.io.input_cctf_decoding = false;
+        params.io.output_color_space = "sRGB".into();
+        params.io.output_cctf_encoding = false;
+        params.io.output_gamut_compress.algorithm = "off".into();
+        params.film_render.halation.active = false;
+        let colours = [[0.9, 0.0, 0.05], [0.95, 0.85, 0.0], [0.0, 0.0, 0.0], [1.4, 1.2, 1.0], [0.18, 0.18, 0.18]];
+        let data: Vec<_> = (0..64 * 64).flat_map(|i| colours[(i / 64) % colours.len()]).map(from_f64).collect();
+        let image = ImageBuf::from_data(64, 64, data.clone());
+        let pipeline = Pipeline::new_with_spectral(film.clone(), film, params, &dir).unwrap();
+        let out = pipeline.process(image, &spektrafilm_gpu::cpu_backend::CpuBackend);
+        assert!(out.data.iter().all(|v| v.is_finite()));
+        let mut changed = 0;
+        for (a, b) in out.data.iter().zip(&data) {
+            let (a, b) = (*a as f64, *b as f64);
+            assert!(a >= b * 10f64.powf(-0.5) - 1e-6 && a <= b * 10f64.powf(0.5) + 1e-6, "{a} vs {b}");
+            if (a - b).abs() > 1e-3 { changed += 1; }
+        }
+        assert!(changed > data.len() / 4, "grain changed {changed} values");
+    }
+
+    /// Qlick Lab: no film on a paper reads the image as a scanned negative: a
+    /// denser part of the negative prints lighter, and grain is added.
+    #[test]
+    fn no_film_prints_a_scanned_negative() {
+        let dir = data_dir();
+        let film = profile::load_profile_by_name(&dir, "kodak_portra_400").unwrap();
+        let print = profile::load_profile_by_name(&dir, "kodak_portra_endura").unwrap();
+        let mut params = RuntimeParams::default();
+        params.io.no_film = true;
+        params.io.input_color_space = "sRGB".into();
+        params.io.input_cctf_decoding = false;
+        params.film_render.grain.active = false;
+        // An orange base, then a thin and a dense part of the negative.
+        let base = [0.8, 0.5, 0.3];
+        let mut data = Vec::new();
+        for y in 0..24 {
+            for x in 0..24 {
+                let density = if y < 2 { 0.0 } else if x < 12 { 0.3 } else { 1.2 };
+                data.extend(base.map(|b: f64| from_f64(b * 10f64.powf(-density))));
+                let _ = x;
+            }
+        }
+        let image = ImageBuf::from_data(24, 24, data);
+        let pipeline = Pipeline::new_with_spectral(film, print, params, &dir).unwrap();
+        let out = pipeline.process(image, &spektrafilm_gpu::cpu_backend::CpuBackend);
+        let thin = out.get(4, 12);
+        let dense = out.get(20, 12);
+        for c in 0..3 {
+            assert!(dense[c] > thin[c] + from_f64(0.05), "channel {c}: dense {:?} thin {:?}", dense, thin);
+        }
+        // Grey in, grey out, near enough: the base's orange is taken away.
+        let spread = (0..3).map(|c| dense[c]).fold(from_f64(0.0), Scalar::max) - (0..3).map(|c| dense[c]).fold(from_f64(1.0), Scalar::min);
+        assert!(spread < from_f64(0.2), "dense {:?}", dense);
+    }
+
+    /// Qlick Lab: with auto exposure, a scanned negative is metered: the same
+    /// negative, denser all over, prints the same.
+    #[test]
+    fn no_film_meters_a_scanned_negative() {
+        let dir = data_dir();
+        let film = profile::load_profile_by_name(&dir, "kodak_portra_400").unwrap();
+        let print = profile::load_profile_by_name(&dir, "kodak_portra_endura").unwrap();
+        let mut params = RuntimeParams::default();
+        params.io.no_film = true;
+        params.io.input_color_space = "sRGB".into();
+        params.io.input_cctf_decoding = false;
+        params.film_render.grain.active = false;
+        let negative = |extra: f64| {
+            let mut data = Vec::new();
+            for y in 0..24 {
+                for x in 0..24 {
+                    let density = if y < 1 { 0.0 } else { extra + 0.2 + 0.05 * x as f64 };
+                    data.extend([0.8, 0.5, 0.3].map(|b: f64| from_f64(b * 10f64.powf(-density))));
+                }
+            }
+            ImageBuf::from_data(24, 24, data)
+        };
+        let pipeline = Pipeline::new_with_spectral(film, print, params, &dir).unwrap();
+        let thin = pipeline.process(negative(0.0), &spektrafilm_gpu::cpu_backend::CpuBackend);
+        let dense = pipeline.process(negative(0.6), &spektrafilm_gpu::cpu_backend::CpuBackend);
+        for (a, b) in thin.data.iter().zip(&dense.data).skip(24 * 3) {
+            assert!((a - b).abs() < 0.02, "{a} vs {b}");
         }
     }
 

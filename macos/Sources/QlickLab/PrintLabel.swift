@@ -20,9 +20,11 @@ struct PrintLabel: View {
         let scanning = model.value("io.scan_film").bool
         let original = model.original != nil
         let kind = PrintLabelLayout.kind(scanning: scanning)
-        let oneRow = PrintLabelLayout.fitsOneRow(film: model.filmName, paper: model.paperName, kind: kind, width: photoWidth)
-        let film = StockName(model: model, paper: false, name: model.filmName, size: 24, weight: 600,
-                             strike: original ? .original : nil, opens: !original)
+        let oneRow = PrintLabelLayout.fitsOneRow(film: model.value(EditorModel.noFilmPath).bool ? "No film" : model.filmName, paper: model.paperName, kind: kind, width: photoWidth)
+        // Qlick Lab: no film: the image is taken as it is.
+        let noFilm = model.value(EditorModel.noFilmPath).bool
+        let film = StockName(model: model, paper: false, name: noFilm ? "No film" : model.filmName, size: 24, weight: 600,
+                             strike: original ? .original : nil, opens: !original && !noFilm)
         let paper = HStack(alignment: .firstTextBaseline, spacing: PrintLabelLayout.inner) {
             Text(kind).font(Theme.serif(14, italic: true)).foregroundStyle(ink.dim).lineLimit(1).fixedSize()
             StockName(model: model, paper: true, name: model.paperName, size: 17.5, weight: 400,
