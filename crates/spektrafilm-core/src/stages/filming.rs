@@ -498,6 +498,7 @@ pub fn optical_effects(mut raw: ImageBuf, params: &RuntimeParams, backend: &dyn 
             halation.halation_n_bounces,
             halation.halation_bounce_decay,
             halation.halation_renormalize,
+            halation.source(),
             halation.show_mask,
             backend,
         );

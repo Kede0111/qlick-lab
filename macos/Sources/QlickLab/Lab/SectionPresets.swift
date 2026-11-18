@@ -20,7 +20,7 @@ enum PresetSection: String, CaseIterable, Codable, Sendable {
              "mult_usm_amount", "mult_usm_sigma", "micro_structure", "luminance_only"].map { "film_render.grain.\($0)" }
         case .halation:
             ["active", "halation_amount", "halation_spatial_scale", "halation_strength", "halation_first_sigma_um", "halation_n_bounces",
-             "halation_bounce_decay", "halation_renormalize", "scatter_amount", "scatter_spatial_scale", "scatter_core_um",
+             "halation_bounce_decay", "halation_renormalize", "highlights_only", "threshold_ev", "softness_ev", "gain_ev", "scatter_amount", "scatter_spatial_scale", "scatter_core_um",
              "scatter_tail_um", "scatter_tail_weight"].map { "film_render.halation.\($0)" }
         }
     }

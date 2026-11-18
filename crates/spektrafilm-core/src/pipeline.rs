@@ -1642,6 +1642,7 @@ impl Pipeline {
                 halation_n_bounces: h.halation_n_bounces,
                 halation_bounce_decay: h.halation_bounce_decay as f32,
                 halation_renormalize: h.halation_renormalize,
+                source: h.source().map(|s| [s.threshold_ev as f32, s.softness_ev as f32, s.gain_ev as f32]),
                 mask: h.show_mask,
             })
         } else {

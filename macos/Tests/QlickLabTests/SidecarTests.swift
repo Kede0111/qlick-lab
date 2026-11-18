@@ -315,8 +315,12 @@ final class SidecarFormatTests: XCTestCase {
         defaults[EditorModel.lensCorrectionPath] = .bool(true)
         // Qlick Lab's effects aren't in the table: a sidecar keeps them as stored values, which NEgs passes over.
         if case .object(var object) = defaults { object["effects"] = nil; defaults = .object(object) }
-        // Nor are colourless grain and no film: kept as stored values the same way, so 0.1.2 still reads the sidecars.
-        for path in ["film_render.grain.luminance_only", "io.no_film"] { defaults = defaults.removing(path) }
+        // Nor are colourless grain, no film and the halation's highlights: kept as stored values the same way, so
+        // earlier versions still read the sidecars.
+        for path in ["film_render.grain.luminance_only", "io.no_film", "film_render.halation.highlights_only",
+                     "film_render.halation.threshold_ev", "film_render.halation.softness_ev", "film_render.halation.gain_ev"] {
+            defaults = defaults.removing(path)
+        }
         let table = try SidecarDefaults.load(version: SidecarDefaults.latest, data: data)
         XCTAssertEqual(defaults, table.params, "The engine's defaults changed. Write the next table with scripts/sidecar_defaults.py and raise SidecarDefaults.latest; old photographs keep theirs.")
     }

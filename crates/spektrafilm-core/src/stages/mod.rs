@@ -337,7 +337,7 @@ mod integration_tests {
         let image = ImageBuf::from_data(48, 48, data);
         let halate = |mask| {
             spektrafilm_model::diffusion::apply_halation_um(
-                &image, 5.0, 0.0, 1.0, [2.0; 3], [9.0; 3], [0.7; 3], 1.0, 1.0, [0.2, 0.05, 0.0], [20.0; 3], 3, 0.5, false, mask,
+                &image, 5.0, 0.0, 1.0, [2.0; 3], [9.0; 3], [0.7; 3], 1.0, 1.0, [0.2, 0.05, 0.0], [20.0; 3], 3, 0.5, false, None, mask,
                 &backend,
             )
         };
@@ -349,6 +349,47 @@ mod integration_tests {
         // Blue has no halation: black.
         assert!(mask.data.iter().skip(2).step_by(3).all(|&v| v == from_f64(0.0)));
         assert!(mask.data[(24 * 48 + 30) * 3] > from_f64(0.0));
+    }
+
+    /// Qlick Lab: fed by the highlights, the halation adds a red-orange rim
+    /// beside a bright light only: nothing on the light itself, nothing far
+    /// from it, no blue, and a frame without highlights is left as it was.
+    #[test]
+    fn the_halation_comes_from_the_highlights_alone() {
+        let backend = spektrafilm_gpu::cpu_backend::CpuBackend;
+        let source = spektrafilm_model::diffusion::HalationSource { threshold_ev: 1.0, softness_ev: 1.0, gain_ev: 3.0 };
+        let (w, h) = (64u32, 32u32);
+        let frame = |lit: f64| {
+            let data = (0..w * h)
+                .flat_map(|i| [if (i % w) < 32 { lit } else { 0.02 }; 3])
+                .map(from_f64)
+                .collect();
+            ImageBuf::from_data(w, h, data)
+        };
+        let halate = |image: &ImageBuf, mask| {
+            spektrafilm_model::diffusion::apply_halation_um(
+                image, 5.0, 0.0, 1.0, [2.0; 3], [9.0; 3], [0.7; 3], 1.0, 1.0, [0.08, 0.02, 0.0], [10.0; 3], 3, 0.5, true,
+                Some(source), mask, &backend,
+            )
+        };
+        let at = |img: &ImageBuf, x: u32| img.get(x, 16).map(|v| v as f64);
+        // A light 3 stops over grey, beside a dark half.
+        let lit = frame(8.0);
+        let shown = halate(&lit, false);
+        assert_eq!(at(&shown, 10), at(&lit, 10), "the light itself and what lies within it are untouched");
+        let rim = at(&shown, 33);
+        assert!(rim[0] > 0.02 * 4.0, "a strong rim beside the light: {rim:?}");
+        assert!(rim[0] > rim[1] && rim[1] > 0.02 && rim[2] == at(&lit, 33)[2], "red over green, no blue: {rim:?}");
+        let far = at(&shown, 63);
+        assert!(far.iter().all(|v| (v - 0.02).abs() < 1e-5), "nothing far from it: {far:?}");
+        // Grey and a stop under it: no highlights, no halation, no renormalizing.
+        let grey = frame(1.0);
+        assert_eq!(halate(&grey, false).data, grey.data);
+        // Show mask: the rim, red, on black; the light itself black.
+        let mask = halate(&lit, true);
+        assert!(at(&mask, 33)[0] > 1.0 && at(&mask, 33)[0] > at(&mask, 33)[1] && at(&mask, 33)[2] == 0.0, "{:?}", at(&mask, 33));
+        assert_eq!(at(&mask, 10), [0.0; 3]);
+        assert!(at(&mask, 63).iter().all(|v| *v < 1e-3), "{:?}", at(&mask, 63));
     }
 
     /// Qlick Lab: with no film and no paper, a photograph without effects

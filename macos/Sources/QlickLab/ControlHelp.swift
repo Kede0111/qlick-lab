@@ -80,8 +80,11 @@ enum ControlHelp {
         "film_render.grain.micro_structure.1": "Size of the molecular clumps within the grain, in nm. Only for extreme magnification.",
 
         // Halation
-        "film_render.halation.halation_amount": "The red glow around bright highlights, from light reflecting off the back of the film base. 1 is the film’s own; films with little or no anti-halation layer glow most.",
-        "film_render.halation.halation_spatial_scale": "How far the halation glow spreads. 1 is the film’s own.",
+        "film_render.halation.halation_amount": "The red rim around bright highlights, from light crossing the film and reflecting off the back of its base. It falls on the darker side of their edges; the highlights themselves and the rest of the frame are left alone. 1 is the film’s own; films with little or no anti-halation layer glow most.",
+        "film_render.halation.halation_spatial_scale": "How far the halation spreads from the highlights. 1 is the film’s own.",
+        "film_render.halation.gain_ev": "How much brighter than the file the highlights are for the halation, in stops. A file clips lamps, the sun and reflections a few stops over grey, where on film they glow many stops higher; the image itself keeps its exposure.",
+        "film_render.halation.threshold_ev": "Where the highlights that cause halation start, in stops above mid-grey. Lower lets paler parts of the frame glow too.",
+        "film_render.halation.softness_ev": "How gradually those highlights start, in stops on either side of the threshold.",
         "film_render.halation.scatter_amount": "Light scattering sideways inside the emulsion, which softens the whole frame slightly. 1 is the film’s own and the most; lower is sharper than the film.",
         "film_render.halation.scatter_spatial_scale": "How far that scatter spreads. 1 is the film’s own; above it the whole frame softens quickly.",
         "film_render.halation.halation_n_bounces": "How many times light bounces between the emulsion and the back of the base. Typically 2 or 3.",

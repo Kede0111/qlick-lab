@@ -427,18 +427,18 @@ struct GrainSimpleRows: View {
 
     var body: some View {
         SectionPresetRow(model: model, section: .grain)
-        row("Amount", Self.amount, limits: 0...80, help: "How strong the grain is, in percent of the film's own. 100 is the film as it is.")
-        row("Size", Self.size, limits: 0.05...2, help: "How large the grains are, in percent of the film's own. Larger grain reads as a faster film.")
+        row("Amount", Self.amount, limits: 0...80, range: 0...600, help: "How strong the grain is, in percent of the film's own. 100 is the film as it is.")
+        row("Size", Self.size, limits: 0.05...2, range: 0...300, help: "How large the grains are, in percent of the film's own. Larger grain reads as a faster film.")
         if !model.filmIsBW {
             TickRow(title: "Monochrome", isOn: model.toggle(Self.monochrome), changed: model.isModified(Self.monochrome),
                     help: "Colourless grain, as on black and white film.")
         }
     }
 
-    private func row(_ title: String, _ path: String, limits: ClosedRange<Double>, help: String) -> some View {
+    private func row(_ title: String, _ path: String, limits: ClosedRange<Double>, range: ClosedRange<Double>, help: String) -> some View {
         let percent = (model.stockScale(path) * 100).rounded()
         return LabeledSlider(title: title, value: Binding(get: { percent }, set: { model.setStockScale(path, $0.rounded() / 100, limits: limits) }),
-                             range: 0...300, step: 1, unit: "%", defaultValue: 100, modified: abs(percent - 100) > 0.5,
+                             range: range, step: 1, unit: "%", defaultValue: 100, modified: abs(percent - 100) > 0.5,
                              reset: { model.set(path, .null) },
                              editing: { $0 ? model.beginInteraction() : model.endInteraction() }, help: help)
     }
@@ -452,7 +452,7 @@ struct HalationRows: View {
         SectionPresetRow(model: model, section: .halation)
         AntiHalationRow(model: model)
         TickRow(title: "Show mask", isOn: Binding(get: { model.halationMask }, set: { model.halationMask = $0 }), changed: model.halationMask,
-                help: "Shows the halation alone, on black. Only on screen: never saved or exported.")
+                help: "Shows where the halation falls, on black: the brighter, the more it lights that part of the photograph. Only on screen: never saved or exported.")
     }
 }
 

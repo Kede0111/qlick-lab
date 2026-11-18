@@ -204,6 +204,7 @@ fn halation_borders_match_python() {
             p.halation_n_bounces,
             p.halation_bounce_decay,
             p.halation_renormalize,
+            None,
             false,
             &CpuBackend,
         );

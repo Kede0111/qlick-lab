@@ -303,6 +303,21 @@ pub struct HalationParams {
     pub halation_bounce_decay: f64,
     #[serde(default = "default_true")]
     pub halation_renormalize: bool,
+    /// Qlick Lab: the halation spreads the highlights' light alone (see
+    /// `spektrafilm_model::diffusion::HalationSource`), not the whole image;
+    /// off, upstream's model, renormalized by `halation_renormalize`.
+    #[serde(default = "default_true")]
+    pub highlights_only: bool,
+    /// Qlick Lab: where the highlights start, in stops above 18% grey.
+    #[serde(default = "default_threshold_ev")]
+    pub threshold_ev: f64,
+    /// Qlick Lab: how gradually they start, in stops on either side.
+    #[serde(default = "default_one_f64")]
+    pub softness_ev: f64,
+    /// Qlick Lab: the light the highlights get back for the halation, in
+    /// stops (what a file's clipped lights lost).
+    #[serde(default = "default_gain_ev")]
+    pub gain_ev: f64,
     /// Qlick Lab: the halation alone, on black, to see where it falls. A
     /// display aid for the open photograph: read from a render request, never
     /// written out, so no sidecar, recipe or export ever carries it.
@@ -315,6 +330,12 @@ fn default_one_f64() -> f64 {
 }
 fn default_half_f64() -> f64 {
     0.5
+}
+fn default_threshold_ev() -> f64 {
+    1.0
+}
+fn default_gain_ev() -> f64 {
+    3.0
 }
 fn default_scatter_core_f64() -> [f64; 3] {
     [2.2, 2.0, 1.6]
@@ -339,6 +360,16 @@ impl HalationParams {
     pub fn first_sigma_um(&self) -> [f64; 3] {
         self.halation_first_sigma_um.unwrap_or(SCHEMA_HALATION_FIRST_SIGMA_UM)
     }
+
+    /// Qlick Lab: the highlights the halation spreads, or `None` for the
+    /// whole image.
+    pub fn source(&self) -> Option<spektrafilm_model::diffusion::HalationSource> {
+        self.highlights_only.then_some(spektrafilm_model::diffusion::HalationSource {
+            threshold_ev: self.threshold_ev,
+            softness_ev: self.softness_ev,
+            gain_ev: self.gain_ev,
+        })
+    }
 }
 
 impl Default for HalationParams {
@@ -360,6 +391,10 @@ impl Default for HalationParams {
             halation_n_bounces: 3,
             halation_bounce_decay: 0.5,
             halation_renormalize: true,
+            highlights_only: true,
+            threshold_ev: default_threshold_ev(),
+            softness_ev: 1.0,
+            gain_ev: default_gain_ev(),
             show_mask: false,
         }
     }

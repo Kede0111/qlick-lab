@@ -104,8 +104,11 @@ let adjustmentGroups: [AdjustmentGroup] = [
         .slider("Clump size (nm)", "film_render.grain.micro_structure.1", 0...100, 1)
     ]),
     .init(title: "Halation", symbol: "sun.haze", section: .film, enable: "film_render.halation.active", basic: 1, controls: [
-        .slider("Amount", "film_render.halation.halation_amount", 0...3, 0.01),
+        .slider("Amount", "film_render.halation.halation_amount", 0...5, 0.01),
         .slider("Spatial scale", "film_render.halation.halation_spatial_scale", 0.1...5, 0.01),
+        .slider("Highlight gain (EV)", "film_render.halation.gain_ev", 0...8, 0.1),
+        .slider("Threshold (EV)", "film_render.halation.threshold_ev", -2...4, 0.1),
+        .slider("Softness (EV)", "film_render.halation.softness_ev", 0.1...3, 0.1),
         .slider("Scatter amount", "film_render.halation.scatter_amount", 0...3, 0.01),
         .slider("Scatter scale", "film_render.halation.scatter_spatial_scale", 0.1...5, 0.01),
         .slider("Bounces", "film_render.halation.halation_n_bounces", 1...5, 1),

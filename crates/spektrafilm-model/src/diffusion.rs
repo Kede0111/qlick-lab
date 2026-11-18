@@ -38,6 +38,59 @@ pub fn apply_gaussian_blur_um(
     }
 }
 
+/// Qlick Lab: where the halation's light comes from. Only light bright
+/// enough to cross the whole emulsion reaches the film base and comes back,
+/// so the lab feeds the halation from the highlights alone: the exposure of
+/// each pixel above `threshold_ev` (stops above 18% grey), with a transition
+/// `softness_ev` wide on either side. The energy is the brighter of red and
+/// green: blue is stopped by the yellow filter layer above the base. What
+/// comes back exposes mostly the red layer, then the green
+/// (`halation_strength`), so highlights get the red-orange rim film has,
+/// on the dark side of their edges, and the rest of the image is untouched.
+/// A digital file clips its lights a few stops over grey, where a lamp or
+/// the sun on film sits many stops higher; `gain_ev` gives the highlights
+/// back that light for the halation alone, in stops, rising with the
+/// transition: the image itself keeps its exposure.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct HalationSource {
+    pub threshold_ev: f64,
+    pub softness_ev: f64,
+    pub gain_ev: f64,
+}
+
+/// Where a mid-grey subject lands in the film's raw exposure (the target
+/// auto exposure meters to).
+const HALATION_MIDGRAY: f64 = 1.0;
+
+impl HalationSource {
+    /// The light that reaches the base at a pixel of red `r` and green `g`.
+    pub fn energy(&self, r: f64, g: f64) -> f64 {
+        let e = r.max(g);
+        if e <= 0.0 {
+            return 0.0;
+        }
+        let ev = (e / HALATION_MIDGRAY).log2();
+        let s = self.softness_ev.max(1e-3);
+        let t = ((ev - (self.threshold_ev - s)) / (2.0 * s)).clamp(0.0, 1.0);
+        let w = t * t * (3.0 - 2.0 * t);
+        e * w * (self.gain_ev * w).exp2()
+    }
+}
+
+/// Qlick Lab: Show mask with a highlight source shows how much the halation
+/// brightens a pixel, in stops, as an exposure on black: light falling on
+/// darker parts shows, light added to the highlights it came from barely
+/// does. `base` is the pixel's brighter of red and green, the same for every
+/// channel, and the channels keep their ratio when the strongest is capped
+/// at one stop, so the mask takes the halation's colour, not the subject's.
+/// One stop shows a stop over grey.
+pub fn halation_mask_pixel(base: f64, added: [f64; 3]) -> [f64; 3] {
+    let floor = HALATION_MIDGRAY / 64.0;
+    let stops = added.map(|a| (1.0 + a.max(0.0) / base.max(floor)).log2());
+    let over = stops.iter().copied().fold(1.0, f64::max);
+    stops.map(|s| HALATION_MIDGRAY * 2.0 * s / over)
+}
+
 /// Apply in-emulsion scatter and back-reflection halation.
 ///
 /// Port of Python `apply_halation_um`.
@@ -45,6 +98,10 @@ pub fn apply_gaussian_blur_um(
 /// Ordering: scatter → halation.
 /// Scatter: energy-preserving mixture of Gaussian core + exponential tail.
 /// Halation: additive multi-bounce sum of Gaussians with sqrt(k)-spaced widths.
+/// Qlick Lab: with a `source`, the bounces spread the highlights' light
+/// alone (see [`HalationSource`]), only what falls beyond the highlight it
+/// left is added, and nothing is renormalized; with none,
+/// upstream's model: the whole image spreads, then is divided by `1 + a`.
 #[allow(clippy::too_many_arguments)]
 pub fn apply_halation_um(
     raw: &ImageBuf,
@@ -61,6 +118,7 @@ pub fn apply_halation_um(
     halation_n_bounces: u32,
     halation_bounce_decay: f64,
     halation_renormalize: bool,
+    source: Option<HalationSource>,
     mask: bool,
     _backend: &dyn ComputeBackend,
 ) -> ImageBuf {
@@ -140,6 +198,20 @@ pub fn apply_halation_um(
             *d /= decay_sum;
         }
 
+        // Qlick Lab: the highlights' light, the same in every channel.
+        let energy: Option<Vec<Scalar>> = source.map(|s| {
+            (0..n_pix)
+                .map(|i| from_f64(s.energy(channels[0][i] as f64, channels[1][i] as f64)))
+                .collect()
+        });
+        // Show mask: each pixel's own brighter of red and green, before the
+        // halation's light replaces the image.
+        let raw_rg: Vec<f64> = if mask && source.is_some() {
+            (0..n_pix).map(|i| (channels[0][i] as f64).max(channels[1][i] as f64)).collect()
+        } else {
+            Vec::new()
+        };
+
         for c in 0..3 {
             if a_tot[c] == 0.0 {
                 continue;
@@ -149,32 +221,54 @@ pub fn apply_halation_um(
             if sigma_first_px_f64 <= 0.0 {
                 continue;
             }
+            let spread = energy.as_deref().unwrap_or(&channels[c]);
             let mut hb = vec![ZERO; n_pix];
             for (k, &wk) in decay.iter().enumerate() {
                 let sigma_k = (sigma_first_px_f64 * ((k as f64) + 1.0).sqrt()).max(1e-6) as f32;
-                let blurred = gaussian_blur_channel(&channels[c], w, h, sigma_k);
+                let blurred = gaussian_blur_channel(spread, w, h, sigma_k);
                 let wk_s = from_f64(wk);
                 for i in 0..n_pix {
                     hb[i] += wk_s * blurred[i];
                 }
             }
             let a_c = from_f64(a_tot[c]);
+            // Qlick Lab: with a source, only the light the bounces carry
+            // beyond the highlight it left: none on the light itself, the
+            // rim on the darker side of its edges.
+            match energy.as_deref() {
+                Some(e) => {
+                    for i in 0..n_pix {
+                        hb[i] = a_c * (hb[i] - e[i]).max(ZERO);
+                    }
+                }
+                None => hb.iter_mut().for_each(|v| *v *= a_c),
+            }
             if mask {
-                hb.iter_mut().for_each(|v| *v *= a_c);
                 bounced[c] = Some(hb);
                 continue;
             }
             for i in 0..n_pix {
-                channels[c][i] += a_c * hb[i];
+                channels[c][i] += hb[i];
             }
         }
         if mask {
             for c in 0..3 {
                 channels[c] = bounced[c].take().unwrap_or_else(|| vec![ZERO; n_pix]);
             }
+            if let Some(e) = energy.as_deref() {
+                // The light added, as how far it brightens each pixel.
+                debug_assert_eq!(e.len(), raw_rg.len());
+                for i in 0..n_pix {
+                    let base = raw_rg[i];
+                    let shown = halation_mask_pixel(base, [0, 1, 2].map(|c| channels[c][i] as f64));
+                    for c in 0..3 {
+                        channels[c][i] = from_f64(shown[c]);
+                    }
+                }
+            }
         }
 
-        if halation_renormalize {
+        if halation_renormalize && source.is_none() {
             let one = from_f64(1.0);
             for c in 0..3 {
                 let denom = one + from_f64(a_tot[c]);

@@ -583,8 +583,12 @@ mod tests {
     /// setting and renders with the same default.
     /// Qlick Lab's own: a preset (a Python file) can't hold colourless grain or
     /// no film, so applying one sets the film's grain and the film back.
-    const QLICK_DEFAULTS: [&str; 10] = [
+    const QLICK_DEFAULTS: [&str; 14] = [
         "film_render.grain.monochrome",
+        "film_render.halation.highlights_only",
+        "film_render.halation.threshold_ev",
+        "film_render.halation.softness_ev",
+        "film_render.halation.gain_ev",
         "film_render.grain.luminance_only",
         "io.no_film",
         "film_render.glare",

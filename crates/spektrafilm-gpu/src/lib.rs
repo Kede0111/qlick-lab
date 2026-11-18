@@ -625,6 +625,9 @@ pub struct HalationGpuParams {
     pub halation_n_bounces: u32,
     pub halation_bounce_decay: f32,
     pub halation_renormalize: bool,
+    /// Qlick Lab: the highlights the halation spreads (threshold, softness
+    /// and gain, in stops), or `None` for the whole image (upstream).
+    pub source: Option<[f32; 3]>,
     /// Qlick Lab: the halation alone, on black (Show mask): the bounced light
     /// replaces the image instead of being added to it.
     pub mask: bool,

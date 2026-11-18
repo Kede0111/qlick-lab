@@ -506,6 +506,7 @@ fn film_side_signature(p: &crate::FilmChainParams<'_>, image_name: &[u8], diffus
         halation_n_bounces,
         halation_bounce_decay,
         halation_renormalize,
+        source,
         mask,
     }) = halation
     {
@@ -517,6 +518,10 @@ fn film_side_signature(p: &crate::FilmChainParams<'_>, image_name: &[u8], diffus
         s.f64s(halation_first_sigma_px);
         s.u64(*halation_n_bounces as u64);
         s.bool(*halation_renormalize);
+        s.bool(source.is_some());
+        if let Some(source) = source {
+            s.f32s(source);
+        }
         s.bool(*mask);
     }
     s.bool(dir_couplers.is_some());
@@ -3995,6 +4000,9 @@ struct HalationState {
     buf_d: wgpu::Buffer,
     scatter_blurs: Vec<RefBlur>, // [core, tail × 3]
     scatter_mix: DispatchJob,
+    /// Qlick Lab: the highlights' light into `buf_c`, which the bounces
+    /// blur instead of the image (`None`: upstream, the image itself).
+    halation_source: Option<DispatchJob>,
     halation_blurs: Vec<RefBlur>, // one per bounce, accumulating into buf_d
     halation_final_add: DispatchJob,
     halation_renormalize: Option<DispatchJob>,
@@ -4628,6 +4636,45 @@ fn build_halation_state(
     for d in &mut decay {
         *d /= decay_sum;
     }
+    // Qlick Lab: the highlights' light, once the scatter is mixed in, into
+    // `buf_c` (free again), for the bounces to blur.
+    let halation_source = hp.source.map(|shape| {
+        let pipe = backend.cached_pipeline(
+            include_str!("../../spektrafilm-shaders/wgsl/halation_source.wgsl"),
+            &[
+                wgpu::BufferBindingType::Uniform,
+                wgpu::BufferBindingType::Storage { read_only: true },
+                wgpu::BufferBindingType::Storage { read_only: false },
+            ],
+        );
+        #[repr(C)]
+        #[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+        struct SourceParams {
+            n_pixels: u32,
+            _pad: [u32; 3],
+            shape: [f32; 4],
+        }
+        let params = backend.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("halation_source_params"),
+            contents: bytemuck::bytes_of(&SourceParams {
+                n_pixels: n_pixels as u32,
+                _pad: [0; 3],
+                shape: [shape[0], shape[1], shape[2], 0.0],
+            }),
+            usage: wgpu::BufferUsages::UNIFORM,
+        });
+        let bg = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("halation_source_bg"),
+            layout: &pipe.layout,
+            entries: &[
+                wgpu::BindGroupEntry { binding: 0, resource: params.as_entire_binding() },
+                wgpu::BindGroupEntry { binding: 1, resource: buf_b.as_entire_binding() },
+                wgpu::BindGroupEntry { binding: 2, resource: buf_c.as_entire_binding() },
+            ],
+        });
+        DispatchJob { _params_buf: params, pipeline: pipe, bg }
+    });
+    let spread = if halation_source.is_some() { &buf_c } else { buf_b };
     let halation_blurs: Vec<RefBlur> = if active {
         decay
             .iter()
@@ -4641,7 +4688,7 @@ fn build_halation_state(
                     backend,
                     width,
                     height,
-                    buf_b,
+                    spread,
                     buf_a,
                     &buf_d,
                     sigma,
@@ -4714,10 +4761,57 @@ fn build_halation_state(
         pipeline: final_add_pipe,
         bg: final_add_bg,
     };
+    // Qlick Lab: fed by the highlights, only the light beyond them is added.
+    let halation_final_add = if halation_source.is_some() {
+        let pipe = backend.cached_pipeline(
+            include_str!("../../spektrafilm-shaders/wgsl/halation_apply.wgsl"),
+            &[
+                wgpu::BufferBindingType::Uniform,
+                wgpu::BufferBindingType::Storage { read_only: true },
+                wgpu::BufferBindingType::Storage { read_only: true },
+                wgpu::BufferBindingType::Storage { read_only: false },
+            ],
+        );
+        #[repr(C)]
+        #[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+        struct ApplyParams {
+            n_pixels: u32,
+            mask: u32,
+            _pad: [u32; 2],
+            a: [f32; 4],
+        }
+        let params = backend.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("halation_apply_params"),
+            contents: bytemuck::bytes_of(&ApplyParams {
+                n_pixels: n_pixels as u32,
+                mask: replace as u32,
+                _pad: [0; 2],
+                a: if active {
+                    [hp.halation_a_tot[0], hp.halation_a_tot[1], hp.halation_a_tot[2], 0.0]
+                } else {
+                    [0.0; 4]
+                },
+            }),
+            usage: wgpu::BufferUsages::UNIFORM,
+        });
+        let bg = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("halation_apply_bg"),
+            layout: &pipe.layout,
+            entries: &[
+                wgpu::BindGroupEntry { binding: 0, resource: params.as_entire_binding() },
+                wgpu::BindGroupEntry { binding: 1, resource: buf_c.as_entire_binding() },
+                wgpu::BindGroupEntry { binding: 2, resource: buf_d.as_entire_binding() },
+                wgpu::BindGroupEntry { binding: 3, resource: buf_b.as_entire_binding() },
+            ],
+        });
+        DispatchJob { _params_buf: params, pipeline: pipe, bg }
+    } else {
+        halation_final_add
+    };
 
     // Per-channel renormalize: `result[c] /= 1 + a_tot[c]`. Uses the
     // pre-computed inverse factor passed in `inv_factor.xyz`.
-    let halation_renormalize = if hp.halation_renormalize {
+    let halation_renormalize = if hp.halation_renormalize && halation_source.is_none() {
         let renorm_pipe = backend.cached_pipeline(
             include_str!("../../spektrafilm-shaders/wgsl/halation_renormalize.wgsl"),
             &[
@@ -4780,6 +4874,7 @@ fn build_halation_state(
         buf_d,
         scatter_blurs,
         scatter_mix: scatter_mix_job,
+        halation_source,
         halation_blurs,
         halation_final_add,
         halation_renormalize,
@@ -4811,6 +4906,11 @@ impl HalationState {
                 blur.encode(encoder);
             }
             dispatch_linear(encoder, &self.scatter_mix);
+        }
+
+        // Qlick Lab: the highlights' light, for the bounces.
+        if let Some(job) = &self.halation_source {
+            dispatch_linear(encoder, job);
         }
 
         // Halation bounces
@@ -7699,6 +7799,7 @@ mod film_cache_tests {
                 halation_n_bounces: 3,
                 halation_bounce_decay: 0.5,
                 halation_renormalize: true,
+                source: Some([1.0, 1.0, 3.0]),
                 mask: false,
             }),
             dir_couplers: Some(crate::DirCouplersGpuParams {
