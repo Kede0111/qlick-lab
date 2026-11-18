@@ -20,7 +20,8 @@ version of Negs 0.15.0; Negs is credited (README, LICENSES.md, About) but is no 
 
 ## Building and testing
 
-- `scripts/build_app.sh` builds `dist/qlick-lab/Qlick Lab.app`; `scripts/make_icon.sh` makes the icon
+- `scripts/build_app.sh` builds `dist/qlick-lab/Qlick Lab.app` and regenerates `QlickLab.xcodeproj` from `project.yml`
+  (XcodeGen), with the version from `scripts/version`: commit the project with the change that added or removed files; `scripts/make_icon.sh` makes the icon
   from `assets/icon.png` (Icon Composer's `macos/AppIcon.icon` for macOS 26 and later, `assets/qlick-lab.icns` before).
 - Test with `scripts/drive.sh` (off-screen, its own home folder, captures only the app's window), on copies of
   the photographs in a scratch folder: the app writes `.qlick` sidecars beside the photographs it edits.

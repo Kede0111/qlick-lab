@@ -24,6 +24,13 @@ else
 fi
 
 command -v cargo >/dev/null || { echo "Rust is missing: install it from https://rustup.rs" >&2; exit 1; }
+# The Xcode project follows the sources and the version on every build, so it never falls behind (`project.yml`).
+if command -v xcodegen >/dev/null; then
+    sed -i '' -e "s/^\(    MARKETING_VERSION: \).*/\1\"$version\"/" -e "s/^\(    CURRENT_PROJECT_VERSION: \).*/\1\"$build\"/" project.yml
+    xcodegen generate --quiet
+else
+    echo "XcodeGen is missing (brew install xcodegen): QlickLab.xcodeproj is not brought up to date" >&2
+fi
 # The f32 and f64 tools are built apart: Cargo would otherwise unify their features.
 cargo build --locked --release -p spektrafilm-native ${rust_targets[@]+"${rust_targets[@]}"} --target-dir "$target_dir"
 cargo build --locked --release -p spektrafilm-cli --bin spektrafilm ${rust_targets[@]+"${rust_targets[@]}"} --target-dir "$target_dir"
