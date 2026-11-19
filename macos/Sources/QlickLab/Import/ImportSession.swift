@@ -156,7 +156,6 @@ enum ImportProgressStyle: String, CaseIterable, Sendable {
     // MARK: Sources
 
     private(set) var volumes: [ImportSource] = []
-    private(set) var recent: [URL] = (UserDefaults.standard.stringArray(forKey: "qlick.importRecent") ?? []).map { URL(fileURLWithPath: $0, isDirectory: true) }
     private(set) var source: ImportSource?
     /// Cards put in since the room was last looked at: the sidebar says so.
     var cards: [ImportSource] { volumes.filter { $0.kind == .card } }
@@ -269,7 +268,6 @@ enum ImportProgressStyle: String, CaseIterable, Sendable {
         plan = ImportPlan()
         // A card's photographs can't stay where they are: it starts on Copy.
         if source.kind == .card, options.mode == .add { options.mode = .copy }
-        if source.kind == .folder { remember(source.root) }
         let root = source.root
         scan = Task { [weak self] in
             let files = await Task.detached(priority: .userInitiated) { ImportScan.files(in: root, cancelled: { Task.isCancelled }) }.value
@@ -323,11 +321,6 @@ enum ImportProgressStyle: String, CaseIterable, Sendable {
             guard response == .OK, let url = panel.url else { return }
             MainActor.assumeIsolated { self?.open(ImportVolumes.folder(url)) }
         }
-    }
-
-    private func remember(_ folder: URL) {
-        recent = ([folder] + recent.filter { $0.standardizedFileURL != folder.standardizedFileURL }).prefix(6).map { $0 }
-        UserDefaults.standard.set(recent.map(\.path), forKey: "qlick.importRecent")
     }
 
     // MARK: What's shown

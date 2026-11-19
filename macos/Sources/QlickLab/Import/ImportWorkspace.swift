@@ -17,7 +17,7 @@ struct ImportWorkspace: View {
                 ImportProgressView(model: model, run: run)
             } else {
                 HStack(spacing: 0) {
-                    ImportSources(session: session)
+                    ImportSources(session: session, binder: model.lab.binder)
                         .frame(width: 208)
                         .background(Color(white: 0.045))
                         .overlay(alignment: .trailing) { Rectangle().fill(Color.white.opacity(0.06)).frame(width: 1) }
@@ -49,6 +49,7 @@ struct ImportWorkspace: View {
 
 private struct ImportSources: View {
     let session: ImportSession
+    let binder: Binder
     @State private var dropping = false
 
     var body: some View {
@@ -80,9 +81,10 @@ private struct ImportSources: View {
                 let disks = session.volumes.filter { $0.kind == .disk }
                 ForEach(disks) { disk in row(disk, trailing: "…") { session.chooseFolder(startingAt: disk.root) } }
                 RoomButton(symbol: "folder.badge.plus", title: "Choose a Folder…", on: false) { session.chooseFolder() }
-                if !session.recent.isEmpty {
-                    heading("Recent")
-                    ForEach(session.recent, id: \.self) { folder in
+                // The Binder's folders, where the photographs already on disk live.
+                if !binder.roots.isEmpty {
+                    heading("Binder")
+                    ForEach(binder.roots, id: \.self) { folder in
                         row(ImportVolumes.folder(folder)) { session.open(ImportVolumes.folder(folder)) }
                     }
                 }

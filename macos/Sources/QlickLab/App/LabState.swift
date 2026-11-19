@@ -114,6 +114,8 @@ struct SheetOptions: Codable, Equatable, Sendable {
     @ObservationIgnored private(set) lazy var proxyMaker = ProxyMaker(model: model)
     /// The import room: its source, what's chosen of it, and the import running.
     let importer: ImportSession
+    /// The folders on disk where the photographs live, as a tree (the sidebar's Binder).
+    let binder = Binder()
 
     private(set) var workspace = Workspace.develop
     /// The adjustments float over the photograph on glass, instead of in a column beside it.
@@ -188,6 +190,7 @@ struct SheetOptions: Codable, Equatable, Sendable {
         importer = ImportSession(model: model)
         projects = ProjectStore(directory: CatalogList().initial)
         importer.loadProfiles(inCatalog: projects.directory)
+        if NSClassFromString("XCTestCase") == nil { binder.start() }
         model.canvasScale.contextMenu = { [weak self] point in self?.developCommands.menu(at: point) }
     }
 

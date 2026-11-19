@@ -86,6 +86,11 @@ import AppKit
                 if let event = NSEvent.mouseEvent(with: type, location: CGPoint(x: x, y: y), modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
                                                   windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1) { window.sendEvent(event) }
             }
+        // binder add|remove <folder>
+        case "binder":
+            guard words.count >= 2 else { break }
+            let url = URL(fileURLWithPath: words.dropFirst().joined(separator: " "), isDirectory: true)
+            if words[0] == "add" { lab.binder.add(url) } else { lab.binder.remove(url.standardizedFileURL) }
         case "back": lab.goBack()
         case "forward": lab.goForward()
         // import <what> …: the import room without the mouse.

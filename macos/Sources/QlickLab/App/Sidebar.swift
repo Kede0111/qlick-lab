@@ -78,6 +78,7 @@ struct LabSidebar: View {
                             .fixedSize(horizontal: false, vertical: true)
                             .padding(.horizontal, 10).padding(.top, 4)
                     }
+                    BinderSection(model: model)
                 }
                 .padding(.horizontal, 10)
                 .padding(.bottom, 10)
