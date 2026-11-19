@@ -149,13 +149,85 @@ the pencil replaces the checkbox at Import (crossed = not imported); start with 
 - Binder: no rename/move of folders from the sidebar; roots aren't per catalogue.
 - Names Binder, Arrivals, Selection, Stocks to review with Quentin once he has tried them.
 
+### Library redesign, 0.4 (validated by Quentin 2026-11-20; proposal: https://claude.ai/artifact/5hWWwsb6vN6pvNfq56qxUa)
+
+Quentin found 0.3's Binder / Arrivals / Selection confusing and wants one organisation, sorted by drag and drop.
+**These decisions are his; follow them exactly.**
+
+THE DISK RULE (his "point d'honneur"): the app never moves, renames or deletes an image, except (1) the import,
+which creates folders and copies (Move mode: originals of the card to the Trash after verification, kept), and
+(2) the explicit Remove dialog below. Writing metadata IS allowed: XMP inside DNG ("Inside DNG files" stays), `.qlick`
+sidecars, import `.xmp`, `Roll.qlickroll` cards.
+
+Structure (sidebar, top to bottom):
+- Fixed entries: **All Photographs**, **Last Import**, **Picks**, **By Date** (year › month › day).
+- **Archives** (was "Project"; name decided: Archive). One per import subject ("Leica M11", "Voyage en Espagne"),
+  renamable. An Archive holds:
+  - its **Folders**: the imported disk locations, shown as a READ-ONLY tree with every sub-folder at every depth
+    (today rolls stop at depth 2), live (FSEvents), with counts. A folder keeps its card (film, camera, notes,
+    `Roll.qlickroll`). Dropping photos on a Folder is refused (row stays dark, a line says the disk is shown as it is).
+    One can work directly in an Archive or a Folder without any Box.
+  - its **Boxes**: virtual containers (catalogue only). A Box holds photos directly and/or **Rolls** (virtual
+    sub-sets, one level: Box › Roll). A photo can be in any number of Boxes/Rolls, from any Archive (references, never
+    copies). **Smart Rolls**: a Roll filled by rules.
+- Gone: Binder (and its amber dot), Arrivals, Selections, Import's Recent list (replaced by recent Archives' locations).
+- Conversion of old catalogues (once, automatic, nothing on disk moves): Project → Archive; its rolls → Folders;
+  Arrivals → an Archive "To Sort"; each Selection → a Box of the same name (in an Archive "Selections"); Binder roots
+  preference dropped.
+
+Gestures (every one undoable with one ⌘Z, a label during the drag says what will happen, e.g. "Move 12 photos to
+Rue" / "Copy 12 photos to Rue"):
+- Photos → Box or Roll: added (no duplicates).
+- Photos from a Roll/Box → another Roll/Box: **MOVED** (leave the first); with **⌥ held: COPIED** (in both). The
+  cursor/badge must show which (copy = the green "+" drag cursor and the label "Copy"; move = plain arrow, "Move").
+- **⌘C / ⌘V** between Rolls/Boxes: paste ADDS (never moves).
+- Photos → an Archive row: into its Box "To Sort". Photos in a Box/Roll grid: reorder by hand (manual order).
+- Roll → another Box: moves the Roll. Boxes, Rolls, Archives reorder in the sidebar by drag.
+- Folder → another Archive: the folder joins that Archive (nothing moves on disk).
+- Finder folder → Archive or window: opens Import on it.
+- Closed rows spring open after 0.7 s while dragging; the sidebar auto-scrolls near its edges.
+- Menus too: Add to Box (⌘⇧B), New Box from Selection, Remove from Box.
+
+Removing (the only deletes besides the import's Move):
+- "Move to Trash…" disappears everywhere. In its place: **Remove…** (⌫, for the selection) and **Remove Rejected
+  Photos…** (Photo menu, and a button by the rejected filter). Both open ONE clear, visible dialog that names the count
+  and offers: **Remove from Qlick Lab** (out of the catalogue: its Archive listing and every Box; files untouched;
+  catalogue exclusion list, undoable) or **Delete from Disk** (files to the Trash) — the latter with a second, explicit
+  confirmation in red words: "This deletes N photographs from the disk." Never a silent delete.
+
+Sorting tools to add: colour labels (red, yellow, green, blue = keys 6–9, purple; nameable), keywords (panel with list
+and counts, ⌘K, keyword sets ⌥1–9) stored in XMP/sidecar, editable title/caption, `[` `]` rating steps, Shift+key =
+mark and advance (auto advance), sort by import date / edit date / label / manual order, filters for label, keyword,
+film, camera, lens, period + "Save as Smart Roll", field search (`rating:>=3 pick film:portra camera:m11 lens:35
+iso:>800 date:2026-09 keyword:usa label:red`), Smart Rolls (all/any/none rules over rating, flag, label, keyword,
+film loaded, film developed, recipe, camera, lens, focal, aperture, shutter, ISO, dates, name, type, orientation,
+developed), **New Rolls by Day** (a Box with one Roll per capture day, virtual), burst stacks.
+
+Import: **Archive required** (existing, or new pre-named "M11 · 2026-11-19"), optional destination Box/Roll, film card
+fields (film, camera, notes → each created Folder's card), the source tree kept at every depth, structure options
+always visible (greyed with a line in Leave in Place: "The photographs stay where they are: nothing is copied or
+renamed"): By Day (2026/2026-09-19), By Month (2026/2026-09), By Year (2026), By Day and Job, One Folder, Custom with
+buttons inserting tags (year, month, day, month name, job, camera, lens, card; unknown tag flagged); file names: camera's,
+Date_0001, Job_001, Date-Name, Date_Time, Custom with the same buttons; an example line
+(`L1004394.DNG → Photos/2026/2026-09-19/20260919_0001.DNG`); flag duplicates inside the source and unreadable files.
+
+Steps (one local commit each, tests, `scripts/drive.sh` screenshots checked, Dev rebuilt, this file updated):
+- [ ] R1 Structure: Archive › Folders (read-only deep tree) + Boxes › Rolls in the catalogue, conversion, new sidebar,
+  title crumbs, Binder/Arrivals/Selections removed.
+- [ ] R2 Drag and drop, move vs ⌥ copy with visible cursor, ⌘C/⌘V paste-adds, menus, reorder, spring-open.
+- [ ] R3 Remove… / Remove Rejected Photos… dialog; Move to Trash removed.
+- [ ] R4 Colour labels, keywords panel, editable title/caption.
+- [ ] R5 All Photographs, Last Import, Picks, By Date, field search, Smart Rolls, New Rolls by Day, filters, sorts.
+- [ ] R6 Import options above.
+- [ ] R7 Manual order polish, burst stacks, `[` `]`, auto advance.
+
 ## Current state
 
 - Phase: `feature/import-library` holds architecture waves 1–3, 0.1.5, 0.2 and 0.3 (local, nothing pushed, `main`
   untouched). Swift tests: 505 (24 skipped), all pass; the Rust side wasn't changed in 0.3. Qlick Lab Dev is built
   from it (`dist/qlick-lab-dev/Qlick Lab Dev.app`).
-- Next: Quentin tries 0.3 in Qlick Lab Dev; then the follow-ups above, wave 2's step 2 (models lifted out of
-  EditorModel), contract step 2's remaining replies. Merge into `main` and push only when he says so.
+- Next: the library redesign 0.4 above, R1 → R7, on `feature/import-library`. Merge into `main` and push only when
+  he says so.
 
 ## Build and test
 
