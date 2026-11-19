@@ -265,6 +265,8 @@ enum ImportProgressStyle: String, CaseIterable, Sendable {
         excluded = []; marks = [:]; selected = []; current = nil; anchor = nil
         factsRead = 0; scanning = true; view = .grid; filter = .all
         plan = ImportPlan()
+        // A card's photographs can't stay where they are: it starts on Copy.
+        if source.kind == .card, options.mode == .add { options.mode = .copy }
         if source.kind == .folder { remember(source.root) }
         let root = source.root
         scan = Task { [weak self] in

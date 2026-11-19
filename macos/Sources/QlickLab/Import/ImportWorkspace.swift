@@ -463,7 +463,7 @@ private struct ImportFoot: View {
             }
             Spacer(minLength: 8)
             Button { session.start() } label: {
-                Label(session.options.mode == .add ? "Add" : "Import", systemImage: "square.and.arrow.down").labelStyle(.titleAndIcon)
+                Label("Import", systemImage: "square.and.arrow.down").labelStyle(.titleAndIcon)
             }
             .buttonStyle(QPrimaryButtonStyle())
             .disabled(blocker != nil)

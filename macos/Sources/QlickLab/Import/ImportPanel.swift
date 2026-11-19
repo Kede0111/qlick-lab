@@ -14,10 +14,14 @@ struct ImportPanel: View {
         let options = session.options
         ScrollView(.vertical) {
             VStack(alignment: .leading, spacing: 0) {
-                PanelSection("Profile") {
+                // The decision that matters most comes first, in three words.
+                ImportModeCards(session: session, card: session.source?.kind == .card)
+                    .padding(.horizontal, 12).padding(.top, 14).padding(.bottom, 4)
+
+                PanelSection("Lab Order") {
                     HStack(spacing: 6) {
                         Menu {
-                            if session.profiles.isEmpty { Text("No profile yet") }
+                            if session.profiles.isEmpty { Text("No lab order yet") }
                             ForEach(session.profiles.keys.sorted(), id: \.self) { name in
                                 Button(name) { session.apply(profile: name) }
                             }
@@ -31,19 +35,18 @@ struct ImportPanel: View {
                             .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
                         Spacer()
                         Button("Save…") { profileName = currentProfile(session) ?? ""; naming = true }.buttonStyle(QPillButtonStyle())
-                            .help("Keeps these choices under a name, to use them again in one click")
+                            .help("Keeps these choices under a name, like a lab's order envelope, to use them again in one click")
                     }
                     if naming {
                         HStack(spacing: 6) {
-                            PanelField("Profile name", text: $profileName)
+                            PanelField("Lab order name", text: $profileName)
                             Button("Save") { session.saveProfile(named: profileName); naming = false }.buttonStyle(QPillButtonStyle())
                                 .disabled(profileName.trimmingCharacters(in: .whitespaces).isEmpty)
                         }
                     }
                 }
 
-                PanelSection("Destination") {
-                    QSegmented(options: ImportMode.allCases.map { ($0, $0.title, $0.help) }, selection: $session.options.mode)
+                PanelSection(options.mode == .add ? "Where They Are" : "Destination") {
                     if options.mode == .move, session.source?.kind == .card {
                         PanelHint("Move isn’t offered for memory cards. Copy, check, then format the card in the camera.", warn: true)
                     }
@@ -100,17 +103,18 @@ struct ImportPanel: View {
 
                 PanelSection("Project") {
                     HStack(spacing: 6) {
-                        PanelField("No project", text: $session.options.project)
+                        PanelField("Arrivals", text: Binding(get: { session.chosenProject?.name ?? session.options.project },
+                                                              set: { session.options.project = $0; session.options.projectID = nil }))
                         Menu {
-                            Button("No Project") { session.options.project = "" }
+                            Button("Arrivals (No Project)") { session.choose(project: nil) }
                             Divider()
-                            ForEach(model.lab.projects.ordinary) { project in Button(project.name) { session.options.project = project.name } }
+                            ForEach(model.lab.projects.ordinary) { project in Button(project.name) { session.choose(project: project) } }
                         } label: { Image(systemName: "chevron.down").font(.system(size: 10, weight: .semibold)) }
                             .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
                     }
                     PanelHint(options.project.trimmingCharacters(in: .whitespaces).isEmpty
-                              ? "Name a project and each folder of the import becomes one of its rolls."
-                              : "Each folder of the import becomes a roll of “\(options.project)”.")
+                              ? "Without a project, each folder waits in Arrivals, to be filed later."
+                              : "Each folder of the import becomes a roll of “\(session.chosenProject?.name ?? options.project)”.")
                 }
 
                 PanelSection("Words") {
@@ -352,5 +356,37 @@ private struct RecipeChooser: View {
             }
         } label: { Label(title, systemImage: "flask").font(Theme.caps(11.5)).labelStyle(.titleAndIcon) }
             .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
+    }
+}
+
+/// The counter's first question, as three cards: copy the photographs to this Mac, move them, or leave them where
+/// they are. The rest of the panel follows from it.
+struct ImportModeCards: View {
+    @Bindable var session: ImportSession
+    let card: Bool
+
+    var body: some View {
+        VStack(spacing: 6) {
+            ForEach(ImportMode.allCases, id: \.self) { mode in
+                let on = session.options.mode == mode
+                let offered = !card || mode == .copy
+                Button { session.options.mode = mode } label: {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(mode.title).font(.system(size: 13, weight: .semibold)).foregroundStyle(on ? Theme.paper : Color(white: 0.8))
+                        Text(mode.help).font(.system(size: 11)).foregroundStyle(Theme.dim).fixedSize(horizontal: false, vertical: true)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 12).padding(.vertical, 9)
+                    .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.white.opacity(on ? 0.1 : 0.03)))
+                    .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(on ? Theme.accent : Color.white.opacity(0.08), lineWidth: on ? 1.5 : 1))
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .disabled(!offered)
+                .opacity(offered ? 1 : 0.4)
+                .help(offered ? mode.help : "A memory card's photographs are copied: format the card in the camera afterwards.")
+                .accessibilityAddTraits(on ? .isSelected : [])
+            }
+        }
     }
 }

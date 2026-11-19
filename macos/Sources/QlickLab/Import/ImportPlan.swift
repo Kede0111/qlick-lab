@@ -121,9 +121,9 @@ enum ImportMode: String, Codable, CaseIterable, Sendable {
     case copy, move, add
     var title: String {
         switch self {
-        case .copy: "Copy"
+        case .copy: "Copy to My Disk"
         case .move: "Move"
-        case .add: "Add in Place"
+        case .add: "Leave Where They Are"
         }
     }
     var help: String {
@@ -175,8 +175,11 @@ struct ImportOptions: Codable, Equatable, Sendable {
     var creator = ""
     var copyright = ""
     var caption = ""
-    /// The project the rolls go to; empty makes none.
+    /// The project the rolls go to, by name; empty sends them to Arrivals.
     var project = ""
+    /// The same project by its identity, so renaming it doesn't make a new one at the next import. Nil when the
+    /// name was typed (a new project) or for options saved before it.
+    var projectID: UUID? = nil
     /// Each photograph's own Auto white balance and exposure under its recipe.
     var balanceEach = false
 }

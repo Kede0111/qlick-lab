@@ -16,7 +16,7 @@ import AppKit
         }
         menu.addItem(.separator())
         add("New Project…", #selector(newProject), "n", [.command, .shift])
-        add("Add Folders in Place…", #selector(importFolder), "i", [.command, .shift])
+        add("Import a Folder…", #selector(importFolder), "i", [.command, .shift])
         menu.addItem(.separator())
         // The catalog's commands, also in File, where their keys are.
         add("New Catalog…", #selector(newCatalog), "")

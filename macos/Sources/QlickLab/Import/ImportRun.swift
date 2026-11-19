@@ -158,6 +158,21 @@ private final class ImportMailbox: @unchecked Sendable {
 }
 
 extension ImportSession {
+    /// The project the import's options name: by its identity first, so a renamed project is still found, then by
+    /// name. Nil for a name no project has yet (the import makes it) and for none (Arrivals).
+    var chosenProject: LabProject? {
+        let projects = model.lab.projects
+        if let id = options.projectID, let project = projects.ordinary.first(where: { $0.id == id }) { return project }
+        let name = options.project.trimmingCharacters(in: .whitespaces)
+        return name.isEmpty ? nil : projects.project(named: name)
+    }
+
+    /// Chooses a project for the import, by identity.
+    func choose(project: LabProject?) {
+        options.project = project?.name ?? ""
+        options.projectID = project?.id
+    }
+
     /// Starts the import of what's checked. Nothing happens if something stands in its way (`blocker`).
     func start() {
         guard blocker == nil, let source else { return }
@@ -281,7 +296,7 @@ extension ImportSession {
         let name = name.trimmingCharacters(in: .whitespaces)
         guard !folders.isEmpty else { return }
         let projects = model.lab.projects
-        let project = name.isEmpty ? projects.arrivalsBox() : projects.project(named: name) ?? projects.create(named: name)
+        let project = name.isEmpty ? projects.arrivalsBox() : chosenProject ?? projects.create(named: name)
         let had = Set(project.rolls.map(\.folder))
         let new = folders.filter { !had.contains($0.standardizedFileURL.path) }
         guard !new.isEmpty else { return }
@@ -407,7 +422,7 @@ extension ImportSession {
         guard let run, let first = run.folders.first else { return }
         let name = options.project.trimmingCharacters(in: .whitespaces)
         let projects = model.lab.projects
-        if run.folders.count > 1, let project = name.isEmpty ? projects.arrivals : projects.project(named: name) {
+        if run.folders.count > 1, let project = name.isEmpty ? projects.arrivals : chosenProject {
             model.lab.openWhole(project)
         } else {
             model.lab.open(folder: first)

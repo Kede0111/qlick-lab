@@ -329,8 +329,16 @@ struct SheetOptions: Codable, Equatable, Sendable {
             model.error = "No readable photographs in “\(folders[0].lastPathComponent)”."
             return
         }
-        if let project = project ?? current?.project.id {
-            add(folders, to: project)
+        // One counter: a single folder opens the Import room on it, Leave Where They Are chosen, the project already
+        // named, so the recipe, the marks and the words are chosen as for a card. Several at once are added directly.
+        let target = (project ?? current?.project.id).flatMap { id in projects.ordinary.first { $0.id == id } }
+        if folders.count == 1, importer.run == nil {
+            importer.open(ImportVolumes.folder(folders[0]))
+            importer.options.mode = .add
+            importer.choose(project: target)
+            show(.importer)
+        } else if let target {
+            add(folders, to: target.id)
         } else {
             naming = ProjectNaming(name: projects.uniqueName(folders.count == 1 ? folders[0].lastPathComponent : "New Project"), folders: folders)
         }
@@ -350,9 +358,9 @@ struct SheetOptions: Codable, Equatable, Sendable {
 
     func importPanel(into project: UUID? = nil) {
         let panel = NSOpenPanel()
-        panel.title = "Import"
-        panel.message = "Choose one or more folders of photographs. Nothing is copied: each folder becomes a roll of the project. To copy from a card or a disk, use Import."
-        panel.prompt = "Import"
+        panel.title = "Import a Folder"
+        panel.message = "Choose a folder of photographs. Import opens on it: copy it, move it, or leave it where it is."
+        panel.prompt = "Choose"
         panel.canChooseFiles = false; panel.canChooseDirectories = true; panel.allowsMultipleSelection = true
         panel.begin { [weak self] response in
             guard response == .OK else { return }
