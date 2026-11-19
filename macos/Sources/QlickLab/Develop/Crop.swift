@@ -511,7 +511,7 @@ struct CropEditor: View {
                     }
                     .foregroundStyle(.white)
                     .padding(.horizontal, 11).frame(height: 24)
-                    .background(Capsule().fill(Q.red.opacity(0.9)))
+                    .background(Capsule().fill(Theme.accent.opacity(0.9)))
                     .contentShape(Capsule())
                 }
                 .buttonStyle(.plain)

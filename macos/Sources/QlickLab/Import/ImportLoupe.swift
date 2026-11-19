@@ -97,19 +97,19 @@ struct ImportLoupe: View {
     private func caption(_ frame: ImportFrame, marks: ImportMarks) -> some View {
         let session = session
         return HStack(spacing: 12) {
-            Text(frame.file.name).font(Q.label(12.5, weight: .semibold)).foregroundStyle(Q.text).fixedSize()
-            if let time = frame.time { Text(time.text).font(Q.value(11.5)).foregroundStyle(Color(white: 0.75)) }
-            if marks.rating > 0 { Text(String(repeating: "★", count: marks.rating)).font(.system(size: 11)).foregroundStyle(Q.text) }
+            Text(frame.file.name).font(Theme.caps(12.5, weight: .semibold)).foregroundStyle(Theme.paper).fixedSize()
+            if let time = frame.time { Text(time.text).font(Theme.value(11.5)).foregroundStyle(Color(white: 0.75)) }
+            if marks.rating > 0 { Text(String(repeating: "★", count: marks.rating)).font(.system(size: 11)).foregroundStyle(Theme.paper) }
             if let recipe = marks.recipe {
                 Divider().frame(height: 14).overlay(Color.white.opacity(0.15))
-                Label(recipe, systemImage: "flask").font(.system(size: 11.5)).foregroundStyle(Q.text).labelStyle(.titleAndIcon).lineLimit(1)
+                Label(recipe, systemImage: "flask").font(.system(size: 11.5)).foregroundStyle(Theme.paper).labelStyle(.titleAndIcon).lineLimit(1)
                 if developing { ProgressView().controlSize(.mini) }
                 else if developed == nil { Text("couldn’t be developed").font(.system(size: 11)).foregroundStyle(Theme.warn).lineLimit(1) }
                 Button(session.splitBefore ? "Recipe Only" : "Camera | Recipe") { session.splitBefore.toggle() }.buttonStyle(QPillButtonStyle())
                     .help("The camera’s rendering beside the recipe’s, or the recipe’s alone (\\)")
             } else {
                 Divider().frame(height: 14).overlay(Color.white.opacity(0.15))
-                Text("Camera’s rendering").font(.system(size: 11.5)).foregroundStyle(Q.dim)
+                Text("Camera’s rendering").font(.system(size: 11.5)).foregroundStyle(Theme.dim)
                     .help("The preview the camera wrote into the file. Give the frame a recipe to see it developed.")
             }
             Divider().frame(height: 14).overlay(Color.white.opacity(0.15))
@@ -173,7 +173,7 @@ struct ImportCompare: View {
                     .frame(minHeight: items.count > 2 ? 0 : 360)
                     .clipped()
                     .contentShape(Rectangle())
-                    .onTapGesture(count: 2) { withAnimation(Q.quick) { zoom = zoom > 1 ? 1 : 4; if zoom == 1 { pan = .zero } } }
+                    .onTapGesture(count: 2) { withAnimation(Theme.quick) { zoom = zoom > 1 ? 1 : 4; if zoom == 1 { pan = .zero } } }
                     .onTapGesture { session.focus(item) }
                 }
             }
@@ -186,10 +186,10 @@ struct ImportCompare: View {
             Spacer(minLength: 0)
             HStack(spacing: 10) {
                 Text(items.count < 2 ? "Select two to four frames to compare them." : "Double-click enlarges all of them at the same place; drag moves them together.")
-                    .font(.system(size: 11)).foregroundStyle(Q.dim)
+                    .font(.system(size: 11)).foregroundStyle(Theme.dim)
                 Spacer()
                 Slider(value: $zoom, in: 1...12).controlSize(.mini).tint(Color(white: 0.75)).frame(width: 130)
-                Button("Fit") { withAnimation(Q.quick) { zoom = 1; pan = .zero } }.buttonStyle(QPillButtonStyle())
+                Button("Fit") { withAnimation(Theme.quick) { zoom = 1; pan = .zero } }.buttonStyle(QPillButtonStyle())
             }
             .padding(.horizontal, 14).frame(height: 38)
         }
@@ -220,10 +220,10 @@ private struct ImportComparePane: View {
             VStack {
                 Spacer()
                 HStack(spacing: 8) {
-                    Text(item.lastPathComponent).font(Q.value(11)).foregroundStyle(Q.text)
-                    if marks.rating > 0 { Text(String(repeating: "★", count: marks.rating)).font(.system(size: 10)).foregroundStyle(Q.text) }
+                    Text(item.lastPathComponent).font(Theme.value(11)).foregroundStyle(Theme.paper)
+                    if marks.rating > 0 { Text(String(repeating: "★", count: marks.rating)).font(.system(size: 10)).foregroundStyle(Theme.paper) }
                     if let flag = marks.flag.flatMap(PhotoSidecar.Flag.init(rawValue:)) { MarkGlyph(flag: flag).frame(width: 15, height: 11) }
-                    if !session.included(item) { Text("LEFT OUT").font(.system(size: 8.5, weight: .bold)).foregroundStyle(Q.dim) }
+                    if !session.included(item) { Text("LEFT OUT").font(.system(size: 8.5, weight: .bold)).foregroundStyle(Theme.dim) }
                 }
                 .padding(.horizontal, 10).frame(height: 24).background(Capsule().fill(Color.black.opacity(0.6))).padding(8)
             }

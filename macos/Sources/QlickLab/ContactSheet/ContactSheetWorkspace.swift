@@ -37,7 +37,7 @@ struct ContactSheetWorkspace: View {
                     .transition(.opacity)
             }
         }
-        .animation(Q.quick, value: lab.loupe)
+        .animation(Theme.quick, value: lab.loupe)
         .background(lab.sheet.lightTable ? Color(white: 0.9) : Color(white: 0.058))
         .environment(\.colorScheme, .dark)
     }
@@ -72,11 +72,11 @@ private struct SheetToolbar: View {
                 QIconButton(symbol: "film", help: lab.sheet.showFilm ? "Hide the film: the photographs alone" : "Show the film under the photographs", active: lab.sheet.showFilm) { lab.sheet.showFilm.toggle() }
             }
             HStack(spacing: 6) {
-                Image(systemName: "photo").font(.system(size: 9)).foregroundStyle(Q.dim)
+                Image(systemName: "photo").font(.system(size: 9)).foregroundStyle(Theme.dim)
                 Slider(value: $lab.sheet.frameWidth, in: SheetOptions.widths)
                     .controlSize(.mini).tint(Color(white: 0.75)).frame(width: 110)
                     .help("Frame size (pinch on the trackpad)")
-                Image(systemName: "photo").font(.system(size: 13)).foregroundStyle(Q.dim)
+                Image(systemName: "photo").font(.system(size: 13)).foregroundStyle(Theme.dim)
             }
             Divider().frame(height: 16).overlay(Color.white.opacity(0.12))
             QIconButton(symbol: lab.sheet.lightTable ? "lightbulb.fill" : "lightbulb", help: "Light table", active: lab.sheet.lightTable) { lab.sheet.lightTable.toggle() }
@@ -137,7 +137,7 @@ struct MarkGlyph: View {
         Canvas { context, size in
             let rect = CGRect(origin: .zero, size: size).insetBy(dx: 1, dy: 1)
             let strokes = flag == .pick ? GreasePencil.ring(in: rect, seed: "glyph", weight: 1.7) : GreasePencil.cross(in: rect.insetBy(dx: -2, dy: -1), seed: "glyph", weight: 1.9)
-            for stroke in strokes { context.fill(Path(stroke.path()), with: .color(Q.red.opacity(stroke.opacity))) }
+            for stroke in strokes { context.fill(Path(stroke.path()), with: .color(Theme.accent.opacity(stroke.opacity))) }
         }
         .accessibilityHidden(true)
     }
@@ -145,7 +145,7 @@ struct MarkGlyph: View {
 
 private struct SheetMessage: View {
     let text: String
-    var body: some View { Text(text).font(.system(size: 13)).foregroundStyle(Q.dim) }
+    var body: some View { Text(text).font(.system(size: 13)).foregroundStyle(Theme.dim) }
 }
 
 private struct SheetEmpty: View {
@@ -153,9 +153,9 @@ private struct SheetEmpty: View {
     var body: some View {
         VStack(spacing: 16) {
             QMark(size: 54)
-            Text("No contact sheet open").font(Q.title(19)).foregroundStyle(Q.text)
+            Text("No contact sheet open").font(Theme.title(19)).foregroundStyle(Theme.paper)
             Text("Drop a folder of photographs on the window,\nor open a roll of a project.")
-                .font(.system(size: 13)).foregroundStyle(Q.dim).multilineTextAlignment(.center)
+                .font(.system(size: 13)).foregroundStyle(Theme.dim).multilineTextAlignment(.center)
             Button("Import a Folder…") { model.lab.importPanel() }.buttonStyle(QPrimaryButtonStyle())
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -173,7 +173,7 @@ struct FrameInfoPanel: View {
         let facts = model.lab.facts.get(item)
         let summary = model.library.summary(for: item)
         VStack(alignment: .leading, spacing: 7) {
-            Text(model.library.name(of: item)).font(.system(size: 12.5, weight: .semibold)).foregroundStyle(Q.text).lineLimit(1)
+            Text(model.library.name(of: item)).font(.system(size: 12.5, weight: .semibold)).foregroundStyle(Theme.paper).lineLimit(1)
             if let facts {
                 if let date = facts.dateLine { row("Date", date) }
                 if let camera = facts.camera { row("Camera", camera) }
@@ -199,7 +199,7 @@ struct FrameInfoPanel: View {
     private func row(_ label: String, _ value: String) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             CapsLabel(label, size: 9.5).frame(width: 74, alignment: .leading)
-            Text(value).font(Q.value(11.5)).foregroundStyle(Color(white: 0.86)).lineLimit(2).fixedSize(horizontal: false, vertical: true)
+            Text(value).font(Theme.value(11.5)).foregroundStyle(Color(white: 0.86)).lineLimit(2).fixedSize(horizontal: false, vertical: true)
         }
     }
 }

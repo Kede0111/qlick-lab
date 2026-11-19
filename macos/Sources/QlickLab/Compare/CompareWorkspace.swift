@@ -397,13 +397,13 @@ private struct CompareToolbar: View {
                 .help("One pixel of the develop for one pixel of the screen")
             // Zoom out below fitting, or in, from the middle; the wheel and a pinch zoom about the pointer.
             HStack(spacing: 6) {
-                Image(systemName: "minus.magnifyingglass").font(.system(size: 10)).foregroundStyle(Q.dim)
+                Image(systemName: "minus.magnifyingglass").font(.system(size: 10)).foregroundStyle(Theme.dim)
                 Slider(value: Binding(get: { log2(Double(compare.zoom)) }, set: { compare.canvas?.setZoom(CGFloat(pow(2, $0))) }), in: -2...5)
                     .controlSize(.mini).tint(Color(white: 0.75)).frame(width: 120)
-                Image(systemName: "plus.magnifyingglass").font(.system(size: 10)).foregroundStyle(Q.dim)
+                Image(systemName: "plus.magnifyingglass").font(.system(size: 10)).foregroundStyle(Theme.dim)
             }
             .help("Zoom: from a quarter of the fitted size to 32 times it")
-            Text("\(Int((compare.magnification * 100).rounded())) %").font(Q.value(11.5)).foregroundStyle(Q.dim).frame(width: 46, alignment: .trailing)
+            Text("\(Int((compare.magnification * 100).rounded())) %").font(Theme.value(11.5)).foregroundStyle(Theme.dim).frame(width: 46, alignment: .trailing)
             if compare.canAddPane {
                 QIconButton(symbol: "plus.rectangle.on.rectangle", help: lab.compare.kind == .versions ? "New version of this photograph" : "Add a pane") { compare.addPane() }
             }
@@ -449,7 +449,7 @@ private struct PaneLabel: View {
                 if compare.busy.contains(pane.id) { ProgressView().controlSize(.mini) }
                 if kind == .photographs || kind == .versions {
                     if let flag = summary.flag { MarkGlyph(flag: flag).frame(width: 17, height: 13) }
-                    if summary.rating > 0 { Text(String(repeating: "★", count: summary.rating)).font(.system(size: 10)).foregroundStyle(Q.text) }
+                    if summary.rating > 0 { Text(String(repeating: "★", count: summary.rating)).font(.system(size: 10)).foregroundStyle(Theme.paper) }
                 }
             }
             .padding(.horizontal, 10).frame(height: 28)
@@ -480,8 +480,8 @@ private struct PaneLabel: View {
 
     private func tagText(_ title: String, chevron: Bool) -> some View {
         HStack(spacing: 5) {
-            Text(title).font(Q.label(12, weight: .semibold)).foregroundStyle(Q.text).lineLimit(1)
-            if chevron { Image(systemName: "chevron.down").font(.system(size: 8, weight: .bold)).foregroundStyle(Q.dim) }
+            Text(title).font(Theme.caps(12, weight: .semibold)).foregroundStyle(Theme.paper).lineLimit(1)
+            if chevron { Image(systemName: "chevron.down").font(.system(size: 8, weight: .bold)).foregroundStyle(Theme.dim) }
         }
     }
 }
@@ -493,8 +493,8 @@ private struct PaneTag: View {
     var body: some View {
         VStack {
             HStack(spacing: 7) {
-                CapsLabel(title, size: 10.5, color: Q.text)
-                if !subtitle.isEmpty { Text(subtitle).font(Q.label(11)).foregroundStyle(Q.dim).lineLimit(1) }
+                CapsLabel(title, size: 10.5, color: Theme.paper)
+                if !subtitle.isEmpty { Text(subtitle).font(Theme.caps(11)).foregroundStyle(Theme.dim).lineLimit(1) }
                 if busy { ProgressView().controlSize(.mini) }
             }
             .padding(.horizontal, 11).frame(height: 28)
@@ -510,13 +510,13 @@ private struct CompareEmpty: View {
     let compare: CompareModel
     var body: some View {
         VStack(spacing: 12) {
-            Image(systemName: "rectangle.split.2x1").font(.system(size: 34, weight: .light)).foregroundStyle(Q.faint)
+            Image(systemName: "rectangle.split.2x1").font(.system(size: 34, weight: .light)).foregroundStyle(Theme.faint)
             Text(model.lab.compare.kind == .recipes && model.presets.isEmpty ? "No recipes to compare" : "Nothing to compare yet")
-                .font(Q.title(17)).foregroundStyle(Q.text)
+                .font(Theme.title(17)).foregroundStyle(Theme.paper)
             Text(model.lab.compare.kind == .recipes && model.presets.isEmpty
                  ? "First save a development as a recipe, in Develop or Recipes."
                  : "Open a roll, select frames on the contact sheet, then come back here.")
-                .font(.system(size: 12.5)).foregroundStyle(Q.dim).multilineTextAlignment(.center)
+                .font(.system(size: 12.5)).foregroundStyle(Theme.dim).multilineTextAlignment(.center)
             if model.source != nil { Button("Contact Sheet") { model.lab.show(.contactSheet) }.buttonStyle(QPillButtonStyle()) }
         }
         .padding(30)

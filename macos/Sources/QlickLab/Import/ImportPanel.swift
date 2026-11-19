@@ -27,7 +27,7 @@ struct ImportPanel: View {
                                     ForEach(session.profiles.keys.sorted(), id: \.self) { name in Button(name) { session.deleteProfile(name) } }
                                 }
                             }
-                        } label: { Label(currentProfile(session) ?? "Choose…", systemImage: "chevron.down").font(Q.label(12)).labelStyle(.titleAndIcon) }
+                        } label: { Label(currentProfile(session) ?? "Choose…", systemImage: "chevron.down").font(Theme.caps(12)).labelStyle(.titleAndIcon) }
                             .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
                         Spacer()
                         Button("Save…") { profileName = currentProfile(session) ?? ""; naming = true }.buttonStyle(QPillButtonStyle())
@@ -52,7 +52,7 @@ struct ImportPanel: View {
                         if let free = session.freeSpace {
                             let need = session.bytesNeeded
                             Text("\(ByteCountFormatter.string(fromByteCount: Int64(free), countStyle: .file)) free · this import needs \(ByteCountFormatter.string(fromByteCount: Int64(need), countStyle: .file))")
-                                .font(Q.value(10.5)).foregroundStyle(free < need ? Theme.warn : Q.dim)
+                                .font(Theme.value(10.5)).foregroundStyle(free < need ? Theme.warn : Theme.dim)
                         }
                         PanelToggle("Second copy", isOn: Binding(get: { options.secondCopy != nil }, set: { on in
                             if on { chooseFolder("Second Copy") { session.options.secondCopy = $0 } } else { session.options.secondCopy = nil }
@@ -74,14 +74,14 @@ struct ImportPanel: View {
                         HStack(spacing: 8) {
                             Stepper(value: Binding(get: { options.clockOffset / 60 }, set: { session.options.clockOffset = $0 * 60 }), in: -23...23) {
                                 Text(options.clockOffset == 0 ? "Camera clock as it is" : "Camera clock \(options.clockOffset > 0 ? "+" : "−")\(abs(options.clockOffset) / 60) h")
-                                    .font(.system(size: 11.5)).foregroundStyle(options.clockOffset == 0 ? Q.dim : Q.text)
+                                    .font(.system(size: 11.5)).foregroundStyle(options.clockOffset == 0 ? Theme.dim : Theme.paper)
                             }
                             .controlSize(.small)
                             .help("Shifts every capture time before filing: a camera left on another time zone")
                         }
                         Stepper(value: $session.options.dayStart, in: 0...8) {
                             Text(options.dayStart == 0 ? "A day starts at midnight" : "A day starts at 0\(options.dayStart):00")
-                                .font(.system(size: 11.5)).foregroundStyle(options.dayStart == 0 ? Q.dim : Q.text)
+                                .font(.system(size: 11.5)).foregroundStyle(options.dayStart == 0 ? Theme.dim : Theme.paper)
                         }
                         .controlSize(.small)
                         .help("Frames taken before this hour are filed with the evening before, so a night stays in one folder")
@@ -91,7 +91,7 @@ struct ImportPanel: View {
                     PanelSection("File Names") {
                         TemplateRow(presets: ImportTemplate.renamePresets, template: $session.options.rename, folders: false, placeholder: "Camera names")
                         if !options.rename.isEmpty, let first = session.plan.toCopy.first?.files.first {
-                            Text("\(first.source.name) → \(first.destination.lastPathComponent)").font(Q.value(10.5)).foregroundStyle(Q.dim).lineLimit(1).truncationMode(.middle)
+                            Text("\(first.source.name) → \(first.destination.lastPathComponent)").font(Theme.value(10.5)).foregroundStyle(Theme.dim).lineLimit(1).truncationMode(.middle)
                         }
                     }
                 }
@@ -193,8 +193,8 @@ struct PanelField: View {
     @Binding var text: String
     init(_ prompt: String, text: Binding<String>) { self.prompt = prompt; _text = text }
     var body: some View {
-        TextField("", text: $text, prompt: Text(prompt).foregroundStyle(Q.faint))
-            .textFieldStyle(.plain).font(.system(size: 12)).foregroundStyle(Q.text)
+        TextField("", text: $text, prompt: Text(prompt).foregroundStyle(Theme.faint))
+            .textFieldStyle(.plain).font(.system(size: 12)).foregroundStyle(Theme.paper)
             .padding(.horizontal, 8).frame(height: 26)
             .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Color.white.opacity(0.07)))
     }
@@ -207,7 +207,7 @@ struct PanelToggle: View {
     init(_ title: String, isOn: Binding<Bool>, help: String) { self.title = title; _isOn = isOn; self.help = help }
     var body: some View {
         Toggle(isOn: $isOn) { Text(title).font(.system(size: 11.5)).foregroundStyle(Color(white: 0.8)) }
-            .toggleStyle(.checkbox).tint(Q.red).help(help)
+            .toggleStyle(.checkbox).tint(Theme.accent).help(help)
     }
 }
 
@@ -216,7 +216,7 @@ struct PanelHint: View {
     var warn = false
     init(_ text: String, warn: Bool = false) { self.text = text; self.warn = warn }
     var body: some View {
-        Text(text).font(.system(size: 11)).foregroundStyle(warn ? Theme.warn : Q.dim).fixedSize(horizontal: false, vertical: true)
+        Text(text).font(.system(size: 11)).foregroundStyle(warn ? Theme.warn : Theme.dim).fixedSize(horizontal: false, vertical: true)
     }
 }
 
@@ -228,14 +228,14 @@ private struct FolderRow: View {
     let choose: @MainActor (URL) -> Void
     var body: some View {
         HStack(spacing: 8) {
-            Text(title).font(.system(size: 11.5)).foregroundStyle(Q.dim).frame(width: 46, alignment: .leading)
+            Text(title).font(.system(size: 11.5)).foregroundStyle(Theme.dim).frame(width: 46, alignment: .leading)
             Button { chooseFolder(title == "To" ? "Import To" : "Second Copy", then: choose) } label: {
                 HStack(spacing: 6) {
                     Image(systemName: "folder").font(.system(size: 11))
                     Text(url.map { $0.lastPathComponent } ?? placeholder).font(.system(size: 12)).lineLimit(1).truncationMode(.middle)
                     Spacer(minLength: 0)
                 }
-                .foregroundStyle(url == nil ? Q.red : Q.text)
+                .foregroundStyle(url == nil ? Theme.accent : Theme.paper)
                 .padding(.horizontal, 8).frame(height: 26)
                 .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Color.white.opacity(0.07)))
                 .contentShape(Rectangle())
@@ -280,17 +280,17 @@ private struct PlanTree: View {
             VStack(alignment: .leading, spacing: 3) {
                 ForEach(plan.folders.prefix(40)) { folder in
                     HStack(spacing: 6) {
-                        Image(systemName: folder.isNew ? "folder.badge.plus" : "folder").font(.system(size: 10.5)).foregroundStyle(folder.isNew ? Q.text : Q.dim)
-                        Text(folder.path.isEmpty ? (session.options.destination?.lastPathComponent ?? "") : folder.path).font(Q.value(11)).foregroundStyle(Q.text)
+                        Image(systemName: folder.isNew ? "folder.badge.plus" : "folder").font(.system(size: 10.5)).foregroundStyle(folder.isNew ? Theme.paper : Theme.dim)
+                        Text(folder.path.isEmpty ? (session.options.destination?.lastPathComponent ?? "") : folder.path).font(Theme.value(11)).foregroundStyle(Theme.paper)
                             .lineLimit(1).truncationMode(.head)
                         Spacer(minLength: 4)
-                        Text("\(folder.count)").font(Q.value(11)).foregroundStyle(Q.dim)
-                        Text(ByteCountFormatter.string(fromByteCount: Int64(folder.bytes), countStyle: .file)).font(Q.value(10.5)).foregroundStyle(Q.faint)
+                        Text("\(folder.count)").font(Theme.value(11)).foregroundStyle(Theme.dim)
+                        Text(ByteCountFormatter.string(fromByteCount: Int64(folder.bytes), countStyle: .file)).font(Theme.value(10.5)).foregroundStyle(Theme.faint)
                             .frame(width: 62, alignment: .trailing)
                     }
                     .help(folder.isNew ? "A new folder" : "This folder is already there")
                 }
-                if plan.folders.count > 40 { Text("and \(plan.folders.count - 40) more folders").font(.system(size: 10.5)).foregroundStyle(Q.dim) }
+                if plan.folders.count > 40 { Text("and \(plan.folders.count - 40) more folders").font(.system(size: 10.5)).foregroundStyle(Theme.dim) }
                 let renamed = plan.frames.filter(\.renamed).count
                 if renamed > 0 { PanelHint("\(renamed) \(renamed == 1 ? "name is" : "names are") taken there: numbered, nothing is written over.", warn: true) }
                 let undated = session.includedFrames.filter { $0.time == nil }.count, fromFile = session.includedFrames.filter(\.dateFromFile).count
@@ -325,10 +325,10 @@ private struct RecipeChooser: View {
             } else {
                 ForEach(inUse.keys.sorted(), id: \.self) { name in
                     HStack(spacing: 6) {
-                        Image(systemName: "flask").font(.system(size: 10.5)).foregroundStyle(Q.red)
-                        Text(name).font(.system(size: 12)).foregroundStyle(Q.text).lineLimit(1)
+                        Image(systemName: "flask").font(.system(size: 10.5)).foregroundStyle(Theme.accent)
+                        Text(name).font(.system(size: 12)).foregroundStyle(Theme.paper).lineLimit(1)
                         Spacer(minLength: 4)
-                        Text("\(inUse[name] ?? 0)").font(Q.value(11)).foregroundStyle(Q.dim)
+                        Text("\(inUse[name] ?? 0)").font(Theme.value(11)).foregroundStyle(Theme.dim)
                     }
                 }
                 // Qlick Lab: the recipes' Develop settings, as wherever a recipe is applied (remembered).
@@ -350,7 +350,7 @@ private struct RecipeChooser: View {
                     if favourites.contains(preset.name) { Label(preset.name, systemImage: "star.fill") } else { Text(preset.name) }
                 }
             }
-        } label: { Label(title, systemImage: "flask").font(Q.label(11.5)).labelStyle(.titleAndIcon) }
+        } label: { Label(title, systemImage: "flask").font(Theme.caps(11.5)).labelStyle(.titleAndIcon) }
             .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
     }
 }

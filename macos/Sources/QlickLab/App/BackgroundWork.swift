@@ -128,15 +128,15 @@ struct BackgroundActivity: View {
         if let first = tasks.first {
             Button { open.toggle() } label: {
                 HStack(spacing: 7) {
-                    ProgressView().controlSize(.mini).tint(Q.red)
+                    ProgressView().controlSize(.mini).tint(Theme.accent)
                     Text(first.kind.word).font(.system(size: 11)).foregroundStyle(Color(white: 0.8)).lineLimit(1)
-                    Text(first.figure).font(Q.value(11)).foregroundStyle(Q.dim).lineLimit(1)
+                    Text(first.figure).font(Theme.value(11)).foregroundStyle(Theme.dim).lineLimit(1)
                     if tasks.count > 1 {
-                        Text("+\(tasks.count - 1)").font(Q.value(10.5, weight: .medium)).foregroundStyle(Q.text)
+                        Text("+\(tasks.count - 1)").font(Theme.value(10.5, weight: .medium)).foregroundStyle(Theme.paper)
                             .padding(.horizontal, 5).frame(height: 15)
-                            .background(Capsule().fill(Q.red.opacity(0.85)))
+                            .background(Capsule().fill(Theme.accent.opacity(0.85)))
                     }
-                    Image(systemName: "chevron.down").font(.system(size: 8, weight: .semibold)).foregroundStyle(Q.dim)
+                    Image(systemName: "chevron.down").font(.system(size: 8, weight: .semibold)).foregroundStyle(Theme.dim)
                 }
                 .padding(.horizontal, 10).frame(height: 24)
                 .background(Capsule().fill(Color.white.opacity(open ? 0.12 : 0.07)))
@@ -177,13 +177,13 @@ struct BackgroundWorkPanel: View {
             }
             .padding(.horizontal, 16).padding(.top, 14).padding(.bottom, 10)
             if tasks.isEmpty {
-                Text("Nothing at work.").font(.system(size: 11.5)).foregroundStyle(Q.dim)
+                Text("Nothing at work.").font(.system(size: 11.5)).foregroundStyle(Theme.dim)
                     .padding(.horizontal, 16).padding(.bottom, 16)
             } else {
                 VStack(spacing: 0) {
                     ForEach(tasks) { task in
                         BackgroundTaskRow(task: task, large: true)
-                        if task.id != tasks.last?.id { Divider().overlay(Q.hairline).padding(.horizontal, 16) }
+                        if task.id != tasks.last?.id { Divider().overlay(Theme.line).padding(.horizontal, 16) }
                     }
                 }
                 .padding(.bottom, 8)
@@ -208,13 +208,13 @@ struct BackgroundTaskRow: View {
         VStack(alignment: .leading, spacing: large ? 6 : 5) {
             HStack(spacing: 8) {
                 Text(large ? task.title : task.kind.word).font(.system(size: large ? 12 : 10.5, weight: large ? .medium : .regular))
-                    .foregroundStyle(large ? Q.text : Q.dim).lineLimit(1)
+                    .foregroundStyle(large ? Theme.paper : Theme.dim).lineLimit(1)
                 Spacer(minLength: 6)
-                Text(task.figure).font(Q.value(large ? 11.5 : 10.5)).foregroundStyle(Q.dim).lineLimit(1)
+                Text(task.figure).font(Theme.value(large ? 11.5 : 10.5)).foregroundStyle(Theme.dim).lineLimit(1)
                 if let stop = task.stop {
                     Button(action: stop) {
                         Image(systemName: "xmark.circle.fill").font(.system(size: large ? 13 : 10))
-                            .foregroundStyle(hovered ? Q.red : Q.dim)
+                            .foregroundStyle(hovered ? Theme.accent : Theme.dim)
                     }
                     .buttonStyle(.plain)
                     .onHover { hovered = $0 }
@@ -223,12 +223,12 @@ struct BackgroundTaskRow: View {
                 }
             }
             if let fraction = task.fraction {
-                ProgressView(value: fraction).progressViewStyle(.linear).tint(Q.red).controlSize(.mini)
+                ProgressView(value: fraction).progressViewStyle(.linear).tint(Theme.accent).controlSize(.mini)
             } else {
-                ProgressView().progressViewStyle(.linear).tint(Q.red).controlSize(.mini)
+                ProgressView().progressViewStyle(.linear).tint(Theme.accent).controlSize(.mini)
             }
             if large, let detail = task.detail {
-                Text(detail).font(.system(size: 10.5)).foregroundStyle(Q.dim).lineLimit(2).truncationMode(.middle)
+                Text(detail).font(.system(size: 10.5)).foregroundStyle(Theme.dim).lineLimit(2).truncationMode(.middle)
             }
         }
         .padding(.horizontal, large ? 16 : 20).padding(.vertical, large ? 9 : 0).padding(.bottom, large ? 0 : 8)

@@ -39,7 +39,7 @@ struct SheetLoupe: View {
                             let strokes = flag == .pick
                                 ? GreasePencil.ring(in: frame.insetBy(dx: -frame.width * 0.035, dy: -frame.height * 0.06), seed: current.lastPathComponent, weight: weight)
                                 : GreasePencil.cross(in: frame, seed: current.lastPathComponent, weight: weight)
-                            for stroke in strokes { context.fill(Path(stroke.path()), with: .color(Q.red.opacity(stroke.opacity))) }
+                            for stroke in strokes { context.fill(Path(stroke.path()), with: .color(Theme.accent.opacity(stroke.opacity))) }
                         }
                         .allowsHitTesting(false)
                     }
@@ -109,9 +109,9 @@ private struct LoupeCaption: View {
         let summary = model.library.summary(for: item)
         let facts = lab.facts.get(item)
         HStack(spacing: 12) {
-            Text(model.library.name(of: item)).font(Q.label(12.5, weight: .semibold)).foregroundStyle(Q.text)
-            if let facts, !facts.exposureLine.isEmpty { Text(facts.exposureLine).font(Q.value(11.5)).foregroundStyle(Color(white: 0.75)) }
-            if summary.rating > 0 { Text(String(repeating: "★", count: summary.rating)).font(.system(size: 11)).foregroundStyle(Q.text) }
+            Text(model.library.name(of: item)).font(Theme.caps(12.5, weight: .semibold)).foregroundStyle(Theme.paper)
+            if let facts, !facts.exposureLine.isEmpty { Text(facts.exposureLine).font(Theme.value(11.5)).foregroundStyle(Color(white: 0.75)) }
+            if summary.rating > 0 { Text(String(repeating: "★", count: summary.rating)).font(.system(size: 11)).foregroundStyle(Theme.paper) }
             if busy { ProgressView().controlSize(.mini) }
             Divider().frame(height: 14).overlay(Color.white.opacity(0.15))
             HStack(spacing: 5) {

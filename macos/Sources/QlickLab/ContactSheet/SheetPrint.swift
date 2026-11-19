@@ -238,12 +238,12 @@ struct SheetPrintDialog: View {
                 if let document {
                     PDFPreview(document: document).padding(18)
                 } else if frames == 0, progress == nil {
-                    Text("No frames to print with this choice.").font(.system(size: 12.5)).foregroundStyle(Q.dim)
+                    Text("No frames to print with this choice.").font(.system(size: 12.5)).foregroundStyle(Theme.dim)
                 }
                 if let progress {
                     VStack(spacing: 8) {
                         ProgressView(value: Double(progress.done), total: Double(max(progress.total, 1))).frame(width: 180)
-                        Text("Reading the frames… \(progress.done) / \(progress.total)").font(Q.value(11)).foregroundStyle(Color(white: 0.8))
+                        Text("Reading the frames… \(progress.done) / \(progress.total)").font(Theme.value(11)).foregroundStyle(Color(white: 0.8))
                     }
                     .padding(16).glass(RoundedRectangle(cornerRadius: 14, style: .continuous))
                 }
@@ -251,8 +251,8 @@ struct SheetPrintDialog: View {
             .frame(width: 560, height: 620)
 
             VStack(alignment: .leading, spacing: 14) {
-                Text("Printable Contact Sheet").font(Q.title(16)).foregroundStyle(Q.text)
-                Text(pages > 0 ? "\(frames) frame\(frames > 1 ? "s" : "") · \(pages) page\(pages > 1 ? "s" : "")" : " ").font(Q.value(11.5)).foregroundStyle(Q.dim)
+                Text("Printable Contact Sheet").font(Theme.title(16)).foregroundStyle(Theme.paper)
+                Text(pages > 0 ? "\(frames) frame\(frames > 1 ? "s" : "") · \(pages) page\(pages > 1 ? "s" : "")" : " ").font(Theme.value(11.5)).foregroundStyle(Theme.dim)
 
                 group("Paper") {
                     row("Format") {
@@ -271,7 +271,7 @@ struct SheetPrintDialog: View {
                         Picker("", selection: $options.frames) { ForEach(SheetPrintOptions.Frames.allCases, id: \.self) { Text($0.title).tag($0) } }.labelsHidden()
                     }
                     row("Per strip") {
-                        Stepper(value: $options.columns, in: SheetPrintOptions.columnRange) { Text("\(options.columns) frames").font(Q.value(12)).foregroundStyle(Q.text) }
+                        Stepper(value: $options.columns, in: SheetPrintOptions.columnRange) { Text("\(options.columns) frames").font(Theme.value(12)).foregroundStyle(Theme.paper) }
                     }
                     row("Strips") {
                         QSegmented(options: [(false, "Classic", "With file names"), (true, "Tight", "More frames a page")], selection: $options.compact)
@@ -296,7 +296,7 @@ struct SheetPrintDialog: View {
             }
             .padding(20)
             .frame(width: 330, height: 620, alignment: .topLeading)
-            .background(Q.surface)
+            .background(Theme.panel)
         }
         .environment(\.colorScheme, .dark)
         .task(id: options) { await render() }

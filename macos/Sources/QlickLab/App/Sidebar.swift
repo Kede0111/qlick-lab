@@ -19,7 +19,7 @@ struct LabSidebar: View {
             HStack(spacing: 9) {
                 QMark(size: 20)
                 VStack(alignment: .leading, spacing: 1) {
-                    Text("Qlick Lab").font(.system(size: 13.5, weight: .semibold)).foregroundStyle(Q.text)
+                    Text("Qlick Lab").font(.system(size: 13.5, weight: .semibold)).foregroundStyle(Theme.paper)
                     CatalogMenu(lab: lab)
                 }
                 Spacer()
@@ -40,7 +40,7 @@ struct LabSidebar: View {
                 CapsLabel("Projects")
                 Spacer()
                 Button { lab.naming = LabState.ProjectNaming(name: lab.projects.uniqueName("New Project")) } label: {
-                    Image(systemName: "plus").font(.system(size: 11, weight: .semibold)).foregroundStyle(Q.dim).frame(width: 22, height: 22).contentShape(Rectangle())
+                    Image(systemName: "plus").font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.dim).frame(width: 22, height: 22).contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .help("New project")
@@ -61,7 +61,7 @@ struct LabSidebar: View {
                     }
                     if lab.projects.projects.isEmpty {
                         Text("Drop a folder of photographs here to make a project.")
-                            .font(.system(size: 11.5)).foregroundStyle(Q.dim)
+                            .font(.system(size: 11.5)).foregroundStyle(Theme.dim)
                             .fixedSize(horizontal: false, vertical: true)
                             .padding(.horizontal, 10).padding(.top, 4)
                     }
@@ -83,7 +83,7 @@ struct LabSidebar: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .overlay {
             if dropping {
-                RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Q.red, lineWidth: 2).padding(6).allowsHitTesting(false)
+                RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Theme.accent, lineWidth: 2).padding(6).allowsHitTesting(false)
             }
         }
         .onDrop(of: [.fileURL], isTargeted: $dropping) { providers in LabDrop.load(providers) { lab.importFolders($0) } }
@@ -115,10 +115,10 @@ struct RoomButton: View {
         Button(action: action) {
             HStack(spacing: 9) {
                 Image(systemName: symbol).font(.system(size: 13, weight: .regular)).frame(width: 20)
-                    .foregroundStyle(on ? Q.red : Color(white: 0.72))
-                Text(title).font(.system(size: 13, weight: on ? .semibold : .regular)).foregroundStyle(on ? Q.text : Color(white: 0.82)).lineLimit(1)
+                    .foregroundStyle(on ? Theme.accent : Color(white: 0.72))
+                Text(title).font(.system(size: 13, weight: on ? .semibold : .regular)).foregroundStyle(on ? Theme.paper : Color(white: 0.82)).lineLimit(1)
                 Spacer(minLength: 4)
-                if let trailing { Text(trailing).font(Q.value(11)).foregroundStyle(Q.dim) }
+                if let trailing { Text(trailing).font(Theme.value(11)).foregroundStyle(Theme.dim) }
             }
             .padding(.horizontal, 10)
             .frame(height: 30)
@@ -147,7 +147,7 @@ private struct ProjectRows: View {
         HStack(spacing: 0) {
             // The arrow only folds or unfolds the project's rolls: nothing opens.
             Button(action: toggle) {
-                Image(systemName: "chevron.right").font(.system(size: 8.5, weight: .bold)).foregroundStyle(Q.dim)
+                Image(systemName: "chevron.right").font(.system(size: 8.5, weight: .bold)).foregroundStyle(Theme.dim)
                     .rotationEffect(.degrees(open ? 90 : 0))
                     .frame(width: 26, height: 27)
                     .contentShape(Rectangle())
@@ -156,9 +156,9 @@ private struct ProjectRows: View {
             .help(open ? "Hide the rolls" : "Show the rolls")
             Button { lab.openWhole(project); if !open { toggle() } } label: {
                 HStack(spacing: 6) {
-                    Text(project.name).font(.system(size: 12.5, weight: shown ? .semibold : .medium)).foregroundStyle(shown ? Q.text : Color(white: 0.86)).lineLimit(1)
+                    Text(project.name).font(.system(size: 12.5, weight: shown ? .semibold : .medium)).foregroundStyle(shown ? Theme.paper : Color(white: 0.86)).lineLimit(1)
                     Spacer(minLength: 4)
-                    Text("\(project.rolls.count)").font(Q.value(11)).foregroundStyle(Q.faint)
+                    Text("\(project.rolls.count)").font(Theme.value(11)).foregroundStyle(Theme.faint)
                 }
                 .padding(.trailing, 8)
                 .frame(height: 27)
@@ -198,11 +198,11 @@ private struct RollRow: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 7) {
-                Circle().fill(on ? Q.red : Color.clear).frame(width: 5, height: 5).frame(width: 12)
-                Text(roll.name).font(.system(size: 12.5, weight: on ? .semibold : .regular)).foregroundStyle(on ? Q.text : Color(white: 0.72)).lineLimit(1)
+                Circle().fill(on ? Theme.accent : Color.clear).frame(width: 5, height: 5).frame(width: 12)
+                Text(roll.name).font(.system(size: 12.5, weight: on ? .semibold : .regular)).foregroundStyle(on ? Theme.paper : Color(white: 0.72)).lineLimit(1)
                 Spacer(minLength: 4)
-                if let stats, !stats.missing { Text("\(stats.total)").font(Q.value(11)).foregroundStyle(Q.faint) }
-                if stats?.missing == true { Image(systemName: "questionmark.folder").font(.system(size: 10)).foregroundStyle(Q.dim).help("Folder not found") }
+                if let stats, !stats.missing { Text("\(stats.total)").font(Theme.value(11)).foregroundStyle(Theme.faint) }
+                if stats?.missing == true { Image(systemName: "questionmark.folder").font(.system(size: 10)).foregroundStyle(Theme.dim).help("Folder not found") }
             }
             .padding(.leading, 14).padding(.trailing, 8)
             .frame(height: 25)
@@ -248,10 +248,10 @@ struct ProjectNamingSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("New Project").font(Q.title(17)).foregroundStyle(Q.text)
+            Text("New Project").font(Theme.title(17)).foregroundStyle(Theme.paper)
             Text(naming.folders.isEmpty ? "A project gathers rolls or sessions: folders of photographs, where they are."
                  : "The folders chosen become this project's rolls. Nothing is copied or moved.")
-                .font(.system(size: 12)).foregroundStyle(Q.dim).fixedSize(horizontal: false, vertical: true)
+                .font(.system(size: 12)).foregroundStyle(Theme.dim).fixedSize(horizontal: false, vertical: true)
             TextField("Project name", text: $naming.name)
                 .textFieldStyle(.roundedBorder)
                 .focused($focused)
@@ -265,7 +265,7 @@ struct ProjectNamingSheet: View {
         }
         .padding(22)
         .frame(width: 400)
-        .background(Q.surface)
+        .background(Theme.panel)
         .environment(\.colorScheme, .dark)
         .onAppear { focused = true }
     }
@@ -289,7 +289,7 @@ private struct CatalogMenu: View {
                 Button(CatalogList.name(of: url) + (url.standardizedFileURL == lab.projects.directory.standardizedFileURL ? "  ✓" : "")) { lab.openCatalog(url) }
             }
         } label: {
-            Text(lab.catalogName + "  ⌄").font(.system(size: 10.5)).foregroundStyle(Q.dim).lineLimit(1)
+            Text(lab.catalogName + "  ⌄").font(.system(size: 10.5)).foregroundStyle(Theme.dim).lineLimit(1)
         }
         .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
         .help("The open catalog: a set of projects of its own, kept in a file you can copy, move or archive")

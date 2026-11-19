@@ -56,9 +56,9 @@ private struct ImportSources: View {
             VStack(alignment: .leading, spacing: 2) {
                 if let journal = session.unfinished {
                     VStack(alignment: .leading, spacing: 7) {
-                        Text("An import was interrupted").font(Q.label(12, weight: .semibold)).foregroundStyle(Q.text)
+                        Text("An import was interrupted").font(Theme.caps(12, weight: .semibold)).foregroundStyle(Theme.paper)
                         Text("\(journal.remaining) of \(journal.items.count) photographs from “\(journal.sourceName)” are still to copy. Nothing copied is lost.")
-                            .font(.system(size: 11)).foregroundStyle(Q.dim).fixedSize(horizontal: false, vertical: true)
+                            .font(.system(size: 11)).foregroundStyle(Theme.dim).fixedSize(horizontal: false, vertical: true)
                         HStack(spacing: 6) {
                             Button("Resume") { session.resume() }.buttonStyle(QPrimaryButtonStyle())
                             Button("Forget") { session.discardUnfinished() }.buttonStyle(QPillButtonStyle())
@@ -72,7 +72,7 @@ private struct ImportSources: View {
                 heading("Cards")
                 let cards = session.volumes.filter { $0.kind == .card }
                 if cards.isEmpty {
-                    Text("No memory card. One appears here when it’s put in.").font(.system(size: 11)).foregroundStyle(Q.dim)
+                    Text("No memory card. One appears here when it’s put in.").font(.system(size: 11)).foregroundStyle(Theme.dim)
                         .fixedSize(horizontal: false, vertical: true).padding(.horizontal, 10).padding(.bottom, 6)
                 }
                 ForEach(cards) { card in row(card) { session.open(card) } }
@@ -91,7 +91,7 @@ private struct ImportSources: View {
         }
         .scrollIndicators(.never)
         .overlay {
-            if dropping { RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Q.red, lineWidth: 2).padding(5).allowsHitTesting(false) }
+            if dropping { RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Theme.accent, lineWidth: 2).padding(5).allowsHitTesting(false) }
         }
         .onDrop(of: [.fileURL], isTargeted: $dropping) { providers in
             LabDrop.load(providers) { urls in
@@ -121,10 +121,10 @@ private struct ImportEmpty: View {
     let session: ImportSession
     var body: some View {
         VStack(spacing: 14) {
-            Image(systemName: "sdcard").font(.system(size: 38, weight: .light)).foregroundStyle(Q.faint)
-            Text("Put in a card, or choose a folder").font(Q.title(19)).foregroundStyle(Q.text)
+            Image(systemName: "sdcard").font(.system(size: 38, weight: .light)).foregroundStyle(Theme.faint)
+            Text("Put in a card, or choose a folder").font(Theme.title(19)).foregroundStyle(Theme.paper)
             Text("Its photographs show here at once, as the camera rendered them. Look through them, mark them,\nchoose a recipe and where they go. Nothing is copied, and nothing on the source is ever changed, until you press Import.")
-                .font(.system(size: 12.5)).foregroundStyle(Q.dim).multilineTextAlignment(.center)
+                .font(.system(size: 12.5)).foregroundStyle(Theme.dim).multilineTextAlignment(.center)
             HStack(spacing: 8) {
                 ForEach(session.cards) { card in
                     Button { session.open(card) } label: { Label(card.name, systemImage: "sdcard") }.buttonStyle(QPrimaryButtonStyle())
@@ -157,15 +157,15 @@ private struct ImportToolbar: View {
                     .help(filter.help)
                 }
             } label: {
-                Label("Show: \(session.filter.title)", systemImage: "line.3.horizontal.decrease").font(Q.label(12))
+                Label("Show: \(session.filter.title)", systemImage: "line.3.horizontal.decrease").font(Theme.caps(12))
             }
             .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
             .help("Which frames are shown")
-            Text(counts(session)).font(Q.value(11.5)).foregroundStyle(Q.dim).lineLimit(1).truncationMode(.tail).layoutPriority(-1)
+            Text(counts(session)).font(Theme.value(11.5)).foregroundStyle(Theme.dim).lineLimit(1).truncationMode(.tail).layoutPriority(-1)
             if !session.datesReady, !session.scanning {
                 HStack(spacing: 5) {
                     ProgressView().controlSize(.mini)
-                    Text("Reading dates \(session.factsRead) / \(session.frames.count)").font(Q.value(11)).foregroundStyle(Q.dim)
+                    Text("Reading dates \(session.factsRead) / \(session.frames.count)").font(Theme.value(11)).foregroundStyle(Theme.dim)
                 }
             }
             Spacer(minLength: 8)
@@ -176,9 +176,9 @@ private struct ImportToolbar: View {
             }
             Divider().frame(height: 16).overlay(Color.white.opacity(0.12))
             HStack(spacing: 6) {
-                Image(systemName: "photo").font(.system(size: 9)).foregroundStyle(Q.dim)
+                Image(systemName: "photo").font(.system(size: 9)).foregroundStyle(Theme.dim)
                 Slider(value: $session.cellSize, in: 110...420).controlSize(.mini).tint(Color(white: 0.75)).frame(width: 96).help("Frame size")
-                Image(systemName: "photo").font(.system(size: 13)).foregroundStyle(Q.dim)
+                Image(systemName: "photo").font(.system(size: 13)).foregroundStyle(Theme.dim)
             }
             if session.source?.volume != nil {
                 QIconButton(symbol: "eject", help: "Eject “\(session.source?.name ?? "")”") { session.eject() }
@@ -219,8 +219,8 @@ struct ImportBrowser: View {
             case .compare: ImportCompare(model: model)
             }
             if session.scanning { ProgressView().controlSize(.small) }
-            else if session.frames.isEmpty { Text("No readable photographs in “\(session.source?.name ?? "")”.").font(.system(size: 12.5)).foregroundStyle(Q.dim) }
-            else if session.shown.isEmpty { Text("No frame matches this filter.").font(.system(size: 12.5)).foregroundStyle(Q.dim) }
+            else if session.frames.isEmpty { Text("No readable photographs in “\(session.source?.name ?? "")”.").font(.system(size: 12.5)).foregroundStyle(Theme.dim) }
+            else if session.shown.isEmpty { Text("No frame matches this filter.").font(.system(size: 12.5)).foregroundStyle(Theme.dim) }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .contentShape(Rectangle())
@@ -247,7 +247,7 @@ private struct ImportGrid: View {
             ScrollViewReader { proxy in
                 ScrollView(.vertical) { cells(size) }
                     .onChange(of: session.current) { _, current in
-                        if let current { withAnimation(Q.quick) { proxy.scrollTo(current) } }
+                        if let current { withAnimation(Theme.quick) { proxy.scrollTo(current) } }
                     }
             }
             .onChange(of: geometry.size.width, initial: true) { _, width in columns = Self.count(width, size) }
@@ -344,7 +344,7 @@ struct ImportCell: View {
                 Button { session.toggleIncluded([id]) } label: {
                     Image(systemName: included ? "checkmark.circle.fill" : "circle")
                         .font(.system(size: 15, weight: .medium))
-                        .foregroundStyle(included ? Q.red : Color(white: 0.5), .white)
+                        .foregroundStyle(included ? Theme.accent : Color(white: 0.5), .white)
                         .symbolRenderingMode(included ? .palette : .monochrome)
                         .shadow(color: .black.opacity(0.6), radius: 1.5)
                         .padding(6).contentShape(Rectangle())
@@ -362,14 +362,14 @@ struct ImportCell: View {
             }
             .overlay(alignment: .bottomLeading) {
                 if marks.rating > 0 {
-                    Text(String(repeating: "★", count: marks.rating)).font(.system(size: 10)).foregroundStyle(Q.text)
+                    Text(String(repeating: "★", count: marks.rating)).font(.system(size: 10)).foregroundStyle(Theme.paper)
                         .shadow(color: .black, radius: 1.5).padding(.leading, 8).padding(.bottom, 6)
                 }
             }
             .overlay(alignment: .bottomTrailing) {
                 if let recipe = marks.recipe {
                     Label(recipe, systemImage: "flask").font(.system(size: 9.5, weight: .medium)).labelStyle(.titleAndIcon).lineLimit(1)
-                        .foregroundStyle(Q.text).padding(.horizontal, 6).frame(height: 17)
+                        .foregroundStyle(Theme.paper).padding(.horizontal, 6).frame(height: 17)
                         .background(Capsule().fill(Color.black.opacity(0.62))).padding(5)
                         .frame(maxWidth: side * 0.7, alignment: .trailing)
                         .help("Developed with the recipe “\(recipe)” once it’s imported")
@@ -379,7 +379,7 @@ struct ImportCell: View {
                 RoundedRectangle(cornerRadius: 5, style: .continuous)
                     .strokeBorder(selected ? Color.white : current ? Color.white.opacity(0.45) : .clear, lineWidth: selected ? 2 : 1)
             }
-            Text(frame.file.name).font(Q.value(10.5)).foregroundStyle(current || selected ? Q.text : Q.dim).lineLimit(1).truncationMode(.middle)
+            Text(frame.file.name).font(Theme.value(10.5)).foregroundStyle(current || selected ? Theme.paper : Theme.dim).lineLimit(1).truncationMode(.middle)
         }
         .contentShape(Rectangle())
         .help(tooltip)
@@ -439,7 +439,7 @@ struct ImportMark: View {
             let frame = CGRect(origin: .zero, size: size).insetBy(dx: size.width * 0.07, dy: size.height * 0.09)
             let weight = GreasePencil.weight(forFrameWidth: frame.width) * 1.3
             let strokes = flag == .pick ? GreasePencil.ring(in: frame, seed: seed, weight: weight) : GreasePencil.cross(in: frame, seed: seed, weight: weight)
-            for stroke in strokes { context.fill(Path(stroke.path()), with: .color(Q.red.opacity(stroke.opacity))) }
+            for stroke in strokes { context.fill(Path(stroke.path()), with: .color(Theme.accent.opacity(stroke.opacity))) }
         }
         .allowsHitTesting(false)
     }
@@ -456,9 +456,9 @@ private struct ImportFoot: View {
         HStack(spacing: 12) {
             if session.source != nil {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(sentence).font(Q.value(12)).foregroundStyle(Q.text).lineLimit(1).truncationMode(.middle)
+                    Text(sentence).font(Theme.value(12)).foregroundStyle(Theme.paper).lineLimit(1).truncationMode(.middle)
                     if let blocker { Text(blocker).font(.system(size: 11)).foregroundStyle(Theme.warn).lineLimit(1) }
-                    else if let note { Text(note).font(.system(size: 11)).foregroundStyle(Q.dim).lineLimit(1) }
+                    else if let note { Text(note).font(.system(size: 11)).foregroundStyle(Theme.dim).lineLimit(1) }
                 }
             }
             Spacer(minLength: 8)

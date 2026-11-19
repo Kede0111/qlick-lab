@@ -28,9 +28,11 @@ Read this first, then `CLAUDE.md` and `docs/architecture.md`. Update it at the e
 - [ ] **Wave 2**, one commit each, behaviour unchanged:
   - Split `EditorModel.swift` (6 144 lines, 26 MARK sections) into models by concern: rendering, selection,
     export, presets, balance, import. Start with the sections that have the fewest callers.
-  - Group `macos/Sources/QlickLab` by role: App, Develop, Library, Export, Engine, Design (moves only, then
-    `xcodegen generate`, commit the project).
-  - Merge the two themes: `Theme` (Theme.swift) and `Q` (Lab/QTheme.swift) into one.
+  - [x] Group `macos/Sources/QlickLab` by role (commit ba510df): App, Library, Import, ContactSheet, Develop,
+    Compare, Recipes, Export, Engine, Files, Design, Diagnostics. `Lab/` is gone.
+  - [x] One theme: `Q` folded into `Theme` (Design/Theme.swift); the controls in Design/Controls.swift. The lab rooms
+    now use the editor's values where QLab's were near: red sRGB #e5222b (was P3 0.89/0.11/0.14), dim #8a8a8f (was
+    50 % grey), surface = panel #141415, hairline = line #28282a. Quentin checks the look in Qlick Lab Dev.
   - Type the Swift ↔ Rust contract on the Swift side: `Codable` replies instead of `JSONValue` lookups; a contract test.
 - [ ] **Wave 3**: border geometry from Rust only (`Border.swift` duplicates `crates/spektrafilm-io/src/border.rs`);
   Swift 6 strict concurrency module by module; prune CUDA and unused targets, benchmarks out of shipped sources.

@@ -25,11 +25,11 @@ struct ImportProgressView: View {
         VStack(spacing: 0) {
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(title).font(Q.title(15)).foregroundStyle(Q.text)
+                    Text(title).font(Theme.title(15)).foregroundStyle(Theme.paper)
                     if let waiting = run.waitingFor {
                         Text("Waiting for “\(waiting)”. Put it back and the import goes on where it stopped.").font(.system(size: 11.5)).foregroundStyle(Theme.warn)
                     } else if let name = run.currentName, !run.finished {
-                        Text(run.paused ? "Paused" : "\(run.adding ? "Adding" : "Copying") \(name)").font(Q.value(11.5)).foregroundStyle(Q.dim)
+                        Text(run.paused ? "Paused" : "\(run.adding ? "Adding" : "Copying") \(name)").font(Theme.value(11.5)).foregroundStyle(Theme.dim)
                     }
                 }
                 Spacer(minLength: 8)
@@ -52,7 +52,7 @@ struct ImportProgressView: View {
             GeometryReader { geometry in
                 ZStack(alignment: .leading) {
                     Rectangle().fill(Color.white.opacity(0.08))
-                    Rectangle().fill(Q.red).frame(width: geometry.size.width * run.fraction)
+                    Rectangle().fill(Theme.accent).frame(width: geometry.size.width * run.fraction)
                 }
             }
             .frame(height: 2)
@@ -63,7 +63,7 @@ struct ImportProgressView: View {
                 else if compact { ImportList(run: run) }
                 else { FilmLabView(run: run) }
                 // Always in sight.
-                Text(run.figures).font(Q.value(12.5)).foregroundStyle(Q.text)
+                Text(run.figures).font(Theme.value(12.5)).foregroundStyle(Theme.paper)
                     .padding(.horizontal, 16).frame(height: 32)
                     .glass(Capsule())
                     .padding(.top, 14)
@@ -135,7 +135,7 @@ private struct FilmGate: View {
                 }
             }
             // The gate: the frame the light is on.
-            RoundedRectangle(cornerRadius: 3, style: .continuous).strokeBorder(Q.red.opacity(0.9), lineWidth: 1.5)
+            RoundedRectangle(cornerRadius: 3, style: .continuous).strokeBorder(Theme.accent.opacity(0.9), lineWidth: 1.5)
                 .frame(width: frameWidth + 10, height: frameWidth / 1.5 + 10)
         }
         .clipped()
@@ -183,7 +183,7 @@ private struct FilmFrame: View {
                     .opacity(state == .verified ? 1 : state == .failed ? 0.25 : 0)
             }
             if state == .failed { ImportMark(flag: .reject, seed: source.lastPathComponent) }
-            if state == .waiting { Text("\(number)").font(Q.value(13)).foregroundStyle(Color(white: 0.22)) }
+            if state == .waiting { Text("\(number)").font(Theme.value(13)).foregroundStyle(Color(white: 0.22)) }
         }
         .animation(.easeInOut(duration: 0.55), value: state)
         .help(help)
@@ -261,13 +261,13 @@ private struct ImportList: View {
                     ForEach(Array(run.order.enumerated()), id: \.element) { index, id in
                         let state = run.state(of: id)
                         HStack(spacing: 10) {
-                            Text("\(index + 1)").font(Q.value(10.5)).foregroundStyle(Q.faint).frame(width: 44, alignment: .trailing)
-                            Image(systemName: symbol(state)).font(.system(size: 11)).foregroundStyle(state == .failed ? Theme.warn : state == .verified ? Q.text : Q.dim).frame(width: 16)
-                            Text(id.lastPathComponent).font(Q.value(11.5)).foregroundStyle(state == .waiting ? Q.dim : Q.text).frame(width: 190, alignment: .leading).lineLimit(1)
-                            Text(run.adding ? "" : run.written[id].map { $0.deletingLastPathComponent().lastPathComponent + " / " + $0.lastPathComponent } ?? "").font(Q.value(11)).foregroundStyle(Q.dim)
+                            Text("\(index + 1)").font(Theme.value(10.5)).foregroundStyle(Theme.faint).frame(width: 44, alignment: .trailing)
+                            Image(systemName: symbol(state)).font(.system(size: 11)).foregroundStyle(state == .failed ? Theme.warn : state == .verified ? Theme.paper : Theme.dim).frame(width: 16)
+                            Text(id.lastPathComponent).font(Theme.value(11.5)).foregroundStyle(state == .waiting ? Theme.dim : Theme.paper).frame(width: 190, alignment: .leading).lineLimit(1)
+                            Text(run.adding ? "" : run.written[id].map { $0.deletingLastPathComponent().lastPathComponent + " / " + $0.lastPathComponent } ?? "").font(Theme.value(11)).foregroundStyle(Theme.dim)
                                 .lineLimit(1).truncationMode(.middle)
                             Spacer(minLength: 4)
-                            Text(word(state, adding: run.adding)).font(.system(size: 11)).foregroundStyle(state == .failed ? Theme.warn : Q.dim)
+                            Text(word(state, adding: run.adding)).font(.system(size: 11)).foregroundStyle(state == .failed ? Theme.warn : Theme.dim)
                         }
                         .padding(.horizontal, 16).frame(height: 24)
                         .background(state == .copying ? Color.white.opacity(0.06) : .clear)
@@ -318,14 +318,14 @@ private struct ImportAccount: View {
             VStack(alignment: .leading, spacing: 14) {
                 HStack(spacing: 12) {
                     Image(systemName: run.failed > 0 || run.stopped ? "exclamationmark.circle" : "checkmark.circle")
-                        .font(.system(size: 30, weight: .light)).foregroundStyle(run.failed > 0 ? Theme.warn : Q.text)
+                        .font(.system(size: 30, weight: .light)).foregroundStyle(run.failed > 0 ? Theme.warn : Theme.paper)
                     VStack(alignment: .leading, spacing: 3) {
                         if run.adding {
-                            Text("\(run.done) \(run.done == 1 ? "photograph" : "photographs") added").font(Q.title(18)).foregroundStyle(Q.text)
-                            Text("in \(ImportRun.duration(run.elapsed)), as \(run.folders.count) \(run.folders.count == 1 ? "roll" : "rolls")\(project.isEmpty ? "" : " of “\(project)”")").font(.system(size: 12.5)).foregroundStyle(Q.dim)
+                            Text("\(run.done) \(run.done == 1 ? "photograph" : "photographs") added").font(Theme.title(18)).foregroundStyle(Theme.paper)
+                            Text("in \(ImportRun.duration(run.elapsed)), as \(run.folders.count) \(run.folders.count == 1 ? "roll" : "rolls")\(project.isEmpty ? "" : " of “\(project)”")").font(.system(size: 12.5)).foregroundStyle(Theme.dim)
                         } else {
-                            Text("\(good) \(good == 1 ? "photograph" : "photographs") copied\(checked ? " and checked" : "")").font(Q.title(18)).foregroundStyle(Q.text)
-                            Text("in \(ImportRun.duration(run.elapsed)), to \(run.folders.count) \(run.folders.count == 1 ? "folder" : "folders")").font(.system(size: 12.5)).foregroundStyle(Q.dim)
+                            Text("\(good) \(good == 1 ? "photograph" : "photographs") copied\(checked ? " and checked" : "")").font(Theme.title(18)).foregroundStyle(Theme.paper)
+                            Text("in \(ImportRun.duration(run.elapsed)), to \(run.folders.count) \(run.folders.count == 1 ? "folder" : "folders")").font(.system(size: 12.5)).foregroundStyle(Theme.dim)
                         }
                     }
                 }
@@ -344,16 +344,16 @@ private struct ImportAccount: View {
                     VStack(alignment: .leading, spacing: 4) {
                         CapsLabel(run.adding ? "Marks not saved" : "Not copied", color: Theme.warn)
                         ForEach(Array(run.failures.prefix(50).enumerated()), id: \.offset) { _, failure in
-                            Text("\(failure.name): \(failure.reason)").font(.system(size: 11.5)).foregroundStyle(Q.text).fixedSize(horizontal: false, vertical: true)
+                            Text("\(failure.name): \(failure.reason)").font(.system(size: 11.5)).foregroundStyle(Theme.paper).fixedSize(horizontal: false, vertical: true)
                         }
-                        if run.failures.count > 50 { Text("and \(run.failures.count - 50) more, listed in the import report").font(.system(size: 11)).foregroundStyle(Q.dim) }
+                        if run.failures.count > 50 { Text("and \(run.failures.count - 50) more, listed in the import report").font(.system(size: 11)).foregroundStyle(Theme.dim) }
                     }
                 }
                 if !run.notes.isEmpty {
                     VStack(alignment: .leading, spacing: 4) {
                         CapsLabel("Notes")
                         ForEach(Array(run.notes.enumerated()), id: \.offset) { _, note in
-                            Text(note).font(.system(size: 11.5)).foregroundStyle(Q.dim).fixedSize(horizontal: false, vertical: true)
+                            Text(note).font(.system(size: 11.5)).foregroundStyle(Theme.dim).fixedSize(horizontal: false, vertical: true)
                         }
                     }
                 }
@@ -390,11 +390,11 @@ struct ImportSidebarProgress: View {
             Button { model.lab.show(.importer) } label: {
                 VStack(alignment: .leading, spacing: 5) {
                     HStack {
-                        Text(run.waitingFor != nil ? "Import waiting" : run.paused ? "Import paused" : run.adding ? "Adding" : "Importing").font(.system(size: 10.5)).foregroundStyle(run.waitingFor != nil ? Theme.warn : Q.dim)
+                        Text(run.waitingFor != nil ? "Import waiting" : run.paused ? "Import paused" : run.adding ? "Adding" : "Importing").font(.system(size: 10.5)).foregroundStyle(run.waitingFor != nil ? Theme.warn : Theme.dim)
                         Spacer()
-                        Text("\(run.done) / \(run.total)").font(Q.value(10.5)).foregroundStyle(Q.dim)
+                        Text("\(run.done) / \(run.total)").font(Theme.value(10.5)).foregroundStyle(Theme.dim)
                     }
-                    ProgressView(value: run.fraction).progressViewStyle(.linear).tint(Q.red).controlSize(.mini)
+                    ProgressView(value: run.fraction).progressViewStyle(.linear).tint(Theme.accent).controlSize(.mini)
                 }
                 .padding(.horizontal, 20).padding(.bottom, 8)
                 .contentShape(Rectangle())

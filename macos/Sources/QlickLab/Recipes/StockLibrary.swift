@@ -180,16 +180,16 @@ struct StockLibrary: View {
             VStack(spacing: 0) {
                 HStack(spacing: 10) {
                     HStack(spacing: 6) {
-                        Image(systemName: "magnifyingglass").font(.system(size: 11)).foregroundStyle(Q.dim)
+                        Image(systemName: "magnifyingglass").font(.system(size: 11)).foregroundStyle(Theme.dim)
                         TextField(papers ? "Search papers…" : "Search films…", text: $query).textFieldStyle(.plain).font(.system(size: 12.5))
                     }
                     .padding(.horizontal, 10).frame(width: 280, height: 28)
                     .background(Capsule().fill(Color.white.opacity(0.07)))
                     Spacer()
                     if model.source == nil {
-                        Text("Open a photograph to see each \(papers ? "paper" : "film") on it.").font(.system(size: 11.5)).foregroundStyle(Q.dim)
+                        Text("Open a photograph to see each \(papers ? "paper" : "film") on it.").font(.system(size: 11.5)).foregroundStyle(Theme.dim)
                     } else if let item = model.sourceItem {
-                        Text("Previews developed on \(model.library.name(of: item))").font(.system(size: 11.5)).foregroundStyle(Q.dim)
+                        Text("Previews developed on \(model.library.name(of: item))").font(.system(size: 11.5)).foregroundStyle(Theme.dim)
                     }
                 }
                 .padding(.horizontal, 16).frame(height: 44)
@@ -204,7 +204,7 @@ struct StockLibrary: View {
                     }
                     .padding(20)
                     if shown.isEmpty {
-                        Text("No \(papers ? "paper" : "film") matches.").font(.system(size: 12.5)).foregroundStyle(Q.dim).padding(.top, 60)
+                        Text("No \(papers ? "paper" : "film") matches.").font(.system(size: 12.5)).foregroundStyle(Theme.dim).padding(.top, 60)
                     }
                 }
             }
@@ -258,10 +258,10 @@ private struct StockCard: View {
             }
             .aspectRatio(1.5, contentMode: .fit)
             .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 4, style: .continuous).strokeBorder(selected ? Q.text : Color.white.opacity(hovered ? 0.3 : 0.08), lineWidth: selected ? 1.5 : 1))
+            .overlay(RoundedRectangle(cornerRadius: 4, style: .continuous).strokeBorder(selected ? Theme.paper : Color.white.opacity(hovered ? 0.3 : 0.08), lineWidth: selected ? 1.5 : 1))
             .overlay(alignment: .topTrailing) {
                 Button { lab.toggleFavourite(stock.id) } label: {
-                    Image(systemName: favourite ? "star.fill" : "star").font(.system(size: 11.5)).foregroundStyle(favourite ? Q.text : Color.white.opacity(0.7))
+                    Image(systemName: favourite ? "star.fill" : "star").font(.system(size: 11.5)).foregroundStyle(favourite ? Theme.paper : Color.white.opacity(0.7))
                         .frame(width: 26, height: 26).contentShape(Rectangle())
                         .shadow(color: .black.opacity(0.7), radius: 2)
                 }
@@ -269,11 +269,11 @@ private struct StockCard: View {
                 .help(favourite ? "Remove from Favourites" : "Add to Favourites")
             }
             HStack(alignment: .firstTextBaseline, spacing: 6) {
-                if inUse { Circle().fill(Q.red).frame(width: 5, height: 5).help("Used by the open photograph") }
-                Text(stock.name).font(.system(size: 12.5, weight: .semibold)).foregroundStyle(Q.text).lineLimit(1)
+                if inUse { Circle().fill(Theme.accent).frame(width: 5, height: 5).help("Used by the open photograph") }
+                Text(stock.name).font(.system(size: 12.5, weight: .semibold)).foregroundStyle(Theme.paper).lineLimit(1)
             }
             Text([StockFacts.speed(stock).map { "ISO \($0)" }, StockFacts.kind(stock, family: family)].compactMap { $0 }.joined(separator: " · "))
-                .font(.system(size: 11)).foregroundStyle(Q.dim).lineLimit(1)
+                .font(.system(size: 11)).foregroundStyle(Theme.dim).lineLimit(1)
         }
         .contentShape(Rectangle())
         .onTapGesture(perform: select)
@@ -305,12 +305,12 @@ private struct StockDetail: View {
                 }
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(alignment: .firstTextBaseline) {
-                        Text(stock.name).font(Q.title(18)).foregroundStyle(Q.text).fixedSize(horizontal: false, vertical: true)
+                        Text(stock.name).font(Theme.title(18)).foregroundStyle(Theme.paper).fixedSize(horizontal: false, vertical: true)
                         Spacer()
-                        Button { lab.toggleFavourite(stock.id) } label: { Image(systemName: favourite ? "star.fill" : "star").foregroundStyle(favourite ? Q.text : Q.dim) }
+                        Button { lab.toggleFavourite(stock.id) } label: { Image(systemName: favourite ? "star.fill" : "star").foregroundStyle(favourite ? Theme.paper : Theme.dim) }
                             .buttonStyle(.plain)
                     }
-                    Text(StockFacts.kind(stock, family: family)).font(.system(size: 12)).foregroundStyle(Q.dim)
+                    Text(StockFacts.kind(stock, family: family)).font(.system(size: 12)).foregroundStyle(Theme.dim)
                 }
                 VStack(alignment: .leading, spacing: 7) {
                     fact("Maker", StockFacts.maker(stock))
@@ -338,10 +338,10 @@ private struct StockDetail: View {
                     CapsLabel("Provenance")
                     Text(StockFacts.provenance(stock, profile: profile)).font(.system(size: 11.5)).foregroundStyle(Color(white: 0.7)).fixedSize(horizontal: false, vertical: true)
                     if let profile, !profile.copyright.isEmpty {
-                        Text(profile.copyright).font(.system(size: 10.5)).foregroundStyle(Q.dim).fixedSize(horizontal: false, vertical: true)
+                        Text(profile.copyright).font(.system(size: 10.5)).foregroundStyle(Theme.dim).fixedSize(horizontal: false, vertical: true)
                     }
                     Text("A simulation from published data: it approaches the film, it doesn't replace it. \(StockFacts.maker(stock)) is a trademark of its owner, unconnected with Qlick Lab.")
-                        .font(.system(size: 10.5)).foregroundStyle(Q.faint).fixedSize(horizontal: false, vertical: true)
+                        .font(.system(size: 10.5)).foregroundStyle(Theme.faint).fixedSize(horizontal: false, vertical: true)
                 }
                 VStack(spacing: 8) {
                     Button(stock.paper ? "Print on This Paper" : "Develop on This Film") {
@@ -381,7 +381,7 @@ private struct StockDetail: View {
     private func fact(_ label: String, _ value: String) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             CapsLabel(label, size: 9.5).frame(width: 104, alignment: .leading)
-            Text(value).font(Q.value(12)).foregroundStyle(Color(white: 0.86)).fixedSize(horizontal: false, vertical: true)
+            Text(value).font(Theme.value(12)).foregroundStyle(Color(white: 0.86)).fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -391,7 +391,7 @@ private struct StockDetail: View {
             content().frame(height: 132)
                 .padding(10)
                 .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Color.white.opacity(0.04)))
-            Text(help).font(.system(size: 10.5)).foregroundStyle(Q.faint)
+            Text(help).font(.system(size: 10.5)).foregroundStyle(Theme.faint)
         }
     }
 }

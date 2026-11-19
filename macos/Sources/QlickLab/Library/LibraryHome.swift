@@ -15,11 +15,11 @@ struct LibraryHome: View {
         VStack(spacing: 0) {
             HStack(spacing: 10) {
                 HStack(spacing: 6) {
-                    Image(systemName: "magnifyingglass").font(.system(size: 11)).foregroundStyle(Q.dim)
+                    Image(systemName: "magnifyingglass").font(.system(size: 11)).foregroundStyle(Theme.dim)
                     TextField("Search projects, rolls, films, files…", text: $query)
                         .textFieldStyle(.plain).font(.system(size: 12.5)).focused($searching)
                     if !query.isEmpty {
-                        Button { query = "" } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(Q.dim) }.buttonStyle(.plain)
+                        Button { query = "" } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(Theme.dim) }.buttonStyle(.plain)
                     }
                 }
                 .padding(.horizontal, 10).frame(width: 340, height: 28)
@@ -40,9 +40,9 @@ struct LibraryHome: View {
                 LibraryEmpty(model: model)
             } else if results.isEmpty {
                 VStack(spacing: 8) {
-                    Text("Nothing matches “\(query)”").font(Q.title(16)).foregroundStyle(Q.text)
+                    Text("Nothing matches “\(query)”").font(Theme.title(16)).foregroundStyle(Theme.paper)
                     Text("Search looks at project and roll names, the film, the camera, the notes,\nthe films frames were developed on, and file names.")
-                        .font(.system(size: 12)).foregroundStyle(Q.dim).multilineTextAlignment(.center)
+                        .font(.system(size: 12)).foregroundStyle(Theme.dim).multilineTextAlignment(.center)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
@@ -59,7 +59,7 @@ struct LibraryHome: View {
         .background(Theme.bg)
         .overlay {
             if dropping {
-                RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Q.red, lineWidth: 2).padding(10).allowsHitTesting(false)
+                RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Theme.accent, lineWidth: 2).padding(10).allowsHitTesting(false)
             }
         }
         .onDrop(of: [.fileURL], isTargeted: $dropping) { providers in LabDrop.load(providers) { lab.importFolders($0) } }
@@ -126,15 +126,15 @@ private struct ProjectSection: View {
             HStack(alignment: .firstTextBaseline, spacing: 10) {
                 if renaming {
                     TextField("Project name", text: $name)
-                        .textFieldStyle(.plain).font(Q.title(20)).frame(maxWidth: 380)
+                        .textFieldStyle(.plain).font(Theme.title(20)).frame(maxWidth: 380)
                         .onSubmit { lab.projects.update(project.id) { $0.name = name.trimmingCharacters(in: .whitespaces).isEmpty ? $0.name : name }; renaming = false }
                         .onExitCommand { renaming = false }
                 } else {
-                    Text(project.name).font(Q.title(20)).foregroundStyle(Q.text)
+                    Text(project.name).font(Theme.title(20)).foregroundStyle(Theme.paper)
                         .onTapGesture(count: 2) { name = project.name; renaming = true }
                         .help("Double-click to rename")
                 }
-                Text(Self.summary(project, stats: lab.projects.stats)).font(Q.value(11.5)).foregroundStyle(Q.dim)
+                Text(Self.summary(project, stats: lab.projects.stats)).font(Theme.value(11.5)).foregroundStyle(Theme.dim)
                 Spacer()
                 Menu {
                     Button("Add a Folder…") { lab.importPanel(into: project.id) }
@@ -143,7 +143,7 @@ private struct ProjectSection: View {
                     Divider()
                     Button("Remove the Project from the Catalog…") { lab.removeProject(project) }
                 } label: {
-                    Image(systemName: "ellipsis").font(.system(size: 13, weight: .semibold)).foregroundStyle(Q.dim).frame(width: 28, height: 24).contentShape(Rectangle())
+                    Image(systemName: "ellipsis").font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.dim).frame(width: 28, height: 24).contentShape(Rectangle())
                 }
                 .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
             }
@@ -167,7 +167,7 @@ private struct ProjectSection: View {
                             Image(systemName: "plus").font(.system(size: 16, weight: .light))
                             Text("Add a roll").font(.system(size: 11.5))
                         }
-                        .foregroundStyle(Q.dim)
+                        .foregroundStyle(Theme.dim)
                         .frame(maxWidth: .infinity).frame(height: 96)
                         .background(RoundedRectangle(cornerRadius: 6, style: .continuous).strokeBorder(Color.white.opacity(0.12), style: StrokeStyle(lineWidth: 1, dash: [4, 4])))
                         .contentShape(Rectangle())
@@ -209,10 +209,10 @@ private struct RollCard: View {
                 .opacity(stats?.missing == true ? 0.35 : 1)
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 6) {
-                    if open { Circle().fill(Q.red).frame(width: 5, height: 5) }
-                    Text(roll.name).font(.system(size: 13, weight: .semibold)).foregroundStyle(Q.text).lineLimit(1)
+                    if open { Circle().fill(Theme.accent).frame(width: 5, height: 5) }
+                    Text(roll.name).font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.paper).lineLimit(1)
                     Spacer(minLength: 4)
-                    Button { editing = true } label: { Image(systemName: "pencil").font(.system(size: 10.5)).foregroundStyle(Q.dim).frame(width: 20, height: 18).contentShape(Rectangle()) }
+                    Button { editing = true } label: { Image(systemName: "pencil").font(.system(size: 10.5)).foregroundStyle(Theme.dim).frame(width: 20, height: 18).contentShape(Rectangle()) }
                         .buttonStyle(.plain).opacity(hovered || editing ? 1 : 0)
                         .help("The roll's film, camera and notes")
                         .popover(isPresented: $editing, arrowEdge: .bottom) { RollEditor(lab: lab, project: project.id, roll: roll) }
@@ -225,15 +225,15 @@ private struct RollCard: View {
                         Text("Folder not found").font(.system(size: 11.5)).foregroundStyle(Theme.warn)
                     } else {
                         HStack(spacing: 9) {
-                            Text("\(stats.total) frames").font(Q.value(11.5)).foregroundStyle(Q.dim)
+                            Text("\(stats.total) frames").font(Theme.value(11.5)).foregroundStyle(Theme.dim)
                             if stats.picks > 0 { count(.pick, stats.picks) }
                             if stats.rejects > 0 { count(.reject, stats.rejects) }
-                            if stats.edited > 0 { Text("\(stats.edited) developed").font(Q.value(11.5)).foregroundStyle(Q.dim) }
+                            if stats.edited > 0 { Text("\(stats.edited) developed").font(Theme.value(11.5)).foregroundStyle(Theme.dim) }
                         }
                     }
                 }
-                if let reason { Text(reason).font(.system(size: 11)).foregroundStyle(Q.text.opacity(0.8)).lineLimit(1) }
-                if !roll.notes.isEmpty { Text(roll.notes).font(.system(size: 11)).foregroundStyle(Q.dim).lineLimit(2) }
+                if let reason { Text(reason).font(.system(size: 11)).foregroundStyle(Theme.paper.opacity(0.8)).lineLimit(1) }
+                if !roll.notes.isEmpty { Text(roll.notes).font(.system(size: 11)).foregroundStyle(Theme.dim).lineLimit(2) }
             }
         }
         .contentShape(Rectangle())
@@ -252,7 +252,7 @@ private struct RollCard: View {
     private func count(_ flag: PhotoSidecar.Flag, _ value: Int) -> some View {
         HStack(spacing: 3) {
             MarkGlyph(flag: flag).frame(width: 13, height: 10)
-            Text("\(value)").font(Q.value(11.5)).foregroundStyle(Color(white: 0.75))
+            Text("\(value)").font(Theme.value(11.5)).foregroundStyle(Color(white: 0.75))
         }
     }
 }
@@ -320,11 +320,11 @@ private struct RollEditor: View {
             field("Film loaded", $roll.film, prompt: "Portra 400, pushed +1…")
             field("Camera", $roll.camera, prompt: "Leica M6, 35 mm")
             VStack(alignment: .leading, spacing: 4) {
-                Text("Notes").font(.system(size: 11)).foregroundStyle(Q.dim)
+                Text("Notes").font(.system(size: 11)).foregroundStyle(Theme.dim)
                 TextField("Place, light, development…", text: $roll.notes, axis: .vertical).textFieldStyle(.roundedBorder).lineLimit(2...5)
             }
             Text("The film is printed along the edge of the contact sheet's strips.\nThis stays in the project; the files aren't changed.")
-                .font(.system(size: 10.5)).foregroundStyle(Q.dim).fixedSize(horizontal: false, vertical: true)
+                .font(.system(size: 10.5)).foregroundStyle(Theme.dim).fixedSize(horizontal: false, vertical: true)
         }
         .padding(16)
         .frame(width: 320)
@@ -338,7 +338,7 @@ private struct RollEditor: View {
 
     private func field(_ title: String, _ text: Binding<String>, prompt: String = "") -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(title).font(.system(size: 11)).foregroundStyle(Q.dim)
+            Text(title).font(.system(size: 11)).foregroundStyle(Theme.dim)
             TextField(prompt, text: text).textFieldStyle(.roundedBorder)
         }
     }
@@ -349,9 +349,9 @@ private struct LibraryEmpty: View {
     var body: some View {
         VStack(spacing: 16) {
             QMark(size: 54)
-            Text("Your lab is empty").font(Q.title(19)).foregroundStyle(Q.text)
+            Text("Your lab is empty").font(Theme.title(19)).foregroundStyle(Theme.paper)
             Text("Drop a folder of photographs here: it becomes the first roll of a project.\nNothing is copied; your files stay where they are and are never changed.")
-                .font(.system(size: 13)).foregroundStyle(Q.dim).multilineTextAlignment(.center)
+                .font(.system(size: 13)).foregroundStyle(Theme.dim).multilineTextAlignment(.center)
             Button("Import a Folder…") { model.lab.importPanel() }.buttonStyle(QPrimaryButtonStyle())
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

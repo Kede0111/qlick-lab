@@ -100,16 +100,16 @@ struct LibraryFilterBar: View {
             StarFilter(model: model)
             separator
             Button { model.library.filter.editedOnly.toggle() } label: {
-                Text("Developed").font(Q.label(12, weight: library.filter.editedOnly ? .semibold : .regular))
-                    .foregroundStyle(library.filter.editedOnly ? Q.black : Q.text)
+                Text("Developed").font(Theme.caps(12, weight: library.filter.editedOnly ? .semibold : .regular))
+                    .foregroundStyle(library.filter.editedOnly ? Theme.film : Theme.paper)
                     .padding(.horizontal, 10).frame(height: 24)
-                    .background(Capsule().fill(library.filter.editedOnly ? Q.text : Color.white.opacity(0.001)))
+                    .background(Capsule().fill(library.filter.editedOnly ? Theme.paper : Color.white.opacity(0.001)))
                     .contentShape(Capsule())
             }
             .buttonStyle(.plain).help("Only the photographs with a development of their own")
             if library.filter.active {
                 Button { model.library.filter = LibraryFilter() } label: {
-                    Image(systemName: "xmark.circle.fill").font(.system(size: 12)).foregroundStyle(Q.dim)
+                    Image(systemName: "xmark.circle.fill").font(.system(size: 12)).foregroundStyle(Theme.dim)
                 }
                 .buttonStyle(.plain).help("Clear the filter (⌥⌘L)").padding(.horizontal, 4)
             }
@@ -118,7 +118,7 @@ struct LibraryFilterBar: View {
             let selected = model.selection.selected.count
             if selected > 1 {
                 separator
-                Text("\(selected) selected").font(Q.value(11.5)).foregroundStyle(Color(white: 0.8)).padding(.trailing, 8)
+                Text("\(selected) selected").font(Theme.value(11.5)).foregroundStyle(Color(white: 0.8)).padding(.trailing, 8)
             }
         }
         .padding(inline ? 0 : 5)
@@ -135,12 +135,12 @@ struct LibraryFilterBar: View {
         Button(action: action) {
             HStack(spacing: 6) {
                 if let mark { MarkGlyph(flag: mark).frame(width: 15, height: 12) }
-                Text(title).font(Q.label(12, weight: on ? .semibold : .regular))
-                Text("\(count)").font(Q.value(11.5)).opacity(0.65)
+                Text(title).font(Theme.caps(12, weight: on ? .semibold : .regular))
+                Text("\(count)").font(Theme.value(11.5)).opacity(0.65)
             }
-            .foregroundStyle(on ? Q.black : Q.text)
+            .foregroundStyle(on ? Theme.film : Theme.paper)
             .padding(.horizontal, 10).frame(height: 24)
-            .background(Capsule().fill(on ? Q.text : Color.white.opacity(0.001)))
+            .background(Capsule().fill(on ? Theme.paper : Color.white.opacity(0.001)))
             .contentShape(Capsule())
         }
         .buttonStyle(.plain)
@@ -179,7 +179,7 @@ private struct StarFilter: View {
                 Button("Any Rating") { model.library.filter.rating = .any }
             } label: {
                 Text(rating == .unrated ? "0" : relation.rawValue)
-                    .font(.system(size: 12, weight: .semibold)).foregroundStyle(Q.text).frame(width: 18)
+                    .font(.system(size: 12, weight: .semibold)).foregroundStyle(Theme.paper).frame(width: 18)
             }
             .menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden).fixedSize()
             .help("At least, at most or exactly so many stars")
@@ -189,7 +189,7 @@ private struct StarFilter: View {
                 } label: {
                     Image(systemName: star <= stars ? "star.fill" : "star")
                         .font(.system(size: 11))
-                        .foregroundStyle(star <= stars ? Q.red : Q.dim)
+                        .foregroundStyle(star <= stars ? Theme.accent : Theme.dim)
                         .frame(width: 17, height: 24)
                         .contentShape(Rectangle())
                 }
@@ -241,16 +241,16 @@ struct SortPicker: View {
                 }
             } label: {
                 HStack(spacing: 4) {
-                    Text("Sort").foregroundStyle(Q.dim)
-                    Text(sort.key.title).foregroundStyle(Q.text)
+                    Text("Sort").foregroundStyle(Theme.dim)
+                    Text(sort.key.title).foregroundStyle(Theme.paper)
                 }
-                .font(Q.label(12))
+                .font(Theme.caps(12))
             }
             .menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden).fixedSize()
             .help("The order of the photographs")
             Button { lab.sort.ascending.toggle() } label: {
                 Image(systemName: sort.ascending ? "arrow.up" : "arrow.down")
-                    .font(.system(size: 10, weight: .semibold)).foregroundStyle(Q.text)
+                    .font(.system(size: 10, weight: .semibold)).foregroundStyle(Theme.paper)
                     .frame(width: 22, height: 24).contentShape(Rectangle())
             }
             .buttonStyle(.plain)

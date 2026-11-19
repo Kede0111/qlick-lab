@@ -218,7 +218,7 @@ struct WhiteBalanceSection: View {
                         .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(model.lab.pickingWhite ? Color.white : Theme.dim)
                         .frame(width: 26, height: 22)
-                        .background(Capsule().fill(model.lab.pickingWhite ? Q.red.opacity(0.9) : Color.white.opacity(0.06)))
+                        .background(Capsule().fill(model.lab.pickingWhite ? Theme.accent.opacity(0.9) : Color.white.opacity(0.06)))
                         .contentShape(Capsule())
                 }
                 .buttonStyle(.plain)
@@ -299,7 +299,7 @@ struct StockPicker: View {
                 }
                 Button { model.toggle(EditorModel.noFilmPath).wrappedValue.toggle() } label: {
                     Image(systemName: noFilm ? "film" : "xmark.circle")
-                        .font(.system(size: 12)).foregroundStyle(noFilm ? Q.red : Theme.dim)
+                        .font(.system(size: 12)).foregroundStyle(noFilm ? Theme.accent : Theme.dim)
                         .frame(width: 30, height: 56).contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -312,7 +312,7 @@ struct StockPicker: View {
                           detail: nil, opens: !scanning, canister: nil)
                 Button { model.toggle("io.scan_film").wrappedValue.toggle() } label: {
                     Image(systemName: scanning ? "doc.badge.plus" : "xmark.circle")
-                        .font(.system(size: 12)).foregroundStyle(scanning ? Q.red : Theme.dim)
+                        .font(.system(size: 12)).foregroundStyle(scanning ? Theme.accent : Theme.dim)
                         .frame(width: 30, height: 34).contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -599,7 +599,7 @@ struct TabPills: View {
                 Button { tab = item } label: {
                     HStack(spacing: 4) {
                         Text(item.title).font(.system(size: 12, weight: on ? .semibold : .medium))
-                        if (counts[item] ?? 0) > 0 { Circle().fill(Q.red).frame(width: 4, height: 4) }
+                        if (counts[item] ?? 0) > 0 { Circle().fill(Theme.accent).frame(width: 4, height: 4) }
                     }
                     .foregroundStyle(on ? Color.white : Color(white: 0.62))
                     .frame(maxWidth: .infinity).frame(height: 26)
@@ -632,7 +632,7 @@ private struct PresetRow: View {
         HStack(spacing: 0) {
             Button { model.inspectorPane = .presets } label: {
                 HStack(spacing: 10) {
-                    Image(systemName: "square.stack.3d.up.fill").font(.system(size: 13)).foregroundStyle(Q.red)
+                    Image(systemName: "square.stack.3d.up.fill").font(.system(size: 13)).foregroundStyle(Theme.accent)
                         .frame(width: 22)
                     Text("Preset").font(.system(size: 11)).foregroundStyle(Theme.dim).fixedSize()
                     Text(name ?? "None").font(.system(size: 12, weight: .medium))

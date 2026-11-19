@@ -37,7 +37,7 @@ struct GridSheet: View {
                     SheetLoupe(model: model, item: loupe).transition(.opacity)
                 }
             }
-            .animation(Q.quick, value: model.lab.loupe)
+            .animation(Theme.quick, value: model.lab.loupe)
             .environment(\.colorScheme, .dark)
             .accessibilityElement(children: .contain)
             .accessibilityLabel("All photographs")

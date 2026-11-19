@@ -21,7 +21,7 @@ struct RecipesWorkspace: View {
                 QSegmented(options: [(false, "All", "All recipes"), (true, "Favourites", "Recipes marked with a star")], selection: $favouritesOnly)
                 Spacer()
                 if let item = model.sourceItem {
-                    Text("Previews developed on \(model.library.name(of: item))").font(.system(size: 11.5)).foregroundStyle(Q.dim)
+                    Text("Previews developed on \(model.library.name(of: item))").font(.system(size: 11.5)).foregroundStyle(Theme.dim)
                 }
                 Button { model.importPresetsPanel() } label: { Label("Import…", systemImage: "square.and.arrow.down") }.buttonStyle(QPillButtonStyle())
                     .help("Recipes from Qlick Lab or spektrafilm (its interface's state files)")
@@ -35,10 +35,10 @@ struct RecipesWorkspace: View {
 
             if model.presets.isEmpty {
                 VStack(spacing: 14) {
-                    Image(systemName: "flask").font(.system(size: 36, weight: .light)).foregroundStyle(Q.faint)
-                    Text("No recipes yet").font(Q.title(18)).foregroundStyle(Q.text)
+                    Image(systemName: "flask").font(.system(size: 36, weight: .light)).foregroundStyle(Theme.faint)
+                    Text("No recipes yet").font(Theme.title(18)).foregroundStyle(Theme.paper)
                     Text("A recipe keeps a film, a paper and their settings, to use them on other photographs.\nDevelop a picture and save it as a recipe, or import spektrafilm's.")
-                        .font(.system(size: 12.5)).foregroundStyle(Q.dim).multilineTextAlignment(.center)
+                        .font(.system(size: 12.5)).foregroundStyle(Theme.dim).multilineTextAlignment(.center)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
@@ -104,14 +104,14 @@ private struct RecipeCard: View {
             ZStack {
                 Color(white: 0.09)
                 if let image { Image(decorative: image, scale: 2).resizable().aspectRatio(contentMode: .fill) }
-                else { Image(systemName: "flask").font(.system(size: 22, weight: .light)).foregroundStyle(Q.faint) }
+                else { Image(systemName: "flask").font(.system(size: 22, weight: .light)).foregroundStyle(Theme.faint) }
             }
             .aspectRatio(1.5, contentMode: .fit)
             .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 4, style: .continuous).strokeBorder(selected ? Q.text : Color.white.opacity(hovered ? 0.3 : 0.08), lineWidth: selected ? 1.5 : 1))
+            .overlay(RoundedRectangle(cornerRadius: 4, style: .continuous).strokeBorder(selected ? Theme.paper : Color.white.opacity(hovered ? 0.3 : 0.08), lineWidth: selected ? 1.5 : 1))
             .overlay(alignment: .topTrailing) {
                 Button { lab.toggleFavouriteRecipe(preset.name) } label: {
-                    Image(systemName: favourite ? "star.fill" : "star").font(.system(size: 11.5)).foregroundStyle(favourite ? Q.text : Color.white.opacity(0.7))
+                    Image(systemName: favourite ? "star.fill" : "star").font(.system(size: 11.5)).foregroundStyle(favourite ? Theme.paper : Color.white.opacity(0.7))
                         .frame(width: 26, height: 26).contentShape(Rectangle()).shadow(color: .black.opacity(0.7), radius: 2)
                 }
                 .buttonStyle(.plain).opacity(favourite || hovered ? 1 : 0)
@@ -121,11 +121,11 @@ private struct RecipeCard: View {
                     .onSubmit(rename).onAppear { focused = true }
             } else {
                 HStack(spacing: 6) {
-                    if applied { Circle().fill(Q.red).frame(width: 5, height: 5).help("Applied to the open photograph") }
-                    Text(preset.name).font(.system(size: 12.5, weight: .semibold)).foregroundStyle(Q.text).lineLimit(1)
+                    if applied { Circle().fill(Theme.accent).frame(width: 5, height: 5).help("Applied to the open photograph") }
+                    Text(preset.name).font(.system(size: 12.5, weight: .semibold)).foregroundStyle(Theme.paper).lineLimit(1)
                 }
             }
-            Text(RecipeFacts.line(model, preset)).font(.system(size: 11)).foregroundStyle(Q.dim).lineLimit(1)
+            Text(RecipeFacts.line(model, preset)).font(.system(size: 11)).foregroundStyle(Theme.dim).lineLimit(1)
         }
         .contentShape(Rectangle())
         .onTapGesture(perform: select)
@@ -165,8 +165,8 @@ private struct RecipeDetail: View {
                     Image(decorative: image, scale: 2).resizable().aspectRatio(contentMode: .fit).clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
                 }
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(preset.name).font(Q.title(18)).foregroundStyle(Q.text).fixedSize(horizontal: false, vertical: true)
-                    Text("Changed \(preset.modified.formatted(.dateTime.day().month(.wide).year()))").font(.system(size: 11.5)).foregroundStyle(Q.dim)
+                    Text(preset.name).font(Theme.title(18)).foregroundStyle(Theme.paper).fixedSize(horizontal: false, vertical: true)
+                    Text("Changed \(preset.modified.formatted(.dateTime.day().month(.wide).year()))").font(.system(size: 11.5)).foregroundStyle(Theme.dim)
                 }
                 if case .valid(let film, let paper, let scan) = model.presetStatus[preset] {
                     VStack(alignment: .leading, spacing: 7) {
@@ -185,7 +185,7 @@ private struct RecipeDetail: View {
                     Toggle(isOn: Binding(get: { model.recipesApplyDevelop }, set: { model.recipesApplyDevelop = $0 })) {
                         Text("Apply Develop settings too").font(.system(size: 12)).foregroundStyle(Color(white: 0.86))
                     }
-                    .toggleStyle(.checkbox).tint(Q.red).help(RecipeDevelop.applyHelp)
+                    .toggleStyle(.checkbox).tint(Theme.accent).help(RecipeDevelop.applyHelp)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     Button(targets.count > 1 ? "Apply to the \(targets.count) Selected Frames" : "Apply to the Photograph") {
                         model.labApply(preset, to: targets)
@@ -210,7 +210,7 @@ private struct RecipeDetail: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 Text("spektrafilm format: the recipe opens in spektrafilm too. To change it, apply it, adjust the development, then save that as a new recipe.")
-                    .font(.system(size: 10.5)).foregroundStyle(Q.faint).fixedSize(horizontal: false, vertical: true)
+                    .font(.system(size: 10.5)).foregroundStyle(Theme.faint).fixedSize(horizontal: false, vertical: true)
             }
             .padding(18)
         }
@@ -224,7 +224,7 @@ private struct RecipeDetail: View {
     private func fact(_ label: String, _ value: String) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             CapsLabel(label, size: 9.5).frame(width: 80, alignment: .leading)
-            Text(value).font(Q.value(12)).foregroundStyle(Color(white: 0.86)).fixedSize(horizontal: false, vertical: true)
+            Text(value).font(Theme.value(12)).foregroundStyle(Color(white: 0.86)).fixedSize(horizontal: false, vertical: true)
         }
     }
 }

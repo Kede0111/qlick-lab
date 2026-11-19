@@ -63,7 +63,7 @@ struct DevelopBar: View {
     private func tool(_ symbol: String, _ help: String, on: Bool = false, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: symbol).font(.system(size: 11.5, weight: on ? .semibold : .regular))
-                .foregroundStyle(on ? Q.red : Theme.label).frame(width: 24, height: 22).contentShape(Rectangle())
+                .foregroundStyle(on ? Theme.accent : Theme.label).frame(width: 24, height: 22).contentShape(Rectangle())
         }
         .buttonStyle(.plain).help(help)
         .accessibilityLabel(help)

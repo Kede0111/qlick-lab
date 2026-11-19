@@ -200,7 +200,7 @@ struct MenuShortcutsList: View {
                     .font(.system(size: 11.5, weight: .semibold, design: .rounded))
                     .foregroundStyle(on ? Color.white : shortcut.isNone ? Theme.dim : Theme.paper)
                     .padding(.horizontal, 9).frame(minWidth: 70, minHeight: 22)
-                    .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(on ? Q.red : Color.white.opacity(store.isChanged(command) ? 0.16 : 0.07)))
+                    .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(on ? Theme.accent : Color.white.opacity(store.isChanged(command) ? 0.16 : 0.07)))
             }
             .buttonStyle(.plain)
         }

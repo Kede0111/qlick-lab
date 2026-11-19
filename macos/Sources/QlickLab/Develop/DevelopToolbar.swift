@@ -76,7 +76,7 @@ struct DevelopToolbar: View {
                     .font(.system(size: 11.5, weight: .semibold))
                     .foregroundStyle(.white)
                     .padding(.horizontal, 12).frame(height: 24)
-                    .background(Capsule().fill(Q.red.opacity(model.canExport ? 0.9 : 0.35)))
+                    .background(Capsule().fill(Theme.accent.opacity(model.canExport ? 0.9 : 0.35)))
                     .contentShape(Capsule())
             }
             .buttonStyle(.plain)
@@ -125,7 +125,7 @@ private struct ToolButton<Label: View>: View {
             label()
                 .foregroundStyle(on ? Color.white : hovered ? Color(white: 0.9) : Color(white: 0.66))
                 .frame(minWidth: 28).padding(.horizontal, 2).frame(height: 24)
-                .background(Capsule().fill(on ? Q.red.opacity(0.85) : hovered ? Color.white.opacity(0.08) : .clear))
+                .background(Capsule().fill(on ? Theme.accent.opacity(0.85) : hovered ? Color.white.opacity(0.08) : .clear))
                 .contentShape(Capsule())
         }
         .buttonStyle(.plain)
@@ -148,7 +148,7 @@ private struct ZoomSlider: View {
         HStack(spacing: 6) {
             Slider(value: Binding(get: { log2(Double(ratio)) },
                                   set: { scale.zoom(to: CGFloat(pow(2, $0))) }), in: -3...4)
-                .controlSize(.mini).tint(Q.red).frame(width: 96)
+                .controlSize(.mini).tint(Theme.accent).frame(width: 96)
                 .help("Zoom: drag from an eighth to 16 to 1; scroll or pinch over the photograph")
             Menu {
                 Button("Fit") { model.zoom(fit: true) }

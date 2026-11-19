@@ -1,48 +1,16 @@
-// Qlick Lab — GPL-3.0-only. The identity shared with QLab (App/Sources/Design/Theme.swift there):
-// black for the instrument, white for information, one red for action and important state.
+// Qlick Lab — GPL-3.0-only. The controls shared with QLab: capital labels, Liquid Glass, the red main button,
+// pills, icon buttons, segmented choices and the lab's mark. Their tokens are in Theme.swift.
 import AppKit
 import SwiftUI
-
-enum Q {
-    // MARK: Colour — QLab's tokens
-
-    static let black = Color(white: 0)
-    static let surface = Color(white: 0.07)
-    static let surfaceRaised = Color(white: 0.115)
-    static let hairline = Color(white: 0.2)
-    static let faint = Color(white: 0.32)
-    static let dim = Color(white: 0.5)
-    static let text = Color(white: 0.94)
-    /// The one red: selection, rejection, the main action, the active state.
-    static let red = Color(.displayP3, red: 0.89, green: 0.11, blue: 0.14)
-
-    enum NS {
-        static let red = NSColor(displayP3Red: 0.89, green: 0.11, blue: 0.14, alpha: 1)
-        static let text = NSColor(white: 0.94, alpha: 1)
-        static let dim = NSColor(white: 0.5, alpha: 1)
-        static let faint = NSColor(white: 0.32, alpha: 1)
-    }
-
-    // MARK: Type — the system face, as QLab
-
-    /// Small labels: capitals, generous tracking (see `CapsLabel`).
-    static func label(_ size: CGFloat = 11, weight: Font.Weight = .medium) -> Font { .system(size: size, weight: weight) }
-    /// Numeric read-outs: monospaced figures, so they never jitter.
-    static func value(_ size: CGFloat = 13, weight: Font.Weight = .regular) -> Font { .system(size: size, weight: weight).monospacedDigit() }
-    static func title(_ size: CGFloat = 20) -> Font { .system(size: size, weight: .semibold) }
-
-    static let spring = Animation.spring(response: 0.34, dampingFraction: 0.86)
-    static let quick = Animation.easeOut(duration: 0.16)
-}
 
 /// QLab's small capital label.
 struct CapsLabel: View {
     let text: String
     var size: CGFloat = 10.5
-    var color: Color = Q.dim
-    init(_ text: String, size: CGFloat = 10.5, color: Color = Q.dim) { self.text = text; self.size = size; self.color = color }
+    var color: Color = Theme.dim
+    init(_ text: String, size: CGFloat = 10.5, color: Color = Theme.dim) { self.text = text; self.size = size; self.color = color }
     var body: some View {
-        Text(text.uppercased()).font(Q.label(size)).tracking(size * 0.11).foregroundStyle(color).lineLimit(1)
+        Text(text.uppercased()).font(Theme.caps(size)).tracking(size * 0.11).foregroundStyle(color).lineLimit(1)
     }
 }
 
@@ -71,10 +39,10 @@ struct QPrimaryButtonStyle: ButtonStyle {
     @Environment(\.isEnabled) private var enabled
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(Q.label(12, weight: .semibold))
+            .font(Theme.caps(12, weight: .semibold))
             .padding(.horizontal, 14).frame(height: 28)
-            .background(Capsule().fill(enabled ? Q.red : Q.surfaceRaised))
-            .foregroundStyle(enabled ? Color.white : Q.dim)
+            .background(Capsule().fill(enabled ? Theme.accent : Theme.raised))
+            .foregroundStyle(enabled ? Color.white : Theme.dim)
             .opacity(configuration.isPressed ? 0.78 : 1)
             .contentShape(Capsule())
     }
@@ -86,10 +54,10 @@ struct QPillButtonStyle: ButtonStyle {
     @Environment(\.isEnabled) private var enabled
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(Q.label(12))
+            .font(Theme.caps(12))
             .padding(.horizontal, 11).frame(height: 26)
-            .background(Capsule().fill(active ? Q.text : Color.white.opacity(configuration.isPressed ? 0.16 : 0.08)))
-            .foregroundStyle(active ? Q.black : Q.text)
+            .background(Capsule().fill(active ? Theme.paper : Color.white.opacity(configuration.isPressed ? 0.16 : 0.08)))
+            .foregroundStyle(active ? Theme.film : Theme.paper)
             .opacity(enabled ? 1 : 0.4)
             .contentShape(Capsule())
     }
@@ -106,7 +74,7 @@ struct QIconButton: View {
         Button(action: action) {
             Image(systemName: symbol)
                 .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(active ? Q.red : (hovered ? Q.text : Color(white: 0.72)))
+                .foregroundStyle(active ? Theme.accent : (hovered ? Theme.paper : Color(white: 0.72)))
                 .frame(width: 28, height: 26)
                 .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(Color.white.opacity(active ? 0.1 : hovered ? 0.07 : 0)))
                 .contentShape(Rectangle())
@@ -127,10 +95,10 @@ struct QSegmented<T: Hashable>: View {
             ForEach(Array(options.enumerated()), id: \.offset) { _, option in
                 let on = option.value == selection
                 Button { selection = option.value } label: {
-                    Text(option.title).font(Q.label(11.5, weight: on ? .semibold : .regular))
-                        .foregroundStyle(on ? Q.black : Color(white: 0.75))
+                    Text(option.title).font(Theme.caps(11.5, weight: on ? .semibold : .regular))
+                        .foregroundStyle(on ? Theme.film : Color(white: 0.75))
                         .padding(.horizontal, 10).frame(height: 22)
-                        .background(Capsule().fill(on ? Q.text : .clear))
+                        .background(Capsule().fill(on ? Theme.paper : .clear))
                         .contentShape(Capsule())
                 }
                 .buttonStyle(.plain)
@@ -140,7 +108,7 @@ struct QSegmented<T: Hashable>: View {
         }
         .padding(2)
         .background(Capsule().fill(Color.white.opacity(0.07)))
-        .animation(Q.quick, value: selection)
+        .animation(Theme.quick, value: selection)
     }
 }
 
@@ -165,7 +133,7 @@ struct QMark: View {
         Canvas { context, canvas in
             let rect = CGRect(origin: .zero, size: canvas).insetBy(dx: canvas.width * 0.1, dy: canvas.height * 0.1)
             for stroke in GreasePencil.ring(in: rect, seed: "Qlick Lab", weight: canvas.width / 9) {
-                context.fill(Path(stroke.path()), with: .color(Q.red.opacity(stroke.opacity)))
+                context.fill(Path(stroke.path()), with: .color(Theme.accent.opacity(stroke.opacity)))
             }
         }
         .frame(width: size, height: size)

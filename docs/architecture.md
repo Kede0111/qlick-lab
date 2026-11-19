@@ -50,7 +50,7 @@ added is mostly SwiftUI).
 | `Export/` | Batch export and its finishing |
 | `Engine/` | The helper process and its JSON lines (`Engine.swift`, `JSONValue`) |
 | `Files/` | Sidecars (`Sidecar.swift`) and the DNG's XMP (`DNGMetadata.swift`): [sidecar-format.md](sidecar-format.md) |
-| `Design/` | `Theme` (Theme.swift) and `Q` (QTheme.swift): two themes, to merge |
+| `Design/` | `Theme` (Theme.swift), the one set of colours, type and sizes; `Controls.swift`, the controls shared with QLab |
 | `Diagnostics/` | Benchmarks run by environment variables; to leave the shipped app |
 
 ## The Swift ↔ Rust contract

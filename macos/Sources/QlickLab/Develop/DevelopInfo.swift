@@ -425,7 +425,7 @@ struct PhotoInfoPanel: View {
 
     private var header: some View {
         HStack(spacing: 6) {
-            CapsLabel("Information", size: 10.5, color: Q.text)
+            CapsLabel("Information", size: 10.5, color: Theme.paper)
             Spacer(minLength: 8)
             QIconButton(symbol: "doc.on.doc", help: "Copy all of it as text") {
                 guard let metadata else { return }
@@ -441,16 +441,16 @@ struct PhotoInfoPanel: View {
         if let metadata {
             VStack(alignment: .leading, spacing: 14) {
                 if metadata.sections.isEmpty {
-                    Text("This file says nothing about itself.").font(Q.label(12)).foregroundStyle(Q.dim)
+                    Text("This file says nothing about itself.").font(Theme.caps(12)).foregroundStyle(Theme.dim)
                 }
                 ForEach(metadata.sections) { section in
                     VStack(alignment: .leading, spacing: 5) {
                         CapsLabel(section.title, size: 9.5)
                         ForEach(section.rows) { row in
                             HStack(alignment: .firstTextBaseline, spacing: 10) {
-                                Text(row.label).font(Q.label(11.5, weight: .regular)).foregroundStyle(Color(white: 0.62))
+                                Text(row.label).font(Theme.caps(11.5, weight: .regular)).foregroundStyle(Color(white: 0.62))
                                     .frame(width: 92, alignment: .leading)
-                                Text(row.value).font(Q.value(11.5)).foregroundStyle(Q.text)
+                                Text(row.value).font(Theme.value(11.5)).foregroundStyle(Theme.paper)
                                     .textSelection(.enabled)
                                     .lineLimit(row.label == "Folder" ? 2 : 4).truncationMode(.middle)
                                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -466,7 +466,7 @@ struct PhotoInfoPanel: View {
         } else {
             HStack(spacing: 8) {
                 ProgressView().controlSize(.small)
-                Text("Reading…").font(Q.label(12)).foregroundStyle(Q.dim)
+                Text("Reading…").font(Theme.caps(12)).foregroundStyle(Theme.dim)
             }
             .padding(16)
         }

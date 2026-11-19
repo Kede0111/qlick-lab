@@ -3,8 +3,9 @@ import CoreText
 import os
 import SwiftUI
 
-/// The T2 · Label design's tokens: colours, type and sizes, the pencil
-/// stroke and rings. Every view reads from here, so the design changes in
+/// The lab's one theme: colours, type and sizes, the pencil stroke and
+/// rings, for the editor and for the lab's rooms alike (it holds what was
+/// QLab's `Q` too). Every view reads from here, so the design changes in
 /// one place. The values come from design/proposals/IMPLEMENTATION.md §2
 /// (and final.css, the mockup's tokens). Dark only: the app ignores the
 /// system's light appearance.
@@ -40,12 +41,17 @@ enum Theme {
         static let onAccent: UInt32 = 0xffffff
         /// A tile not yet developed.
         static let blank: UInt32 = 0x1a1a1c
+        /// The faintest words and marks: disabled hints, empty states.
+        static let faint: UInt32 = 0x525252
+        /// A raised surface: a disabled main button, a lifted card.
+        static let raised: UInt32 = 0x1d1d1d
     }
 
     static let bg = color(Hex.bg), panel = color(Hex.panel), film = color(Hex.film)
     static let line = color(Hex.line), track = color(Hex.track), dim = color(Hex.dim)
     static let label = color(Hex.label), paper = color(Hex.paper), accent = color(Hex.accent)
     static let warn = color(Hex.warn), onAccent = color(Hex.onAccent), blank = color(Hex.blank)
+    static let faint = color(Hex.faint), raised = color(Hex.raised)
 
     /// The same tokens for AppKit and Core Animation.
     enum NS {
@@ -53,6 +59,7 @@ enum Theme {
         static let line = nsColor(Hex.line), track = nsColor(Hex.track), dim = nsColor(Hex.dim)
         static let label = nsColor(Hex.label), paper = nsColor(Hex.paper), accent = nsColor(Hex.accent)
         static let warn = nsColor(Hex.warn), onAccent = nsColor(Hex.onAccent), blank = nsColor(Hex.blank)
+        static let faint = nsColor(Hex.faint)
     }
 
     /// Text selection: the pencil at 0.32, never system blue (§4.9).
@@ -146,6 +153,17 @@ enum Theme {
     static func ui(_ size: CGFloat, weight: Font.Weight = .regular) -> Font {
         .system(size: size, weight: weight).monospacedDigit()
     }
+
+    /// Small capital labels, generous tracking (see `CapsLabel`), as QLab's.
+    static func caps(_ size: CGFloat = 11, weight: Font.Weight = .medium) -> Font { .system(size: size, weight: weight) }
+    /// Numeric read-outs: monospaced figures, so they never jitter.
+    static func value(_ size: CGFloat = 13, weight: Font.Weight = .regular) -> Font { .system(size: size, weight: weight).monospacedDigit() }
+    static func title(_ size: CGFloat = 20) -> Font { .system(size: size, weight: .semibold) }
+
+    // MARK: Motion
+
+    static let spring = Animation.spring(response: 0.34, dampingFraction: 0.86)
+    static let quick = Animation.easeOut(duration: 0.16)
 
     struct FontKey: Hashable { let size: CGFloat, weight: CGFloat, italic: Bool }
     private static let fontCache = OSAllocatedUnfairLock(initialState: [FontKey: CTFont]())
