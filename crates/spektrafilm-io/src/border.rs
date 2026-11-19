@@ -2,7 +2,10 @@
 //!
 //! Borders are composited after the film pipeline and rotation, so changing
 //! one never re-renders. The macOS preview draws the same geometry with Core
-//! Animation (`macos/Sources/Spektrafilm/Border.swift`); keep the two in sync.
+//! Animation (`macos/Sources/QlickLab/Develop/Border.swift`). Its numbers come
+//! from [`geometry`] alone: `BorderGeometry.swift` is written from it, and a
+//! test fails when the two differ (`QLICK_UPDATE_GENERATED=1 cargo test -p
+//! spektrafilm-io border_geometry` writes it again).
 
 use std::path::Path;
 use std::str::FromStr;
@@ -16,6 +19,29 @@ use spektrafilm_math::precision::{Scalar, from_f32, srgb_decode, to_f32};
 
 use crate::encoding::Encoding;
 use crate::film35::{Renderer, Strip};
+
+/// The border's numbers, the one place they are set: the exporter uses them
+/// here, and the lab's preview through the Swift file written from them.
+/// Fractions are of the photograph's edge, as each says.
+pub mod geometry {
+    /// The solid and keyline mat by default, of the long edge.
+    pub const MAT_WIDTH: f64 = 0.03;
+    /// The keyline's line by default, of the long edge.
+    pub const KEYLINE_WIDTH: f64 = 0.004;
+    /// The black inset the 120 film frame adds, of the short edge, and its fewest pixels.
+    pub const FILM_INSET: f64 = 0.003;
+    pub const FILM_INSET_MIN: u32 = 1;
+    /// The film frame's nine-patch corner, of the short edge, and its fewest pixels.
+    pub const FILM_CORNER: f64 = 0.025;
+    pub const FILM_CORNER_MIN: u32 = 2;
+    /// The white margin around a film border extended for Instagram, of the long edge.
+    pub const INSTAGRAM_FILM_MARGIN: f64 = 0.03;
+    /// The 35mm frames' long-to-short ratios: full frame (3:2) and half frame (4:3).
+    pub const FULL_FRAME_RATIO: f64 = 1.5;
+    pub const HALF_FRAME_RATIO: f64 = 4.0 / 3.0;
+    /// How far a photograph's ratio may be from a frame's and still fill it.
+    pub const FRAME_RATIO_TOLERANCE: f64 = 0.01;
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -110,7 +136,7 @@ impl Default for BorderOptions {
     fn default() -> Self {
         Self {
             width: None,
-            line: 0.004,
+            line: geometry::KEYLINE_WIDTH,
             color: Rgb::WHITE,
             line_color: Rgb::BLACK,
         }
@@ -121,7 +147,7 @@ impl BorderOptions {
     fn width(&self, style: BorderStyle) -> f64 {
         self.width.unwrap_or(match style {
             BorderStyle::Film => 0.0,
-            _ => 0.03,
+            _ => geometry::MAT_WIDTH,
         })
     }
 }
@@ -133,7 +159,7 @@ pub fn margin(width: u32, height: u32, fraction: f64) -> u32 {
 
 /// White margin on every side: 3% of the long edge, as in the Python GUI.
 pub fn white_margin(width: u32, height: u32) -> u32 {
-    margin(width, height, 0.03)
+    margin(width, height, geometry::INSTAGRAM_FILM_MARGIN)
 }
 
 /// Width of the keyline's line, `fraction` of the long edge.
@@ -146,8 +172,8 @@ pub fn keyline_width(width: u32, height: u32, fraction: f64) -> u32 {
 pub fn film_geometry(width: u32, height: u32) -> (u32, u32) {
     let short = width.min(height) as f64;
     (
-        ((short * 0.003).round() as u32).max(1),
-        ((short * 0.025).round() as u32).max(2),
+        ((short * geometry::FILM_INSET).round() as u32).max(geometry::FILM_INSET_MIN),
+        ((short * geometry::FILM_CORNER).round() as u32).max(geometry::FILM_CORNER_MIN),
     )
 }
 
@@ -201,10 +227,13 @@ impl FilmFormat {
     /// either orientation, to within 1%. The border hides the difference.
     pub fn of(width: u32, height: u32) -> Option<Self> {
         let ratio = width.max(height) as f64 / width.min(height).max(1) as f64;
-        [(Self::Full, 1.5), (Self::Half, 4.0 / 3.0)]
-            .into_iter()
-            .find(|&(_, frame)| (ratio / frame - 1.0).abs() <= 0.01)
-            .map(|(format, _)| format)
+        [
+            (Self::Full, geometry::FULL_FRAME_RATIO),
+            (Self::Half, geometry::HALF_FRAME_RATIO),
+        ]
+        .into_iter()
+        .find(|&(_, frame)| (ratio / frame - 1.0).abs() <= geometry::FRAME_RATIO_TOLERANCE)
+        .map(|(format, _)| format)
     }
 
     pub fn name(self) -> &'static str {
@@ -907,5 +936,52 @@ mod tests {
             assert!(out.get(out.width / 2, out.height - 1)[0] < from_f32(0.01));
             assert_eq!(out.get(out.width / 2, out.height / 2), [from_f32(0.5); 3]);
         }
+    }
+
+    /// The Swift file the lab's preview reads the border's numbers from,
+    /// written from [`geometry`].
+    fn border_geometry_swift() -> String {
+        use geometry::*;
+        let fraction = |name: &str, value: f64| format!("    static let {name}: Double = {value:?}\n");
+        let pixels = |name: &str, value: u32| format!("    static let {name}: Double = {value}\n");
+        let mut out = String::from(
+            "// Qlick Lab — GPL-3.0-only.\n\
+             // Written from `spektrafilm-io::border::geometry` by the test `border_geometry_swift_is_current`:\n\
+             // don't edit it; change the Rust and run `QLICK_UPDATE_GENERATED=1 cargo test -p spektrafilm-io border_geometry`.\n\
+             \n\
+             /// The border's numbers, the same the exporter uses.\n\
+             enum BorderGeometry {\n",
+        );
+        out += &fraction("matWidth", MAT_WIDTH);
+        out += &fraction("keylineWidth", KEYLINE_WIDTH);
+        out += &fraction("filmInset", FILM_INSET);
+        out += &pixels("filmInsetMin", FILM_INSET_MIN);
+        out += &fraction("filmCorner", FILM_CORNER);
+        out += &pixels("filmCornerMin", FILM_CORNER_MIN);
+        out += &fraction("instagramFilmMargin", INSTAGRAM_FILM_MARGIN);
+        out += &fraction("fullFrameRatio", FULL_FRAME_RATIO);
+        out += &fraction("halfFrameRatio", HALF_FRAME_RATIO);
+        out += &fraction("frameRatioTolerance", FRAME_RATIO_TOLERANCE);
+        out += "}\n";
+        out
+    }
+
+    /// The preview and the exporter draw the same border: the Swift numbers
+    /// are the ones written from Rust.
+    #[test]
+    fn border_geometry_swift_is_current() {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../macos/Sources/QlickLab/Develop/BorderGeometry.swift");
+        let expected = border_geometry_swift();
+        if std::env::var_os("QLICK_UPDATE_GENERATED").is_some() {
+            std::fs::write(&path, &expected).unwrap();
+        }
+        let found = std::fs::read_to_string(&path).unwrap_or_default();
+        assert!(
+            found == expected,
+            "{} is not what spektrafilm-io::border::geometry says: run \
+             `QLICK_UPDATE_GENERATED=1 cargo test -p spektrafilm-io border_geometry`",
+            path.display()
+        );
     }
 }

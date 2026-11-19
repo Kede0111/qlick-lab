@@ -3,8 +3,9 @@ import QuartzCore
 import SwiftUI
 
 /// Presentation borders. They are drawn around the developed photograph, so
-/// changing one never re-renders. Sizes match `spektrafilm-io::border`, which
-/// adds the same border on export; keep the two in sync.
+/// changing one never re-renders. `spektrafilm-io::border` adds the same
+/// border on export; the numbers both use are its own, in `BorderGeometry`
+/// (written from the Rust, checked by its tests).
 enum BorderStyle: String, Codable, Sendable, CaseIterable, Identifiable {
     /// Saved as "white", its name before it took a colour.
     case solid = "white"
@@ -36,7 +37,8 @@ enum BorderStyle: String, Codable, Sendable, CaseIterable, Identifiable {
     /// The film frame's canvas inset and nine-patch corner size.
     static func film(for size: CGSize) -> (inset: CGFloat, pad: CGFloat) {
         let short = min(size.width, size.height)
-        return (max(1, (short * 0.003).rounded()), max(2, (short * 0.025).rounded()))
+        return (max(BorderGeometry.filmInsetMin, (short * BorderGeometry.filmInset).rounded()),
+                max(BorderGeometry.filmCornerMin, (short * BorderGeometry.filmCorner).rounded()))
     }
 
     /// The film frame texture, decoded once.
@@ -102,8 +104,8 @@ struct BorderSettings: Codable, Equatable, Sendable {
     var color = BorderColor.white
     var lineColor = BorderColor.black
 
-    static let defaultWidth = 0.03
-    static let defaultLine = 0.004
+    static let defaultWidth = BorderGeometry.matWidth
+    static let defaultLine = BorderGeometry.keylineWidth
 
     /// The border around a photograph of `size`, if the style fits it.
     func shown(for size: CGSize) -> BorderSettings? { enabled && style.fits(size) ? self : nil }
@@ -137,7 +139,7 @@ struct BorderSettings: Codable, Equatable, Sendable {
     /// `canvas`: the film borders get a white margin first, then the
     /// background extends the short way as little as it can.
     func instagramCanvas(for canvas: CGSize) -> CGSize {
-        let margin = style == .film || style == .film35 ? (max(canvas.width, canvas.height) * 0.03).rounded(.down) : 0
+        let margin = style == .film || style == .film35 ? (max(canvas.width, canvas.height) * BorderGeometry.instagramFilmMargin).rounded(.down) : 0
         let (w, h) = (canvas.width + 2 * margin, canvas.height + 2 * margin)
         return w * 4 > h * 3 ? CGSize(width: w, height: (w * 4 / 3).rounded(.up)) : CGSize(width: (h * 3 / 4).rounded(.up), height: h)
     }
@@ -188,8 +190,8 @@ enum FilmFormat: String {
     init?(_ size: CGSize) {
         guard min(size.width, size.height) > 0 else { return nil }
         let ratio = max(size.width, size.height) / min(size.width, size.height)
-        if abs(ratio / 1.5 - 1) <= 0.01 { self = .full }
-        else if abs(ratio / (4.0 / 3.0) - 1) <= 0.01 { self = .half }
+        if abs(ratio / BorderGeometry.fullFrameRatio - 1) <= BorderGeometry.frameRatioTolerance { self = .full }
+        else if abs(ratio / BorderGeometry.halfFrameRatio - 1) <= BorderGeometry.frameRatioTolerance { self = .half }
         else { return nil }
     }
 }

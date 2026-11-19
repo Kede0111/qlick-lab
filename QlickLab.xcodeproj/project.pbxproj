@@ -161,6 +161,7 @@
 		B5D1CEFC0A3272228DBF8B2A /* ExportFinisher.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE040A7F18CE4384C254CF69 /* ExportFinisher.swift */; };
 		B69365B4947B703710C5FCF8 /* ImportJournal.swift in Sources */ = {isa = PBXBuildFile; fileRef = C97AB03C79AE1C790D84536B /* ImportJournal.swift */; };
 		B69F518CBA785E7C44C1A401 /* DNGMetadata.swift in Sources */ = {isa = PBXBuildFile; fileRef = 108A487C5E197ACAC9EA1A98 /* DNGMetadata.swift */; };
+		BB988AB7FC0435AF6E71DD82 /* BorderGeometry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0691F6C03BAC1F2C859AA0ED /* BorderGeometry.swift */; };
 		BBD66C9D84E20E8EE7E8020C /* MainMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30FC4CD3EDE052A37AED7A90 /* MainMenu.swift */; };
 		BC2DE543EBD77A74C1B6855C /* Settings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D27D7650A33FEC596A479B5 /* Settings.swift */; };
 		BC50EC107E6AC5D8F524E020 /* BackgroundWork.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB8A3C1EBF8D23A509868E8D /* BackgroundWork.swift */; };
@@ -235,6 +236,7 @@
 		02C8CD58E355F4D778A67968 /* EditorModel+BatchExport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "EditorModel+BatchExport.swift"; sourceTree = "<group>"; };
 		04C0E1C84C96409B68A5CE48 /* Inspector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Inspector.swift; sourceTree = "<group>"; };
 		056296E187984876A270E990 /* CompareCanvas.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompareCanvas.swift; sourceTree = "<group>"; };
+		0691F6C03BAC1F2C859AA0ED /* BorderGeometry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BorderGeometry.swift; sourceTree = "<group>"; };
 		07FAECE8B068BFB362DFCDA2 /* SmallStatesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmallStatesTests.swift; sourceTree = "<group>"; };
 		090DE1373616859EE3D601C4 /* EditorModel+Notifications.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "EditorModel+Notifications.swift"; sourceTree = "<group>"; };
 		099BD022CF0079443350E6F4 /* PhotoFolderWatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoFolderWatcher.swift; sourceTree = "<group>"; };
@@ -507,6 +509,7 @@
 			children = (
 				4C9E635B3ED8BB2BF873A8EB /* AutoStraighten.swift */,
 				868AE37101D42673031F3AAB /* Border.swift */,
+				0691F6C03BAC1F2C859AA0ED /* BorderGeometry.swift */,
 				8CAF7FF74AFF352F792ABF90 /* CameraBrightnessReference.swift */,
 				304F0667D33DE9F941893FE3 /* Caption.swift */,
 				EAE9E5B2AF0DAAE15A5FEC15 /* Crop.swift */,
@@ -951,6 +954,7 @@
 				BC50EC107E6AC5D8F524E020 /* BackgroundWork.swift in Sources */,
 				DF917B1EAE03C3D6FB285821 /* BatchExport.swift in Sources */,
 				D3E036137C659C6F0B9E62CD /* Border.swift in Sources */,
+				BB988AB7FC0435AF6E71DD82 /* BorderGeometry.swift in Sources */,
 				B065DD0F5BB4769153CF7935 /* CameraBrightnessReference.swift in Sources */,
 				1513B72BFE44759D8799B136 /* Caption.swift in Sources */,
 				F2CE61E403A729BB63580358 /* Catalogs.swift in Sources */,
