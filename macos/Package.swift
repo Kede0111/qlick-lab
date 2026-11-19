@@ -7,7 +7,9 @@ let package = Package(
     products: [.executable(name: "QlickLab", targets: ["QlickLab"])],
     dependencies: [.package(url: "https://github.com/sparkle-project/Sparkle", exact: "2.10.0")],
     targets: [
+        // Qlick Lab: complete concurrency checking, as warnings while the language mode is Swift 5 (docs/handoff/HANDOFF.md).
         .executableTarget(name: "QlickLab", dependencies: ["Sparkle"],
+                          swiftSettings: [.enableExperimentalFeature("StrictConcurrency")],
                           linkerSettings: [.unsafeFlags(["-Xlinker", "-rpath", "-Xlinker", "@executable_path/../Frameworks"])]),
         .testTarget(name: "QlickLabTests", dependencies: ["QlickLab"])
     ]

@@ -1,5 +1,6 @@
 import AppKit
-import CoreText
+// CTFont and CTFontDescriptor are immutable, safe to share between threads.
+@preconcurrency import CoreText
 import os
 import SwiftUI
 

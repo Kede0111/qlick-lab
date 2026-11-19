@@ -133,7 +133,7 @@ actor PhotoThumbnails {
 
     private static func previous(_ key: String) -> String { "previous|" + key }
 
-    #if SPEKTRAFILM_BENCHMARK
+    #if DEBUG || SPEKTRAFILM_BENCHMARK
     /// Cells' requests, and those the in-memory cache answered, for GridBenchmark.
     static let cellCounts = OSAllocatedUnfairLock(initialState: (requests: 0, hits: 0))
     private func count(_ ahead: Bool, hit: Bool) {
@@ -266,7 +266,7 @@ struct PhotoBrowser: View {
     }
 
     /// The row of frames `widths` wide, edge to edge but for the gaps.
-    static func rowWidth(_ widths: [CGFloat]) -> CGFloat {
+    nonisolated static func rowWidth(_ widths: [CGFloat]) -> CGFloat {
         widths.reduce(0, +) + CGFloat(max(widths.count - 1, 0)) * Theme.Size.stripGap
     }
 
@@ -391,12 +391,13 @@ struct PhotoBrowser: View {
     /// Between the start and the end of the full-screen animation.
     private var transitioning = false
     private var pending: DispatchWorkItem?
-    private var observers: [NSObjectProtocol] = []
+    // Written on the main actor; read once more by deinit, when nothing else holds the object.
+    nonisolated(unsafe) private var observers: [NSObjectProtocol] = []
     private var glider: Glider?
 
     init() {
         let centre = NotificationCenter.default
-        let observe = { (name: Notification.Name, action: @escaping @MainActor (StripSettling) -> Void) in
+        let observe = { (name: Notification.Name, action: @escaping @MainActor @Sendable (StripSettling) -> Void) in
             self.observers.append(centre.addObserver(forName: name, object: nil, queue: .main) { [weak self] note in
                 // The editing window's own, not Settings'.
                 guard note.object is EditorWindow else { return }
@@ -663,7 +664,7 @@ struct StripLeader: View {
     static let height: CGFloat = 24
     static let raised: CGFloat = 30
     /// The slant takes the first 28 pt.
-    static let slant: CGFloat = 28
+    nonisolated static let slant: CGFloat = 28
 
     var body: some View {
         Button { model.showGrid() } label: {

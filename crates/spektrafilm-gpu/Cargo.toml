@@ -7,7 +7,6 @@ license.workspace = true
 [features]
 default = ["wgpu-backend"]
 wgpu-backend = ["dep:wgpu", "dep:crc32fast", "dep:tempfile"]
-cuda-backend = ["dep:cudarc"]
 precision-f64 = ["spektrafilm-math/precision-f64"]
 
 [dependencies]
@@ -17,7 +16,6 @@ thiserror.workspace = true
 tracing.workspace = true
 web-time.workspace = true
 wgpu = { workspace = true, optional = true, features = ["wgsl", "metal"] }
-cudarc = { version = "0.19.7", optional = true, default-features = false, features = ["std", "driver", "nvrtc", "dynamic-loading", "cuda-12000"] }
 bytemuck = { version = "1.25", features = ["derive"] }
 pollster = "0.4"
 crc32fast = { version = "1", optional = true }
@@ -32,7 +30,7 @@ accelerate-src = "0.3"
 # Per-pipeline threadgroup limits on Intel/AMD GPUs (same version as wgpu-hal).
 metal = "0.31"
 
-[target.'cfg(all(not(target_os = "macos"), not(target_os = "windows"), not(target_arch = "wasm32")))'.dependencies]
+[target.'cfg(not(target_os = "macos"))'.dependencies]
 cblas = "0.4"
 blas-src = { version = "0.10", features = ["openblas"] }
 openblas-src = "0.10"

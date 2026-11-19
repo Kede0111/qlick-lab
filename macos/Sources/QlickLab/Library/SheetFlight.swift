@@ -17,7 +17,7 @@ import SwiftUI
     /// the canvas's and the sheet's hosting views. Not `.global`: that's the
     /// window's, which takes in the title bar above them, so the flights
     /// landed 38 pt low and the frames jumped up as they took over.
-    static let space = "thumbnailPlaces"
+    nonisolated static let space = "thumbnailPlaces"
 }
 
 /// Reports a thumbnail's rect and picture as they change, and nil once it's gone.

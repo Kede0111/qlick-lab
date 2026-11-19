@@ -1,4 +1,4 @@
-#if SPEKTRAFILM_BENCHMARK
+#if DEBUG || SPEKTRAFILM_BENCHMARK
 import AppKit
 import QuartzCore
 
@@ -23,8 +23,9 @@ import QuartzCore
 ///
 /// SPEKTRAFILM_BENCHMARK_GRID_POSITION: leaves the session's photograph for
 /// the grid as a double-click does, while the inspector slides away, and
-/// reports whether the photograph is on screen. Compiled only with
-/// -DSPEKTRAFILM_BENCHMARK.
+/// reports whether the photograph is on screen. Compiled in debug builds, and
+/// in a release build with -DSPEKTRAFILM_BENCHMARK (to time the optimized app);
+/// never in the app the lab ships.
 @MainActor final class GridBenchmark: NSObject {
     private let model: EditorModel
     private let segments: [(speed: Double, seconds: Double)]
@@ -77,6 +78,7 @@ import QuartzCore
         }
         CFRunLoopAddObserver(CFRunLoopGetMain(), observer, .commonModes)
         let timer = Timer(timeInterval: 1.0 / 30, repeats: true) { [weak self] timer in
+            nonisolated(unsafe) let timer = timer  // on the main run loop: fires on the main thread
             MainActor.assumeIsolated {
                 guard let self else { return timer.invalidate() }
                 let model = self.model, library = model.library
@@ -217,6 +219,7 @@ import QuartzCore
     private static func position(_ model: EditorModel) {
         var phase = 0, shown = Date()
         let timer = Timer(timeInterval: 1.0 / 30, repeats: true) { timer in
+            nonisolated(unsafe) let timer = timer  // on the main run loop: fires on the main thread
             MainActor.assumeIsolated {
                 let library = model.library
                 switch phase {
@@ -263,6 +266,7 @@ import QuartzCore
         var phase = 0, started = Date(), opened = 0, kept = false
         var standIn: Double?, placeholder: Double?, developed: Double?
         let timer = Timer(timeInterval: 1.0 / 240, repeats: true) { timer in
+            nonisolated(unsafe) let timer = timer  // on the main run loop: fires on the main thread
             MainActor.assumeIsolated {
                 let library = model.library, store = model.editedThumbnails
                 let elapsed = Date().timeIntervalSince(started) * 1000
@@ -317,6 +321,7 @@ import QuartzCore
 
     private static func fill(_ model: EditorModel) {
         let timer = Timer(timeInterval: 0.25, repeats: true) { timer in
+            nonisolated(unsafe) let timer = timer  // on the main run loop: fires on the main thread
             MainActor.assumeIsolated {
                 let library = model.library, store = model.editedThumbnails
                 guard library.summariesLoaded, let made = model.thumbnailVersions.keys.first,
@@ -341,6 +346,7 @@ import QuartzCore
         var shown: Date?, screen: Set<URL> = [], screenDone = false, tenth = 1
         var lastMade = 0, lastChange = Date(), peak = 0
         let timer = Timer(timeInterval: 0.25, repeats: true) { timer in
+            nonisolated(unsafe) let timer = timer  // on the main run loop: fires on the main thread
             MainActor.assumeIsolated {
                 let library = model.library
                 guard let start = shown else {

@@ -568,9 +568,8 @@ pub fn apply_grain_lanes(
         GrainLanes::Luminance => vec![1],
     };
     let n_layers = lp.n_layers();
-    // wasm can't spawn the parallel path's OS threads (the browser's CPU
-    // engine panicked on any grain); the paths are bit-identical.
-    let mut out_planes: Vec<(usize, Vec<Scalar>)> = if serial_channels || cfg!(target_arch = "wasm32") {
+    // The serial and parallel paths are bit-identical.
+    let mut out_planes: Vec<(usize, Vec<Scalar>)> = if serial_channels {
         channels
             .iter()
             .map(|&ch| (ch, finalize_channel(ch, &mut (0..n_layers).map(|l| sub_layer(ch, l)))))

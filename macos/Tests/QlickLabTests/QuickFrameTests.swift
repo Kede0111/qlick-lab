@@ -270,20 +270,36 @@ final class QuickFrameStepTests: XCTestCase {
         XCTAssertEqual(try bytes(quick.image), try bytes(direct.image), "The settled frame is byte-identical")
     }
 
-    /// Clicking through films while full renders run: each edit renders at
-    /// most a quick and a full frame, superseded ones aren't shown, and the
-    /// last film settles.
+    /// Clicking through films while renders run: each edit renders at most a
+    /// quick and a full frame, an edit superseded while its quick frame
+    /// develops skips its full render, and the last film settles.
+    ///
+    /// Each next film is chosen while the quick frame of the one before is
+    /// with the helper, whatever this Mac's speed: clicks a fixed time apart
+    /// let a fast Mac settle every film between them (a 6 MP frame develops
+    /// in about 100 ms on an M4 Max), which proved nothing and failed.
     func testRapidFilmSwitchingDoesNotPileUpRenders() async throws {
         let model = try await openModel(scale: 0.25)
         let start = model.renderLog.count
         let films = ["kodak_portra_160", "kodak_ektar_100", "kodak_portra_400", "kodak_ultramax_400", "kodak_portra_800"]
             .filter { id in id != model.film && model.films.contains { $0.id == id } }
         XCTAssertGreaterThan(films.count, 2)
-        for film in films {
-            model.chooseFilm(film)
-            try await Task.sleep(for: .milliseconds(150))
+        var chosen = 0
+        func chooseNext() { model.chooseFilm(films[chosen]); chosen += 1 }
+        model.willRender = { [unowned model] in
+            guard !model.rendering, chosen < films.count else { return }
+            let logged = model.renderLog.count
+            // Runs at the render's first suspension: once its request has gone to the helper.
+            Task { @MainActor in
+                guard chosen < films.count, model.renderLog.count > logged, model.renderLog.last?.isQuick == true else { return }
+                chooseNext()
+            }
         }
+        chooseNext()
+        try await waitUntil { chosen == films.count || model.previewCurrent }
+        XCTAssertEqual(chosen, films.count, "Every film was chosen while a quick frame developed: \(steps(model, after: start))")
         try await settled(model)
+        model.willRender = nil
         let log = steps(model, after: start)
         XCTAssertLessThanOrEqual(log.count, 2 * films.count, "\(log)")
         XCTAssertLessThan(log.filter { $0 == .settled }.count, films.count, "Superseded edits skip their full render: \(log)")

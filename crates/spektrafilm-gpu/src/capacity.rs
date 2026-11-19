@@ -1,4 +1,4 @@
-//! Admission checks for Windows/Linux Vulkan and browser WebGPU, before
+//! Admission checks for Linux Vulkan, before
 //! full-image GPU allocation.
 //! This is a conservative memory estimate, not device-loss recovery or a
 //! guarantee against long-running shaders. Metal keeps its existing path.
@@ -55,7 +55,7 @@ impl CapacityLimits {
     }
 }
 
-#[cfg(any(target_os = "windows", target_os = "linux"))]
+#[cfg(target_os = "linux")]
 pub(crate) fn vulkan_limits(adapter: &wgpu::Adapter) -> CapacityLimits {
     let limits = adapter.limits();
     // A static heap-size estimate deliberately leaves 20% for the desktop,
@@ -103,16 +103,6 @@ pub(crate) fn vulkan_limits(adapter: &wgpu::Adapter) -> CapacityLimits {
     }
 }
 
-/// Browsers report the buffer limits but not the GPU's memory.
-#[cfg(target_arch = "wasm32")]
-pub(crate) fn browser_limits(adapter: &wgpu::Adapter) -> CapacityLimits {
-    let limits = adapter.limits();
-    CapacityLimits {
-        max_binding: u64::from(limits.max_storage_buffer_binding_size),
-        max_buffer: limits.max_buffer_size,
-        memory_budget: None,
-    }
-}
 
 #[cfg(test)]
 mod tests {

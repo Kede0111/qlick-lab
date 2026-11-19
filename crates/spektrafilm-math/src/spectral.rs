@@ -894,7 +894,7 @@ pub fn xy_to_tc(x: f64, y: f64) -> (f64, f64) {
 ///   different hue. The input gamut compression baked into the tc LUT then
 ///   maps it as it maps any other out-of-gamut chromaticity.
 ///
-/// The GPU front passes (WGSL, CUDA) implement the same rule. `guard`
+/// The GPU front passes (WGSL) implement the same rule. `guard`
 /// false is upstream's arithmetic for every input, for reference
 /// comparisons.
 #[inline]

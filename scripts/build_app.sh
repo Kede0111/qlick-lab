@@ -48,6 +48,12 @@ elif command -v xcodegen >/dev/null; then
 else
     echo "XcodeGen is missing (brew install xcodegen): QlickLab.xcodeproj is not brought up to date" >&2
 fi
+# The engine's crates carry the app's version too (it names the software in exported files' metadata); Cargo.lock
+# follows, offline, before the --locked builds below.
+if ! $dev && ! grep -q "^version = \"$version\"$" Cargo.toml; then
+    sed -i '' "/^\[workspace.package\]/,/^\[/ s/^version = \".*\"$/version = \"$version\"/" Cargo.toml
+    cargo update --workspace --offline --quiet
+fi
 # The f32 and f64 tools are built apart: Cargo would otherwise unify their features.
 cargo build --locked --release -p spektrafilm-native ${rust_targets[@]+"${rust_targets[@]}"} --target-dir "$target_dir"
 cargo build --locked --release -p spektrafilm-cli --bin spektrafilm ${rust_targets[@]+"${rust_targets[@]}"} --target-dir "$target_dir"

@@ -288,7 +288,7 @@ extension EditorModel {
             "film": .string(state.film), "paper": .string(state.paper), "params": state.params,
             "long_side": .number(16), "preview_path": .string(buffer.path),
         ])
-        let size = CGSize(width: decoded["source_width"].double, height: decoded["source_height"].double)
+        let size = ThumbnailReply(decoded).sourceSize
         guard item.needsMatch else { return (state, size) }
         let reference = engine.directory.appendingPathComponent("batch-brightness.png")
         defer { try? FileManager.default.removeItem(at: reference) }

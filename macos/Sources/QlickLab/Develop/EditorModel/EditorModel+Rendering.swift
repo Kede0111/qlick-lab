@@ -181,7 +181,7 @@ extension EditorModel {
             let decoded = try? await engine.request(decodeOnlyCommand(source: source, generation: generation, state: snapshot, engine: engine)).1
             rendering = false
             // A failed decode leaves its error to the render.
-            if generation == sourceGeneration { decodedFor = (generation, decoded.map { CGSize(width: $0["source_width"].double, height: $0["source_height"].double) } ?? .zero) }
+            if generation == sourceGeneration { decodedFor = (generation, decoded.map { ThumbnailReply($0).sourceSize } ?? .zero) }
             guard !closing else { return }
             guard revision == currentRevision, generation == sourceGeneration else { return scheduleRender() }
         }
@@ -280,17 +280,18 @@ extension EditorModel {
             #endif
             let sent = Date()
             let (id, result, launch) = try await engine.requestOnLaunch(command)
+            let reply = RenderReply(result)
             if Self.logsRenders {
-                EngineTrace.log("render \(step) first=\(firstFrame) wall=\(Int(Date().timeIntervalSince(sent) * 1000))ms engine=\(Int(result["elapsed_ms"].double))ms \(Int(result["width"].double))x\(Int(result["height"].double))")
+                EngineTrace.log("render \(step) first=\(firstFrame) wall=\(Int(Date().timeIntervalSince(sent) * 1000))ms engine=\(Int(reply.elapsedMs))ms \(Int(reply.width))x\(Int(reply.height))")
             }
             if step.isDrag, fastPreview {
                 dragSecondsPerPixel = Self.dragRate(dragSecondsPerPixel, seconds: Date().timeIntervalSince(sent),
-                                                    pixels: result["output_width"].double * result["output_height"].double)
+                                                    pixels: reply.outputWidth * reply.outputHeight)
                 if let dragSecondsPerPixel { UserDefaults.standard.set(dragSecondsPerPixel, forKey: Self.dragRateKey) }
                 dragLevel = Self.dragLevel(dragLevel, secondsPerPixel: dragSecondsPerPixel)
             }
             // A detail that came as the whole photograph: its params read the whole frame.
-            let part: [Double] = result["region"].array.map { $0.double }
+            let part: [Double] = reply.region
             let whole = step == .settled || step == .detail && part.count != 4
             if step == .detail, part.count != 4 { noDetailFor = frame }
             if whole { helperOutput = (reuseKey, launch) }
@@ -299,16 +300,16 @@ extension EditorModel {
             let quick = step.isQuick
             func showable() -> Bool { quick ? !closing && generation == sourceGeneration : shouldShow(currentRevision, generation) }
             guard showable() else { return }
-            let width = Int(result["width"].double), height = Int(result["height"].double)
-            let display = result["display_color_space"].string
+            let width = Int(reply.width), height = Int(reply.height)
+            let display = reply.displayColorSpace
             let developed = try await Task.detached(priority: .userInitiated) {
                 try Self.readPreview(buffer, width: width, height: height, displaySpace: display)
             }.value
             let cacheKey = await cacheKeyTask?.value ?? nil
             guard showable() else { return }
             // The brightness match reads these; the rest waits for the frame.
-            sourceSize = CGSize(width: result["source_width"].double, height: result["source_height"].double)
-            isRaw = result["raw"].bool
+            sourceSize = CGSize(width: reply.sourceWidth, height: reply.sourceHeight)
+            isRaw = reply.raw
             let show = { [weak self] in
                 guard let self else { return }
                 if part.count == 4 {
@@ -324,8 +325,8 @@ extension EditorModel {
                     return
                 }
                 if detail?.frame != frame { detail = nil }
-                imageSize = CGSize(width: result["photo_width"].double, height: result["photo_height"].double)
-                workingSize = CGSize(width: result["working_width"].double, height: result["working_height"].double)
+                imageSize = CGSize(width: reply.photoWidth, height: reply.photoHeight)
+                workingSize = CGSize(width: reply.workingWidth, height: reply.workingHeight)
                 let settledFrame = interactiveScale == nil || step.isScreen
                 if settledFrame {
                     previewScale = workingSize.width > 0 ? min(Double(width) / workingSize.width, 1) : 1
@@ -336,31 +337,31 @@ extension EditorModel {
                 imageIsMask = masked
                 if revision == currentRevision { trialImage = nil }
                 updateHistogram()
-                let film = FilmHistogram(result["film_histogram"])
+                let film = FilmHistogram(reply.filmHistogram)
                 if film != filmHistogram { filmHistogram = film }
                 cropSession?.update(photo: shownImageSize, rotation: imageRotation)
                 updateFilmStrip()
-                if inputColour != result["input_colour"] { inputColour = result["input_colour"] }
-                lensCorrectionSupported = result["lens_correction_supported"].bool
+                if inputColour != reply.inputColour { inputColour = reply.inputColour }
+                lensCorrectionSupported = reply.lensCorrectionSupported
                 if revision == currentRevision, settledFrame {
                     baseFor = frame
                     screenFrameScale = step.isScreen ? interactiveScale : nil
                     // Developed before the canvas knew its scale: sharper now if it wants more.
                     if step.isScreen { Task { @MainActor [weak self] in self?.canvasScaleChanged() } }
                     // Shown from a smaller source than the canvas wants, while a larger one is read.
-                    if result["refining"].bool { refineSoon() } else { refineRender?.cancel() }
+                    if reply.refining { refineSoon() } else { refineRender?.cancel() }
                     renderID = id; previewCurrent = true; hideActivity()
                     showingCachedPreview = false
                     prepareBalanceSoon()
-                    renderAtExportSize = result["export_resolution"].bool && !masked
-                    renderOnGPU = ExportEngine.ranOnGPU(backend: result["backend"].string)
+                    renderAtExportSize = reply.exportResolution && !masked
+                    renderOnGPU = ExportEngine.ranOnGPU(backend: reply.backend)
                     if let cacheKey { previewCache.save(developed, photoSize: imageSize, sourceSize: sourceSize, workingSize: workingSize, raw: isRaw, key: cacheKey) }
                 }
                 // The photograph as exported, and whether the shown texture has fewer
                 // pixels: inspect grain in an export when it does. Qlick Lab: no develop time.
                 let photograph = crop.size(of: workingSize)
                 status = !settledFrame
-                    ? "Preview · \(Int(result["output_width"].double)) × \(Int(result["output_height"].double))"
+                    ? "Preview · \(Int(reply.outputWidth)) × \(Int(reply.outputHeight))"
                     : "\(Int(photograph.width)) × \(Int(photograph.height))\(previewScale < 1 ? " · shown at \(Self.percent(previewScale))" : "")"
             }
             // A settled or quick frame with a stale match would show the old

@@ -158,18 +158,20 @@ final class EdgeSplitView: NSSplitView {
         model.presentBatch = { [weak self] view in self?.showBatchPopover(below: view) }
         // Dragging the inspector closed hides the adjustments, like ⌥⌘I.
         collapsing = inspector.observe(\.isCollapsed) { [weak self] item, _ in
+            // Read here, on the main thread KVO calls on: only the value goes into the main actor.
+            let collapsed = item.isCollapsed
             MainActor.assumeIsolated {
                 guard let self else { return }
                 // A hidden inspector lets the window narrow to the canvas alone.
                 if let window = self.window {
-                    Self.fitMinimum(of: window, width: item.isCollapsed ? self.canvasMinimum : self.columnsMinimum)
+                    Self.fitMinimum(of: window, width: collapsed ? self.canvasMinimum : self.columnsMinimum)
                 }
                 // The grid collapses it without hiding the adjustments, and
                 // Image Only without changing them.
-                guard self.model.mode == .photo, !self.model.lab.floatingPanel, self.model.inspectorShown == item.isCollapsed else { return }
+                guard self.model.mode == .photo, !self.model.lab.floatingPanel, self.model.inspectorShown == collapsed else { return }
                 // Dragged open in Image Only, which ends it.
-                if !item.isCollapsed { self.model.leaveImageOnly() }
-                self.model.inspectorVisible = !item.isCollapsed
+                if !collapsed { self.model.leaveImageOnly() }
+                self.model.inspectorVisible = !collapsed
             }
         }
         appearing = NotificationCenter.default.addObserver(forName: NSWindow.didChangeOcclusionStateNotification, object: window, queue: .main) { [weak self] _ in

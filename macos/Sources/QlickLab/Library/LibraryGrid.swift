@@ -575,7 +575,8 @@ private struct SheetScrollHook: NSViewRepresentable {
 
 private final class SheetScrollView: NSView {
     weak var scroller: SheetScroller?
-    private var monitor: Any?
+    // Written on the main actor; read once more by deinit, when nothing else holds the object.
+    nonisolated(unsafe) private var monitor: Any?
 
     override var isFlipped: Bool { true }
     override func hitTest(_ point: NSPoint) -> NSView? { nil }

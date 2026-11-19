@@ -26,8 +26,8 @@ Layers, each depending only on those above it:
 | `spektrafilm-math` | Numerics: interpolation, spectra, colour maths |
 | `spektrafilm-model` | Film and paper profiles, the spectral model's data types |
 | `spektrafilm-core` | The simulation: exposure, development, print, scan, grain, halation; presets (recipes); RAW prep |
-| `spektrafilm-gpu` | The same pipeline on the GPU (wgpu/Metal); WGSL in `spektrafilm-shaders` |
-| `spektrafilm-io` | Reading and writing images: RAW (with `vendor/rawler`), colour spaces, ICC, XMP, borders, lens |
+| `spektrafilm-gpu` | The same pipeline on the GPU (wgpu: Metal on the Mac, Vulkan on Linux); WGSL in `spektrafilm-shaders` |
+| `spektrafilm-io` | Reading and writing images: RAW (with `vendor/rawler`), colour spaces, ICC, XMP, borders (their numbers in `border::geometry`, written to `Develop/BorderGeometry.swift` for the preview), lens |
 | `spektrafilm-native` | The app's helper: the JSON-lines protocol (`enum Command` in `src/main.rs`) |
 | `spektrafilm-cli` | `spektrafilm` (GPU, f32) and `spektrafilm-f64` (CPU reference) for exports |
 
@@ -48,16 +48,20 @@ added is mostly SwiftUI).
 | `Compare/` | The Compare room |
 | `Recipes/` | Recipes (presets), section presets, films and papers |
 | `Export/` | Batch export and its finishing |
-| `Engine/` | The helper process and its JSON lines (`Engine.swift`, `JSONValue`) |
+| `Engine/` | The helper process and its JSON lines (`Engine.swift`, `JSONValue`), the command names (`EngineCommand`) and typed replies (`EngineReplies`) |
 | `Files/` | Sidecars (`Sidecar.swift`) and the DNG's XMP (`DNGMetadata.swift`): [sidecar-format.md](sidecar-format.md) |
 | `Design/` | `Theme` (Theme.swift), the one set of colours, type and sizes; `Controls.swift`, the controls shared with QLab |
-| `Diagnostics/` | Benchmarks run by environment variables; to leave the shipped app |
+| `Diagnostics/` | Benchmarks run by environment variables; compiled in debug builds and with -DSPEKTRAFILM_BENCHMARK, never in release |
 
 ## The Swift ↔ Rust contract
 
-The Rust side is typed (`enum Command`, serde). The Swift side reads replies as `JSONValue` with string keys, so a
-renamed key only fails at run time. Planned: Swift `Codable` types for each command and reply, and a contract test
-that runs both sides.
+The Rust side is typed (`enum Command`, serde). The command names are listed once in
+`crates/spektrafilm-native/commands.txt`, which a test on each side checks (`commands_match_the_shared_list`,
+`EngineContractTests`). The render and thumbnail replies are typed in Swift (`RenderReply`, `ThumbnailReply`):
+read leniently at run time, decoded strictly against the real helper in `EngineContractTests`. Other replies (the
+catalog first) are still read as `JSONValue` with string keys. Requests are still built as `JSONValue` objects.
+
+The app target is checked for concurrency at the complete level, as warnings (Swift 5 language mode).
 
 ## Data (`data/`)
 

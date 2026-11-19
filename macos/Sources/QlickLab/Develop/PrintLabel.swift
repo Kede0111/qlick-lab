@@ -55,7 +55,7 @@ struct PrintLabel: View {
     /// Between the film and the paper on one row, and inside a name.
     static let gap: CGFloat = 9, inner: CGFloat = 7
     /// The space under the photograph: always two rows (§2.3).
-    static let band: CGFloat = 68
+    nonisolated static let band: CGFloat = 68
 
     static func kind(scanning: Bool) -> String { scanning ? "not printed — scanning the film" : "printed on" }
 

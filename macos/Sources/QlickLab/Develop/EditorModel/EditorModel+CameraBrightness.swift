@@ -160,9 +160,9 @@ extension EditorModel {
             do {
                 // The whole photograph, as a render decodes it, with the
                 // pipeline the solve and the render use.
-                let decoded: JSONValue
+                let decoded: ThumbnailReply
                 do {
-                    decoded = try await engine.request(decode).1
+                    decoded = ThumbnailReply(try await engine.request(decode).1)
                 } catch {
                     try stillWanted()
                     // The render reports why, as it would without the match.
@@ -170,11 +170,11 @@ extension EditorModel {
                     return
                 }
                 try stillWanted()
-                let raw = decoded["raw"].bool
-                let size = CGSize(width: decoded["source_width"].double, height: decoded["source_height"].double)
+                let raw = decoded.raw
+                let size = decoded.sourceSize
                 self?.decodedFor = (generation, size)
                 if askDeclared, let self, self.matchReference?.generation == generation {
-                    self.matchReference?.declared = decoded["preview_colour_space"]
+                    self.matchReference?.declared = decoded.previewColourSpace
                 }
                 let declared: JSONValue? = raw ? (self?.matchReference).flatMap { $0.generation == generation ? $0.declared : nil } : nil
                 let solved = try await Self.solveBrightnessMatch(engine: engine, source: source, generation: generation, size: size, raw: raw,

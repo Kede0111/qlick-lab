@@ -10,11 +10,7 @@ enum EngineCommand: String, CaseIterable, Sendable {
     case exportLut = "export_lut"
     case presetImport = "preset_import"
     case presetExport = "preset_export"
-    /// Not sent by the app today.
-    case original
     case previewColourSpace = "preview_colour_space"
-    /// Not sent by the app today.
-    case brightnessReference = "brightness_reference"
     case prepareBalance = "prepare_balance"
     case makeProxy = "make_proxy"
     case pickBalance = "pick_balance"
