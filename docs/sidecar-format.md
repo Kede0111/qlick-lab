@@ -78,5 +78,6 @@ namespace `http://ns.jackfrom.be/qlicklab/1.0/` (`Film`, `Paper`, `WhiteBalance`
 
 - `.qlicklab`: a catalogue (a package of small files: one JSON per project, `saved-settings.json` for the import's
   Saved Settings under the top-level key `qlick`, `import-ledger.jsonl`). `Library/Catalogs.swift`.
-- `.qlickroll` (planned, import/library work): a roll's card (film, camera, notes) inside the roll's folder, top-level
-  key `qlick` like the sidecar.
+- `Roll.qlickroll`: a roll's card inside the roll's folder, `{"qlick": {"schema": 1, "roll": {"name", "film",
+  "camera", "notes"}}}`. Unknown keys are kept; a newer schema is left alone. The catalogue keeps a copy; when a
+  folder is read the card wins, and a roll from before 0.3 gets one. `Library/RollCardFile.swift`.

@@ -311,7 +311,6 @@ private struct RollStrip: View {
     }
 }
 
-/// What a folder can't say of a roll: the film loaded, the camera, notes.
 /// A roll's name, film, camera and notes, edited in place (the library's roll cards and the sidebar).
 struct RollEditor: View {
     let lab: LabState
@@ -328,7 +327,7 @@ struct RollEditor: View {
                 Text("Notes").font(.system(size: 11)).foregroundStyle(Theme.dim)
                 TextField("Place, light, development…", text: $roll.notes, axis: .vertical).textFieldStyle(.roundedBorder).lineLimit(2...5)
             }
-            Text("The film is printed along the edge of the contact sheet's strips.\nThis stays in the project; the files aren't changed.")
+            Text("The film is printed along the edge of the contact sheet's strips.\nKept in a small Roll.qlickroll card in the roll's folder, so it goes wherever the folder goes. The photographs aren't changed.")
                 .font(.system(size: 10.5)).foregroundStyle(Theme.dim).fixedSize(horizontal: false, vertical: true)
         }
         .padding(16)

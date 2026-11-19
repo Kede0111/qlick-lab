@@ -176,8 +176,10 @@ struct RollStats: Equatable, Sendable {
             for folder in folders.flatMap({ Self.rollFolders(in: $0) }) {
                 let path = folder.standardizedFileURL.path
                 guard !project.rolls.contains(where: { $0.folder == path }) else { continue }
-                let roll = LabRoll(name: folder.lastPathComponent, folder: path,
+                var roll = LabRoll(name: folder.lastPathComponent, folder: path,
                                    bookmark: try? folder.bookmarkData(options: [], includingResourceValuesForKeys: nil, relativeTo: nil))
+                // A folder that was a roll before (another catalogue, another Mac) brings its card.
+                RollCardFile.read(in: folder)?.apply(to: &roll)
                 project.rolls.append(roll)
                 added.append(roll)
             }
@@ -197,9 +199,44 @@ struct RollStats: Equatable, Sendable {
     }
 
     func updateRoll(_ roll: UUID, in project: UUID, _ change: (inout LabRoll) -> Void) {
+        var changed: LabRoll?
         update(project) { project in
             guard let index = project.rolls.firstIndex(where: { $0.id == roll }) else { return }
+            let before = RollCardFile(project.rolls[index])
             change(&project.rolls[index])
+            if RollCardFile(project.rolls[index]) != before { changed = project.rolls[index] }
+        }
+        if let changed { writeCard(of: changed) }
+    }
+
+    // MARK: Roll cards
+
+    @ObservationIgnored private var cardWrites: [UUID: Task<Void, Never>] = [:]
+
+    /// Writes a roll's card into its folder (`RollCardFile`), a moment after the last change: the editor changes it at
+    /// each letter typed. Off the main thread, as a disk on the network answers slowly.
+    func writeCard(of roll: LabRoll) {
+        cardWrites[roll.id]?.cancel()
+        let card = RollCardFile(roll), folder = roll.url
+        cardWrites[roll.id] = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(400))
+            guard !Task.isCancelled else { return }
+            _ = await Task.detached(priority: .utility) { card.write(in: folder) }.value
+            self?.cardWrites[roll.id] = nil
+        }
+    }
+
+    /// Brings a roll and its card together once its folder has been read: the card wins (it may have been changed
+    /// in another catalogue or on another Mac); a roll without a card, from before 0.3, gets one.
+    private func reconcile(_ id: UUID, card: RollCardFile?) {
+        guard cardWrites[id] == nil, let project = projects.first(where: { $0.rolls.contains { $0.id == id } }),
+              let roll = project.rolls.first(where: { $0.id == id }) else { return }
+        if let card {
+            var updated = roll
+            card.apply(to: &updated)
+            if updated != roll { update(project.id) { if let index = $0.rolls.firstIndex(where: { $0.id == id }) { $0.rolls[index] = updated } } }
+        } else if !RollCardFile(roll).isBlank {
+            writeCard(of: roll)
         }
     }
 
@@ -283,9 +320,10 @@ struct RollStats: Equatable, Sendable {
         counting[roll.id]?.cancel()
         let store = sidecars, url = roll.url, id = roll.id
         counting[id] = Task { [weak self] in
-            let counted = await Task.detached(priority: .utility) { Self.stats(of: url, store: store) }.value
+            let (counted, card) = await Task.detached(priority: .utility) { (Self.stats(of: url, store: store), RollCardFile.read(in: url)) }.value
             guard !Task.isCancelled, let self else { return }
             if self.stats[id] != counted { self.stats[id] = counted }
+            if !counted.missing { self.reconcile(id, card: card) }
         }
     }
 
