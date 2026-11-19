@@ -1,4 +1,4 @@
-#if SPEKTRAFILM_BENCHMARK
+#if DEBUG || SPEKTRAFILM_BENCHMARK
 import AppKit
 import QuartzCore
 
@@ -23,8 +23,9 @@ import QuartzCore
 ///
 /// SPEKTRAFILM_BENCHMARK_GRID_POSITION: leaves the session's photograph for
 /// the grid as a double-click does, while the inspector slides away, and
-/// reports whether the photograph is on screen. Compiled only with
-/// -DSPEKTRAFILM_BENCHMARK.
+/// reports whether the photograph is on screen. Compiled in debug builds, and
+/// in a release build with -DSPEKTRAFILM_BENCHMARK (to time the optimized app);
+/// never in the app the lab ships.
 @MainActor final class GridBenchmark: NSObject {
     private let model: EditorModel
     private let segments: [(speed: Double, seconds: Double)]

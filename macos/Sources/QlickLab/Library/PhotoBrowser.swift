@@ -133,7 +133,7 @@ actor PhotoThumbnails {
 
     private static func previous(_ key: String) -> String { "previous|" + key }
 
-    #if SPEKTRAFILM_BENCHMARK
+    #if DEBUG || SPEKTRAFILM_BENCHMARK
     /// Cells' requests, and those the in-memory cache answered, for GridBenchmark.
     static let cellCounts = OSAllocatedUnfairLock(initialState: (requests: 0, hits: 0))
     private func count(_ ahead: Bool, hit: Bool) {

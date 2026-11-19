@@ -43,7 +43,7 @@ import SwiftUI
         // if the session isn't read within 0.1 s, it restores once the helper
         // answers and reports any error then. Benchmarks and explicit
         // launches must not reopen a previous photograph.
-        #if SPEKTRAFILM_BENCHMARK
+        #if DEBUG || SPEKTRAFILM_BENCHMARK
         LaunchBenchmark.begin(model)
         #endif
         // Newsreader is read on another thread while AppKit starts.
@@ -51,7 +51,7 @@ import SwiftUI
         model.launch()
         let benchmark = ProcessInfo.processInfo.environment["SPEKTRAFILM_BENCHMARK_PHOTO"] != nil
         var store: SessionStore? = benchmark ? nil : sessions
-        #if SPEKTRAFILM_BENCHMARK
+        #if DEBUG || SPEKTRAFILM_BENCHMARK
         if let path = ProcessInfo.processInfo.environment["SPEKTRAFILM_BENCHMARK_SESSION"] {
             store = SessionStore(file: URL(fileURLWithPath: path))
         }
@@ -85,13 +85,13 @@ import SwiftUI
             editor?.showWindow(nil)
         }
         LabAutomation.start(model: model, window: editor?.window)
-        #if SPEKTRAFILM_BENCHMARK
+        #if DEBUG || SPEKTRAFILM_BENCHMARK
         LaunchBenchmark.windowShown()
         #endif
         if !LabAutomation.offscreen { NSApp.activate(ignoringOtherApps: true) }
         // Finder opens arrive through application(_:open:); a path argument is for `swift run`.
         if let path = Self.pathArgument { model.open(URL(fileURLWithPath: path)) }
-        #if SPEKTRAFILM_BENCHMARK
+        #if DEBUG || SPEKTRAFILM_BENCHMARK
         InteractionBenchmark.start(model)
         GridBenchmark.start(model)
         #endif

@@ -9,7 +9,6 @@ use spektrafilm_math::spectral::{self, N_WAVELENGTHS, TcLut};
 
 // Pull in BLAS for the spectra→tc_lut contraction (matches Python's
 // opt_einsum + numpy summation pattern bit-for-bit on macOS Accelerate).
-#[cfg(not(any(target_os = "windows", target_arch = "wasm32")))]
 #[allow(unused_imports)]
 use blas_src as _;
 
@@ -18,7 +17,6 @@ fn dgemm_no_transpose(a: &[f64], b: &[f64], c: &mut [f64], m: usize, n: usize, k
     assert_eq!(b.len(), k * n, "dgemm_no_transpose: b.len() != k*n");
     assert_eq!(c.len(), m * n, "dgemm_no_transpose: c.len() != m*n");
 
-    #[cfg(not(any(target_os = "windows", target_arch = "wasm32")))]
     unsafe {
         cblas::dgemm(
             cblas::Layout::RowMajor,
@@ -38,18 +36,6 @@ fn dgemm_no_transpose(a: &[f64], b: &[f64], c: &mut [f64], m: usize, n: usize, k
         );
     }
 
-    #[cfg(any(target_os = "windows", target_arch = "wasm32"))]
-    {
-        for row in 0..m {
-            for col in 0..n {
-                let mut sum = 0.0f64;
-                for kk in 0..k {
-                    sum += a[row * k + kk] * b[kk * n + col];
-                }
-                c[row * n + col] = sum;
-            }
-        }
-    }
 }
 
 /// How a spectral-upsampling LUT is consumed, from its `.toml` sidecar

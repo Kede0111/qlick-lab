@@ -76,25 +76,11 @@ enum Command {
         paper: String,
         params: Box<RuntimeParams>,
     },
-    Original {
-        input: PathBuf,
-        params: Box<RuntimeParams>,
-        limit_preview: bool,
-        preview_path: PathBuf,
-    },
     /// The colour space a RAW's camera preview says it's in, for the Mac's
     /// Match camera brightness reference (`spektrafilm_io::brightness::
     /// preview_colour_space`): "srgb", "adobe_rgb", "other" or null.
     PreviewColourSpace {
         input: PathBuf,
-    },
-    /// A colour-managed camera/original reference for clients without a
-    /// native colour-managed extractor. Independent of retained render state.
-    BrightnessReference {
-        input: PathBuf,
-        reference_path: PathBuf,
-        expected_width: u32,
-        expected_height: u32,
     },
     /// Qlick Lab: reads a RAW again with the Daylight balance, reduced, and fits
     /// the As Shot balance to it as a matrix, so every canvas-size frame after
@@ -1147,30 +1133,6 @@ impl Session {
                 let text = presets::export(&film, &paper, &params, data).map_err(anyhow::Error::msg)?;
                 Ok(json!({"text": text}))
             }
-            Command::Original { input, params, limit_preview, preview_path } => {
-                ensure!(input != preview_path, "Choose a different preview path to preserve the source");
-                ensure!(params.io.upscale_factor.is_finite()
-                    && (0.1..=1.0).contains(&params.io.upscale_factor), "Invalid working resolution");
-                params.io.raw_white_balance.validate()?;
-                params.io.input_interpretation.validate()?;
-                let loaded = spektrafilm_io::load_image_colour(
-                    &input, spektrafilm_io::Formats::Any, params.io.raw_white_balance,
-                    params.io.lens_correction, &params.io.input_interpretation,
-                )?;
-                let source = loaded.image;
-                // Never enlarged: an Image Size target is ignored, and the
-                // canvas fits the original to the developed photograph.
-                let factor = if params.io.photo_long_side_px.is_some() { 1.0 } else { params.io.upscale_factor };
-                let dimensions = preview_dimensions(source.width, source.height, factor, limit_preview);
-                let resized = (dimensions != (source.width, source.height))
-                    .then(|| rescale_preview_input_fast(&source, dimensions));
-                let working = resized.as_ref().unwrap_or(&source);
-                let (encoding, converted) = original_encoding(&params, &loaded.colour, working);
-                let working = converted.as_ref().unwrap_or(working);
-                let (width, height) = write_display(working, encoding, &PostParams::default(), &preview_path)?;
-                Ok(json!({"width": width, "height": height, "input_colour": loaded.colour,
-                          "display_color_space": DisplaySpace::of(encoding).name()}))
-            }
             Command::Thumbnail {
                 input, source_generation, film, paper, params, long_side, preview_path, crop, preset, reduced_decode, decode_only,
                 preview_colour_space,
@@ -1207,28 +1169,6 @@ impl Session {
                 Ok(json!({"released_bytes": bytes}))
             }
             Command::PreviewColourSpace { input } => Ok(json!({ "colour_space": declared_preview_colour_space(&input)? })),
-            Command::BrightnessReference { input, reference_path, expected_width, expected_height } => {
-                ensure!(expected_width > 0 && expected_height > 0,
-                    "The brightness reference needs the photograph's dimensions");
-                ensure!(input != reference_path
-                    && !std::fs::canonicalize(&reference_path).ok().is_some_and(|output|
-                        std::fs::canonicalize(&input).ok().as_ref() == Some(&output)),
-                    "The brightness reference must not replace the original photograph");
-                match spektrafilm_io::brightness::reference(&input, (expected_width, expected_height)) {
-                    Ok(reference) => {
-                        spektrafilm_io::brightness::write_reference(&reference, &reference_path)?;
-                        Ok(json!({"usable": true, "reference_path": reference_path,
-                            "width": reference.width(), "height": reference.height()}))
-                    }
-                    Err(error) => {
-                        if let Some(spektrafilm_io::brightness::Unusable(reason)) = error.downcast_ref::<spektrafilm_io::brightness::Unusable>() {
-                            Ok(json!({"usable": false, "reason": reason, "for_photo": true}))
-                        } else {
-                            Err(error)
-                        }
-                    }
-                }
-            }
             Command::PrepareBalance { input, source_generation, params, read_long_side } => {
                 ensure!(spektrafilm_io::is_raw(&input), "Only a RAW has a white balance to prepare");
                 let lens = params.io.lens_correction;
@@ -2073,48 +2013,6 @@ mod tests {
 
     use super::*;
     #[test]
-    fn brightness_reference_is_independent_and_refuses_to_replace_the_photo() {
-        let dir = std::env::temp_dir().join(format!("qlick-reference-test-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
-        let input = dir.join("input.png");
-        let source = ImageBuf::from_data(4, 2, [0.2, 0.5, 0.8].repeat(8));
-        spektrafilm_io::save_image(&source, &input, None).unwrap();
-        let before = std::fs::read(&input).unwrap();
-        let mut session = Session {
-            source_generation: 31,
-            output: Some(Rendered { id: 7, key: Value::Null, response: Value::Null,
-                source: input.clone(), film: "kodak_gold_200".into(), encoding: Encoding::from(true),
-                post: PostParams::default(), image: source.clone() }),
-            ..Default::default()
-        };
-        let output = dir.join("reference.png");
-        let command = |reference_path| Command::BrightnessReference {
-            input: input.clone(), reference_path, expected_width: 4, expected_height: 2,
-        };
-        let result = session.handle(Request { id: 8, command: command(output.clone()) }, Path::new(".")).unwrap();
-        assert_eq!((result["usable"].as_bool(), result["width"].as_u64(), result["height"].as_u64()),
-            (Some(true), Some(4), Some(2)));
-        assert!(session.source.is_none() && !session.pipelines.has_main());
-        assert_eq!(session.source_generation, 31);
-        let retained = session.output.as_ref().unwrap();
-        assert_eq!(retained.id, 7);
-        assert_eq!(retained.image.data, source.data);
-        let reference = placement_reference(&output, &source).unwrap();
-        assert_eq!(reference.width, 4);
-        let error = session.handle(Request { id: 9, command: command(input.clone()) }, Path::new(".")).unwrap_err();
-        assert!(error.to_string().contains("must not replace"));
-        assert_eq!(std::fs::read(&input).unwrap(), before);
-        let alpha = dir.join("alpha.png");
-        image::RgbaImage::from_pixel(4, 2, image::Rgba([128, 128, 128, 255])).save(&alpha).unwrap();
-        let unsuitable = session.handle(Request { id: 10, command: Command::BrightnessReference {
-            input: alpha, reference_path: output, expected_width: 4, expected_height: 2,
-        } }, Path::new(".")).unwrap();
-        assert_eq!(unsuitable["usable"], false);
-        assert_eq!(unsuitable["for_photo"], true);
-        assert_eq!(unsuitable["reason"], "Transparent images can’t be matched.");
-        std::fs::remove_dir_all(dir).unwrap();
-    }
-    #[test]
     fn bw_expansion_catalog_keeps_negative_reversal_and_paper_distinct() {
         let data = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
         let result = catalog(&data).unwrap();
@@ -2303,9 +2201,8 @@ mod tests {
             } }, &data).unwrap();
             let (width, height) = (decoded["source_width"].as_u64().unwrap() as u32, decoded["source_height"].as_u64().unwrap() as u32);
             if !reference.exists() {
-                session.handle(Request { id: 2, command: Command::BrightnessReference {
-                    input: input.clone(), reference_path: reference.clone(), expected_width: width, expected_height: height,
-                } }, &data).unwrap();
+                let rgb = spektrafilm_io::brightness::reference(&input, (width, height)).unwrap();
+                spektrafilm_io::brightness::write_reference(&rgb, &reference).unwrap();
             }
             let placed = session.handle(Request { id: 3, command: Command::PlaceExposure {
                 input: input.clone(), source_generation: 1, film: "kodak_gold_200".into(), paper: "kodak_supra_endura".into(),
@@ -2357,9 +2254,8 @@ mod tests {
                     (rendered["source_width"].as_u64().unwrap() as u32, rendered["source_height"].as_u64().unwrap() as u32)
                 };
                 if !reference.exists() {
-                    session.handle(Request { id: 2, command: Command::BrightnessReference {
-                        input: input.clone(), reference_path: reference.clone(), expected_width: width, expected_height: height,
-                    } }, &data).unwrap();
+                    let rgb = spektrafilm_io::brightness::reference(&input, (width, height)).unwrap();
+                    spektrafilm_io::brightness::write_reference(&rgb, &reference).unwrap();
                 }
                 let placed = session.handle(Request { id: 3, command: Command::PlaceExposure {
                     input: input.clone(), source_generation: 1, film: "kodak_gold_200".into(), paper: "kodak_supra_endura".into(),
@@ -2425,11 +2321,10 @@ mod tests {
         assert_eq!(image.data[1], 0.18);
     }
     #[test]
-    fn original_keeps_the_render_available_for_save() {
-        let dir = std::env::temp_dir().join(format!("qlick-original-test-{}", std::process::id()));
+    fn a_kept_render_saves_as_rendered_and_in_another_space() {
+        let dir = std::env::temp_dir().join(format!("qlick-kept-render-test-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let input = dir.join("input.png");
-        let preview = dir.join("original.rgba");
         let source = ImageBuf::from_data(2, 1, vec![0.0, 0.5, 1.0, 1.0, 0.5, 0.0]);
         spektrafilm_io::save_image(&source, &input, None).unwrap();
         let mut session = Session {
@@ -2438,13 +2333,6 @@ mod tests {
                 post: PostParams::default(), image: source.clone() }),
             ..Default::default()
         };
-        let params = Box::new(RuntimeParams::default());
-        let response = session.handle(Request { id: 8, command: Command::Original {
-            input: input.clone(), params, limit_preview: false, preview_path: preview.clone(),
-        } }, Path::new(".")).unwrap();
-        assert_eq!(response["width"], 2);
-        assert_eq!(response["height"], 1);
-        assert_eq!(std::fs::read(preview).unwrap().len(), 8);
         let retained = session.output.as_ref().unwrap();
         assert_eq!(retained.id, 7);
         assert_eq!(retained.image.data, source.data);
@@ -2604,11 +2492,6 @@ mod tests {
             assert!((f64::from(*saved) / 65535.0 - f64::from(*want)).abs() <= 0.5 / 65535.0 + 1e-6);
         }
         assert_ne!(p3, srgb);
-
-        let original = session.handle(Request { id: 3, command: Command::Original {
-            input: input.clone(), params, limit_preview: false, preview_path: dir.join("original.rgba"),
-        } }, &data).unwrap();
-        assert_eq!(original["display_color_space"], DisplaySpace::Rec2020SrgbTransfer.name());
         std::fs::remove_dir_all(dir).unwrap();
     }
 
@@ -2760,11 +2643,6 @@ mod tests {
                 interactive_scale: None, crop: None, read_long_side: None, region: None }
         };
         assert!(send(5, mixed).unwrap_err().to_string().contains("factor must be 1"));
-        // Original never enlarges, whatever the target.
-        let original = send(6, Command::Original { input: input.clone(), params: {
-            let mut params = RuntimeParams::default(); params.io.photo_long_side_px = Some(400); Box::new(params)
-        }, limit_preview: false, preview_path: preview.clone() }).unwrap();
-        assert_eq!((original["width"].as_u64(), original["height"].as_u64()), (Some(40), Some(30)));
         drop(send);
         assert_eq!(session.output.as_ref().unwrap().id, 3);
         assert_ne!(session.output.as_ref().unwrap().image.data.as_ptr(), image);

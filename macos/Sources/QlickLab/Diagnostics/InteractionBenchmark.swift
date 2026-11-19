@@ -1,9 +1,9 @@
-#if SPEKTRAFILM_BENCHMARK
+#if DEBUG || SPEKTRAFILM_BENCHMARK
 import AppKit
 
 /// Drags a slider on the real event loop and reports how long each main
 /// run-loop pass stays busy, which is what a user feels as a hitch, and how
-/// often a new frame arrived. Compiled only with -DSPEKTRAFILM_BENCHMARK;
+/// often a new frame arrived. Compiled in debug builds and with -DSPEKTRAFILM_BENCHMARK, never shipped;
 /// see the upstream note native-macos-ui.md (docs/README.md). SPEKTRAFILM_BENCHMARK_PARAM picks the slider
 /// (print exposure or exposure); SPEKTRAFILM_BENCHMARK_SHOTS names a folder
 /// for window screenshots during the drag and after letting go.

@@ -84,7 +84,7 @@ extension EditorModel {
     /// at a time and nearest first, so they're there before they're scrolled
     /// to. Each change of the view starts again from its middle.
     func prefetchThumbnails() {
-        #if SPEKTRAFILM_BENCHMARK
+        #if DEBUG || SPEKTRAFILM_BENCHMARK
         if ProcessInfo.processInfo.environment["SPEKTRAFILM_BENCHMARK_NO_PREFETCH"] != nil { return }
         #endif
         prefetchRound += 1

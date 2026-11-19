@@ -75,13 +75,6 @@ impl Drop for DiskPipelineCache {
 }
 
 fn default_cache_dir() -> Option<PathBuf> {
-    #[cfg(target_os = "windows")]
-    {
-        std::env::var_os("LOCALAPPDATA")
-            .filter(|v| !v.is_empty())
-            .map(|p| PathBuf::from(p).join("QlickLab").join("Cache").join("gpu"))
-    }
-    #[cfg(not(target_os = "windows"))]
     {
         std::env::var_os("XDG_CACHE_HOME")
             .map(PathBuf::from)

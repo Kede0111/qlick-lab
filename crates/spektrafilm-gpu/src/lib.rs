@@ -1,27 +1,18 @@
 pub mod cpu_backend;
-#[cfg(feature = "cuda-backend")]
-pub mod cuda_backend;
 #[cfg(feature = "wgpu-backend")]
 pub mod wgpu_backend;
 #[cfg(feature = "wgpu-backend")]
 mod pipeline_cache;
-#[cfg(all(feature = "wgpu-backend", any(target_os = "windows", target_os = "linux", target_arch = "wasm32", test)))]
+#[cfg(all(feature = "wgpu-backend", any(target_os = "linux", test)))]
 mod capacity;
 
 use spektrafilm_math::image::ImageBuf;
 use std::sync::Arc;
 
-/// `Send + Sync`, except in browsers: there WebGPU objects belong to the
-/// thread that made them, so a backend stays on one thread (wgpu's
-/// `WasmNotSendSync`).
-#[cfg(not(target_arch = "wasm32"))]
+/// `Send + Sync`: a backend may move between threads. (Kept as its own trait
+/// from when a browser build needed a single-threaded one.)
 pub trait MaybeSendSync: Send + Sync {}
-#[cfg(not(target_arch = "wasm32"))]
 impl<T: Send + Sync + ?Sized> MaybeSendSync for T {}
-#[cfg(target_arch = "wasm32")]
-pub trait MaybeSendSync {}
-#[cfg(target_arch = "wasm32")]
-impl<T: ?Sized> MaybeSendSync for T {}
 
 /// Compute backend abstraction. Each method corresponds to a GPU-friendly
 /// operation in the film simulation pipeline.
@@ -215,8 +206,7 @@ pub trait ComputeBackend: MaybeSendSync {
 
 /// A film chain submitted by [`ComputeBackend::submit_film_chain`].
 pub trait PendingFilmChain {
-    /// The chain's output. Waits for the GPU natively; in a browser call it
-    /// after `on_mapped` has run.
+    /// The chain's output. Waits for the GPU.
     fn finish(self: Box<Self>) -> ChainResult;
 }
 
@@ -229,8 +219,6 @@ pub enum ChainOutput {
     /// sRGB scan: clipped, adjusted by `post` if any, encoded unless
     /// `encoded` says the scan is, and rounded to 8 bits.
     Rgba8 { encoded: bool, post: Option<Arc<DisplayPost>> },
-    /// Those bytes drawn on the backend's canvas, with nothing read back.
-    Present { encoded: bool, post: Option<Arc<DisplayPost>> },
 }
 
 /// Post adjustments for the display pass, as
@@ -257,7 +245,6 @@ pub struct DisplayPost {
 pub enum ChainResult {
     Scan(ImageBuf),
     Rgba8 { width: u32, height: u32, rgba: Vec<u8> },
-    Presented { width: u32, height: u32 },
 }
 
 /// Qlick Lab: where a film chain's image lies in the frame it is a part of
@@ -356,9 +343,9 @@ pub struct FilmChainParams<'a> {
     /// Optional enlarger diffusion filter. Applied in the print stage on
     /// linear print raw between print_spectral and print density curves.
     pub enlarger_diffusion: Option<DiffusionGpuPlan>,
-    /// The print_exposure × B&W printing correction scalar. Used by CUDA
-    /// when `enlarger_diffusion` is active so it can preserve the CPU
-    /// print-stage ordering around preflash.
+    /// The print_exposure × B&W printing correction scalar. Used when
+    /// `enlarger_diffusion` is active so the GPU keeps the CPU's print-stage
+    /// ordering around preflash.
     pub print_exposure_scale: f64,
     /// Whether the final output should be sRGB-encoded (unclipped). The
     /// pipeline sets it only when the output space's curve is sRGB's and
@@ -436,8 +423,8 @@ pub enum FrontPass<'a> {
 /// adds `coeffs[i]` (per-channel) into the accumulator.
 #[derive(Debug, Clone)]
 pub struct DiffusionGpuPlan {
-    /// Downsample factor and working size for backends that blur a reduced
-    /// copy (CUDA). The wgpu backend convolves with `psf` by FFT instead.
+    /// Downsample factor and working size for a backend that blurs a reduced
+    /// copy. The wgpu backend convolves with `psf` by FFT instead.
     pub d: u32,
     pub small_w: u32,
     pub small_h: u32,
@@ -640,7 +627,8 @@ pub struct Lut3D {
 
 /// Select the best available backend at runtime.
 ///
-/// Honors `SPEKTRAFILM_BACKEND=cpu|cuda|wgpu` when the requested backend is compiled in.
+/// Honors `SPEKTRAFILM_BACKEND=cpu|wgpu` when the requested backend is compiled in; any other value
+/// falls back to the CPU.
 /// Useful for benchmarking and for f64 mode where the GPU shaders truncate to f32.
 pub fn select_backend() -> Box<dyn ComputeBackend> {
     let requested = std::env::var("SPEKTRAFILM_BACKEND")
@@ -650,22 +638,6 @@ pub fn select_backend() -> Box<dyn ComputeBackend> {
     if requested.as_deref() == Some("cpu") {
         tracing::info!("using CPU backend");
         return Box::new(cpu_backend::CpuBackend);
-    }
-
-    #[cfg(feature = "cuda-backend")]
-    {
-        if requested.as_deref() == Some("cuda") {
-            if let Some(cuda) = cuda_backend::CudaBackend::new() {
-                tracing::info!("using CUDA GPU backend");
-                return Box::new(cuda);
-            }
-            tracing::warn!("CUDA backend requested but unavailable; falling back");
-        }
-    }
-
-    #[cfg(not(feature = "cuda-backend"))]
-    if requested.as_deref() == Some("cuda") {
-        tracing::warn!("CUDA backend requested but spektrafilm-gpu was built without cuda-backend");
     }
 
     #[cfg(feature = "wgpu-backend")]
