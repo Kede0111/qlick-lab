@@ -178,7 +178,6 @@ enum ImportProgressStyle: String, CaseIterable, Sendable {
     // MARK: Triage
 
     /// Frames unchecked by hand.
-    private(set) var excluded: Set<URL> = []
     private(set) var marks: [URL: ImportMarks] = [:]
     private(set) var selected: Set<URL> = []
     private(set) var current: URL?
@@ -262,7 +261,7 @@ enum ImportProgressStyle: String, CaseIterable, Sendable {
         scan?.cancel()
         self.source = source
         frames = []; index = [:]; shown = []; known = []; bursts = [:]
-        excluded = []; marks = [:]; selected = []; current = nil; anchor = nil
+        marks = [:]; selected = []; current = nil; anchor = nil
         factsRead = 0; scanning = true; view = .grid; filter = .all
         plan = ImportPlan()
         // A card's photographs can't stay where they are: it starts on Copy.
@@ -335,8 +334,8 @@ enum ImportProgressStyle: String, CaseIterable, Sendable {
 
     /// Whether the import takes this frame.
     func included(_ id: URL) -> Bool {
-        if excluded.contains(id) { return false }
-        if options.skipRejected, marks[id]?.flag == "reject" { return false }
+        // One state, as on a contact sheet: crossed out means not imported.
+        if marks[id]?.flag == "reject" { return false }
         if options.skipDuplicates, known.contains(id) { return false }
         return true
     }
@@ -419,7 +418,7 @@ enum ImportProgressStyle: String, CaseIterable, Sendable {
             edit(&mark)
             marks[id] = mark.isEmpty ? nil : mark
         }
-        if filter != .all || options.skipRejected { refreshShown() }
+        refreshShown()
         replan()
     }
 
@@ -435,25 +434,24 @@ enum ImportProgressStyle: String, CaseIterable, Sendable {
     /// Gives `recipe` (a recipe's name, nil for none) to `ids`, or to the targets.
     func assign(recipe: String?, to ids: [URL]? = nil) { change(ids ?? targets) { $0.recipe = recipe } }
 
-    /// Checks or unchecks the targets: all checked if any wasn't.
+    /// Crosses out the targets, so they stay behind, or lifts the cross if they all carry it (I).
     func toggleIncluded(_ ids: [URL]? = nil) {
         let ids = ids ?? targets
-        let check = ids.contains { excluded.contains($0) }
-        for id in ids { if check { excluded.remove(id) } else { excluded.insert(id) } }
-        if filter == .checked { refreshShown() }
-        replan()
+        let bring = ids.contains { marks[$0]?.flag == "reject" }
+        setIncluded(bring, ids)
     }
+    /// Lifts the cross from `ids` (a ring stays), or crosses them out.
     func setIncluded(_ on: Bool, _ ids: [URL]) {
-        for id in ids { if on { excluded.remove(id) } else { excluded.insert(id) } }
-        if filter == .checked { refreshShown() }
-        replan()
+        change(ids) { mark in
+            if on { if mark.flag == "reject" { mark.flag = nil } } else { mark.flag = "reject" }
+        }
     }
-    /// Keeps the first frame of every burst checked and unchecks the others.
+    /// Crosses out every frame of a burst but its first.
     func keepFirstOfBursts() {
         var seen: Set<Int> = []
         let ordered = frames.sorted { ($0.time?.seconds ?? 0) < ($1.time?.seconds ?? 0) }
-        for frame in ordered { if let burst = bursts[frame.id], !seen.insert(burst).inserted { excluded.insert(frame.id) } }
-        refreshShown(); replan()
+        let others = ordered.filter { frame in bursts[frame.id].map { !seen.insert($0).inserted } ?? false }.map(\.id)
+        setIncluded(false, others)
     }
 
     /// The recipes given, with how many frames each.

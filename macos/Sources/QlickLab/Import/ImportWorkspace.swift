@@ -169,10 +169,10 @@ private struct ImportToolbar: View {
                 }
             }
             Spacer(minLength: 8)
-            QIconButton(symbol: "checkmark.circle", help: "Check all: every frame shown is imported") { session.setIncluded(true, session.shown.map(\.id)) }
-            QIconButton(symbol: "circle", help: "Uncheck all: no frame shown is imported, check those you want") { session.setIncluded(false, session.shown.map(\.id)) }
+            QIconButton(symbol: "arrow.uturn.backward.circle", help: "Lift every cross: every frame shown is imported") { session.setIncluded(true, session.shown.map(\.id)) }
+            QIconButton(symbol: "xmark.circle", help: "Cross out every frame shown, then lift the cross from those you want") { session.setIncluded(false, session.shown.map(\.id)) }
             if !session.bursts.isEmpty {
-                QIconButton(symbol: "square.stack.3d.down.right", help: "Firsts of bursts: keeps the first frame of every burst checked and unchecks the others") { session.keepFirstOfBursts() }
+                QIconButton(symbol: "square.stack.3d.down.right", help: "Firsts of bursts: crosses out every frame of a burst but its first") { session.keepFirstOfBursts() }
             }
             Divider().frame(height: 16).overlay(Color.white.opacity(0.12))
             HStack(spacing: 6) {
@@ -340,18 +340,6 @@ struct ImportCell: View {
                 }
             }
             .frame(height: side * 0.72)
-            .overlay(alignment: .topLeading) {
-                Button { session.toggleIncluded([id]) } label: {
-                    Image(systemName: included ? "checkmark.circle.fill" : "circle")
-                        .font(.system(size: 15, weight: .medium))
-                        .foregroundStyle(included ? Theme.accent : Color(white: 0.5), .white)
-                        .symbolRenderingMode(included ? .palette : .monochrome)
-                        .shadow(color: .black.opacity(0.6), radius: 1.5)
-                        .padding(6).contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .help(included ? "Imported. Click to leave it out (I)" : known ? "Already imported by this catalog. Click to import it again (I)" : "Left out. Click to import it (I)")
-            }
             .overlay(alignment: .topTrailing) {
                 HStack(spacing: 4) {
                     if frame.companion != nil { badge("R+J", help: "A RAW with its JPEG: one photograph") }

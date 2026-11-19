@@ -113,7 +113,7 @@ struct ImportLoupe: View {
                     .help("The preview the camera wrote into the file. Give the frame a recipe to see it developed.")
             }
             Divider().frame(height: 14).overlay(Color.white.opacity(0.15))
-            Button(session.included(frame.id) ? "Imported" : "Left Out") { session.toggleIncluded([frame.id]) }
+            Button(session.included(frame.id) ? "Cross Out" : "Lift the Cross") { session.toggleIncluded([frame.id]) }
                 .buttonStyle(QPillButtonStyle(active: session.included(frame.id))).help("Whether the import takes this frame (I)")
         }
         .lineLimit(1)
