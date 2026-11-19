@@ -46,7 +46,7 @@ import Foundation
         guard let engine = engine(), engine.runningLaunch != nil else { return }
         Task { [weak self] in
             let answer = try? await Task.detached(priority: .utility) {
-                try await engine.request(["command": .string("release_film_cache")])
+                try await engine.request(["command": EngineCommand.releaseFilmCache.json])
             }.value
             self?.sent.append((reason, answer?.1["released_bytes"].double))
         }

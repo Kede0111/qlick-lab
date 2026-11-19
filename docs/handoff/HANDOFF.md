@@ -33,7 +33,11 @@ Read this first, then `CLAUDE.md` and `docs/architecture.md`. Update it at the e
   - [x] One theme: `Q` folded into `Theme` (Design/Theme.swift); the controls in Design/Controls.swift. The lab rooms
     now use the editor's values where QLab's were near: red sRGB #e5222b (was P3 0.89/0.11/0.14), dim #8a8a8f (was
     50 % grey), surface = panel #141415, hairline = line #28282a. Quentin checks the look in Qlick Lab Dev.
-  - Type the Swift ↔ Rust contract on the Swift side: `Codable` replies instead of `JSONValue` lookups; a contract test.
+  - [x] Contract, step 1: the command names are typed (`Engine/EngineCommand.swift`) and checked on both sides
+    against `crates/spektrafilm-native/commands.txt` (`EngineContractTests`, `commands_match_the_shared_list`).
+    Found: `original` and `brightness_reference` are never sent by the app (candidates for wave 3's pruning).
+  - [ ] Contract, step 2: `Codable` replies instead of `JSONValue` lookups (render, thumbnail, catalog, balance…),
+    best done while splitting EditorModel, which holds 30 of the 34 requests.
 - [ ] **Wave 3**: border geometry from Rust only (`Border.swift` duplicates `crates/spektrafilm-io/src/border.rs`);
   Swift 6 strict concurrency module by module; prune CUDA and unused targets, benchmarks out of shipped sources.
 - Not to do: rewrite the app in Rust.
@@ -57,7 +61,7 @@ the pencil replaces the checkbox at Import (crossed = not imported); start with 
 ## Current state
 
 - Phase: architecture wave 1 done, committed on `refactor/architecture`. Tests: Rust 438 pass; Swift 488 run, 24 skipped, 1 failure that main has too (`QuickFrameLifecycleTests.testRapidFilmSwitchingDoesNotPileUpRenders`, 5 settled renders where it expects fewer): look at it in wave 2.
-- Next: wave 2 (start with the themes or the folder layout), or 0.1.5 on `feature/import-library` if Quentin prefers.
+- Next: split EditorModel (with the typed replies), then 0.1.5 on `feature/import-library`.
 
 ## Build and test
 

@@ -2014,6 +2014,23 @@ fn main() -> Result<()> {
 
 #[cfg(test)]
 mod tests {
+    /// The app names the same commands (EngineCommand.swift); both sides check against commands.txt.
+    #[test]
+    fn commands_match_the_shared_list() {
+        let list = include_str!("../commands.txt");
+        let names: Vec<&str> = list.lines().map(str::trim).filter(|l| !l.is_empty() && !l.starts_with('#')).collect();
+        for name in &names {
+            let error = serde_json::from_str::<Command>(&format!(r#"{{"command":"{name}"}}"#)).err().map(|e| e.to_string());
+            assert!(!error.as_deref().unwrap_or("").contains("unknown variant"), "the helper doesn't know `{name}`");
+        }
+        // Every variant is listed: an unknown name's error lists the variants serde expects.
+        let error = serde_json::from_str::<Command>(r#"{"command":"no_such_command"}"#).err().unwrap().to_string();
+        for name in &names {
+            assert!(error.contains(&format!("`{name}`")), "`{name}` missing from the helper's variants: {error}");
+        }
+        assert_eq!(error.matches('`').count() / 2 - 1, names.len(), "the helper has commands commands.txt doesn't list: {error}");
+    }
+
     // Qlick Lab: the white balance fit.
     #[test]
     fn white_balance_fit_recovers_a_balance() {

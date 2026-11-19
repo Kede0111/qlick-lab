@@ -563,7 +563,7 @@ import UserNotifications
             engine.label = "editor"
             self.engine = engine
             filmCacheRelease.watchMemoryPressure()
-            catalogRequest = Task.detached { try await engine.request(["command": .string("catalog")]) }
+            catalogRequest = Task.detached { try await engine.request(["command": EngineCommand.catalog.json]) }
             let data = engine.paths.data
             Task.detached(priority: .utility) { [weak self] in
                 let texture = BorderStyle.loadFilmTexture(data: data)
@@ -2886,7 +2886,7 @@ import UserNotifications
             var params = state.params
             params["io.output_color_space"] = .string(space)
             var command: [String: JSONValue] = [
-                "command": .string("thumbnail"), "input": .string(photo.path), "source_generation": .number(Double(generation)),
+                "command": EngineCommand.thumbnail.json, "input": .string(photo.path), "source_generation": .number(Double(generation)),
                 "film": .string(state.film), "paper": .string(state.paper), "params": params,
                 "long_side": .number(Double(longSide)), "preview_path": .string(buffer.path),
                 // A whole decode the helper already holds serves this too.
@@ -3487,7 +3487,7 @@ import UserNotifications
         var params = snapshot.params
         if masked { params["film_render.halation.show_mask"] = .bool(true) }
         var command: [String: JSONValue] = [
-            "command": .string("render"), "input": .string(source.path),
+            "command": EngineCommand.render.json, "input": .string(source.path),
             "source_generation": .number(Double(generation)),
             "film": .string(snapshot.film), "paper": .string(snapshot.paper), "params": params,
             "limit_preview": .bool(snapshot.limitPreview), "preview_path": .string(buffer.path)
@@ -3686,7 +3686,7 @@ import UserNotifications
         guard isRaw, let source, let engine, canChangeEdits else { NSSound.beep(); return }
         let generation = sourceGeneration
         let command: [String: JSONValue] = [
-            "command": .string("pick_balance"), "input": .string(source.path), "source_generation": .number(Double(generation)),
+            "command": EngineCommand.pickBalance.json, "input": .string(source.path), "source_generation": .number(Double(generation)),
             "params": renderState.params, "x": .number(Double(point.x)), "y": .number(Double(point.y)),
         ]
         Task {
@@ -3725,7 +3725,7 @@ import UserNotifications
             let size = self.sourceSize != .zero ? self.sourceSize : self.decodedFor?.size ?? .zero
             let scale = self.screenFrameScale ?? Self.screenWorth(size) ?? 0.25
             let command: [String: JSONValue] = [
-                "command": .string("prepare_balance"), "input": .string(source.path), "source_generation": .number(Double(generation)),
+                "command": EngineCommand.prepareBalance.json, "input": .string(source.path), "source_generation": .number(Double(generation)),
                 "params": self.renderState.params, "read_long_side": .number((max(size.width, size.height) * scale).rounded(.up)),
             ]
             do {
@@ -3858,7 +3858,7 @@ import UserNotifications
                 guard toneCurve?.request != request, let engine else { continue }
                 do {
                     let (_, result) = try await engine.request([
-                        "command": .string("tone_curve"), "film": .string(snapshot.film),
+                        "command": EngineCommand.toneCurve.json, "film": .string(snapshot.film),
                         "paper": .string(snapshot.paper), "params": snapshot.params, "count": .number(256)])
                     let controls = ToneControls { snapshot.params[$0] }
                     if let curve = ToneCurveData(result, request: request, controls: controls) { toneCurve = curve }
@@ -3899,7 +3899,7 @@ import UserNotifications
         previews.enabled = enabled
         if enabled { pumpPreviews(); return }
         if previews.clear(), let engine {
-            Task.detached(priority: .utility) { _ = try? await engine.request(["command": .string("release_thumbnails")]) }
+            Task.detached(priority: .utility) { _ = try? await engine.request(["command": EngineCommand.releaseThumbnails.json]) }
         }
     }
 
@@ -4224,7 +4224,7 @@ import UserNotifications
     /// developing it (and build the pipeline `state` renders with).
     private func decodeOnlyCommand(source: URL, generation: Int, state: EditState, engine: EngineClient) -> [String: JSONValue] {
         [
-            "command": .string("thumbnail"), "input": .string(source.path), "source_generation": .number(Double(generation)),
+            "command": EngineCommand.thumbnail.json, "input": .string(source.path), "source_generation": .number(Double(generation)),
             "film": .string(state.film), "paper": .string(state.paper), "params": state.params,
             // Qlick Lab: with screen-sized previews, no more than the photograph's proxy holds (2560 pixels): its
             // proxy if it has one, else a reduced read, never the whole RAW before the first frame.
@@ -4267,7 +4267,7 @@ import UserNotifications
             declared = PreviewColourSpace(rawValue: given.string)
         } else {
             declared = PreviewColourSpace(rawValue: try await engine.request([
-                "command": .string("preview_colour_space"), "input": .string(source.path)
+                "command": EngineCommand.previewColourSpace.json, "input": .string(source.path)
             ]).1["colour_space"].string)
         }
         try Task.checkCancellation()
@@ -4283,7 +4283,7 @@ import UserNotifications
         try await stillWanted()
         try data.write(to: reference, options: .atomic)
         let (_, result) = try await engine.request([
-            "command": .string("place_exposure"), "input": .string(source.path),
+            "command": EngineCommand.placeExposure.json, "input": .string(source.path),
             "source_generation": .number(Double(generation)), "film": .string(request.film),
             "paper": .string(request.paper), "params": request.params,
             "reference_path": .string(reference.path)
@@ -4356,7 +4356,7 @@ import UserNotifications
         Task {
             defer { balancingPrint = false }
             do {
-                let (_, result) = try await engine.request(["command": .string("balance_print"), "film": .string(snapshot.film),
+                let (_, result) = try await engine.request(["command": EngineCommand.balancePrint.json, "film": .string(snapshot.film),
                                                             "paper": .string(snapshot.paper), "params": snapshot.params])
                 let m = result["m_filter_shift"].double, y = result["y_filter_shift"].double
                 var next = state
@@ -4397,7 +4397,7 @@ import UserNotifications
         status = "Exporting LUT…"
         defer { saving = false; try? FileManager.default.removeItem(at: temporary) }
         do {
-            _ = try await engine.request(["command": .string("export_lut"), "film": .string(snapshot.film),
+            _ = try await engine.request(["command": EngineCommand.exportLut.json, "film": .string(snapshot.film),
                                           "paper": .string(snapshot.paper), "params": snapshot.params,
                                           "size": .number(33), "output": .string(temporary.path)])
             try await Task.detached {
@@ -4475,7 +4475,7 @@ import UserNotifications
 
     /// Saves the current preview with the crop, rotation, border, size, and encoding.
     private func saveCommand(to url: URL, size: ExportSize, save: SaveSettings) -> [String: JSONValue] {
-        var command: [String: JSONValue] = ["command": .string("save"), "render_id": .number(Double(renderID)), "output": .string(url.path),
+        var command: [String: JSONValue] = ["command": EngineCommand.save.json, "render_id": .number(Double(renderID)), "output": .string(url.path),
                                             "rotate_cw": .number(Double(imageRotation)), "save_options": save.json]
         if let crop = Self.cropJSON(state.crop) { command["crop"] = crop }
         if let border = state.border.exported(for: photoSize) {
@@ -4848,7 +4848,7 @@ import UserNotifications
         defer { try? FileManager.default.removeItem(at: buffer) }
         var state = item.state
         let (_, decoded) = try await engine.request([
-            "command": .string("thumbnail"), "input": .string(photo.path), "source_generation": .number(Double(generation)),
+            "command": EngineCommand.thumbnail.json, "input": .string(photo.path), "source_generation": .number(Double(generation)),
             "film": .string(state.film), "paper": .string(state.paper), "params": state.params,
             "long_side": .number(16), "preview_path": .string(buffer.path),
         ])
@@ -4999,7 +4999,7 @@ import UserNotifications
         for preset in presets where presetStatus[preset] == nil {
             do {
                 let text = try Self.presetText(try await presetLibrary.read(preset))
-                let (_, result) = try await engine.request(["command": .string("preset_import"), "text": .string(text)])
+                let (_, result) = try await engine.request(["command": EngineCommand.presetImport.json, "text": .string(text)])
                 presetStatus[preset] = .valid(film: result["film"].string, paper: result["paper"].string,
                                               scan: result["params"]["io.scan_film"].bool)
                 presetTexts[preset] = text
@@ -5022,7 +5022,7 @@ import UserNotifications
                 // it's given; ask again if they changed while it answered.
                 for _ in 0..<3 {
                     let snapshot = state
-                    let (_, result) = try await engine.request(["command": .string("preset_import"), "text": .string(text),
+                    let (_, result) = try await engine.request(["command": EngineCommand.presetImport.json, "text": .string(text),
                                                                 "params": snapshot.params])
                     guard state == snapshot else { continue }
                     let (film, paper) = (result["film"].string, result["paper"].string)
@@ -5061,7 +5061,7 @@ import UserNotifications
             self.showPane(.presets)
             Task {
                 do {
-                    let (_, result) = try await engine.request(["command": .string("preset_export"), "film": .string(snapshot.film),
+                    let (_, result) = try await engine.request(["command": EngineCommand.presetExport.json, "film": .string(snapshot.film),
                                                                 "paper": .string(snapshot.paper), "params": snapshot.params])
                     var text = result["text"].string
                     if !groups.isEmpty { text = RecipeDevelop.taking(groups, from: snapshot, exposureOffset: exposureOffset).adding(to: text) }
@@ -5154,7 +5154,7 @@ import UserNotifications
             for url in urls {
                 do {
                     let data = try await Task.detached(priority: .userInitiated) { try PresetLibrary.read(url) }.value
-                    _ = try await engine.request(["command": .string("preset_import"), "text": .string(try Self.presetText(data))])
+                    _ = try await engine.request(["command": EngineCommand.presetImport.json, "text": .string(try Self.presetText(data))])
                     added.append(try await presetLibrary.add(data, name: PresetName.from(fileName: url.deletingPathExtension().lastPathComponent)).url)
                 } catch {
                     failures.append("\(url.lastPathComponent): \(error.localizedDescription)")
@@ -5323,7 +5323,7 @@ import UserNotifications
         var preset = preset
         let develop = preset.flatMap(recipeDevelop)
         if let text = preset, (state.brightnessMatch != nil && !matchSolved) || develop != nil,
-           let (_, applied) = try? await engine.request(["command": .string("preset_import"), "text": .string(text), "params": state.params]),
+           let (_, applied) = try? await engine.request(["command": EngineCommand.presetImport.json, "text": .string(text), "params": state.params]),
            films.contains(where: { $0.id == applied["film"].string }), papers.contains(where: { $0.id == applied["paper"].string }) {
             let photo = state
             state.film = applied["film"].string; state.paper = applied["paper"].string; state.params = applied["params"]
@@ -5344,7 +5344,7 @@ import UserNotifications
             var params = state.params
             params["io.output_color_space"] = .string(space)
             var command: [String: JSONValue] = [
-                "command": .string("thumbnail"), "input": .string(photo.path), "source_generation": .number(Double(generation)),
+                "command": EngineCommand.thumbnail.json, "input": .string(photo.path), "source_generation": .number(Double(generation)),
                 "film": .string(state.film), "paper": .string(state.paper), "params": params,
                 "long_side": .number(Double(min(max(longSide, 16), 4096))), "preview_path": .string(buffer.path),
                 // A small picture reads only as much of a RAW as it needs; one to judge at 100 % reads it whole.
@@ -5412,7 +5412,7 @@ import UserNotifications
             defer { self.backgroundWork = nil }
             do {
                 let text = try Self.presetText(try await self.presetLibrary.read(preset))
-                let (_, result) = try await engine.request(["command": .string("preset_import"), "text": .string(text), "params": self.plainState.params])
+                let (_, result) = try await engine.request(["command": EngineCommand.presetImport.json, "text": .string(text), "params": self.plainState.params])
                 let (film, paper) = (result["film"].string, result["paper"].string)
                 guard self.films.contains(where: { $0.id == film }), self.papers.contains(where: { $0.id == paper }) else {
                     throw EngineError(message: "This version of Qlick Lab doesn’t have the preset’s film or paper.")
@@ -5646,7 +5646,7 @@ import UserNotifications
             if let known = lab.asShot.autos[photo] { found[photo] = known; continue }
             if given == nil { status = "Balancing \(index + 1) of \(photos.count)…" }
             let state = labEdits(for: photo).state
-            let command: [String: JSONValue] = ["command": .string("prepare_balance"), "input": .string(photo.path),
+            let command: [String: JSONValue] = ["command": EngineCommand.prepareBalance.json, "input": .string(photo.path),
                                                 "source_generation": .number(generationBase + Double(index + 1)), "params": state.params,
                                                 "read_long_side": .number(1024)]
             // The helper reads in the background and answers at once; asked again, it says once it's done.
@@ -5693,7 +5693,7 @@ import UserNotifications
         do {
             let text = try Self.presetText(try await presetLibrary.read(preset))
             let base = plainState
-            let (_, result) = try await engine.request(["command": .string("preset_import"), "text": .string(text), "params": base.params])
+            let (_, result) = try await engine.request(["command": EngineCommand.presetImport.json, "text": .string(text), "params": base.params])
             let (film, paper) = (result["film"].string, result["paper"].string)
             guard films.contains(where: { $0.id == film }), papers.contains(where: { $0.id == paper }) else { return nil }
             var next = base

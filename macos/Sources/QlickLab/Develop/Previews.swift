@@ -51,7 +51,7 @@ enum PreviewRules {
     static func request(for stock: Stock, keepPaper: Bool, state: EditState, stocks: [Stock], source: URL, generation: Int) -> [String: JSONValue] {
         let chosen = choosing(stock.id, paper: stock.paper, keepPaper: keepPaper, in: state, stocks: stocks)
         var command: [String: JSONValue] = [
-            "command": .string("thumbnail"), "input": .string(source.path),
+            "command": EngineCommand.thumbnail.json, "input": .string(source.path),
             "source_generation": .number(Double(generation)),
             "film": .string(chosen.film), "paper": .string(chosen.paper), "params": chosen.params,
             "long_side": .number(Double(longSide))
@@ -64,7 +64,7 @@ enum PreviewRules {
     /// helper applies the preset over `state` as `preset_import` does.
     static func presetCommand(text: String, state: EditState, source: URL, generation: Int) -> [String: JSONValue] {
         var command: [String: JSONValue] = [
-            "command": .string("thumbnail"), "input": .string(source.path),
+            "command": EngineCommand.thumbnail.json, "input": .string(source.path),
             "source_generation": .number(Double(generation)),
             "film": .string(state.film), "paper": .string(state.paper), "params": state.params,
             "long_side": .number(Double(longSide)), "preset": .string(text)

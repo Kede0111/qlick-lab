@@ -1,0 +1,21 @@
+# The commands of the engine's helper, as the app names them: one per line, in `enum Command`'s order
+# (crates/spektrafilm-native/src/main.rs). The app's `EngineCommand` (macos/Sources/QlickLab/Engine/EngineCommand.swift)
+# must list the same; a test on each side checks its own list against this file.
+balance_print
+catalog
+export_lut
+preset_import
+preset_export
+original
+preview_colour_space
+brightness_reference
+prepare_balance
+make_proxy
+pick_balance
+place_exposure
+render
+thumbnail
+release_thumbnails
+release_film_cache
+tone_curve
+save

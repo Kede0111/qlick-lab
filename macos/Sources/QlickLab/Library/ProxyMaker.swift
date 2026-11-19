@@ -206,7 +206,7 @@ import Observation
                 guard let engine = engine(slot) else { return }
                 let state = model.labEdits(for: photo).state
                 do {
-                    _ = try await engine.request(["command": .string("make_proxy"), "input": .string(photo.path), "params": state.params])
+                    _ = try await engine.request(["command": EngineCommand.makeProxy.json, "input": .string(photo.path), "params": state.params])
                     guard !Task.isCancelled else { return }
                     // Its file changed while it was being made (its edits written into it): once more.
                     let there = await Task.detached(priority: .utility) { Self.hasProxy(photo) }.value
