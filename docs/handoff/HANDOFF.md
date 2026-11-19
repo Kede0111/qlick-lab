@@ -112,23 +112,50 @@ the pencil replaces the checkbox at Import (crossed = not imported); start with 
   help under it (done). He cares about polish: take care over looks, check screenshots with `scripts/drive.sh shot`.
 - Merging into `main` and pushing to GitHub happen only when he says so, after everything is done and tested.
 
-- [ ] **0.3**: Binder (disk roots, live tree); living projects (move rolls, `.qlickroll` card); Selections; the contact
-  sheet reads a list of photos (no symlink folder); Import reuses the contact sheet's grid, loupe and compare.
+- [x] **0.3** (2026-11-19, on `feature/import-library`, one local commit each):
+  - caf1b21 Clickable title trail: the earlier words are links (project → whole project, roll → its sheet), grey,
+    white at the pointer; the last word stays and drags the window. `EditorWindow.sendEvent` hands a click on a
+    link past the title bar (which keeps its clicks). `LabState.crumbs`, `TitleBand.crumbs`, `CrumbWord`.
+    Automation: `crumb <i>`, `clickat <x> <y>`.
+  - 89f379e Saved Settings in the catalogue: `saved-settings.json` (key `qlick`), `SavedImportSettings`; read when a
+    catalogue opens, copied by Save Catalog As; the old preference `qlick.importProfiles` moves into the first one.
+  - a90ecb1 Roll card `Roll.qlickroll` in the roll's folder (`RollCardFile`): name, film, camera, notes; unknown keys
+    kept, newer schema left alone. Written 0.4 s after the last change, off the main thread; read when a folder
+    becomes a roll and at each count (the card wins); rolls from before get one.
+  - 2966441 Binder (`Library/Binder.swift`, `App/BinderSidebar.swift`): roots chosen with + (this Mac's, in
+    preferences `qlick.binderRoots`), read off the main thread (folders with photographs or leading to some, depth 5,
+    3000 folders at most, hidden folders and packages skipped), followed by FSEvents. Amber dot: folder of photographs
+    in no project; amber ring: folded folder holding one. Click opens it on the sheet; menu: Import…, Add to
+    Project, Show in Finder, Remove from the Binder. Import's "Recent" list is gone: the Binder's roots are listed
+    there; the old Recent folders seeded the Binder once.
+  - f1da86c Selections: `LabProject.kind == .selection` with `frames` (paths). Add to Selection / Remove from it in
+    every frame menu (sheet, grid, strip, Develop), a Selections section in the sidebar, naming sheet in selection
+    mode. A whole project and a selection are *lists* (`PhotoFolder.register(list:sources:)`, named
+    `<catalogue>/Views/<id>`, never made on disk); the library lists each source folder once and watches each
+    (`PhotoFolder.folders(of:)`); `EditorModel.openList`. The old `Views/` folders of links are deleted at load.
+  - fba08a4 `FrameCanvas` (Compare/FrameCanvas.swift): the Compare room's canvas in the sheet's loupe and Import's
+    loupe (camera | recipe as the canvas's split) and comparison: wheel, pinch, Fit, 100 %, linked panes.
+    `ImportKeys` take NSEvents too. `CGImage.turned(_:)` for Import's rotations. Not done: Import's *grid* is still
+    its own (SwiftUI cells with the checkbox); moving it onto the contact sheet's view needs the sheet to read
+    something other than the library (a data source), a large change left for later.
+  - 1a4a002 File Names in the Grid (along the picture's foot: the grid packs rows edge to edge), Import's grid and
+    comparison, the Compare room's panes; File Names menu in Import's and Compare's bars.
+
+### Left for later (0.3 follow-ups)
+
+- Import's grid on the contact sheet's own view (see above).
+- A roll's card isn't copied by an import that copies a folder (Copy/Move write new folders).
+- A selection keeps paths: a frame whose folder is moved or renamed outside the lab drops out (no bookmark per frame).
+- Binder: no rename/move of folders from the sidebar; roots aren't per catalogue.
+- Names Binder, Arrivals, Selection, Stocks to review with Quentin once he has tried them.
 
 ## Current state
 
-- Phase: `feature/import-library` holds architecture waves 1–3, 0.1.5 and 0.2 (local, nothing pushed). All tests
-  pass (Rust 440, Swift 493). Qlick Lab Dev is built from it.
-- Next: 0.3 on `feature/import-library`, in this order, one local commit each, Dev rebuilt and screenshots checked:
-  1. Clickable crumbs in the title trail (project → whole project, roll → its sheet).
-  2. Saved Settings kept in the catalogue instead of the app's preferences.
-  3. Roll card in the folder: `.qlickroll` (top-level key `qlick`) for film, camera, notes; migrate from projects.
-  4. Binder: sidebar section showing chosen disk roots as a live tree (PhotoFolderWatcher), amber dot for folders
-     in no project; replaces the "Recent" lists.
-  5. Selections: a box of frames from several rolls (`LabProject.kind == .selection`); the contact sheet reads a list
-     of photos instead of one folder (removes `ProjectStore.viewFolder` symlinks). Biggest, riskiest step.
-  6. Import reusing the contact sheet's grid, loupe and compare.
-  7. File Names in Compare and the Import grid.
+- Phase: `feature/import-library` holds architecture waves 1–3, 0.1.5, 0.2 and 0.3 (local, nothing pushed, `main`
+  untouched). Swift tests: 505 (24 skipped), all pass; the Rust side wasn't changed in 0.3. Qlick Lab Dev is built
+  from it (`dist/qlick-lab-dev/Qlick Lab Dev.app`).
+- Next: Quentin tries 0.3 in Qlick Lab Dev; then the follow-ups above, wave 2's step 2 (models lifted out of
+  EditorModel), contract step 2's remaining replies. Merge into `main` and push only when he says so.
 
 ## Build and test
 
