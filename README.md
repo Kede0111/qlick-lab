@@ -192,8 +192,7 @@ The details are in [docs/architecture.md](docs/architecture.md); how to propose 
 
 | Folder | What's in it |
 |---|---|
-| `macos/Sources/QlickLab` | The app: the editor, library, export (AppKit) |
-| `macos/Sources/QlickLab/Lab` | The lab: contact sheet, projects, catalogues, import, compare, recipes, print (SwiftUI) |
+| `macos/Sources/QlickLab` | The app, one folder per role: `App`, `Library`, `Import`, `ContactSheet`, `Develop`, `Compare`, `Recipes`, `Export`, `Engine`, `Files`, `Design` |
 | `crates/` | The engine in Rust: spektrafilm's model, its GPU pipeline (wgpu/Metal), RAW and colour I/O |
 | `data/` | Film and paper profiles, spectral tables, borders |
 | `vendor/rawler` | A patched copy of rawler, the RAW decoder |

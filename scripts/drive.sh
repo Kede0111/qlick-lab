@@ -2,7 +2,7 @@
 # Qlick Lab — drives a development build without the mouse, the keyboard or the front of the screen.
 #
 #   scripts/drive.sh start            launch off screen, with a home of its own (no real settings touched)
-#   scripts/drive.sh send <command>   one automation command (see macos/Sources/QlickLab/Lab/Automation.swift)
+#   scripts/drive.sh send <command>   one automation command (see macos/Sources/QlickLab/App/Automation.swift)
 #   scripts/drive.sh shot <file.png>  capture the lab's own window only
 #   scripts/drive.sh state            print the lab's state
 #   scripts/drive.sh stop

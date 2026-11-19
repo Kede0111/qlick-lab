@@ -35,28 +35,23 @@ The GPU export is measured against the 64-bit CPU reference in the tests (ΔE00 
 
 ## The app (`macos/Sources/QlickLab`)
 
-Today the files are grouped by where they came from, not by role: the root holds the inherited editor (AppKit),
-`Lab/` what the lab added (SwiftUI), `Lab/Import/` the import. The plan is to group them by role (App, Develop,
-Library, Export, Engine, Design); see [handoff/HANDOFF.md](handoff/HANDOFF.md).
+One folder per role. AppKit and SwiftUI live side by side inside them (the editor came first in AppKit; what the lab
+added is mostly SwiftUI).
 
-| Concern | Where |
+| Folder | What's in it |
 |---|---|
-| Start, menus, windows | `Main.swift`, `MainMenu.swift`, `EditorWindowController.swift`, `Lab/LabMenu.swift` |
-| The rooms and navigation | `Lab/LabState.swift` (`Workspace`, open, show), `Lab/LabShell.swift`, `Lab/Sidebar.swift`, `TitleBar.swift` |
-| Editing state | `EditorModel.swift` (6 000+ lines, to be split), `Edits.swift`, `Parameters.swift`, `Session.swift` |
-| Develop panel | `Inspector.swift`, `InkSlider.swift`, `InkControls.swift`, `Lab/Develop*.swift` |
-| Preview and canvas | `PreviewCanvas.swift`, `Previews.swift`, `RenderedPreviewCache.swift`, `Crop.swift`, `Border.swift` |
-| Contact sheet and library | `Lab/ContactSheet*.swift`, `Lab/LibraryHome.swift`, `LibraryGrid.swift`, `Library.swift`, `PhotoBrowser.swift` |
-| Marks and ratings | `PhotoMarks.swift`, `Lab/GreasePencil.swift`, `RejectCross.swift`, `Selection.swift` |
-| Catalogues and projects | `Lab/Catalogs.swift` (`.qlicklab`), `Lab/Projects.swift` |
-| Import | `Lab/Import/` (`ImportSession` is the import room; `ImportRun` adds rolls; journal, copier, plan) |
-| Recipes, films, papers | `Presets.swift`, `PresetInspector.swift`, `Lab/RecipesWorkspace.swift`, `Lab/StockLibrary.swift` |
-| Export | `BatchExport.swift`, `Lab/ExportFinisher.swift`, `Engine.swift` (export processes) |
-| Talking to the engine | `Engine.swift` (helper process, JSON lines, `JSONValue`) |
-| Sidecars | `Sidecar.swift`, `DNGMetadata.swift`: [sidecar-format.md](sidecar-format.md) |
-| Look | `Theme.swift` (`Theme`, the editor's tokens) and `Lab/QTheme.swift` (`Q`, QLab's tokens): two themes, to merge |
-| Background work | `Lab/BackgroundWork.swift`, `Lab/ProxyMaker.swift`, `Lab/PreviewBuilder.swift` |
-| Testing hooks | `Lab/Automation.swift` (driven by `scripts/drive.sh`) |
+| `App/` | Start, menus, windows, the rooms and navigation (`LabState`, `LabShell`, `Sidebar`, `TitleBar`), settings, shortcuts, updates, automation for `scripts/drive.sh`, background work |
+| `Library/` | Folders, catalogues (`Catalogs`, `.qlicklab`), projects, the library grid and film strip, marks and ratings, thumbnails, previews and proxies, deleting |
+| `Import/` | The Import room: `ImportSession`, plan, copier, journal, `ImportRun` (adds rolls) |
+| `ContactSheet/` | The contact sheet: layout, renderer, view, loupe, print, grease pencil |
+| `Develop/` | Editing state (`EditorModel`, 6 000+ lines, to be split), parameters, the inspector and ink sliders, preview canvas, crop, borders, tone graph, histogram |
+| `Compare/` | The Compare room |
+| `Recipes/` | Recipes (presets), section presets, films and papers |
+| `Export/` | Batch export and its finishing |
+| `Engine/` | The helper process and its JSON lines (`Engine.swift`, `JSONValue`) |
+| `Files/` | Sidecars (`Sidecar.swift`) and the DNG's XMP (`DNGMetadata.swift`): [sidecar-format.md](sidecar-format.md) |
+| `Design/` | `Theme` (Theme.swift) and `Q` (QTheme.swift): two themes, to merge |
+| `Diagnostics/` | Benchmarks run by environment variables; to leave the shipped app |
 
 ## The Swift ↔ Rust contract
 

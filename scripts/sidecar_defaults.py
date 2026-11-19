@@ -4,7 +4,7 @@
 A sidecar stores only what differs from the table it names in
 `defaultsVersion`, so a table is never edited once released: when the engine's
 or the app's defaults change, write the next version and raise
-`SidecarDefaults.latest` in macos/Sources/QlickLab/Sidecar.swift. The macOS tests
+`SidecarDefaults.latest` in macos/Sources/QlickLab/Files/Sidecar.swift. The macOS tests
 fail while the newest table differs from what the app starts with, and hash
 every table so an old one can't change unnoticed.
 

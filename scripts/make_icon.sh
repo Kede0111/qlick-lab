@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Qlick Lab — makes the app icon from the project's artwork (assets/icon.png, a square picture, edge to edge):
 #   - macos/AppIcon.icon, Icon Composer's format: macOS 26 and later cut it to their own rounded shape;
-#   - assets/qlick-lab.icns, the picture set in the rounded tile by macos/Sources/QlickLab/Lab/AppIcon.swift, for
+#   - assets/qlick-lab.icns, the picture set in the rounded tile by macos/Sources/QlickLab/App/AppIcon.swift, for
 #     older macOS.
 #
 #   scripts/make_icon.sh                     from assets/icon.png
