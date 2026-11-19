@@ -71,6 +71,8 @@ import AppKit
         }
         switch command {
         case "room": if let room = Workspace(rawValue: rest) { lab.show(room) }
+        case "back": lab.goBack()
+        case "forward": lab.goForward()
         // import <what> …: the import room without the mouse.
         case "import":
             let session = lab.importer, argument = words.dropFirst().joined(separator: " ")

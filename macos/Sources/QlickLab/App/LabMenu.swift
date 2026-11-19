@@ -15,6 +15,9 @@ import AppKit
             item.representedObject = room.rawValue
         }
         menu.addItem(.separator())
+        add("Back", #selector(goBack), "[", .command)
+        add("Forward", #selector(goForward), "]", .command)
+        menu.addItem(.separator())
         add("New Project…", #selector(newProject), "n", [.command, .shift])
         add("Import a Folder…", #selector(importFolder), "i", [.command, .shift])
         menu.addItem(.separator())
@@ -96,6 +99,8 @@ import AppKit
     @objc private func showRoom(_ item: NSMenuItem) { if let room = (item.representedObject as? String).flatMap(Workspace.init) { lab.show(room) } }
     @objc private func newProject() { lab.naming = LabState.ProjectNaming(name: lab.projects.uniqueName("New Project")); if lab.workspace == .develop { lab.show(.library) } }
     @objc private func importFolder() { lab.importPanel() }
+    @objc private func goBack() { lab.goBack() }
+    @objc private func goForward() { lab.goForward() }
     @objc private func newCatalog() { lab.newCatalogPanel() }
     @objc private func openCatalog() { lab.openCatalogPanel() }
     @objc private func saveCatalogAs() { lab.saveCatalogAsPanel() }
@@ -140,6 +145,8 @@ import AppKit
             let room = (item.representedObject as? String).flatMap(Workspace.init)
             item.state = room == lab.workspace ? .on : .off
             return !model.cropping || room == .develop
+        case #selector(goBack): return lab.canGoBack && !model.cropping
+        case #selector(goForward): return lab.canGoForward && !model.cropping
         case #selector(printSheet): return photo && !model.library.files.isEmpty
         case #selector(compare), #selector(beforeAfter): return photo && !model.cropping
         case #selector(loupe): return sheet && model.selection.current != nil

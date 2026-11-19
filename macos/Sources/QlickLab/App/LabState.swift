@@ -208,6 +208,7 @@ struct SheetOptions: Codable, Equatable, Sendable {
         if next == .library { projects.sidecars = model.sidecarLookup?.store; projects.countAll() }
         if next == .importer { importer.refreshVolumes() }
         if workspace != next { workspace = next }
+        notePlace(Place(workspace: next, folder: model.library.directory?.standardizedFileURL))
     }
 
     /// Follows the editor when it changes between one photograph and the folder by itself (G, Esc, a double-click).
@@ -216,6 +217,7 @@ struct SheetOptions: Codable, Equatable, Sendable {
         seenMode = mode
         if mode == .grid, workspace == .develop { workspace = .contactSheet }
         if mode == .photo, workspace == .contactSheet { workspace = .develop }
+        notePlace(place)
     }
 
     // MARK: Rolls
@@ -223,15 +225,76 @@ struct SheetOptions: Codable, Equatable, Sendable {
     /// The roll being worked on: the one whose folder is open.
     var current: (project: LabProject, roll: LabRoll)? { projects.find(folder: model.library.directory) }
 
-    var title: String {
+    /// The window's title, as a trail: where the photographs come from, then the photograph. Project › Roll ›
+    /// L1003911.DNG in Develop, Project › Roll on the sheet, Project › All Rolls for a whole project.
+    var title: String { trail.joined(separator: "  ›  ") }
+
+    var trail: [String] {
+        var folder: [String] = []
+        if let current { folder = [current.project.name, current.roll.name] }
+        else if let whole = wholeProject { folder = [whole.name, "All Rolls"] }
+        else if let directory = model.library.directory { folder = [directory.lastPathComponent] }
         switch workspace {
-        case .develop: return model.sourceItem.map { model.library.name(of: $0) } ?? "Qlick Lab"
-        case .contactSheet, .compare:
-            if let current { return "\(current.project.name) — \(current.roll.name)" }
-            if let whole = wholeProject { return "\(whole.name) — all rolls" }
-            return model.library.directory?.lastPathComponent ?? workspace.title
-        default: return workspace.title
+        case .develop:
+            guard let item = model.sourceItem else { return ["Qlick Lab"] }
+            return folder + [model.library.name(of: item)]
+        case .contactSheet: return folder.isEmpty ? [workspace.title] : folder
+        case .compare: return folder.isEmpty ? [workspace.title] : folder + [workspace.title]
+        default: return [workspace.title]
         }
+    }
+
+    // MARK: Back and forward
+
+    /// A place in the lab: a room and the folder open in it. Back and Forward (⌘[ ⌘]) walk the places visited, so
+    /// opening a roll, finishing an import or Esc never leaves the way back unknown.
+    struct Place: Equatable {
+        var workspace: Workspace
+        var folder: URL?
+    }
+
+    @ObservationIgnored private(set) var places: [Place] = []
+    @ObservationIgnored private(set) var placeIndex = -1
+    @ObservationIgnored private var walking = false
+    /// Moves when Back or Forward become possible or not, for the menus.
+    private(set) var placesChanged = 0
+
+    var place: Place { Place(workspace: workspace, folder: model.library.directory?.standardizedFileURL) }
+    var canGoBack: Bool { placeIndex > 0 }
+    var canGoForward: Bool { placeIndex >= 0 && placeIndex < places.count - 1 }
+
+    /// Notes where the lab goes: called by `show`, `open(folder:)` and `follow(mode:)` with where they lead, since a
+    /// folder opens a moment after it's asked for.
+    func notePlace(_ now: Place) {
+        guard !walking, placeIndex < 0 || places[placeIndex] != now else { return }
+        places.removeSubrange((placeIndex + 1)...)
+        places.append(now)
+        if places.count > 100 { places.removeFirst(places.count - 100) }
+        placeIndex = places.count - 1
+        placesChanged += 1
+    }
+
+    func goBack() { if canGoBack { walk(to: placeIndex - 1) } }
+    func goForward() { if canGoForward { walk(to: placeIndex + 1) } }
+
+    private func walk(to index: Int) {
+        guard !model.cropping else { NSSound.beep(); return }
+        let target = places[index]
+        walking = true
+        defer { walking = false }
+        if let folder = target.folder, folder != model.library.directory?.standardizedFileURL {
+            guard FileManager.default.fileExists(atPath: folder.path) else {
+                // The folder went (a card taken out): that place is skipped.
+                places.remove(at: index)
+                if placeIndex > index { placeIndex -= 1 }
+                placesChanged += 1
+                return
+            }
+            open(folder: folder)
+        }
+        show(target.workspace)
+        placeIndex = index
+        placesChanged += 1
     }
 
     /// The project shown whole, all its rolls on one sheet.
@@ -315,6 +378,7 @@ struct SheetOptions: Codable, Equatable, Sendable {
         }
         seenMode = model.mode
         workspace = .contactSheet
+        notePlace(Place(workspace: .contactSheet, folder: folder.standardizedFileURL))
     }
 
     /// Folders dropped on the window or chosen in the panel: rolls of `project`, or of a new project that asks its name.
