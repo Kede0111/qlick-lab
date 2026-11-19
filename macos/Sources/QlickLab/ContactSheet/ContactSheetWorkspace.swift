@@ -45,7 +45,9 @@ struct ContactSheetWorkspace: View {
 
 // MARK: Tools
 
-private struct SheetToolbar: View {
+/// The contact sheet's bar. The four views share it, Grid included (`GridSheet`), so the view switcher and the
+/// tools never move.
+struct SheetToolbar: View {
     let model: EditorModel
     private var lab: LabState { model.lab }
 
@@ -68,9 +70,10 @@ private struct SheetToolbar: View {
             Spacer(minLength: 8)
             BackgroundActivity(model: model)
             SheetStylePicker(lab: lab)
-            if lab.sheet.style == .classic || lab.sheet.style == .compact {
-                QIconButton(symbol: "film", help: lab.sheet.showFilm ? "Hide the film: the photographs alone" : "Show the film under the photographs", active: lab.sheet.showFilm) { lab.sheet.showFilm.toggle() }
-            }
+            // Always in its place, so the view switcher never moves; only the strips have film to hide.
+            let strips = lab.sheet.style == .classic || lab.sheet.style == .compact
+            QIconButton(symbol: "film", help: lab.sheet.showFilm ? "Hide the film: the photographs alone" : "Show the film under the photographs", active: strips && lab.sheet.showFilm) { lab.sheet.showFilm.toggle() }
+                .disabled(!strips).opacity(strips ? 1 : 0.35)
             HStack(spacing: 6) {
                 Image(systemName: "photo").font(.system(size: 9)).foregroundStyle(Theme.dim)
                 Slider(value: $lab.sheet.frameWidth, in: SheetOptions.widths)

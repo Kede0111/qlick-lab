@@ -16,8 +16,11 @@ struct GridSheet: View {
         // Built only while it shows, so the photograph view pays nothing for
         // it; it stays while it folds back into the strip.
         if model.mode == .grid || model.sheetFolding {
+            // Qlick Lab: in the contact sheet's room, Grid is one of the sheet's four views: the same bar on top (the
+            // view switcher stays where it is). Its foot holds the same filters as the sheet's floating bar.
+            let inSheet = model.lab.workspace == .contactSheet
             VStack(spacing: 0) {
-                SheetSentence(model: model)
+                if inSheet { SheetToolbar(model: model) } else { SheetSentence(model: model) }
                 SheetGrid(model: model)
                 SheetFoot(model: model)
             }
@@ -25,11 +28,7 @@ struct GridSheet: View {
             // Where the cells report their places (`SheetFlight`).
             .coordinateSpace(.named(ThumbnailPlaces.space))
             .overlay(alignment: .topTrailing) {
-                HStack(spacing: 6) {
-                    // Qlick Lab: the contact sheet's views, to go back to the strips.
-                    if model.lab.workspace == .contactSheet { SheetStylePicker(lab: model.lab).padding(.top, 9) }
-                    SheetHandle(model: model)
-                }
+                if !inSheet { SheetHandle(model: model) }
             }
             .overlay {
                 // Qlick Lab: the frame seen large (Space), as over the contact sheet's strips.
