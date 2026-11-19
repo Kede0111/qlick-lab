@@ -71,6 +71,21 @@ import AppKit
         }
         switch command {
         case "room": if let room = Workspace(rawValue: rest) { lab.show(room) }
+        // crumb <index>: a click on a word of the window's title, sent through the window as the mouse would.
+        case "crumb":
+            guard let index = Int(rest), let window, let band = (window.contentViewController as? LabShellController)?.editorBand,
+                  let point = band.centre(ofCrumb: index) else { break }
+            for type in [NSEvent.EventType.leftMouseDown, .leftMouseUp] {
+                if let event = NSEvent.mouseEvent(with: type, location: point, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                                                  windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1) { window.sendEvent(event) }
+            }
+        // clickat <x> <y>: a click at a point of the window (from its bottom left), through the window.
+        case "clickat":
+            guard words.count == 2, let x = Double(words[0]), let y = Double(words[1]), let window else { break }
+            for type in [NSEvent.EventType.leftMouseDown, .leftMouseUp] {
+                if let event = NSEvent.mouseEvent(with: type, location: CGPoint(x: x, y: y), modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                                                  windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1) { window.sendEvent(event) }
+            }
         case "back": lab.goBack()
         case "forward": lab.goForward()
         // import <what> …: the import room without the mouse.

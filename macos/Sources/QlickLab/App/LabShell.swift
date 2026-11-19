@@ -37,6 +37,8 @@ struct WorkspaceOverlay: View {
 @MainActor final class LabShellController: NSSplitViewController {
     let model: EditorModel
     let editor: NSViewController
+    /// The title band over the editor's columns, with its trail of links.
+    var editorBand: TitleBand? { (editor as? EditorFrame)?.band }
     private let sidebarItem: NSSplitViewItem
     private let overlay: NSHostingView<WorkspaceOverlay>
     private var collapsing: NSKeyValueObservation?

@@ -229,18 +229,55 @@ struct SheetOptions: Codable, Equatable, Sendable {
     /// L1003911.DNG in Develop, Project › Roll on the sheet, Project › All Rolls for a whole project.
     var title: String { trail.joined(separator: "  ›  ") }
 
-    var trail: [String] {
-        var folder: [String] = []
-        if let current { folder = [current.project.name, current.roll.name] }
-        else if let whole = wholeProject { folder = [whole.name, "All Rolls"] }
-        else if let directory = model.library.directory { folder = [directory.lastPathComponent] }
+    var trail: [String] { crumbs.map(\.text) }
+
+    /// One word of the title's trail, and where a click on it leads: the project opens whole, the roll on its sheet.
+    /// The last word is where the lab is, and leads nowhere.
+    struct Crumb: Equatable {
+        enum Target: Equatable {
+            case project(UUID)
+            case roll(UUID, in: UUID)
+        }
+        var text: String
+        var target: Target? = nil
+    }
+
+    var crumbs: [Crumb] {
+        var folder: [Crumb] = []
+        if let current {
+            folder = [Crumb(text: current.project.name, target: .project(current.project.id)),
+                      Crumb(text: current.roll.name, target: .roll(current.roll.id, in: current.project.id))]
+        } else if let whole = wholeProject {
+            folder = [Crumb(text: whole.name, target: .project(whole.id)), Crumb(text: "All Rolls")]
+        } else if let directory = model.library.directory {
+            folder = [Crumb(text: directory.lastPathComponent)]
+        }
+        let room = Crumb(text: workspace.title)
+        var crumbs: [Crumb]
         switch workspace {
         case .develop:
-            guard let item = model.sourceItem else { return ["Qlick Lab"] }
-            return folder + [model.library.name(of: item)]
-        case .contactSheet: return folder.isEmpty ? [workspace.title] : folder
-        case .compare: return folder.isEmpty ? [workspace.title] : folder + [workspace.title]
-        default: return [workspace.title]
+            guard let item = model.sourceItem else { return [Crumb(text: "Qlick Lab")] }
+            crumbs = folder + [Crumb(text: model.library.name(of: item))]
+        case .contactSheet: crumbs = folder.isEmpty ? [room] : folder
+        case .compare: crumbs = folder.isEmpty ? [room] : folder + [room]
+        default: crumbs = [room]
+        }
+        // Where the lab is leads nowhere: the last word, and the whole project's name when it's open whole.
+        if !crumbs.isEmpty { crumbs[crumbs.count - 1].target = nil }
+        if wholeProject != nil, workspace == .contactSheet { crumbs[0].target = nil }
+        return crumbs
+    }
+
+    /// A click on a word of the trail.
+    func follow(_ target: Crumb.Target) {
+        switch target {
+        case .project(let id):
+            guard let project = projects.projects.first(where: { $0.id == id }) else { return }
+            openWhole(project)
+        case .roll(let id, let projectID):
+            guard let project = projects.projects.first(where: { $0.id == projectID }),
+                  let roll = project.rolls.first(where: { $0.id == id }) else { return }
+            open(roll, in: project)
         }
     }
 

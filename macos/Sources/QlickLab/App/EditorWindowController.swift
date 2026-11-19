@@ -11,6 +11,12 @@ import SwiftUI
 
     override func sendEvent(_ event: NSEvent) {
         InputMode.shared.note(event)
+        // Qlick Lab: the title's links lie in the title bar, which keeps its clicks for dragging the window; a click
+        // on one goes to it.
+        if event.type == .leftMouseDown, let word = contentView?.superview?.hitTest(event.locationInWindow) as? CrumbWord, word.clickable {
+            word.mouseDown(with: event)
+            return
+        }
         if [.leftMouseDown, .rightMouseDown, .otherMouseDown].contains(event.type),
            let editor = firstResponder as? NSTextView, editor.isFieldEditor,
            let field = editor.delegate as? NSTextField,
@@ -155,6 +161,12 @@ final class EdgeSplitView: NSSplitView {
         window.delegate = self
 
         model.undoManager = window.undoManager
+        // Qlick Lab: the trail's earlier words lead back: the project whole, the roll on its sheet.
+        editorFrame.band.onCrumb = { [weak model] index in
+            guard let lab = model?.lab else { return }
+            let crumbs = lab.crumbs
+            if crumbs.indices.contains(index), let target = crumbs[index].target { lab.follow(target) }
+        }
         model.presentBatch = { [weak self] view in self?.showBatchPopover(below: view) }
         // Dragging the inspector closed hides the adjustments, like ⌥⌘I.
         collapsing = inspector.observe(\.isCollapsed) { [weak self] item, _ in
@@ -491,7 +503,7 @@ final class EdgeSplitView: NSSplitView {
         if model.sheetFolding, !sheetShown { model.sheetFolding = false }
         let title = lab.title
         if window.title != title { window.title = title }
-        editorFrame.band.title = title
+        editorFrame.band.crumbs = lab.crumbs.map { TitleBand.Crumb(text: $0.text, clickable: $0.target != nil) }
         let alert = model.alert
         if alert != nil, alertPresenter == nil { alertPresenter = AlertPresenter(model: model, window: window, root: root) }
         alertPresenter?.show(alert)

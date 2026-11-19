@@ -34,7 +34,7 @@ import XCTest
         XCTAssertEqual(window.title, "Qlick Lab")
         let band = controller.editorFrame.band
         XCTAssertEqual(band.title, "Qlick Lab")
-        XCTAssertEqual(band.name.font?.pointSize, 13.5)
+        XCTAssertEqual(band.words[0].font?.pointSize, 13.5)
         let frame = controller.editorFrame.view
         // Clicks on the band reach the title bar under it, which drags and zooms.
         XCTAssertNil(frame.hitTest(NSPoint(x: 400, y: frame.bounds.height - 19)), "the window drags from the band")
@@ -48,8 +48,8 @@ import XCTest
         band.layoutSubtreeIfNeeded()
         let zoom = try XCTUnwrap(window.standardWindowButton(.zoomButton))
         let close = try XCTUnwrap(window.standardWindowButton(.closeButton))
-        XCTAssertEqual(band.name.frame.minX, max(band.convert(zoom.bounds, from: zoom).maxX + TitleBand.gap, TitleBand.fullScreenInset), accuracy: 1, "after the traffic lights, or at the band's edge beside the lab's sidebar")
-        XCTAssertEqual(band.name.frame.midY, band.convert(close.bounds, from: close).midY, accuracy: 1, "level with them")
+        XCTAssertEqual(band.words[0].frame.minX, max(band.convert(zoom.bounds, from: zoom).maxX + TitleBand.gap, TitleBand.fullScreenInset), accuracy: 1, "after the traffic lights, or at the band's edge beside the lab's sidebar")
+        XCTAssertEqual(band.words[0].frame.midY, band.convert(close.bounds, from: close).midY, accuracy: 1, "level with them")
 
         // Resizing keeps the band on top and the columns under it.
         window.setContentSize(NSSize(width: 1000, height: 600))
@@ -78,6 +78,46 @@ import XCTest
         controller.refresh()
         XCTAssertEqual(controller.editorFrame.band.title, model.lab.title, "Qlick Lab: the sheet is named after its roll or folder")
         XCTAssertEqual(window.subtitle, "")
+    }
+
+    /// Qlick Lab: the title is a trail whose earlier words are links. They take their clicks through the window
+    /// (whose title bar would keep them for dragging); the rest of the band still drags the window.
+    func testTheTrailsLinksTakeClicks() throws {
+        let model = EditorModel(sidecars: SidecarStore())
+        defer { model.shutdown() }
+        let (controller, window) = try window(model)
+        window.setContentSize(NSSize(width: 1200, height: 800))
+        window.orderFront(nil)
+        defer { window.orderOut(nil) }
+        let band = controller.editorFrame.band
+        var pressed: [Int] = []
+        band.onCrumb = { pressed.append($0) }
+        band.crumbs = [.init(text: "Coast Trip", clickable: true), .init(text: "Roll 01", clickable: true), .init(text: "L1001001.DNG")]
+        band.layoutSubtreeIfNeeded()
+        XCTAssertEqual(band.title, "Coast Trip  ›  Roll 01  ›  L1001001.DNG")
+        XCTAssertEqual(band.words.map(\.stringValue), ["Coast Trip", "Roll 01", "L1001001.DNG"])
+        XCTAssertLessThan(band.words[0].frame.maxX, band.words[1].frame.minX, "side by side, a mark between")
+
+        let frame = controller.editorFrame.view
+        func click(_ index: Int) {
+            let point = band.words[index].convert(NSPoint(x: band.words[index].bounds.midX, y: band.words[index].bounds.midY), to: nil)
+            for type in [NSEvent.EventType.leftMouseDown, .leftMouseUp] {
+                if let event = NSEvent.mouseEvent(with: type, location: point, modifierFlags: [], timestamp: 0, windowNumber: window.windowNumber,
+                                                  context: nil, eventNumber: 0, clickCount: 1, pressure: 1) { window.sendEvent(event) }
+            }
+        }
+        click(1); click(0); click(2)
+        XCTAssertEqual(pressed, [1, 0], "the links answer; the last word, where the lab is, doesn't")
+        let last = band.words[2]
+        XCTAssertNil(frame.hitTest(frame.convert(NSPoint(x: last.frame.midX, y: last.frame.midY), from: band)), "the window drags from the last word")
+        XCTAssertNil(frame.hitTest(NSPoint(x: frame.bounds.width - 100, y: frame.bounds.height - 19)), "and from the rest of the band")
+
+        // Too long for the band: the words shrink and stay inside it.
+        window.setContentSize(NSSize(width: 1000, height: 600))
+        band.crumbs = [.init(text: String(repeating: "Very long project ", count: 6), clickable: true), .init(text: String(repeating: "roll ", count: 30), clickable: true), .init(text: "L1001001.DNG")]
+        band.layoutSubtreeIfNeeded()
+        XCTAssertLessThanOrEqual(band.words[2].frame.maxX, band.bounds.width - Theme.Size.gutter + 1)
+        XCTAssertGreaterThan(band.words[2].frame.width, 60, "the photograph's name keeps its room")
     }
 
     /// The smallest window: a 640 pt canvas beside the inspector at 340 (§7).
