@@ -386,6 +386,7 @@ private struct CompareToolbar: View {
             Spacer(minLength: 8)
             // Qlick Lab: the background work, here as in the other rooms.
             BackgroundActivity(model: model)
+            if lab.compare.kind == .photographs || lab.compare.kind == .versions { FileNamesMenu(lab: lab) }
             if lab.compare.kind != .beforeAfter {
                 QIconButton(symbol: compare.linked ? "link" : "link.badge.plus", help: "Zoom and pan linked across the panes", active: compare.linked) {
                     compare.linked.toggle(); compare.push()
@@ -444,7 +445,8 @@ private struct PaneLabel: View {
                     } label: { tagText(pane.title, chevron: true) }
                     .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
                 default:
-                    tagText(pane.title, chevron: false)
+                    // File Names Off: a photograph's pane shows its marks alone.
+                    if lab.sheet.fileNames != .off || !(kind == .photographs || kind == .versions) { tagText(pane.title, chevron: false) }
                 }
                 if compare.busy.contains(pane.id) { ProgressView().controlSize(.mini) }
                 if kind == .photographs || kind == .versions {
@@ -454,6 +456,8 @@ private struct PaneLabel: View {
             }
             .padding(.horizontal, 10).frame(height: 28)
             .glass(Capsule())
+            // Names off and nothing marked: no empty tag.
+            .opacity(emptyTag(kind, summary: summary) ? 0 : 1)
             Spacer()
             HStack(spacing: 6) {
                 if kind == .photographs {
@@ -476,6 +480,11 @@ private struct PaneLabel: View {
             .opacity(compare.focused == index || kind == .films || kind == .recipes ? 1 : 0.55)
         }
         .padding(12)
+    }
+
+    private func emptyTag(_ kind: CompareSetup.Kind, summary: LibrarySummary) -> Bool {
+        (kind == .photographs || kind == .versions) && lab.sheet.fileNames == .off && summary.flag == nil && summary.rating == 0
+            && !compare.busy.contains(pane.id)
     }
 
     private func tagText(_ title: String, chevron: Bool) -> some View {

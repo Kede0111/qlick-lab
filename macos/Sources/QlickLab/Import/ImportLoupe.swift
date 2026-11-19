@@ -147,7 +147,7 @@ struct ImportCompare: View {
                     let rects = CompareGeometry.panes(items.count, in: CGRect(origin: .zero, size: geometry.size))
                     ForEach(Array(items.enumerated()), id: \.element) { index, item in
                         if rects.indices.contains(index) {
-                            ImportPaneLabel(session: session, item: item, busy: images[item] == nil)
+                            ImportPaneLabel(session: session, item: item, busy: images[item] == nil, names: model.lab.sheet.fileNames)
                                 .frame(width: rects[index].width, height: rects[index].height, alignment: .bottomLeading)
                                 .offset(x: rects[index].minX, y: rects[index].minY)
                         }
@@ -186,11 +186,12 @@ private struct ImportPaneLabel: View {
     let session: ImportSession
     let item: URL
     let busy: Bool
+    let names: SheetOptions.FileNames
 
     var body: some View {
         let marks = session.marks(for: item)
         HStack(spacing: 8) {
-            Text(item.lastPathComponent).font(Theme.value(11)).foregroundStyle(Theme.paper)
+            if names != .off { Text(item.lastPathComponent).font(Theme.value(11)).foregroundStyle(Theme.paper) }
             if let flag = marks.flag.flatMap(PhotoSidecar.Flag.init(rawValue:)) { MarkGlyph(flag: flag).frame(width: 15, height: 11) }
             if marks.rating > 0 { Text(String(repeating: "★", count: marks.rating)).font(.system(size: 10)).foregroundStyle(Theme.paper) }
             if !session.included(item) { Text("LEFT OUT").font(.system(size: 8.5, weight: .bold)).foregroundStyle(Theme.dim) }

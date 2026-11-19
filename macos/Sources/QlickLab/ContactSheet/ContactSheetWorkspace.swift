@@ -208,7 +208,8 @@ struct FrameInfoPanel: View {
 }
 
 /// File Names: Off, On the Edge (printed on the film, like a frame's number) or Under the Frame (on the sheet). One
-/// setting for every view that shows the photographs: the contact sheet's four and Develop's film strip.
+/// setting for every view that shows the photographs: the contact sheet's four, Develop's film strip, Compare, and
+/// Import's grid and comparison. Where a view has no film edge (the Grid, Import) the edge's name is the fainter one.
 struct FileNamesMenu: View {
     let lab: LabState
     var body: some View {

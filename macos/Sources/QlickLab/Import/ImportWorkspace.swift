@@ -182,6 +182,7 @@ private struct ImportToolbar: View {
                 Slider(value: $session.cellSize, in: 110...420).controlSize(.mini).tint(Color(white: 0.75)).frame(width: 96).help("Frame size")
                 Image(systemName: "photo").font(.system(size: 13)).foregroundStyle(Theme.dim)
             }
+            FileNamesMenu(lab: model.lab)
             if session.source?.volume != nil {
                 QIconButton(symbol: "eject", help: "Eject “\(session.source?.name ?? "")”") { session.eject() }
             }
@@ -235,12 +236,13 @@ struct ImportBrowser: View {
         .simultaneousGesture(TapGesture().onEnded { focused = true })
     }
 
-    private var grid: some View { ImportGrid(session: session, columns: $columns) }
+    private var grid: some View { ImportGrid(session: session, names: model.lab.sheet.fileNames, columns: $columns) }
 }
 
 /// The source's frames, laid out as they were taken.
 private struct ImportGrid: View {
     let session: ImportSession
+    let names: SheetOptions.FileNames
     @Binding var columns: Int
 
     var body: some View {
@@ -268,7 +270,7 @@ private struct ImportGrid: View {
     }
 
     private func cell(_ frame: ImportFrame, _ size: CGFloat) -> some View {
-        ImportCell(session: session, frame: frame, side: size)
+        ImportCell(session: session, frame: frame, side: size, names: names)
             .id(frame.id)
             .onTapGesture {
                 let flags = NSEvent.modifierFlags
@@ -353,6 +355,7 @@ struct ImportCell: View {
     let session: ImportSession
     let frame: ImportFrame
     let side: CGFloat
+    var names = SheetOptions.FileNames.under
     @State private var image: CGImage?
 
     var body: some View {
@@ -412,7 +415,16 @@ struct ImportCell: View {
                 RoundedRectangle(cornerRadius: 5, style: .continuous)
                     .strokeBorder(selected ? Color.white : current ? Color.white.opacity(0.45) : .clear, lineWidth: selected ? 2 : 1)
             }
-            Text(frame.file.name).font(Theme.value(10.5)).foregroundStyle(current || selected ? Theme.paper : Theme.dim).lineLimit(1).truncationMode(.middle)
+            // File Names, as everywhere: faint on the edge, plain under the frame.
+            switch names {
+            case .off: EmptyView()
+            case .edge:
+                Text((frame.file.name as NSString).deletingPathExtension).font(.system(size: 8.5, weight: .medium))
+                    .foregroundStyle(current || selected ? Theme.label : Color(white: 0.45)).lineLimit(1).truncationMode(.middle)
+                    .frame(maxWidth: .infinity, alignment: .leading).padding(.leading, 2)
+            case .under:
+                Text(frame.file.name).font(Theme.value(10.5)).foregroundStyle(current || selected ? Theme.paper : Theme.dim).lineLimit(1).truncationMode(.middle)
+            }
         }
         .contentShape(Rectangle())
         .help(tooltip)

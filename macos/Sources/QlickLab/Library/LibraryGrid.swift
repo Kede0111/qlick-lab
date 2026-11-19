@@ -350,7 +350,7 @@ private struct SheetGrid: View {
                          waiting: model.sheetWaiting.contains(url),
                          selected: SheetLayout.drawnSelected(url, selection: selection),
                          current: url == selection.current, summary: library.summary(for: url),
-                         readOnly: library.readOnly, edited: model.editedThumbnail(for: url)) { visible in
+                         readOnly: library.readOnly, edited: model.editedThumbnail(for: url), names: model.lab.sheet.fileNames) { visible in
             model.thumbnailShown(file, visible)
         } loaded: { image in
             model.aspects.note(url, image: image)
@@ -628,6 +628,9 @@ private struct SheetCell: View {
     let summary: LibrarySummary
     let readOnly: Bool
     let edited: EditedThumbnail?
+    /// File Names. The grid packs its rows edge to edge, so the name lies along the picture's foot: faint on the edge,
+    /// on a band under the frame.
+    let names: SheetOptions.FileNames
     /// On and off screen: what's shown is developed first.
     let shown: (Bool) -> Void
     let loaded: (CGImage) -> Void
@@ -650,6 +653,17 @@ private struct SheetCell: View {
         .frame(width: size.width, height: size.height)
         .clipped()
         .opacity(summary.flag == .reject ? PhotoMarks.rejectOpacity(inStrip: false, current: current) : 1)
+        .overlay(alignment: .bottomLeading) {
+            if names != .off, size.width > 64 {
+                Text((file.name as NSString).deletingPathExtension)
+                    .font(.system(size: 9.5, weight: .medium)).foregroundStyle(names == .edge ? Color(white: 0.8) : Theme.paper)
+                    .lineLimit(1).truncationMode(.middle)
+                    .padding(.horizontal, 5).frame(maxWidth: size.width, minHeight: 16, alignment: .leading)
+                    .background(names == .under ? Color.black.opacity(0.62) : .clear)
+                    .shadow(color: .black.opacity(names == .edge ? 0.9 : 0), radius: 1.5)
+                    .allowsHitTesting(false)
+            }
+        }
         .overlay { PhotoMarks(summary: summary, name: file.name) }
         .modifier(PlaceReport(image: image, placed: placed))
         .opacity(waiting ? 0 : 1)
