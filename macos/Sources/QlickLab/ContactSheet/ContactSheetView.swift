@@ -216,7 +216,7 @@ import SwiftUI
         let width = max(clipSize.width, 200)
         let header: CGFloat = heading.notes.isEmpty ? 52 : 70
         let next = ContactSheetLayout(style: options.style, count: files.count, width: width, frameWidth: options.frameWidth, header: header,
-                                      showsNames: options.showNames, showsFilm: options.showFilm)
+                                      showsNames: options.showNames, showsFilm: options.showFilm, namesUnder: options.fileNames == .under)
         let headingChanged = heading != self.heading
         self.heading = heading
         guard next != layout || force else {

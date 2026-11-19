@@ -52,10 +52,18 @@ Quentin's answers to the audit's four questions: **yes to all.** Names Binder, A
 Stocks are kept for now (to revisit once the result is in place); a `.qlickroll` card in each roll folder is fine;
 the pencil replaces the checkbox at Import (crossed = not imported); start with 0.1.5. Keep the analog darkroom theme.
 
-- [ ] **0.1.5**: view switcher fixed in place for Classic / Compact / Detail / Grid (Grid uses the contact sheet's
-  bar); "File Names: Off / On the edge / Under the frame" in every view; Arrivals (catalogue box for rolls imported
-  without a project, fixes the lost-roll bug in `ImportRun.addRolls`); "Recipe" everywhere (no "Preset"); Films and
-  Papers as one "Stocks" room; rename and move a roll from the sidebar.
+- [x] **0.1.5** (branch `feature/import-library`, commits d951dfd → this one):
+  - Arrivals: `LabProject.kind == .arrivals` (optional key, old catalogues read unchanged); `ImportRun.addRolls`
+    files rolls there when no project is named, Add in Place too (it no longer asks for a name). Sidebar row on top
+    with its count in red; `ProjectStore.moveRoll`, "Move to Project" in the sidebar and the library.
+  - Sidebar rolls: "Rename, Film, Camera and Notes…" (the library's `RollEditor`), Move to Project.
+  - "Recipe" in every interface text, menus and the engine's messages. Kept "Preset" where it isn't a look: white
+    balance, chromatic aberration, section (grain/halation) presets. The on-disk folder is still `Presets`.
+  - Stocks: one sidebar row and menu item for films and papers (`Workspace.ordered` drops `.papers`), a
+    Films/Papers switch in `StockLibrary`; ⌥⌘6/⌥⌘7 kept.
+  - Grid in the contact sheet room has the sheet's own bar (`SheetToolbar`), so the view switcher never moves.
+  - File Names: Off / On the Edge / Under the Frame (`SheetOptions.fileNames`, menu in the sheet's bar): classic,
+    compact, detail and Develop's film strip. Not yet: Compare, the Import grid, the editor's Grid cells.
 - [ ] **0.2**: one Import counter (Copy to my disk / Move / Leave where they are), every entry point opens it
   (`LabState.importFolders` goes through `ImportSession`); project kept by UUID not name; Lab Orders in the catalogue;
   the pencil instead of checkboxes; breadcrumb in the title bar with Back/Forward ⌘[ ⌘].
@@ -65,8 +73,9 @@ the pencil replaces the checkbox at Import (crossed = not imported); start with 
 ## Current state
 
 - Phase: architecture wave 1 done, committed on `refactor/architecture`. Tests: Rust 438 pass; Swift 488 run, 24 skipped, 1 failure that main has too (`QuickFrameLifecycleTests.testRapidFilmSwitchingDoesNotPileUpRenders`, 5 settled renders where it expects fewer): look at it in wave 2.
-- Next: 0.1.5 on `feature/import-library` (branched from `refactor/architecture`). Remaining architecture work
-  (EditorModel step 2, typed replies, wave 3) can continue on `refactor/architecture` in parallel.
+- 0.1.5 done on `feature/import-library`, waiting for Quentin to try Qlick Lab Dev. Next: 0.2 (the Import counter,
+  breadcrumb ⌘[ ⌘]). Remaining architecture work (EditorModel step 2, typed replies, wave 3) can continue on
+  `refactor/architecture` in parallel; merge it into `feature/import-library` afterwards.
 
 ## Build and test
 

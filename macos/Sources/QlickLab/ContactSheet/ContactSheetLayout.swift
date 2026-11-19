@@ -19,6 +19,8 @@ struct ContactSheetLayout: Equatable, Sendable {
     /// Space kept at the top for the sheet's heading.
     let header: CGFloat
     let showsNames: Bool
+    /// The names written on the sheet under each strip's frames instead of on the film's edge.
+    let namesUnder: Bool
     /// The film under the frames: its base and perforations.
     let showsFilm: Bool
 
@@ -38,13 +40,14 @@ struct ContactSheetLayout: Equatable, Sendable {
     let margin: CGFloat
 
     init(style: Style, count: Int, width: CGFloat, frameWidth: CGFloat, header: CGFloat = 0, showsNames: Bool = true, columns fixed: Int? = nil, margin: CGFloat? = nil,
-         showsFilm: Bool = true) {
+         showsFilm: Bool = true, namesUnder: Bool = false) {
         self.style = style == .grid ? .detail : style
         self.showsFilm = showsFilm
         self.count = max(count, 0)
         self.width = max(width, 1)
         self.header = header
         self.showsNames = showsNames
+        self.namesUnder = showsNames && namesUnder && (style == .classic || style == .compact)
         var w = max(frameWidth, 24)
         let m = margin ?? (style == .compact ? 14 : 26)
         self.margin = m
@@ -75,13 +78,13 @@ struct ContactSheetLayout: Equatable, Sendable {
         case .classic:
             perforation = showsFilm ? (h * 0.15).rounded() : 0
             numberBand = max((h * 0.125).rounded(), 12)
-            printBand = showsNames ? max((h * 0.115).rounded(), 11) : (h * 0.05).rounded()
-            gap = max((h * 0.2).rounded(), 14)
+            printBand = showsNames && !self.namesUnder ? max((h * 0.115).rounded(), 11) : (h * 0.05).rounded()
+            gap = max((h * 0.2).rounded(), 14) + (self.namesUnder ? Self.nameBand(h) : 0)
         case .compact:
             perforation = showsFilm ? (h * 0.12).rounded() : 0
             numberBand = max((h * 0.115).rounded(), 10)
             printBand = (h * 0.03).rounded()
-            gap = 3
+            gap = 3 + (self.namesUnder ? Self.nameBand(h) : 0)
         case .detail, .grid:
             perforation = 0
             numberBand = 0
@@ -89,6 +92,9 @@ struct ContactSheetLayout: Equatable, Sendable {
             gap = 16
         }
     }
+
+    /// The line a name takes under a strip's frame.
+    static func nameBand(_ frameHeight: CGFloat) -> CGFloat { max((frameHeight * 0.12).rounded(), 13) }
 
     var rows: Int { count == 0 ? 0 : (count + columns - 1) / columns }
     var stripHeight: CGFloat { 2 * perforation + numberBand + frame.height + printBand }

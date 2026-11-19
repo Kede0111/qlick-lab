@@ -287,7 +287,7 @@ struct PhotoBrowser: View {
                     StripFrame(file: file, width: layout.widths[frame.index],
                                current: file.url == model.sourceItem, selected: selected.contains(file.url),
                                summary: library.summary(for: file.url), readOnly: library.readOnly,
-                               edited: model.editedThumbnail(for: file.url)) { visible in
+                               edited: model.editedThumbnail(for: file.url), names: model.lab.sheet.fileNames) { visible in
                         model.thumbnailShown(file, visible)
                     } loaded: { image in
                         aspects.note(file.url, image: image)
@@ -541,6 +541,8 @@ private struct StripFrame: View {
     let summary: LibrarySummary
     let readOnly: Bool
     let edited: EditedThumbnail?
+    /// File Names, as the contact sheet has them: on the strip's edge or under the frame.
+    let names: SheetOptions.FileNames
     /// On and off screen: what's shown is developed first.
     let shown: (Bool) -> Void
     let loaded: (CGImage) -> Void
@@ -566,6 +568,14 @@ private struct StripFrame: View {
                     }
                 }
                 .frame(width: width, height: Theme.Size.stripRebate, alignment: .top)
+                .overlay(alignment: .topLeading) {
+                    if names != .off, !current, !selected {
+                        Text((file.name as NSString).deletingPathExtension)
+                            .font(.system(size: 8, weight: .medium)).foregroundStyle(names == .edge ? Color(white: 0.55) : Theme.label)
+                            .lineLimit(1).truncationMode(.middle).frame(maxWidth: width, alignment: .leading)
+                            .padding(.leading, 1)
+                    }
+                }
             }
             .contentShape(Rectangle())
         }

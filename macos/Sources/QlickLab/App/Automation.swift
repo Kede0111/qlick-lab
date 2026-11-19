@@ -197,7 +197,7 @@ import AppKit
                 case "mark": if let mark = SheetOptions.Mark(rawValue: pair[1]) { lab.sheet.pencilMark = mark }
                 case "film": lab.sheet.showFilm = pair[1] == "1"
                 case "light": lab.sheet.lightTable = pair[1] == "1"
-                case "names": lab.sheet.showNames = pair[1] == "1"
+                case "names": lab.sheet.fileNames = SheetOptions.FileNames(rawValue: pair[1]) ?? (pair[1] == "1" ? .edge : .off)
                 case "info": lab.sheet.showInfo = pair[1] == "1"
                 case "sideways": lab.sheet.sidewaysVerticals = pair[1] == "1"
                 default: break

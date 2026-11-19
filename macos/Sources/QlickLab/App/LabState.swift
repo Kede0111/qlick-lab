@@ -62,7 +62,27 @@ struct SheetOptions: Codable, Equatable, Sendable {
     /// A light box under the strips rather than the dark sheet.
     var lightTable = false
     var showNames = true
+    /// File names under each frame, on the sheet, rather than printed on the film's edge. Optional so options saved
+    /// before it read as they were (on the edge).
+    var namesUnder: Bool? = nil
     var showInfo = false
+
+    /// Where file names show, in every view of the photographs: the contact sheet's four, Develop's film strip.
+    enum FileNames: String, CaseIterable, Sendable {
+        case off, edge, under
+        var title: String {
+            switch self {
+            case .off: "Off"
+            case .edge: "On the Edge"
+            case .under: "Under the Frame"
+            }
+        }
+    }
+
+    var fileNames: FileNames {
+        get { !showNames ? .off : namesUnder == true ? .under : .edge }
+        set { showNames = newValue != .off; namesUnder = newValue == .under ? true : nil }
+    }
     /// Upright frames lie on their side, as they do on a strip of film.
     var sidewaysVerticals = false
 

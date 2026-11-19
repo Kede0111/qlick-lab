@@ -203,12 +203,25 @@ struct ContactSheetRenderer {
                 Self.draw(String(repeating: "★", count: content.rating), font: SheetFonts.text(size), color: ink,
                           at: CGPoint(x: window.maxX - 2, y: window.minY - (layout.numberBand - size * 0.72) / 2), align: .right, in: context)
             }
+            if layout.namesUnder {
+                // Under the frame: on the sheet, below the strip, in the sheet's own writing.
+                let size = min(max(ContactSheetLayout.nameBand(h) * 0.7, 8), 12)
+                let stripBottom = window.maxY + layout.printBand + layout.perforation
+                Self.draw(Self.stem(content.name), font: SheetFonts.text(size, weight: .medium), color: palette.writingDim,
+                          at: CGPoint(x: window.minX + 1, y: stripBottom + size + 2), maxWidth: window.width, in: context)
+            } else if compact, layout.showsNames, content.rating == 0, layout.frame.width >= 90 {
+                // Compact has no band under its frames: on the edge, the name runs beside the number.
+                let size = min(max(layout.numberBand * 0.6, 7), 11)
+                Self.draw(Self.stem(content.name), font: SheetFonts.text(size, weight: .medium), color: inkDim,
+                          at: CGPoint(x: window.maxX - 2, y: window.minY - (layout.numberBand - size * 0.72) / 2), align: .right,
+                          maxWidth: window.width * 0.6, in: context)
+            }
             guard !compact, layout.printBand >= 10 else { return }
             let size = min(max(layout.printBand * 0.62, 7.5), 11)
             let baseline = window.maxY + (layout.printBand + size * 0.7) / 2
             // The stock's name runs along the film's lower edge, every third frame, where no stars are.
             let labelled = !edgeLabel.isEmpty && index % 3 == 0 && content.rating == 0 && layout.frame.width >= 110
-            if layout.showsNames {
+            if layout.showsNames && !layout.namesUnder {
                 Self.draw(Self.stem(content.name), font: SheetFonts.text(size, weight: .medium), color: inkDim,
                           at: CGPoint(x: window.minX + 1, y: baseline), maxWidth: window.width * (content.rating > 0 || labelled ? 0.5 : 0.96), in: context)
             }
@@ -225,8 +238,10 @@ struct ContactSheetRenderer {
             if showsNumbers {
                 Self.draw(content.number, font: SheetFonts.edge(13), color: palette.writing, at: CGPoint(x: window.minX, y: y), in: context)
             }
-            Self.draw(content.name, font: SheetFonts.text(11, weight: .medium), color: palette.writing,
-                      at: CGPoint(x: window.minX + (showsNumbers ? 30 : 0), y: y), maxWidth: window.width - (showsNumbers ? 30 : 0) - (content.rating > 0 ? 62 : 0), in: context)
+            if layout.showsNames {
+                Self.draw(content.name, font: SheetFonts.text(11, weight: .medium), color: palette.writing,
+                          at: CGPoint(x: window.minX + (showsNumbers ? 30 : 0), y: y), maxWidth: window.width - (showsNumbers ? 30 : 0) - (content.rating > 0 ? 62 : 0), in: context)
+            }
             if content.rating > 0 {
                 Self.draw(String(repeating: "★", count: content.rating), font: SheetFonts.text(10.5), color: palette.writing,
                           at: CGPoint(x: window.maxX, y: y), align: .right, in: context)

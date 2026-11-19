@@ -84,7 +84,7 @@ struct SheetToolbar: View {
             Divider().frame(height: 16).overlay(Color.white.opacity(0.12))
             QIconButton(symbol: lab.sheet.lightTable ? "lightbulb.fill" : "lightbulb", help: "Light table", active: lab.sheet.lightTable) { lab.sheet.lightTable.toggle() }
             QIconButton(symbol: "rectangle.portrait.rotate", help: "Upright frames on their side, as on the film", active: lab.sheet.sidewaysVerticals) { lab.sheet.sidewaysVerticals.toggle() }
-            QIconButton(symbol: "textformat.size.smaller", help: "File names", active: lab.sheet.showNames) { lab.sheet.showNames.toggle() }
+            FileNamesMenu(lab: lab)
             QIconButton(symbol: "info.circle", help: "Frame information", active: lab.sheet.showInfo) { lab.sheet.showInfo.toggle() }
             QIconButton(symbol: "line.3.horizontal.decrease.circle", help: "Filters and sorting (\\)", active: lab.filterBarVisible) { lab.filterBarVisible.toggle() }
             Divider().frame(height: 16).overlay(Color.white.opacity(0.12))
@@ -204,5 +204,27 @@ struct FrameInfoPanel: View {
             CapsLabel(label, size: 9.5).frame(width: 74, alignment: .leading)
             Text(value).font(Theme.value(11.5)).foregroundStyle(Color(white: 0.86)).lineLimit(2).fixedSize(horizontal: false, vertical: true)
         }
+    }
+}
+
+/// File Names: Off, On the Edge (printed on the film, like a frame's number) or Under the Frame (on the sheet). One
+/// setting for every view that shows the photographs: the contact sheet's four and Develop's film strip.
+struct FileNamesMenu: View {
+    let lab: LabState
+    var body: some View {
+        Menu {
+            ForEach(SheetOptions.FileNames.allCases, id: \.self) { choice in
+                Button { lab.sheet.fileNames = choice } label: {
+                    if lab.sheet.fileNames == choice { Label(choice.title, systemImage: "checkmark") } else { Text(choice.title) }
+                }
+            }
+        } label: {
+            Image(systemName: "textformat.size.smaller")
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(lab.sheet.fileNames != .off ? Theme.accent : Color(white: 0.72))
+                .frame(width: 28, height: 26)
+        }
+        .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
+        .help("File Names: \(lab.sheet.fileNames.title)")
     }
 }
