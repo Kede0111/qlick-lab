@@ -15,13 +15,14 @@ struct ImportPanel: View {
         ScrollView(.vertical) {
             VStack(alignment: .leading, spacing: 0) {
                 // The decision that matters most comes first, in three words.
-                ImportModeCards(session: session, card: session.source?.kind == .card)
-                    .padding(.horizontal, 12).padding(.top, 14).padding(.bottom, 4)
+                ImportModeChoice(session: session, card: session.source?.kind == .card)
+                    .padding(.horizontal, 16).padding(.top, 16).padding(.bottom, 12)
+                    .overlay(alignment: .bottom) { Rectangle().fill(Color.white.opacity(0.06)).frame(height: 1) }
 
-                PanelSection("Lab Order") {
+                PanelSection("Saved Settings") {
                     HStack(spacing: 6) {
                         Menu {
-                            if session.profiles.isEmpty { Text("No lab order yet") }
+                            if session.profiles.isEmpty { Text("No saved settings yet") }
                             ForEach(session.profiles.keys.sorted(), id: \.self) { name in
                                 Button(name) { session.apply(profile: name) }
                             }
@@ -35,18 +36,19 @@ struct ImportPanel: View {
                             .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
                         Spacer()
                         Button("Save…") { profileName = currentProfile(session) ?? ""; naming = true }.buttonStyle(QPillButtonStyle())
-                            .help("Keeps these choices under a name, like a lab's order envelope, to use them again in one click")
+                            .help("Keeps every choice of this panel under a name (destination, folders, recipe, project, words), to use them again in one click")
                     }
                     if naming {
                         HStack(spacing: 6) {
-                            PanelField("Lab order name", text: $profileName)
+                            PanelField("Name, e.g. Leica trip", text: $profileName)
                             Button("Save") { session.saveProfile(named: profileName); naming = false }.buttonStyle(QPillButtonStyle())
                                 .disabled(profileName.trimmingCharacters(in: .whitespaces).isEmpty)
                         }
                     }
                 }
 
-                PanelSection(options.mode == .add ? "Where They Are" : "Destination") {
+                if options.mode != .add {
+                PanelSection("Destination") {
                     if options.mode == .move, session.source?.kind == .card {
                         PanelHint("Move isn’t offered for memory cards. Copy, check, then format the card in the camera.", warn: true)
                     }
@@ -63,9 +65,8 @@ struct ImportPanel: View {
                         if let second = options.secondCopy {
                             FolderRow(title: "Also to", url: second, placeholder: "") { session.options.secondCopy = $0 }
                         }
-                    } else {
-                        PanelHint("Nothing is copied or moved: each folder becomes a roll where it lies.")
                     }
+                }
                 }
 
                 if options.mode != .add {
@@ -359,34 +360,21 @@ private struct RecipeChooser: View {
     }
 }
 
-/// The counter's first question, as three cards: copy the photographs to this Mac, move them, or leave them where
-/// they are. The rest of the panel follows from it.
-struct ImportModeCards: View {
+/// The counter's first question: copy the photographs to this Mac, move them, or leave them where they are. One
+/// segmented choice, with a line under it saying what the chosen one does; the rest of the panel follows from it.
+struct ImportModeChoice: View {
     @Bindable var session: ImportSession
     let card: Bool
 
     var body: some View {
-        VStack(spacing: 6) {
-            ForEach(ImportMode.allCases, id: \.self) { mode in
-                let on = session.options.mode == mode
-                let offered = !card || mode == .copy
-                Button { session.options.mode = mode } label: {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(mode.title).font(.system(size: 13, weight: .semibold)).foregroundStyle(on ? Theme.paper : Color(white: 0.8))
-                        Text(mode.help).font(.system(size: 11)).foregroundStyle(Theme.dim).fixedSize(horizontal: false, vertical: true)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 12).padding(.vertical, 9)
-                    .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.white.opacity(on ? 0.1 : 0.03)))
-                    .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(on ? Theme.accent : Color.white.opacity(0.08), lineWidth: on ? 1.5 : 1))
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .disabled(!offered)
-                .opacity(offered ? 1 : 0.4)
-                .help(offered ? mode.help : "A memory card's photographs are copied: format the card in the camera afterwards.")
-                .accessibilityAddTraits(on ? .isSelected : [])
-            }
+        let mode = session.options.mode
+        VStack(alignment: .leading, spacing: 8) {
+            CapsLabel("The Photographs")
+            QSegmented(options: (card ? [ImportMode.copy] : ImportMode.allCases).map { ($0, $0.short, $0.help) },
+                       selection: $session.options.mode)
+            Text(card ? "A card's photographs are copied. Format the card in the camera afterwards." : mode.help)
+                .font(.system(size: 11)).foregroundStyle(Theme.dim).fixedSize(horizontal: false, vertical: true)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }

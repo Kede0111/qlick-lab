@@ -93,19 +93,42 @@ the pencil replaces the checkbox at Import (crossed = not imported); start with 
   - Grid in the contact sheet room has the sheet's own bar (`SheetToolbar`), so the view switcher never moves.
   - File Names: Off / On the Edge / Under the Frame (`SheetOptions.fileNames`, menu in the sheet's bar): classic,
     compact, detail and Develop's film strip. Not yet: Compare, the Import grid, the editor's Grid cells.
-- [ ] **0.2**: one Import counter (Copy to my disk / Move / Leave where they are), every entry point opens it
-  (`LabState.importFolders` goes through `ImportSession`); project kept by UUID not name; Lab Orders in the catalogue;
-  the pencil instead of checkboxes; breadcrumb in the title bar with Back/Forward ⌘[ ⌘].
+- [x] **0.2** (on `feature/import-library`):
+  - One counter: a segmented switch "The Photographs: Copy / Move / Leave in Place" heads the Import panel
+    (`ImportModeChoice`; a card offers only Copy). `LabState.importFolders` opens the Import room on a single folder
+    with Leave in Place and the project chosen (several folders at once are still added directly).
+    `ImportOptions.projectID` keeps the project by identity (`ImportSession.chosenProject`, `choose(project:)`).
+  - Import profiles are called "Saved Settings" in the interface (code: `profiles`, key `qlick.importProfiles`).
+  - Back / Forward ⌘[ ⌘] in the Lab menu: `LabState.Place` (room + folder), noted by `show`, `open(folder:)`,
+    `follow(mode:)`. The window title is the trail Project › Roll › file. Not yet: clickable crumbs.
+  - The per-photo checkbox at Import STAYS (Quentin, 2026-11-19: he wants it back; the pencil-only commit 827b387
+    was reverted in 44ae4be). Crossed frames are still left out by the "Leave out the frames crossed out" toggle.
+
+### Quentin's feedback on 0.1.5 / 0.2 (2026-11-19, testing Qlick Lab Dev)
+
+- Everything works. Keep the checkbox per photo at Import (done).
+- "Lab Order" was unclear → renamed "Saved Settings" (done). Avoid lab metaphors where the plain word is clearer.
+- The three big import cards looked worse than the old switch → replaced by one segmented switch with a line of
+  help under it (done). He cares about polish: take care over looks, check screenshots with `scripts/drive.sh shot`.
+- Merging into `main` and pushing to GitHub happen only when he says so, after everything is done and tested.
+
 - [ ] **0.3**: Binder (disk roots, live tree); living projects (move rolls, `.qlickroll` card); Selections; the contact
   sheet reads a list of photos (no symlink folder); Import reuses the contact sheet's grid, loupe and compare.
 
 ## Current state
 
-- Phase: architecture waves 1–3 on `refactor/architecture`; 0.1.5 on `feature/import-library`, which has wave 3
-  merged in (local, nothing pushed). Quentin is trying 0.1.5 in Qlick Lab Dev.
-- Next: 0.2 on `feature/import-library` (one Import counter, breadcrumb ⌘[ ⌘]). Architecture leftovers (EditorModel
-  step 2, the other typed replies, the last concurrency warning, Swift 6 mode) go on `refactor/architecture`, then
-  merge it into `feature/import-library` again.
+- Phase: `feature/import-library` holds architecture waves 1–3, 0.1.5 and 0.2 (local, nothing pushed). All tests
+  pass (Rust 440, Swift 493). Qlick Lab Dev is built from it.
+- Next: 0.3 on `feature/import-library`, in this order, one local commit each, Dev rebuilt and screenshots checked:
+  1. Clickable crumbs in the title trail (project → whole project, roll → its sheet).
+  2. Saved Settings kept in the catalogue instead of the app's preferences.
+  3. Roll card in the folder: `.qlickroll` (top-level key `qlick`) for film, camera, notes; migrate from projects.
+  4. Binder: sidebar section showing chosen disk roots as a live tree (PhotoFolderWatcher), amber dot for folders
+     in no project; replaces the "Recent" lists.
+  5. Selections: a box of frames from several rolls (`LabProject.kind == .selection`); the contact sheet reads a list
+     of photos instead of one folder (removes `ProjectStore.viewFolder` symlinks). Biggest, riskiest step.
+  6. Import reusing the contact sheet's grid, loupe and compare.
+  7. File Names in Compare and the Import grid.
 
 ## Build and test
 

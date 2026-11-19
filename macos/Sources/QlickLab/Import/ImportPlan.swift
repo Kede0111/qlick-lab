@@ -126,6 +126,14 @@ enum ImportMode: String, Codable, CaseIterable, Sendable {
         case .add: "Leave Where They Are"
         }
     }
+    /// The word on the panel's switch.
+    var short: String {
+        switch self {
+        case .copy: "Copy"
+        case .move: "Move"
+        case .add: "Leave in Place"
+        }
+    }
     var help: String {
         switch self {
         case .copy: "Copies the photographs and checks every copy. The source is left as it is."
