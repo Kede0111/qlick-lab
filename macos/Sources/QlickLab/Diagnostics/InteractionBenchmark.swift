@@ -22,6 +22,7 @@ import AppKit
         }
         CFRunLoopAddObserver(CFRunLoopGetMain(), observer, .commonModes)
         let timer = Timer(timeInterval: 1.0 / 60, repeats: true) { timer in
+            nonisolated(unsafe) let timer = timer  // on the main run loop: fires on the main thread
             MainActor.assumeIsolated {
                 switch phase {
                 case 0 where model.ready:
@@ -115,6 +116,7 @@ import AppKit
         }
         CFRunLoopAddObserver(CFRunLoopGetMain(), observer, .commonModes)
         let timer = Timer(timeInterval: 1.0 / 120, repeats: true) { timer in
+            nonisolated(unsafe) let timer = timer  // on the main run loop: fires on the main thread
             MainActor.assumeIsolated {
                 let time = now()
                 if photo == 0, window > 0, model.image != nil || model.placeholder != nil { photo = time }

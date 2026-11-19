@@ -232,7 +232,7 @@ final class ImageScrollView: NSScrollView {
     var geometry: CanvasGeometry? { didSet { if geometry !== oldValue { observeBounds(); reportGeometry() } } }
     /// Space left and right of a fitted photograph (§2.3). The caption and
     /// label bands above and below are outside the scroll view.
-    static let fitInset: CGFloat = 48
+    nonisolated static let fitInset: CGFloat = 48
     private var lastViewport = CGSize.zero
     override func layout() {
         super.layout()
@@ -266,7 +266,8 @@ final class ImageScrollView: NSScrollView {
         photograph?.refreshSharp()
     }
 
-    private var boundsObserver: NSObjectProtocol?
+    // Written on the main actor; read once more by deinit, when nothing else holds the object.
+    nonisolated(unsafe) private var boundsObserver: NSObjectProtocol?
     private func observeBounds() {
         if let boundsObserver { NotificationCenter.default.removeObserver(boundsObserver) }
         boundsObserver = nil

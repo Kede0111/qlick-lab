@@ -16,7 +16,8 @@ import SwiftUI
     /// The visible content's top left corner, rounded down to `step`.
     private(set) var origin: CGPoint = .zero
     @ObservationIgnored private(set) weak var scrollView: NSScrollView?
-    @ObservationIgnored private var observers: [NSObjectProtocol] = []
+    // Written on the main actor; read once more by deinit, when nothing else holds the object.
+    @ObservationIgnored nonisolated(unsafe) private var observers: [NSObjectProtocol] = []
     /// Asked for before the scroll view was found, or before the content
     /// was laid out big enough to scroll that far.
     @ObservationIgnored private var pending: CGPoint?

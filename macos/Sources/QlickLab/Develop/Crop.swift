@@ -821,7 +821,7 @@ struct CropInspector: View {
                             .inkDisabled(!session.aspect.turns)
                     }
                     InkSection(title: "Straighten") {
-                        LabeledSlider(title: "Angle", value: Binding(get: { session.angle }, set: session.straighten),
+                        LabeledSlider(title: "Angle", value: Binding(get: { session.angle }, set: { session.straighten(to: $0) }),
                                       range: -CropSettings.maxAngle...CropSettings.maxAngle, step: 0.1, unit: "°", defaultValue: 0,
                                       modified: session.angle != 0,
                                       reset: { session.beginStraightening(); session.straighten(to: 0); session.endStraightening() },
@@ -1020,7 +1020,7 @@ struct SquareOutlinedButtonStyle: ButtonStyle {
 
 /// Qlick Lab: the pointer outside the crop, where a drag turns the photograph: a curved arrow with a head at each
 /// end, round the nearest corner, white edged in black so it shows on any photograph.
-enum RotateCursor {
+@MainActor enum RotateCursor {
     private static var made: [Int: NSCursor] = [:]
 
     /// The cursor for the pointer at `point`, facing away from `center`, in eight directions.

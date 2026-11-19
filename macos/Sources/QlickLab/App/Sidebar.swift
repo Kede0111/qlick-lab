@@ -228,6 +228,8 @@ enum LabDrop {
                 group.leave()
             }
         }
+        // Called on the main queue only, where `then` runs.
+        nonisolated(unsafe) let then = then
         group.notify(queue: .main) { MainActor.assumeIsolated { then(found.urls) } }
         return true
     }

@@ -60,7 +60,8 @@ targets:
         ENABLE_HARDENED_RUNTIME: "NO"
         ENABLE_APP_SANDBOX: "NO"
         LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/../Frameworks"
-        SWIFT_STRICT_CONCURRENCY: minimal
+        # Complete concurrency checking, as warnings in the Swift 5 language mode (as macos/Package.swift).
+        SWIFT_STRICT_CONCURRENCY: complete
   QlickLabTests:
     type: bundle.unit-test
     platform: macOS

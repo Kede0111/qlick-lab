@@ -1,7 +1,8 @@
 // Qlick Lab — GPL-3.0-only.
 import AppKit
 import CoreGraphics
-import CoreText
+// CTFont and CTFontDescriptor are immutable, safe to share between threads.
+@preconcurrency import CoreText
 import os
 
 /// What one frame of the sheet shows.

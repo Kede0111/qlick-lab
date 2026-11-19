@@ -914,7 +914,7 @@ struct AdjustmentInspector: View {
         }
         InkSection(title: "Brightness", edited: InspectorEdits.brightnessCount(model) > 0) {
             TickRow(title: model.isRaw ? "Match camera brightness" : "Match original brightness",
-                    isOn: Binding(get: { model.matchesBrightness }, set: model.setMatchesBrightness),
+                    isOn: Binding(get: { model.matchesBrightness }, set: { model.setMatchesBrightness($0) }),
                     changed: model.matchesBrightness != model.autoPlaceNewImages,
                     help: model.isRaw
                         ? "Develops the RAW about as bright as the camera’s own preview, and keeps it there when you change film, paper or a preset. Exposure adds to it."
@@ -1323,7 +1323,7 @@ struct ResettableSlider: NSViewRepresentable {
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
-    final class Coordinator: NSObject {
+    @MainActor final class Coordinator: NSObject {
         var parent: ResettableSlider
         init(_ parent: ResettableSlider) { self.parent = parent }
         @objc func changed(_ slider: NSSlider) {
@@ -1366,9 +1366,14 @@ struct ResettableSlider: NSViewRepresentable {
             // double-click's reset. Keep showing the model's value until then.
             // A default-mode timer, so it never fires during a drag.
             let until = Date(timeIntervalSinceNow: 0.6)
+            // Scheduled on the main run loop, so it fires on the main thread.
             settling = Timer.scheduledTimer(withTimeInterval: 0.03, repeats: true) { [weak self] timer in
-                guard let self, Date() < until else { return timer.invalidate() }
-                self.show()
+                let shown = MainActor.assumeIsolated { () -> Bool in
+                    guard let self, Date() < until else { return false }
+                    self.show()
+                    return true
+                }
+                if !shown { timer.invalidate() }
             }
         }
     }

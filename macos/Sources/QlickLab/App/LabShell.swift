@@ -68,9 +68,10 @@ struct WorkspaceOverlay: View {
         overlay.isHidden = true
         editorContent.addSubview(overlay, positioned: .above, relativeTo: nil)
         collapsing = sidebarItem.observe(\.isCollapsed) { [weak self] item, _ in
+            let collapsed = item.isCollapsed
             MainActor.assumeIsolated {
-                guard let self, self.model.lab.sidebarVisible == item.isCollapsed else { return }
-                self.model.lab.sidebarVisible = !item.isCollapsed
+                guard let self, self.model.lab.sidebarVisible == collapsed else { return }
+                self.model.lab.sidebarVisible = !collapsed
             }
         }
     }

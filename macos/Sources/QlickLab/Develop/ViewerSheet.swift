@@ -83,7 +83,8 @@ struct SheetInk: Equatable, Sendable {
     static let darkroom = SheetInk(sheet: Theme.Hex.bg)
 
     /// Each role's contrast with `bg`, and its OKLCH chroma and hue.
-    private static let roles: [(ink: WritableKeyPath<Hex, UInt32>, contrast: Double, chroma: Double, hue: Double, words: Bool)] = [
+    // Constant, never written: safe to read from anywhere.
+    nonisolated(unsafe) private static let roles: [(ink: WritableKeyPath<Hex, UInt32>, contrast: Double, chroma: Double, hue: Double, words: Bool)] = [
         (\.paper, 16.58, 0.020, 85, true),
         (\.label, 9.78, 0.023, 83, true),
         (\.dim, 5.74, 0.022, 85, true),

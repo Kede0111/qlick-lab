@@ -26,7 +26,8 @@ struct StripScrubber: NSViewRepresentable {
 
 final class StripScrubberView: NSView {
     private(set) weak var scrollView: NSScrollView?
-    private var observers: [NSObjectProtocol] = []
+    // Written on the main actor; read once more by deinit, when nothing else holds the object.
+    nonisolated(unsafe) private var observers: [NSObjectProtocol] = []
     private var grab: CGFloat?
     private var hovered = false { didSet { needsDisplay = true } }
 

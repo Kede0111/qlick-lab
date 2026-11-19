@@ -261,7 +261,8 @@ private struct TrayRow: NSViewRepresentable {
         private var row: TrayRow?
         private var stock: String?
         private var query: String?
-        private var observer: NSObjectProtocol?
+        // Written on the main actor; read once more by deinit, when nothing else holds the object.
+        nonisolated(unsafe) private var observer: NSObjectProtocol?
 
         func observe(_ clip: NSClipView) {
             observer = NotificationCenter.default.addObserver(forName: NSView.boundsDidChangeNotification, object: clip, queue: .main) { [weak self] _ in

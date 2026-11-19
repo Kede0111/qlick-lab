@@ -383,8 +383,8 @@ struct CanvasArea: View {
     @AppStorage(ViewerSheet.key) private var sheet = ViewerSheet.darkroom
 
     /// Above the photograph, for the caption; below it, for the label's two rows (§2.3).
-    static let captionBand: CGFloat = 54
-    static let labelBand = PrintLabelLayout.band
+    nonisolated static let captionBand: CGFloat = 54
+    nonisolated static let labelBand = PrintLabelLayout.band
 
     var body: some View {
         ZStack {
