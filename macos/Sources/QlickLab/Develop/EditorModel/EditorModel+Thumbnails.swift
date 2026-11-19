@@ -502,13 +502,13 @@ extension EditorModel {
                 // Solved on a reduced read: not kept for Develop, which solves on the whole photograph.
                 let cacheKey: String? = nil
                 let (_, decoded) = try await engine.request(decode)
-                let size = CGSize(width: decoded["source_width"].double, height: decoded["source_height"].double)
+                let size = ThumbnailReply(decoded).sourceSize
                 guard await waitForThumbnailTurn() else { return false }
                 let reference = engine.directory.appendingPathComponent("library-brightness.png")
                 defer { try? FileManager.default.removeItem(at: reference) }
                 if let solved = try? await Self.solveBrightnessMatch(engine: engine, source: photo, generation: generation, size: size, raw: raw,
                                                                     request: matchSolveState(state), reference: reference,
-                                                                    declared: raw ? decoded["preview_colour_space"] : nil, prepared: prepared),
+                                                                    declared: raw ? ThumbnailReply(decoded).previewColourSpace : nil, prepared: prepared),
                    let matched = Self.matching(state, ev: solved.exposure, limited: solved.limited, inputs: matchInputs(state)) {
                     // Solved on the whole decode (a stored match), so opening
                     // the photograph would solve the same: kept for it.
@@ -522,9 +522,10 @@ extension EditorModel {
             }
             guard await waitForThumbnailTurn() else { return false }
             let (_, result) = try await engine.request(command(state, longSide: longSide))
-            let (width, height) = (Int(result["width"].double), Int(result["height"].double))
-            let display = result["display_color_space"].string
-            let size = CGSize(width: result["source_width"].double, height: result["source_height"].double)
+            let reply = ThumbnailReply(result)
+            let (width, height) = (Int(reply.width), Int(reply.height))
+            let display = reply.displayColorSpace
+            let size = reply.sourceSize
             let developed = try await Task.detached(priority: .utility) {
                 try Self.thumbnailImage(Data(contentsOf: buffer), width: width, height: height, displaySpace: display)
             }.value

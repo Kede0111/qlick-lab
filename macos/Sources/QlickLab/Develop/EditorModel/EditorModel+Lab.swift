@@ -94,20 +94,21 @@ extension EditorModel {
                 decode["decode_only"] = .bool(true)
                 if raw { decode["preview_colour_space"] = .bool(true) }
                 let (_, decoded) = try await engine.request(decode)
-                let size = CGSize(width: decoded["source_width"].double, height: decoded["source_height"].double)
+                let size = ThumbnailReply(decoded).sourceSize
                 let reference = engine.directory.appendingPathComponent("lab-brightness-\(id).png")
                 defer { try? FileManager.default.removeItem(at: reference) }
                 if let solved = try? await Self.solveBrightnessMatch(engine: engine, source: photo, generation: generation, size: size, raw: raw,
                                                                     request: matchSolveState(state), reference: reference,
-                                                                    declared: raw ? decoded["preview_colour_space"] : nil),
+                                                                    declared: raw ? ThumbnailReply(decoded).previewColourSpace : nil),
                    let matched = Self.matching(state, ev: solved.exposure, limited: solved.limited, inputs: matchInputs(state)) {
                     state = matched
                 }
             }
             let (_, result) = try await engine.request(command(state))
-            let (width, height) = (Int(result["width"].double), Int(result["height"].double))
-            let display = result["display_color_space"].string
-            let size = CGSize(width: result["source_width"].double, height: result["source_height"].double)
+            let reply = ThumbnailReply(result)
+            let (width, height) = (Int(reply.width), Int(reply.height))
+            let display = reply.displayColorSpace
+            let size = reply.sourceSize
             let developed = try await Task.detached(priority: .userInitiated) {
                 try Self.thumbnailImage(Data(contentsOf: buffer), width: width, height: height, displaySpace: display)
             }.value

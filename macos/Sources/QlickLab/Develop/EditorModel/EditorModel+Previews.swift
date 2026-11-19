@@ -79,8 +79,9 @@ extension EditorModel {
             let image: CGImage?
             do {
                 let (_, result) = try await engine.request(command)
-                let (width, height) = (Int(result["width"].double), Int(result["height"].double))
-                let display = result["display_color_space"].string
+                let reply = ThumbnailReply(result)
+                let (width, height) = (Int(reply.width), Int(reply.height))
+                let display = reply.displayColorSpace
                 image = await Task.detached(priority: .userInitiated) {
                     defer { try? FileManager.default.removeItem(at: buffer) }
                     return try? Self.thumbnailImage(Data(contentsOf: buffer), width: width, height: height, displaySpace: display)
