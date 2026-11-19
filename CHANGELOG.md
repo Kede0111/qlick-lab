@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.1.4
+
+- **Halation from the highlights**: only bright lights feed it now, leaving a red rim on the darker side of their
+  edges, as on film; the rest of the frame is untouched. Develop › Halation gains Highlight gain (gives clipped
+  lights back their strength), Threshold and Softness, and Amount goes to 5. Grain's Amount goes to 600%.
+- **Background work**: the status pill counts photographs, each proxy made once and never more than the cache
+  keeps. Clicking it opens the list of the work under way, each with its progress and a stop button; Stop All (also
+  in the Lab menu) stops everything. Build Thumbnails puts the chosen photographs first.
+- **Thumbnails from another computer**: the pictures read from the photographs are kept on this Mac, so a folder on
+  the network is read once, not again at every scroll. Build Thumbnails reads them first ("Reading thumbnails"),
+  then makes proxies and develops.
+
 ## 0.1.3
 
 - **Grain and Halation presets**: each section has its own list of presets, holding only the ones you save. Picking
