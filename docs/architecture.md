@@ -44,7 +44,7 @@ added is mostly SwiftUI).
 | `Library/` | Folders, catalogues (`Catalogs`, `.qlicklab`), projects, the library grid and film strip, marks and ratings, thumbnails, previews and proxies, deleting |
 | `Import/` | The Import room: `ImportSession`, plan, copier, journal, `ImportRun` (adds rolls) |
 | `ContactSheet/` | The contact sheet: layout, renderer, view, loupe, print, grease pencil |
-| `Develop/` | Editing state (`EditorModel`, 6 000+ lines, to be split), parameters, the inspector and ink sliders, preview canvas, crop, borders, tone graph, histogram |
+| `Develop/` | Editing state (`EditorModel.swift` holds the state, `EditorModel/EditorModel+<Concern>.swift` the work, one file per concern), parameters, the inspector and ink sliders, preview canvas, crop, borders, tone graph, histogram |
 | `Compare/` | The Compare room |
 | `Recipes/` | Recipes (presets), section presets, films and papers |
 | `Export/` | Batch export and its finishing |

@@ -26,8 +26,12 @@ Read this first, then `CLAUDE.md` and `docs/architecture.md`. Update it at the e
   `docs/README.md`), `docs/sidecar-format.md`, `docs/architecture.md`, `CONTRIBUTING.md`, CI workflow
   (`.github/workflows/ci.yml`, local, not pushed), `--dev` build, this file.
 - [ ] **Wave 2**, one commit each, behaviour unchanged:
-  - Split `EditorModel.swift` (6 144 lines, 26 MARK sections) into models by concern: rendering, selection,
-    export, presets, balance, import. Start with the sections that have the fewest callers.
+  - [x] Split `EditorModel.swift`, step 1: one file per concern in `Develop/EditorModel/EditorModel+<Concern>.swift`
+    (22 files); `Develop/EditorModel.swift` keeps the stored state (867 lines, was 6 144). Save and export settings
+    moved to `Export/ExportSettings.swift`. Cost: `private` members of EditorModel became internal so the files see
+    each other. Behaviour unchanged, same tests.
+  - [ ] Split, step 2: lift the concerns with their own state into their own `@Observable` models owned by
+    EditorModel (thumbnails, batch export, print balance, camera brightness first), which brings `private` back.
   - [x] Group `macos/Sources/QlickLab` by role (commit ba510df): App, Library, Import, ContactSheet, Develop,
     Compare, Recipes, Export, Engine, Files, Design, Diagnostics. `Lab/` is gone.
   - [x] One theme: `Q` folded into `Theme` (Design/Theme.swift); the controls in Design/Controls.swift. The lab rooms
@@ -61,7 +65,8 @@ the pencil replaces the checkbox at Import (crossed = not imported); start with 
 ## Current state
 
 - Phase: architecture wave 1 done, committed on `refactor/architecture`. Tests: Rust 438 pass; Swift 488 run, 24 skipped, 1 failure that main has too (`QuickFrameLifecycleTests.testRapidFilmSwitchingDoesNotPileUpRenders`, 5 settled renders where it expects fewer): look at it in wave 2.
-- Next: split EditorModel (with the typed replies), then 0.1.5 on `feature/import-library`.
+- Next: 0.1.5 on `feature/import-library` (branched from `refactor/architecture`). Remaining architecture work
+  (EditorModel step 2, typed replies, wave 3) can continue on `refactor/architecture` in parallel.
 
 ## Build and test
 
