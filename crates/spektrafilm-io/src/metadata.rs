@@ -292,3 +292,17 @@ fn parse_tiff_metadata<R: Read + Seek>(reader: &mut R) -> Option<ImageMetadata> 
         extra,
     })
 }
+
+#[cfg(test)]
+mod tests {
+    /// The engine's crates carry the app's version (`scripts/version`), which `scripts/build_app.sh` keeps in step:
+    /// exported files name the version of the lab that made them.
+    #[test]
+    fn the_crates_carry_the_apps_version() {
+        let file = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../scripts/version");
+        let text = std::fs::read_to_string(&file).unwrap();
+        let version = text.lines().find_map(|line| line.strip_prefix("QLICK_LAB_VERSION=")).unwrap().trim();
+        assert_eq!(env!("CARGO_PKG_VERSION"), version, "Cargo.toml's workspace version is not scripts/version's: run scripts/build_app.sh");
+        assert_eq!(super::SOFTWARE, format!("spektrafilm {version}"));
+    }
+}
