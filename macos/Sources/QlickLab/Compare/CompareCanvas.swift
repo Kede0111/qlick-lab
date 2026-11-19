@@ -79,9 +79,17 @@ enum CompareGeometry {
         /// A lesser image standing in while the real one develops.
         var standIn: CGImage?
         var busy = false
+        /// Drawn faint: a frame left out of an import, a rejected one.
+        var faint = false
     }
 
-    var panes: [Pane] = [] { didSet { needsDisplay = true } }
+    var panes: [Pane] = [] {
+        didSet {
+            needsDisplay = true
+            // A picture's size known at last (it was developing): its magnification with it.
+            if oldValue.map({ $0.image?.width }) != panes.map({ $0.image?.width }) { onViewport(viewport) }
+        }
+    }
     /// The first two panes are one picture's two states, split by a line.
     var split = false { didSet { needsDisplay = true } }
     var splitPosition: CGFloat = 0.5 { didSet { needsDisplay = true } }
@@ -167,6 +175,13 @@ enum CompareGeometry {
         super.setFrameSize(newSize)
         clampAll()
         needsDisplay = true
+        // The magnification shown beside the zoom follows the size.
+        onViewport(viewport)
+    }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        onViewport(viewport)
     }
 
     // MARK: Drawing
@@ -202,7 +217,9 @@ enum CompareGeometry {
         // Pixels as they are once they're seen one for one: sharpness is judged on them.
         let scale = target.width / picture.width * (window?.backingScaleFactor ?? 2)
         context.interpolationQuality = scale >= 0.999 ? .none : .high
+        if pane.faint { context.setAlpha(0.42) }
         ContactSheetRenderer.draw(image, in: target, context)
+        if pane.faint { context.setAlpha(1) }
     }
 
     private func drawSplit(_ context: CGContext, in rect: CGRect) {

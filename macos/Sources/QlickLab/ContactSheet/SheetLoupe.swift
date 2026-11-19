@@ -1,8 +1,10 @@
 // Qlick Lab — GPL-3.0-only.
+import AppKit
 import SwiftUI
 
 /// A frame seen large over the sheet (Space), as under a loupe: developed by the engine at the size of the window,
-/// with its mark, its number and what the file says. The arrows and the pencil's keys keep working, so a roll can
+/// with its mark, its number and what the file says. It lies on the canvas Compare and Import use (`FrameCanvas`):
+/// the wheel and a pinch zoom, 100 % shows its pixels. The arrows and the pencil's keys keep working, so a roll can
 /// be sorted from here one frame at a time.
 struct SheetLoupe: View {
     let model: EditorModel
@@ -11,6 +13,7 @@ struct SheetLoupe: View {
     @State private var image: CGImage?
     @State private var shown: URL?
     @State private var busy = false
+    @State private var control = FrameCanvasControl()
 
     private var lab: LabState { model.lab }
     private var current: URL { model.selection.current ?? item }
@@ -22,32 +25,16 @@ struct SheetLoupe: View {
             Color.black.opacity(0.94)
                 .contentShape(Rectangle())
                 .onTapGesture { lab.loupe = nil }
-            GeometryReader { geometry in
-                let area = CGRect(origin: .zero, size: geometry.size).insetBy(dx: 56, dy: 64)
-                if let image, shown == current, area.width > 10, area.height > 10 {
-                    let aspect = CGFloat(image.width) / CGFloat(max(image.height, 1))
-                    let size = aspect > area.width / area.height ? CGSize(width: area.width, height: area.width / aspect) : CGSize(width: area.height * aspect, height: area.height)
-                    let frame = CGRect(x: area.midX - size.width / 2, y: area.midY - size.height / 2, width: size.width, height: size.height)
-                    Image(decorative: image, scale: 1).resizable().interpolation(.high)
-                        .frame(width: frame.width, height: frame.height)
-                        .opacity(summary.flag == .reject ? 0.5 : 1)
-                        .position(x: frame.midX, y: frame.midY)
-                        .onTapGesture(count: 2) { model.click(current); lab.show(.develop) }
-                    if let flag = summary.flag {
-                        Canvas { context, _ in
-                            let weight = GreasePencil.weight(forFrameWidth: frame.width) * 1.5
-                            let strokes = flag == .pick
-                                ? GreasePencil.ring(in: frame.insetBy(dx: -frame.width * 0.035, dy: -frame.height * 0.06), seed: current.lastPathComponent, weight: weight)
-                                : GreasePencil.cross(in: frame, seed: current.lastPathComponent, weight: weight)
-                            for stroke in strokes { context.fill(Path(stroke.path()), with: .color(Theme.accent.opacity(stroke.opacity))) }
-                        }
-                        .allowsHitTesting(false)
-                    }
-                }
+            if let image, shown == current {
+                FrameCanvas(panes: [.init(image: image, faint: summary.flag == .reject)], reset: current, control: control,
+                            onOpen: { _ in model.click(current); lab.show(.develop) },
+                            onKey: { event in key(event) })
+                    .padding(.horizontal, 24).padding(.top, 60).padding(.bottom, 64)
             }
             VStack {
                 HStack {
                     Spacer()
+                    FrameZoomControls(control: control).padding(.horizontal, 12).frame(height: 34).glass(Capsule())
                     QIconButton(symbol: "xmark", help: "Close (Space or esc)") { lab.loupe = nil }
                         .padding(6).glass(Circle())
                 }
@@ -57,6 +44,14 @@ struct SheetLoupe: View {
             .padding(16)
         }
         .task(id: current) { await load(current) }
+    }
+
+    /// Keys once the canvas has them: esc closes, the rest are the sheet's own (arrows, marks, Space).
+    private func key(_ event: NSEvent) -> Bool {
+        if event.keyCode == 53 { lab.loupe = nil; return true }
+        guard let sheet = lab.sheetView else { return false }
+        sheet.keyDown(with: event)
+        return true
     }
 
     private func load(_ item: URL) async {
@@ -111,6 +106,7 @@ private struct LoupeCaption: View {
         HStack(spacing: 12) {
             Text(model.library.name(of: item)).font(Theme.caps(12.5, weight: .semibold)).foregroundStyle(Theme.paper)
             if let facts, !facts.exposureLine.isEmpty { Text(facts.exposureLine).font(Theme.value(11.5)).foregroundStyle(Color(white: 0.75)) }
+            if let flag = summary.flag { MarkGlyph(flag: flag).frame(width: 17, height: 13) }
             if summary.rating > 0 { Text(String(repeating: "★", count: summary.rating)).font(.system(size: 11)).foregroundStyle(Theme.paper) }
             if busy { ProgressView().controlSize(.mini) }
             Divider().frame(height: 14).overlay(Color.white.opacity(0.15))

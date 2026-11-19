@@ -278,29 +278,60 @@ private struct ImportGrid: View {
     }
 }
 
-/// The room's keys: the lab's own for the marks, the arrows, and a few of the import's.
+/// The room's keys: the lab's own for the marks, the arrows, and a few of the import's. From SwiftUI (the grid) and
+/// from AppKit (the loupe's and the comparison's canvas, once clicked).
 enum ImportKeys {
+    enum Key { case left, right, up, down, space, escape, other }
+
     @MainActor static func handle(_ press: KeyPress, model: EditorModel, columns: Int) -> Bool {
+        let key: Key = switch press.key {
+        case .leftArrow: .left
+        case .rightArrow: .right
+        case .upArrow: .up
+        case .downArrow: .down
+        case .space, .return: .space
+        case .escape: .escape
+        default: .other
+        }
+        return handle(key, characters: press.characters, shift: press.modifiers.contains(.shift), command: press.modifiers.contains(.command),
+                      model: model, columns: columns)
+    }
+
+    @MainActor static func handle(_ event: NSEvent, model: EditorModel) -> Bool {
+        guard !event.modifierFlags.contains(.control) else { return false }
+        let key: Key = switch event.keyCode {
+        case 123: .left
+        case 124: .right
+        case 126: .up
+        case 125: .down
+        case 49, 36: .space
+        case 53: .escape
+        default: .other
+        }
+        return handle(key, characters: event.charactersIgnoringModifiers ?? "", shift: event.modifierFlags.contains(.shift),
+                      command: event.modifierFlags.contains(.command), model: model, columns: 1)
+    }
+
+    @MainActor private static func handle(_ key: Key, characters: String, shift: Bool, command: Bool, model: EditorModel, columns: Int) -> Bool {
         let session = model.lab.importer, keys = model.lab.keys
-        let shift = press.modifiers.contains(.shift)
-        if press.modifiers.contains(.command) {
-            if press.characters == "a" { session.selectAll(); return true }
-            if press.characters == "d" { session.selectNone(); return true }
+        if command {
+            if characters == "a" { session.selectAll(); return true }
+            if characters == "d" { session.selectNone(); return true }
             return false
         }
-        switch press.key {
-        case .leftArrow: session.move(by: -1, extend: shift); return true
-        case .rightArrow: session.move(by: 1, extend: shift); return true
-        case .upArrow: session.move(by: session.view == .grid ? -columns : -1, extend: shift); return true
-        case .downArrow: session.move(by: session.view == .grid ? columns : 1, extend: shift); return true
-        case .space, .return: session.view = session.view == .loupe ? .grid : .loupe; return true
+        switch key {
+        case .left: session.move(by: -1, extend: shift); return true
+        case .right: session.move(by: 1, extend: shift); return true
+        case .up: session.move(by: session.view == .grid ? -columns : -1, extend: shift); return true
+        case .down: session.move(by: session.view == .grid ? columns : 1, extend: shift); return true
+        case .space: session.view = session.view == .loupe ? .grid : .loupe; return true
         case .escape:
             if session.view != .grid { session.view = .grid; return true }
             if !session.selected.isEmpty { session.selectNone(); return true }
             return false
-        default: break
+        case .other: break
         }
-        let character = press.characters.lowercased()
+        let character = characters.lowercased()
         if character == keys.key(.pick) { session.toggle(flag: "pick"); return true }
         if character == keys.key(.reject) { session.toggle(flag: "reject"); return true }
         if character == keys.key(.unmark) { session.unmark(); return true }

@@ -2,18 +2,18 @@
 import AppKit
 import SwiftUI
 
-/// One frame of the source, large. What shows first is the camera's own rendering, read from inside the file. If
-/// the frame has a recipe, the engine develops it from the source, with that recipe, and the two lie side by side
-/// under a line to drag: what the camera made of it, and what the lab will. There is no other rendering here: the
-/// development is the engine's, the same one the photograph gets once imported.
+/// One frame of the source, large, on the canvas the contact sheet's loupe and the Compare room use (`FrameCanvas`):
+/// the wheel and a pinch zoom, 100 % shows its pixels. What shows first is the camera's own rendering, read from
+/// inside the file. If the frame has a recipe, the engine develops it from the source, with that recipe, and the two
+/// lie side by side under a line to drag: what the camera made of it, and what the lab will. The development is the
+/// engine's, the same one the photograph gets once imported.
 struct ImportLoupe: View {
     let model: EditorModel
     @State private var preview: CGImage?
     @State private var developed: CGImage?
     @State private var shown: URL?
     @State private var developing = false
-    @State private var zoomed = false
-    @State private var split = 0.5
+    @State private var control = FrameCanvasControl()
 
     private var session: ImportSession { model.lab.importer }
 
@@ -24,69 +24,39 @@ struct ImportLoupe: View {
         ZStack {
             Color.black
             if let current, let preview, shown == current {
-                GeometryReader { geometry in
-                    let area = CGRect(origin: .zero, size: geometry.size).insetBy(dx: 28, dy: 54)
-                    if zoomed {
-                        ScrollView([.horizontal, .vertical]) {
-                            picture(preview, marks: marks)
-                                .frame(width: CGFloat(preview.width) / 2, height: CGFloat(preview.height) / 2)
-                        }
-                        .defaultScrollAnchor(.center)
-                        .onTapGesture { zoomed = false }
-                    } else if area.width > 20, area.height > 20 {
-                        let turned = marks.rotation % 2 != 0
-                        let aspect = turned ? CGFloat(preview.height) / CGFloat(max(preview.width, 1)) : CGFloat(preview.width) / CGFloat(max(preview.height, 1))
-                        let size = aspect > area.width / area.height ? CGSize(width: area.width, height: area.width / aspect) : CGSize(width: area.height * aspect, height: area.height)
-                        picture(preview, marks: marks)
-                            .frame(width: turned ? size.height : size.width, height: turned ? size.width : size.height)
-                            .rotationEffect(.degrees(Double(marks.rotation) * 90))
-                            .frame(width: size.width, height: size.height)
-                            .overlay { if let flag = marks.flag.flatMap(PhotoSidecar.Flag.init(rawValue:)) { ImportMark(flag: flag, seed: current.lastPathComponent) } }
-                            .opacity(session.included(current) ? 1 : 0.4)
-                            .position(x: area.midX, y: area.midY)
-                            .onTapGesture { zoomed = true }
+                FrameCanvas(panes: panes(preview, current: current, marks: marks), split: developed != nil && marks.recipe != nil && session.splitBefore,
+                            reset: current, control: control,
+                            onOpen: { _ in control.toggle() },
+                            onKey: { ImportKeys.handle($0, model: model) })
+                    .padding(.top, 50).padding(.bottom, 58)
+                if developed != nil, marks.recipe != nil, session.splitBefore {
+                    VStack {
+                        HStack { label("CAMERA"); Spacer(); label("RECIPE") }.padding(.horizontal, 12)
+                        Spacer()
                     }
+                    .padding(.top, 58)
+                    .allowsHitTesting(false)
                 }
             } else if current != nil {
                 ProgressView().controlSize(.small)
             }
             VStack {
+                HStack { Spacer(); FrameZoomControls(control: control).padding(.horizontal, 12).frame(height: 34).glass(Capsule()) }
                 Spacer()
                 if let current, let frame = session.frame(current) { caption(frame, marks: marks) }
             }
-            .padding(12)
+            .padding(10)
         }
-        .task(id: LoupeKey(item: current, recipe: marks.recipe, zoomed: zoomed)) { await load(current, recipe: marks.recipe) }
-        .onChange(of: current) { zoomed = false }
+        .task(id: LoupeKey(item: current, recipe: marks.recipe, rotation: marks.rotation)) { await load(current, recipe: marks.recipe, rotation: marks.rotation) }
     }
 
-    private struct LoupeKey: Hashable { var item: URL?; var recipe: String?; var zoomed: Bool }
+    private struct LoupeKey: Hashable { var item: URL?; var recipe: String?; var rotation: Int }
 
-    /// The camera's rendering, and over its right part the recipe's development once it's there.
-    @ViewBuilder private func picture(_ preview: CGImage, marks: ImportMarks) -> some View {
-        let session = session
-        if let developed, marks.recipe != nil {
-            if session.splitBefore {
-                GeometryReader { geometry in
-                    let x = geometry.size.width * split
-                    ZStack(alignment: .topLeading) {
-                        Image(decorative: preview, scale: 1).resizable().interpolation(.high)
-                        Image(decorative: developed, scale: 1).resizable().interpolation(.high)
-                            .mask(alignment: .leading) { Rectangle().padding(.leading, x) }
-                        Rectangle().fill(Color.white.opacity(0.9)).frame(width: 1).offset(x: x)
-                        Circle().fill(Color.white).frame(width: 18, height: 18).overlay { Image(systemName: "arrow.left.and.right").font(.system(size: 8, weight: .bold)).foregroundStyle(.black) }
-                            .position(x: x, y: geometry.size.height / 2)
-                            .gesture(DragGesture(minimumDistance: 0).onChanged { split = min(max($0.location.x / max(geometry.size.width, 1), 0.02), 0.98) })
-                        label("CAMERA").padding(8)
-                        label("RECIPE").padding(8).frame(maxWidth: .infinity, alignment: .topTrailing)
-                    }
-                }
-            } else {
-                Image(decorative: developed, scale: 1).resizable().interpolation(.high)
-            }
-        } else {
-            Image(decorative: preview, scale: 1).resizable().interpolation(.high)
-        }
+    /// The camera's rendering; with a recipe, its development beside it (split) or alone.
+    private func panes(_ preview: CGImage, current: URL, marks: ImportMarks) -> [CompareCanvas.Pane] {
+        let faint = !session.included(current) || marks.flag == "reject"
+        guard let developed, marks.recipe != nil else { return [.init(image: preview, faint: faint)] }
+        return session.splitBefore ? [.init(image: preview, faint: faint), .init(image: developed, faint: faint)] : [.init(image: developed, faint: faint)]
     }
 
     private func label(_ text: String) -> some View {
@@ -99,6 +69,7 @@ struct ImportLoupe: View {
         return HStack(spacing: 12) {
             Text(frame.file.name).font(Theme.caps(12.5, weight: .semibold)).foregroundStyle(Theme.paper).fixedSize()
             if let time = frame.time { Text(time.text).font(Theme.value(11.5)).foregroundStyle(Color(white: 0.75)) }
+            if let flag = marks.flag.flatMap(PhotoSidecar.Flag.init(rawValue:)) { MarkGlyph(flag: flag).frame(width: 17, height: 13) }
             if marks.rating > 0 { Text(String(repeating: "★", count: marks.rating)).font(.system(size: 11)).foregroundStyle(Theme.paper) }
             if let recipe = marks.recipe {
                 Divider().frame(height: 14).overlay(Color.white.opacity(0.15))
@@ -121,12 +92,11 @@ struct ImportLoupe: View {
         .glass(Capsule())
     }
 
-    private func load(_ item: URL?, recipe: String?) async {
+    private func load(_ item: URL?, recipe: String?, rotation: Int) async {
         guard let item else { preview = nil; developed = nil; shown = nil; return }
         if shown != item { developed = nil }
-        // The camera's rendering: screen-sized, or whole when its pixels are looked at.
-        let pixels = zoomed ? 12_000 : 3200
-        let image = await Task.detached(priority: .userInitiated) { ImportScan.preview(of: item, maxPixels: pixels) }.value
+        // The whole of the camera's rendering, so 100 % is its pixels.
+        let image = await Task.detached(priority: .userInitiated) { ImportScan.preview(of: item, maxPixels: 6000)?.turned(rotation) }.value
         guard !Task.isCancelled, session.current == item else { return }
         preview = image; shown = item
         guard let recipe, let preset = model.presets.first(where: { $0.name == recipe }) else { developed = nil; developing = false; return }
@@ -137,21 +107,21 @@ struct ImportLoupe: View {
         guard !Task.isCancelled, session.current == item else { return }
         let image2 = await model.lab.compareModel.developer.image(.init(item: item, recipe: preset.url, longSide: 2048))
         guard !Task.isCancelled, session.current == item else { return }
-        developed = image2
+        developed = image2?.turned(rotation)
         developing = false
     }
 }
 
-/// Two to four frames side by side, moved and enlarged together: which of a run is the sharp one.
+/// Two to four frames side by side on the Compare room's canvas, moved and enlarged together: which of a run is the
+/// sharp one.
 struct ImportCompare: View {
     let model: EditorModel
-    @State private var zoom: CGFloat = 1
-    @State private var pan = CGSize.zero
-    @State private var dragStart: CGSize?
+    @State private var images: [URL: CGImage] = [:]
+    @State private var control = FrameCanvasControl()
 
     private var session: ImportSession { model.lab.importer }
 
-    /// The selection, or the current frame and those after it.
+    /// The selection, or the current frame and the one after it.
     private var items: [URL] {
         let session = session
         let chosen = session.shown.map(\.id).filter(session.selected.contains)
@@ -161,78 +131,73 @@ struct ImportCompare: View {
     }
 
     var body: some View {
+        let session = session
         let items = items
-        let columns = items.count > 2 ? 2 : max(items.count, 1)
+        let panes = items.map { item in
+            CompareCanvas.Pane(image: images[item], busy: images[item] == nil, faint: !session.included(item) || session.marks(for: item).flag == "reject")
+        }
         VStack(spacing: 0) {
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: columns), spacing: 2) {
-                ForEach(items, id: \.self) { item in
-                    GeometryReader { geometry in
-                        ImportComparePane(session: session, item: item, zoom: zoom, pan: pan, size: geometry.size)
+            ZStack {
+                FrameCanvas(panes: panes, focused: items.firstIndex(of: session.current ?? items.first ?? URL(fileURLWithPath: "/")) ?? 0,
+                            reset: items, control: control,
+                            onOpen: { index in if items.indices.contains(index) { session.focus(items[index]); session.view = .loupe } },
+                            onFocus: { index in if items.indices.contains(index) { session.focus(items[index]) } },
+                            onKey: { ImportKeys.handle($0, model: model) })
+                GeometryReader { geometry in
+                    let rects = CompareGeometry.panes(items.count, in: CGRect(origin: .zero, size: geometry.size))
+                    ForEach(Array(items.enumerated()), id: \.element) { index, item in
+                        if rects.indices.contains(index) {
+                            ImportPaneLabel(session: session, item: item, busy: images[item] == nil)
+                                .frame(width: rects[index].width, height: rects[index].height, alignment: .bottomLeading)
+                                .offset(x: rects[index].minX, y: rects[index].minY)
+                        }
                     }
-                    .aspectRatio(items.count > 2 ? 1.5 : nil, contentMode: .fit)
-                    .frame(minHeight: items.count > 2 ? 0 : 360)
-                    .clipped()
-                    .contentShape(Rectangle())
-                    .onTapGesture(count: 2) { withAnimation(Theme.quick) { zoom = zoom > 1 ? 1 : 4; if zoom == 1 { pan = .zero } } }
-                    .onTapGesture { session.focus(item) }
                 }
+                .allowsHitTesting(false)
             }
-            .gesture(DragGesture().onChanged { value in
-                let start = dragStart ?? pan
-                dragStart = start
-                pan = CGSize(width: start.width + value.translation.width, height: start.height + value.translation.height)
-            }.onEnded { _ in dragStart = nil })
-            .gesture(MagnifyGesture().onChanged { zoom = min(max($0.magnification * zoom, 1), 12) })
-            Spacer(minLength: 0)
             HStack(spacing: 10) {
-                Text(items.count < 2 ? "Select two to four frames to compare them." : "Double-click enlarges all of them at the same place; drag moves them together.")
+                Text(items.count < 2 ? "Select two to four frames to compare them." : "They zoom and move together. Double-click one to see it alone.")
                     .font(.system(size: 11)).foregroundStyle(Theme.dim)
                 Spacer()
-                Slider(value: $zoom, in: 1...12).controlSize(.mini).tint(Color(white: 0.75)).frame(width: 130)
-                Button("Fit") { withAnimation(Theme.quick) { zoom = 1; pan = .zero } }.buttonStyle(QPillButtonStyle())
+                FrameZoomControls(control: control)
             }
-            .padding(.horizontal, 14).frame(height: 38)
+            .padding(.horizontal, 14).frame(height: 40)
         }
         .background(Color.black)
+        .task(id: PaneKey(items: items, rotations: items.map { session.marks(for: $0).rotation })) { await load(items) }
+    }
+
+    private struct PaneKey: Hashable { var items: [URL]; var rotations: [Int] }
+
+    private func load(_ items: [URL]) async {
+        for item in items {
+            let rotation = session.marks(for: item).rotation
+            // The whole of the camera's rendering, so 100 % is its pixels.
+            let image = await Task.detached(priority: .userInitiated) { ImportScan.preview(of: item, maxPixels: 6000)?.turned(rotation) }.value
+            guard !Task.isCancelled else { return }
+            images[item] = image
+        }
+        images = images.filter { items.contains($0.key) }
     }
 }
 
-private struct ImportComparePane: View {
+/// A pane's name on glass at its foot, with its mark and whether the import takes it.
+private struct ImportPaneLabel: View {
     let session: ImportSession
     let item: URL
-    let zoom: CGFloat
-    let pan: CGSize
-    let size: CGSize
-    @State private var image: CGImage?
+    let busy: Bool
 
     var body: some View {
         let marks = session.marks(for: item)
-        ZStack {
-            Color(white: 0.03)
-            if let image {
-                TurnedPicture(image: image, rotation: marks.rotation, interpolation: .high)
-                    .scaleEffect(zoom)
-                    .offset(zoom > 1 ? pan : .zero)
-                    .opacity(session.included(item) ? 1 : 0.4)
-            } else {
-                ProgressView().controlSize(.small)
-            }
-            VStack {
-                Spacer()
-                HStack(spacing: 8) {
-                    Text(item.lastPathComponent).font(Theme.value(11)).foregroundStyle(Theme.paper)
-                    if marks.rating > 0 { Text(String(repeating: "★", count: marks.rating)).font(.system(size: 10)).foregroundStyle(Theme.paper) }
-                    if let flag = marks.flag.flatMap(PhotoSidecar.Flag.init(rawValue:)) { MarkGlyph(flag: flag).frame(width: 15, height: 11) }
-                    if !session.included(item) { Text("LEFT OUT").font(.system(size: 8.5, weight: .bold)).foregroundStyle(Theme.dim) }
-                }
-                .padding(.horizontal, 10).frame(height: 24).background(Capsule().fill(Color.black.opacity(0.6))).padding(8)
-            }
+        HStack(spacing: 8) {
+            Text(item.lastPathComponent).font(Theme.value(11)).foregroundStyle(Theme.paper)
+            if let flag = marks.flag.flatMap(PhotoSidecar.Flag.init(rawValue:)) { MarkGlyph(flag: flag).frame(width: 15, height: 11) }
+            if marks.rating > 0 { Text(String(repeating: "★", count: marks.rating)).font(.system(size: 10)).foregroundStyle(Theme.paper) }
+            if !session.included(item) { Text("LEFT OUT").font(.system(size: 8.5, weight: .bold)).foregroundStyle(Theme.dim) }
+            if busy { ProgressView().controlSize(.mini) }
         }
-        .overlay { Rectangle().strokeBorder(session.current == item ? Color.white.opacity(0.7) : .clear, lineWidth: 1) }
-        .task(id: item) {
-            // The whole of the camera's rendering, so 100 % is its pixels.
-            let loaded = await Task.detached(priority: .userInitiated) { ImportScan.preview(of: item, maxPixels: 6000) }.value
-            if !Task.isCancelled { image = loaded }
-        }
+        .padding(.horizontal, 10).frame(height: 26)
+        .glass(Capsule())
+        .padding(10)
     }
 }
