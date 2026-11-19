@@ -11,7 +11,7 @@
 //! orientation), so every model is defined in sensor coordinates. Vignetting is
 //! a linear gain without an upper clamp; distortion and chromatic aberration
 //! are one inverse-mapped bicubic resample, scaled so no empty corner remains.
-//! See docs/lens-corrections-plan.md.
+//! See the upstream note lens-corrections-plan.md (docs/README.md).
 
 mod dng;
 mod vendor;

@@ -4,7 +4,7 @@ import SwiftUI
 /// AppKit runs the application, menus, window, and title bar; the canvas and
 /// inspector inside the window are SwiftUI. A SwiftUI scene with the old
 /// toolbar and inspector took about twice as long to show the window
-/// (docs/native-macos-ui.md, Startup).
+/// (the upstream note native-macos-ui.md (docs/README.md), Startup).
 @main enum QlickLabMain {
     static func main() {
         // Qlick Lab: `--qlick-icon <folder>` draws the app's icon set and quits (scripts/make_icon.sh).

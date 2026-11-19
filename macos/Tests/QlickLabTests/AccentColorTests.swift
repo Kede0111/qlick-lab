@@ -5,7 +5,7 @@ private let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().d
 
 /// The app's accent colour (round 16, A · Graphite): the warm grey of its
 /// outlines, so the system's menus, default buttons and focus take it
-/// instead of the system blue. `package_macos_app.sh` compiles it into
+/// instead of the system blue. `scripts/build_app.sh` compiles it into
 /// Assets.car and Info.plist names it.
 final class AccentColorTests: XCTestCase {
     /// Qlick Lab: the system accent is QLab's red (Display P3 0.89, 0.11, 0.14), the pencil's, not Negs's outline grey.

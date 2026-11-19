@@ -1,4 +1,4 @@
-//! RAW import white balance. See docs/raw-white-balance.md for upstream
+//! RAW import white balance. See the upstream note raw-white-balance.md (docs/README.md) for upstream
 //! provenance and the differences between LibRaw and rawler development.
 
 use anyhow::{Result, bail, ensure};

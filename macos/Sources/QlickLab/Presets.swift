@@ -2,7 +2,7 @@ import Darwin
 import Foundation
 
 /// A preset: a file in the app's Presets folder holding Python spektrafilm's
-/// saved GUI state, named after the file (docs/presets-design.md). The
+/// saved GUI state, named after the file (the upstream note presets-design.md (docs/README.md)). The
 /// engine reads and writes the format; this only handles the files.
 struct PresetFile: Identifiable, Equatable, Hashable, Sendable {
     /// As found on disk, which may be decomposed Unicode.

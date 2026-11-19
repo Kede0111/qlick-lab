@@ -1,0 +1,48 @@
+# Qlick Lab — the engine's and the app's tests on every push and pull request.
+#
+# The app uses macOS 26's Liquid Glass behind `#available`, so it needs the macOS 26 SDK (Xcode 26): the runner
+# is macos-26. Swift tests that render ask for the Rust helper, built first into target/release, where the app
+# looks for it when it runs from the checkout (SPEKTRAFILM_ROOT, Engine.swift).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: macos-26
+    timeout-minutes: 90
+    env:
+      CARGO_TERM_COLOR: always
+      MACOSX_DEPLOYMENT_TARGET: "14.0"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: cargo-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: cargo-${{ runner.os }}-
+
+      - name: Engine tests (Rust)
+        run: cargo test --locked --release --workspace
+
+      - name: Build the engine helper for the app's tests
+        run: cargo build --locked --release -p spektrafilm-native
+
+      - name: App tests (Swift)
+        env:
+          SPEKTRAFILM_ROOT: ${{ github.workspace }}
+        run: swift test --package-path macos --scratch-path target/swift-native

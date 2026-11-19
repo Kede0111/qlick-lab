@@ -139,7 +139,7 @@ rms_granularity = [7.0]
 
 # --- Negs only, not upstream: the colour films ported from Fotufilm (CC BY-SA
 # 4.0, MUAStudio Inc.), scaled to this table from the stocks both share (see
-# docs/handoff-fotufilm-grain.md). Where Fotufilm's grainStrength is the
+# the upstream note handoff-fotufilm-grain.md (docs/README.md)). Where Fotufilm's grainStrength is the
 # datasheet figure (Fujifilm still negatives, every slide film, Aerocolor
 # 2460), it matches this table 1:1 (C-200, X-TRA 400, Pro 400H, Provia 100F,
 # Ektachrome 100, Kodachrome 64) and is used x 1000. Fotufilm's other figures

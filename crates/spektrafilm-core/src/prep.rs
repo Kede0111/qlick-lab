@@ -4,7 +4,7 @@
 //! This is control-math parity, not decoder or complete Resolve-render parity.
 //! The self-guided base needs the complete frame, never independently cropped tiles.
 //! Arithmetic stays f32 in reference builds, matching Sawmill's recovered core.
-//! From yosoyelchris's Negs fork (`prep-raw-scopes`, d2a144d); see docs/prep.md.
+//! From yosoyelchris's Negs fork (`prep-raw-scopes`, d2a144d); see the upstream note prep.md (docs/README.md).
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use spektrafilm_math::{

@@ -4,7 +4,7 @@ import AppKit
 /// Drags a slider on the real event loop and reports how long each main
 /// run-loop pass stays busy, which is what a user feels as a hitch, and how
 /// often a new frame arrived. Compiled only with -DSPEKTRAFILM_BENCHMARK;
-/// see docs/native-macos-ui.md. SPEKTRAFILM_BENCHMARK_PARAM picks the slider
+/// see the upstream note native-macos-ui.md (docs/README.md). SPEKTRAFILM_BENCHMARK_PARAM picks the slider
 /// (print exposure or exposure); SPEKTRAFILM_BENCHMARK_SHOTS names a folder
 /// for window screenshots during the drag and after letting go.
 @MainActor enum InteractionBenchmark {

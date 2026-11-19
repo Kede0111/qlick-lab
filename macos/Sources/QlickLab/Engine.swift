@@ -32,7 +32,7 @@ struct EnginePaths {
             let urls = env[override].map { [URL(fileURLWithPath: $0)] } ?? candidates
             guard let url = urls.first(where: {
                 executable ? fm.isExecutableFile(atPath: $0.path) : fm.fileExists(atPath: $0.path)
-            }) else { throw EngineError(message: "Missing \(override). Build the app with scripts/package_macos_app.sh, or set SPEKTRAFILM_ROOT to your checkout.") }
+            }) else { throw EngineError(message: "Missing \(override). Build the app with scripts/build_app.sh, or set SPEKTRAFILM_ROOT to your checkout.") }
             return url
         }
         func tool(_ override: String, _ name: String) throws -> URL {
@@ -76,7 +76,7 @@ enum CatalogCache {
 /// border. The GPU engine was measured against the reference on 6 photographs
 /// x 7 stocks: worst pixel ΔE00 below 0.25, at most one 8-bit step, and grain
 /// statistically equal but from different random numbers
-/// (docs/gpu-vs-cpu-quality.md).
+/// (the upstream note gpu-vs-cpu-quality.md (docs/README.md)).
 enum ExportEngine: String, CaseIterable {
     /// `spektrafilm-f64` on the CPU, the reference implementation.
     case reference
@@ -103,7 +103,7 @@ enum ExportEngine: String, CaseIterable {
         case .reference: return paths.exporter
         case .fast:
             guard let url = paths.fastExporter else {
-                throw EngineError(message: "Fast (GPU) export needs the spektrafilm command-line tool next to the app (or SPEKTRAFILM_F32_CLI). Export with Reference (CPU, 64-bit) instead, or rebuild the app with scripts/package_macos_app.sh.")
+                throw EngineError(message: "Fast (GPU) export needs the spektrafilm command-line tool next to the app (or SPEKTRAFILM_F32_CLI). Export with Reference (CPU, 64-bit) instead, or rebuild the app with scripts/build_app.sh.")
             }
             return url
         }

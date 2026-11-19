@@ -3,6 +3,9 @@
 #
 #   scripts/build_app.sh              this Mac's architecture (fast)
 #   scripts/build_app.sh --universal  Apple silicon + Intel
+#   scripts/build_app.sh --dev        a test copy, "Qlick Lab Dev.app" in dist/qlick-lab-dev/, with its own bundle
+#                                     identifier (be.jackfrom.qlicklab.dev), so its settings and its Application
+#                                     Support folder never touch the installed Qlick Lab's
 #
 # Needs Xcode and Rust (rustup; ~/.cargo/bin is added to PATH here). The app is ad-hoc signed, not notarized.
 set -euo pipefail
@@ -13,10 +16,22 @@ export MACOSX_DEPLOYMENT_TARGET=14.0
 version="$(sed -n 's/^QLICK_LAB_VERSION=//p' scripts/version)"
 build="$(sed -n 's/^QLICK_LAB_BUILD=//p' scripts/version)"
 target_dir="${BUILD_TARGET_DIR:-target}"
-dist="${DIST_DIR:-dist/qlick-lab}"
-app="$dist/Qlick Lab.app"
+universal=false; dev=false
+for arg in "$@"; do
+    case "$arg" in
+        --universal) universal=true ;;
+        --dev) dev=true ;;
+        *) echo "Unknown option: $arg" >&2; exit 1 ;;
+    esac
+done
+if $dev; then
+    name="Qlick Lab Dev"; bundle_id="be.jackfrom.qlicklab.dev"; dist="${DIST_DIR:-dist/qlick-lab-dev}"
+else
+    name="Qlick Lab"; bundle_id="be.jackfrom.qlicklab"; dist="${DIST_DIR:-dist/qlick-lab}"
+fi
+app="$dist/$name.app"
 
-if [[ "${1:-}" == "--universal" ]]; then
+if $universal; then
     rust_targets=(--target aarch64-apple-darwin --target x86_64-apple-darwin)
     swift_archs=(--arch arm64 --arch x86_64)
 else
@@ -25,7 +40,9 @@ fi
 
 command -v cargo >/dev/null || { echo "Rust is missing: install it from https://rustup.rs" >&2; exit 1; }
 # The Xcode project follows the sources and the version on every build, so it never falls behind (`project.yml`).
-if command -v xcodegen >/dev/null; then
+if $dev; then
+    :  # a test copy leaves the committed project alone
+elif command -v xcodegen >/dev/null; then
     sed -i '' -e "s/^\(    MARKETING_VERSION: \).*/\1\"$version\"/" -e "s/^\(    CURRENT_PROJECT_VERSION: \).*/\1\"$build\"/" project.yml
     xcodegen generate --quiet
 else
@@ -40,9 +57,9 @@ swift_bin="$(swift build --package-path macos --scratch-path "$target_dir/swift-
 
 rm -rf "$app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources/Fonts" "$app/Contents/Frameworks"
-cp "$swift_bin/QlickLab" "$app/Contents/MacOS/Qlick Lab"
+cp "$swift_bin/QlickLab" "$app/Contents/MacOS/$name"
 # The executable looks for Sparkle beside it in a development build, in Frameworks in the app.
-install_name_tool -add_rpath "@executable_path/../Frameworks" "$app/Contents/MacOS/Qlick Lab" 2>/dev/null || true
+install_name_tool -add_rpath "@executable_path/../Frameworks" "$app/Contents/MacOS/$name" 2>/dev/null || true
 ditto "$swift_bin/Sparkle.framework" "$app/Contents/Frameworks/Sparkle.framework"
 for tool in spektrafilm-native spektrafilm spektrafilm-f64; do
     if [[ ${#rust_targets[@]} -gt 0 ]]; then
@@ -64,13 +81,14 @@ xcrun actool "$root/macos/Assets.xcassets" "$root/macos/AppIcon.icon" --compile 
     --minimum-deployment-target 14.0 --app-icon AppIcon --accent-color AccentColor \
     --output-partial-info-plist "$(whole "$target_dir")/qlick-assets.plist" >/dev/null
 
-sed -e 's/\$(EXECUTABLE_NAME)/Qlick Lab/' -e 's/\$(PRODUCT_BUNDLE_IDENTIFIER)/be.jackfrom.qlicklab/' \
+sed -e "s/\$(EXECUTABLE_NAME)/$name/" -e "s/\$(PRODUCT_BUNDLE_IDENTIFIER)/$bundle_id/" \
+    -e "s|<string>Qlick Lab</string>|<string>$name</string>|" \
     -e "s/\$(MARKETING_VERSION)/$version/" -e "s/\$(CURRENT_PROJECT_VERSION)/$build/" -e 's/\$(MACOSX_DEPLOYMENT_TARGET)/14.0/' \
     macos/QlickLab-Info.plist > "$app/Contents/Info.plist"
 plutil -lint "$app/Contents/Info.plist" >/dev/null
 
 # Ad-hoc signatures: the helpers first, then the app. Sparkle keeps its own.
-for tool in spektrafilm-native spektrafilm spektrafilm-f64 "Qlick Lab"; do codesign --force --sign - "$app/Contents/MacOS/$tool"; done
+for tool in spektrafilm-native spektrafilm spektrafilm-f64 "$name"; do codesign --force --sign - "$app/Contents/MacOS/$tool"; done
 codesign --force --sign - "$app"
 codesign --verify --strict "$app"
-echo "Built: $root/$app  (Qlick Lab $version, build $build)"
+echo "Built: $root/$app  ($name $version, build $build)"

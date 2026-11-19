@@ -1770,7 +1770,7 @@ impl WgpuBackend {
 
         // Effects execute sequentially in separate compute passes. Share their
         // full-image storage, but keep every input/output of a dispatch distinct.
-        // See docs/memory-scratch-reuse.md for the pass/lifetime table.
+        // See the upstream note memory-scratch-reuse.md (docs/README.md) for the pass/lifetime table.
         // This pool is per-render: no full images enter the backend cache.
         let scratch: Vec<_> = (0..scratch_count)
             .map(|i| make_img_buf(&format!("effect_scratch_{i}")))
@@ -3338,7 +3338,7 @@ impl FilmChainReadback {
 /// costs a few ms (the browser clears it) and a new readback buffer more,
 /// which at preview sizes is a good part of a frame. Native renders make
 /// them per render, so no full images stay on the GPU between renders
-/// (docs/memory-scratch-reuse.md).
+/// (the upstream note memory-scratch-reuse.md (docs/README.md)).
 #[cfg(feature = "wgpu-backend")]
 #[derive(Clone, Default)]
 struct ImagePool(std::sync::Arc<std::sync::Mutex<Vec<ImageSet>>>);

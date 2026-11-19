@@ -1836,7 +1836,7 @@ impl CudaBackend {
         // TODO(cuda): match the CPU reference like the wgpu backend did on
         // 2026-10-19. Still channel-averaged scatter/halation sizes and a
         // single-Gaussian scatter tail; the DIR tail has the same gap. See
-        // `RefBlur` and docs/gpu-vs-cpu-quality.md; untested here (no NVIDIA
+        // `RefBlur` and the upstream note gpu-vs-cpu-quality.md (docs/README.md); untested here (no NVIDIA
         // GPU).
         let avg = |v: [f32; 3]| (v[0] + v[1] + v[2]) / 3.0;
         self.blur_device(img, scratch, &mut core, width, height, avg(hp.scatter_core_px))?;

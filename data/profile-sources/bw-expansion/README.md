@@ -1,6 +1,6 @@
 # B&W expansion source record — 18 October 2026
 
-Two new preparations: **400TX 35 mm in D-76, 8 minutes at 20°C**, and **fifth-generation Ilford Multigrade RC Deluxe, filter 2, Multigrade developer 1+9, 1 minute at 20°C**. These are new source-based preparations, not renamed donor stocks. See [recipe.json](recipe.json) for document SHA-256 hashes, PDF coordinates, axis transforms, conditions, assumptions and authorship; [the visual review](../../../docs/bw-expansion-review.md) separates scientific evidence from appearance.
+Two new preparations: **400TX 35 mm in D-76, 8 minutes at 20°C**, and **fifth-generation Ilford Multigrade RC Deluxe, filter 2, Multigrade developer 1+9, 1 minute at 20°C**. These are new source-based preparations, not renamed donor stocks. See [recipe.json](recipe.json) for document SHA-256 hashes, PDF coordinates, axis transforms, conditions, assumptions and authorship; the visual review (an upstream note, not carried over: docs/README.md) separates scientific evidence from appearance.
 
 | Source | Extraction | Measured/plotted range used |
 |---|---|---|

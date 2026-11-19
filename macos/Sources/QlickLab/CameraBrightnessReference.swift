@@ -1,4 +1,4 @@
-// From yosoyelchris's Negs fork (`prep-raw-scopes`, d2a144d); see docs/prep.md.
+// From yosoyelchris's Negs fork (`prep-raw-scopes`, d2a144d); see the upstream note prep.md (docs/README.md).
 import CoreGraphics
 import Foundation
 import ImageIO

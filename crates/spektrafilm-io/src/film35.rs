@@ -106,7 +106,7 @@ pub enum EdgePrint {
 }
 
 /// Each film profile's edge print and look. Sources for the edge prints
-/// are in `docs/35mm-scan-sources.md`; the Fotufilm colour ports use
+/// are in the upstream note `35mm-scan-sources.md` (docs/README.md); the Fotufilm colour ports use
 /// product codes or names, not checked against scans. The Fotufilm B&W
 /// ports use Fotufilm's edge texts (Acros II, which has none, its name).
 /// Films not listed (Tri-X 7266 is only made in 16 mm and Super 8) get the

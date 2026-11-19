@@ -46,7 +46,7 @@ impl FromStr for RawDecoderPreference {
 
 /// The lens corrections the camera maker recorded in the RAW (distortion and
 /// vignetting), applied by the decoder where it supports the file. Off keeps
-/// the lens's own projection; see docs/lens-corrections-plan.md.
+/// the lens's own projection; see the upstream note lens-corrections-plan.md (docs/README.md).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LensCorrection {
     #[serde(default)]

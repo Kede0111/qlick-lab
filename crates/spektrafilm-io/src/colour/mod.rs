@@ -23,7 +23,7 @@
 //! ICC does. Decoding a JPEG gives display-referred light: it does not undo
 //! the camera's or editor's tone mapping.
 //!
-//! See `docs/colour-management.md`.
+//! See the upstream note `colour-management.md` (docs/README.md).
 
 pub mod icc;
 pub mod tags;

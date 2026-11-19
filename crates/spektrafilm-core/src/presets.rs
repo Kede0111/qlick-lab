@@ -1,6 +1,6 @@
 //! Presets: Python spektrafilm's saved GUI state (`spektrafilm_gui/persistence.py`
 //! at experimental 28bf883), the format shared on pixls.us, read into and
-//! written from Negs params. See `docs/presets-design.md`.
+//! written from Negs params. See the upstream note `presets-design.md` (docs/README.md).
 //!
 //! Reading follows Python's loader: the file is merged onto the default GUI
 //! state (`PROJECT_DEFAULT_GUI_STATE`, frozen in

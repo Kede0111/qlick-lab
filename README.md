@@ -165,11 +165,12 @@ Other ways to help: star the repository, tell other photographers about it, and
 
 ## Build it yourself
 
-You need Xcode 16 or later and [Rust](https://rustup.rs) stable (1.89 or later).
+You need Xcode 26 or later (the macOS 26 SDK) and [Rust](https://rustup.rs) stable (1.89 or later).
 
 ```bash
 scripts/build_app.sh                 # this Mac's architecture → dist/qlick-lab/Qlick Lab.app
 scripts/build_app.sh --universal     # Apple silicon + Intel
+scripts/build_app.sh --dev           # a test copy, Qlick Lab Dev, with its own settings and data
 scripts/make_dmg.sh                  # the universal app in a DMG → dist/Qlick-Lab-<version>.dmg
 open QlickLab.xcodeproj              # or work in Xcode (a build phase compiles the Rust engine)
 ```
@@ -185,6 +186,9 @@ swift test --package-path macos --scratch-path target/swift-native         # the
 ```
 
 ### How it's put together
+
+The details are in [docs/architecture.md](docs/architecture.md); how to propose a change in
+[CONTRIBUTING.md](CONTRIBUTING.md).
 
 | Folder | What's in it |
 |---|---|
