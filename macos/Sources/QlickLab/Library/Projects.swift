@@ -86,7 +86,7 @@ struct RollStats: Equatable, Sendable {
         let files = (try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)) ?? []
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        projects = files.filter { $0.pathExtension == "json" }
+        projects = files.filter { $0.pathExtension == "json" && $0.lastPathComponent != SavedImportSettings.fileName }
             .compactMap { try? decoder.decode(LabProject.self, from: Data(contentsOf: $0)) }
             // A newer schema is left alone, never written over.
             .filter { $0.schema <= LabProject.schema }

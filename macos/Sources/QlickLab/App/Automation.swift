@@ -119,6 +119,7 @@ import AppKit
             case "toggle": session.toggleIncluded()
             case "recipe": session.assign(recipe: argument.isEmpty ? nil : argument, to: session.selected.isEmpty && session.current == nil ? session.includedFrames.map(\.id) : nil)
             case "recipeall": session.assign(recipe: argument.isEmpty ? nil : argument, to: session.includedFrames.map(\.id))
+            case "save": session.saveProfile(named: argument)
             case "start": session.start()
             case "stop": session.stop()
             case "pause": session.togglePause()

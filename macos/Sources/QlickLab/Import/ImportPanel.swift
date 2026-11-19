@@ -36,7 +36,7 @@ struct ImportPanel: View {
                             .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
                         Spacer()
                         Button("Save…") { profileName = currentProfile(session) ?? ""; naming = true }.buttonStyle(QPillButtonStyle())
-                            .help("Keeps every choice of this panel under a name (destination, folders, recipe, project, words), to use them again in one click")
+                            .help("Keeps every choice of this panel under a name (destination, folders, recipe, project, words), to use them again in one click. They are kept in this catalog.")
                     }
                     if naming {
                         HStack(spacing: 6) {

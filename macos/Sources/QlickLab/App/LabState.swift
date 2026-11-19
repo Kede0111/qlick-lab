@@ -187,6 +187,7 @@ struct SheetOptions: Codable, Equatable, Sendable {
         self.model = model
         importer = ImportSession(model: model)
         projects = ProjectStore(directory: CatalogList().initial)
+        importer.loadProfiles(inCatalog: projects.directory)
         model.canvasScale.contextMenu = { [weak self] point in self?.developCommands.menu(at: point) }
     }
 

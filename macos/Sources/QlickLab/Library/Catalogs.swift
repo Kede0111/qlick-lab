@@ -2,8 +2,8 @@
 import AppKit
 import UniformTypeIdentifiers
 
-/// Catalogs: sets of projects kept apart, as a Lightroom catalog or a Capture One session. A catalog is a package
-/// (`Name.qlicklab`) holding its projects' small JSON files; the photographs stay where they are, so a catalog is
+/// Catalogs: sets of projects kept apart. A catalog is a package (`Name.qlicklab`) holding its projects' small JSON
+/// files, the import's Saved Settings and its memory of what it imported; the photographs stay where they are, so a catalog is
 /// cheap to make, copy or archive. The lab opens one at a time; the first is the default, in Application Support.
 @MainActor @Observable final class CatalogList {
     static let fileExtension = "qlicklab"
@@ -56,6 +56,7 @@ extension LabState {
         projects.open(directory: directory)
         projects.sidecars = model.sidecarLookup?.store
         projects.countAll()
+        importer.loadProfiles(inCatalog: directory)
         catalogs.remember(directory)
         show(.library)
     }
@@ -115,6 +116,7 @@ extension LabState {
         do {
             if fm.fileExists(atPath: url.path) { try fm.removeItem(at: url) }
             try fm.createDirectory(at: url, withIntermediateDirectories: true)
+            // The projects, and the Saved Settings with them.
             for file in (try? fm.contentsOfDirectory(at: projects.directory, includingPropertiesForKeys: nil)) ?? [] where file.pathExtension == "json" {
                 try fm.copyItem(at: file, to: url.appendingPathComponent(file.lastPathComponent))
             }

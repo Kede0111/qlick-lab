@@ -204,7 +204,9 @@ enum ImportProgressStyle: String, CaseIterable, Sendable {
     private(set) var plan = ImportPlan()
     private(set) var planning = false
     private(set) var freeSpace: Int?
-    private(set) var profiles: [String: ImportOptions] = ImportSession.loadProfiles()
+    /// The Saved Settings of the open catalogue (`SavedImportSettings`), read by `loadProfiles()`.
+    private(set) var profiles: [String: ImportOptions] = [:]
+    @ObservationIgnored private var profilesCatalog: URL?
     var progressStyle = UserDefaults.standard.string(forKey: ImportProgressStyle.key).flatMap(ImportProgressStyle.init) ?? .automatic {
         didSet { UserDefaults.standard.set(progressStyle.rawValue, forKey: ImportProgressStyle.key) }
     }
@@ -512,7 +514,7 @@ enum ImportProgressStyle: String, CaseIterable, Sendable {
 
     // MARK: Options and profiles
 
-    private static let optionsKey = "qlick.importOptions", profilesKey = "qlick.importProfiles"
+    private static let optionsKey = "qlick.importOptions"
     private static func loadOptions() -> ImportOptions {
         guard NSClassFromString("XCTestCase") == nil, let data = UserDefaults.standard.data(forKey: optionsKey),
               let options = try? JSONDecoder().decode(ImportOptions.self, from: data) else { return ImportOptions() }
@@ -521,19 +523,20 @@ enum ImportProgressStyle: String, CaseIterable, Sendable {
     private static func saveOptions(_ options: ImportOptions) {
         if let data = try? JSONEncoder().encode(options) { UserDefaults.standard.set(data, forKey: optionsKey) }
     }
-    private static func loadProfiles() -> [String: ImportOptions] {
-        guard let data = UserDefaults.standard.data(forKey: profilesKey), let profiles = try? JSONDecoder().decode([String: ImportOptions].self, from: data) else { return [:] }
-        return profiles
+    /// Reads the open catalogue's Saved Settings: at launch, and when another catalogue opens.
+    func loadProfiles(inCatalog directory: URL) {
+        profilesCatalog = directory
+        profiles = SavedImportSettings.read(inCatalog: directory)
     }
     func saveProfile(named name: String) {
         let name = name.trimmingCharacters(in: .whitespaces)
         guard !name.isEmpty else { return }
         profiles[name] = options
-        if let data = try? JSONEncoder().encode(profiles) { UserDefaults.standard.set(data, forKey: Self.profilesKey) }
+        if let profilesCatalog { SavedImportSettings.write(profiles, inCatalog: profilesCatalog) }
     }
     func deleteProfile(_ name: String) {
         profiles[name] = nil
-        if let data = try? JSONEncoder().encode(profiles) { UserDefaults.standard.set(data, forKey: Self.profilesKey) }
+        if let profilesCatalog { SavedImportSettings.write(profiles, inCatalog: profilesCatalog) }
     }
     func apply(profile name: String) { if let profile = profiles[name] { options = profile } }
 
