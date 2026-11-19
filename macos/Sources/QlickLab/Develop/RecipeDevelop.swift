@@ -130,5 +130,5 @@ struct RecipeDevelop: Equatable, Sendable {
 
 extension RecipeDevelop {
     /// What the tick box does, wherever it shows.
-    static let applyHelp = "Presets saved with Develop settings (white balance, tone, color…) apply them too. Off, a preset changes the film, the paper and their settings only."
+    static let applyHelp = "Recipes saved with Develop settings (white balance, tone, color…) apply them too. Off, a recipe changes the film, the paper and their settings only."
 }

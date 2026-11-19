@@ -644,7 +644,7 @@ struct MoreLine: View {
     var ellipsis = true
     var help = "Shows them here. View › Show All Controls shows every control."
     let action: () -> Void
-    static let hideHelp = "Folds them away again. A setting that you or a preset changed always shows."
+    static let hideHelp = "Folds them away again. A setting that you or a recipe changed always shows."
     @State private var hovered = false
 
     var body: some View {

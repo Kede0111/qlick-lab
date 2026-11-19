@@ -23,8 +23,8 @@ final class PresetNameTests: XCTestCase {
     func testFileNamesBecomePresetNames() {
         XCTAssertEqual(PresetName.from(fileName: "05 P400 natural"), "05 P400 natural")
         XCTAssertEqual(PresetName.from(fileName: "a:b|c"), "a b c")
-        XCTAssertEqual(PresetName.from(fileName: "..."), "Preset")
-        XCTAssertEqual(PresetName.from(fileName: "CON"), "Preset")
+        XCTAssertEqual(PresetName.from(fileName: "..."), "Recipe")
+        XCTAssertEqual(PresetName.from(fileName: "CON"), "Recipe")
     }
 }
 
@@ -151,7 +151,7 @@ final class PresetLibraryTests: XCTestCase {
         for path in [ImageSize.targetPath, "io.rotate_cw", "post.contrast", "settings.use_cat16"] {
             XCTAssertEqual(model.value(path), before.params[path], path)
         }
-        XCTAssertEqual(undo.undoActionName, "Apply Preset “Double-X”")
+        XCTAssertEqual(undo.undoActionName, "Apply Recipe “Double-X”")
         undo.undo()
         XCTAssertEqual(model.state, before)
         undo.redo()

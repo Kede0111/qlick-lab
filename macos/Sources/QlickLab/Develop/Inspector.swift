@@ -131,7 +131,7 @@ let adjustmentGroups: [AdjustmentGroup] = [
         .slider("Print exposure", "enlarger.print_exposure", 0.1...5, 0.01),
         .slider("Magenta shift", "enlarger.m_filter_shift", -50...50, 0.1),
         .slider("Yellow shift", "enlarger.y_filter_shift", -50...50, 0.1),
-        .filterLink("How the magenta and yellow shifts move. Together moves both the same way: more of both makes the print more cyan, less of both redder. Opposite ways moves one up as the other goes down. Linked, resetting either resets both. Each keeps its own value, so presets are unchanged."),
+        .filterLink("How the magenta and yellow shifts move. Together moves both the same way: more of both makes the print more cyan, less of both redder. Opposite ways moves one up as the other goes down. Linked, resetting either resets both. Each keeps its own value, so recipes are unchanged."),
         .balancePrint("Balance Print", "Sets the magenta and yellow shifts so a mid-grey prints neutral with the current film, bases, paper and enlarger. Use it after changing the film base."),
         .toggle("Exposure compensation", "enlarger.print_exposure_compensation"),
         .slider("Preflash exposure", "enlarger.preflash_exposure", 0...0.5, 0.01),
@@ -705,12 +705,12 @@ struct PaneHeader: View {
         let presets = model.inspectorPane == .presets
         HStack(alignment: .firstTextBaseline, spacing: 16) {
             paneWord("Adjustments", pane: .adjustments, help: "Show the adjustments (⌥⌘I)")
-            paneWord("Presets", pane: .presets, help: "Show the presets (⌥⌘P)")
+            paneWord("Recipes", pane: .presets, help: "Show the recipes (⌥⌘P)")
             Spacer(minLength: 0)
             if presets {
-                WordButton(title: "New", help: "Save the film, paper and Lab settings as a preset (⇧⌘S)", action: { model.newPreset() })
+                WordButton(title: "New", help: "Save the film, paper and Lab settings as a recipe (⇧⌘S)", action: { model.newPreset() })
                     .disabled(!model.canChangePresets)
-                WordButton(title: "Import…", help: "Import presets (⇧⌘O)", action: model.importPresetsPanel)
+                WordButton(title: "Import…", help: "Import recipes (⇧⌘O)", action: model.importPresetsPanel)
                     .disabled(!model.canChangePresets)
             } else if model.source != nil {
                 let edits = InspectorTab.allCases.map { InspectorEdits.count($0, model) }.reduce(0, +)
@@ -917,13 +917,13 @@ struct AdjustmentInspector: View {
                     isOn: Binding(get: { model.matchesBrightness }, set: model.setMatchesBrightness),
                     changed: model.matchesBrightness != model.autoPlaceNewImages,
                     help: model.isRaw
-                        ? "Develops the RAW about as bright as the camera’s own preview, and keeps it there when you change film, paper or a preset. Exposure adds to it."
-                        : "Develops the photograph about as bright as the file itself, and keeps it there when you change film, paper or a preset. Exposure adds to it.")
+                        ? "Develops the RAW about as bright as the camera’s own preview, and keeps it there when you change film, paper or a recipe. Exposure adds to it."
+                        : "Develops the photograph about as bright as the file itself, and keeps it there when you change film, paper or a recipe. Exposure adds to it.")
             LabeledSlider(title: "Exposure (EV)", value: model.exposureOffset, range: model.exposureOffsetRange, step: 0.05,
                           defaultValue: 0, modified: model.exposureOffsetModified, reset: model.resetExposureOffset,
                           editing: { $0 ? model.beginInteraction() : model.endInteraction() },
                           help: model.matchesBrightness
-                              ? "Brighter or darker than the match, in stops. It stays when the match changes with the film, paper or a preset."
+                              ? "Brighter or darker than the match, in stops. It stays when the match changes with the film, paper or a recipe."
                               : "Brightens or darkens the scene before the film, in stops. Unlike Negative exposure, the print doesn’t make up for it.")
             if let note = model.brightnessMatchNote { HintText(note) }
             // While matched the meter only sets where the highlight limit
@@ -984,7 +984,7 @@ struct AdjustmentInspector: View {
         // with the way back.
         if allControls {
             MoreLine(text: "Showing all controls. Show fewer", ellipsis: false,
-                     help: "Turns off View › Show All Controls: each module shows the few controls most photographs need, and any that you or a preset changed.") {
+                     help: "Turns off View › Show All Controls: each module shows the few controls most photographs need, and any that you or a recipe changed.") {
                 allControls = false
             }
             .padding(.top, 10)

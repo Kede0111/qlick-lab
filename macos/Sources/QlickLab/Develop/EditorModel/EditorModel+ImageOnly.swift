@@ -80,14 +80,14 @@ extension EditorModel {
                     guard state == snapshot else { continue }
                     let (film, paper) = (result["film"].string, result["paper"].string)
                     guard films.contains(where: { $0.id == film }), papers.contains(where: { $0.id == paper }) else {
-                        throw EngineError(message: "This version of Qlick Lab doesn’t have the preset’s film or paper.")
+                        throw EngineError(message: "This version of Qlick Lab doesn’t have the recipe’s film or paper.")
                     }
                     var next = state
                     next.film = film; next.paper = paper; next.params = result["params"]
                     if let develop = recipeDevelop(text) { next = develop.applied(to: next, photo: snapshot) }
-                    apply(next, action: "Apply Preset “\(preset.name)”")
+                    apply(next, action: "Apply Recipe “\(preset.name)”")
                     notePresetApplied(preset.url)
-                    status = "Applied preset “\(preset.name)”"
+                    status = "Applied recipe “\(preset.name)”"
                     return
                 }
             } catch {
@@ -122,7 +122,7 @@ extension EditorModel {
                     // The photograph's settings are this preset's: it's the one ringed.
                     self.notePresetApplied(file.url, to: snapshotItem)
                     await self.refreshPresets()
-                    self.status = "Saved the preset “\(file.name)”"
+                    self.status = "Saved the recipe “\(file.name)”"
                 } catch { self.report(error) }
             }
         }
@@ -133,13 +133,13 @@ extension EditorModel {
     func askPresetName(_ suggested: String, groups: Set<DevelopGroup>, refused: String? = nil,
                                _ done: @escaping (String?, Set<DevelopGroup>) -> Void) {
         let alert = NSAlert()
-        alert.messageText = "Save as a New Preset"
+        alert.messageText = "Save as a New Recipe"
         alert.informativeText = refused ?? "The film, the paper and their settings, to use on other photographs."
         alert.addButton(withTitle: "Save")
         alert.addButton(withTitle: "Cancel")
         let field = NSTextField(string: suggested)
-        field.placeholderString = "Preset name"
-        field.setAccessibilityLabel("Preset name")
+        field.placeholderString = "Recipe name"
+        field.setAccessibilityLabel("Recipe name")
         field.widthAnchor.constraint(equalToConstant: 300).isActive = true
         // Qlick Lab: the Develop tab's settings it also keeps, none ticked to keep none.
         let heading = NSTextField(labelWithString: "Also save from Develop:")
@@ -184,8 +184,8 @@ extension EditorModel {
     func importPresetsPanel() {
         guard canChangePresets else { return }
         let panel = NSOpenPanel()
-        panel.title = "Import Presets"
-        panel.message = "Choose presets saved by Qlick Lab or by spektrafilm (its interface’s state files)."
+        panel.title = "Import Recipes"
+        panel.message = "Choose recipes saved by Qlick Lab or by spektrafilm (its interface’s state files)."
         panel.prompt = "Import"
         panel.allowsMultipleSelection = true
         panel.canChooseDirectories = false
@@ -222,9 +222,9 @@ extension EditorModel {
                 do { try await presetLibrary.setOrder(order) } catch { report(error) }
             }
             await refreshPresets()
-            if imported > 0 { status = imported == 1 ? "Imported 1 preset" : "Imported \(imported) presets" }
+            if imported > 0 { status = imported == 1 ? "Imported 1 recipe" : "Imported \(imported) recipes" }
             if !failures.isEmpty {
-                error = (imported == 0 ? "No presets were imported.\n\n" : "Some files weren’t imported.\n\n")
+                error = (imported == 0 ? "No recipes were imported.\n\n" : "Some files weren’t imported.\n\n")
                     + failures.joined(separator: "\n\n")
             }
         }
@@ -284,7 +284,7 @@ extension EditorModel {
     func deletePreset(_ preset: PresetFile) {
         Task {
             let answer = await ask(AppAlert(
-                title: "Delete the preset “\(preset.name)”?",
+                title: "Delete the recipe “\(preset.name)”?",
                 detail: "This can’t be undone. Photographs edited with it keep their settings.",
                 buttons: [.init(title: "Delete", role: .destructive), .init(title: "Cancel", role: .cancel)]))
             guard answer.button == 0 else { return }
@@ -299,7 +299,7 @@ extension EditorModel {
     /// Writes a copy wherever the user picks, byte for byte.
     func exportPresetPanel(_ preset: PresetFile) {
         let panel = NSSavePanel()
-        panel.title = "Export Preset"
+        panel.title = "Export Recipe"
         panel.canCreateDirectories = true
         panel.allowedContentTypes = [.json]
         panel.nameFieldStringValue = "\(preset.name).json"

@@ -423,10 +423,10 @@ fn translate(state: &Value) -> Result<RuntimeParams, String> {
     let scan_film = match get(state, "simulation.route").and_then(Value::as_str) {
         Some(PRINT_ROUTE) => false,
         Some(SCAN_ROUTE) => true,
-        _ => return Err("Qlick Lab renders a preset printed or as a film scan; this one uses another route.".into()),
+        _ => return Err("Qlick Lab renders a recipe printed or as a film scan; this one uses another route.".into()),
     };
     set(&mut params, "io.scan_film", scan_film.into())?;
-    serde_json::from_value(params).map_err(|e| format!("The preset's settings don't fit Qlick Lab ({e})."))
+    serde_json::from_value(params).map_err(|e| format!("The recipe's settings don't fit Qlick Lab ({e})."))
 }
 
 /// `value` with its non-finite markers resolved: `+Infinity` in a Langmuir
@@ -466,12 +466,12 @@ fn check(state: &Value, params: &RuntimeParams) -> Result<(), String> {
             .and_then(Value::as_array)
             .is_some_and(|order| order.len() == 3 && order.iter().zip(0..).all(|(c, i)| c.as_f64() == Some(i as f64)));
         if !identity {
-            return Err("The preset swaps colour channels, which Qlick Lab can't do.".into());
+            return Err("The recipe swaps colour channels, which Qlick Lab can't do.".into());
         }
     }
     let output = get(state, "simulation.output_color_space").and_then(Value::as_str).unwrap_or_default();
     if output != "sRGB" {
-        return Err(format!("The preset renders into {output}; Qlick Lab reads presets made in sRGB only."));
+        return Err(format!("The recipe renders into {output}; Qlick Lab reads recipes made in sRGB only."));
     }
     let input_algorithm = get(state, "input_gamut_compress.algorithm").and_then(Value::as_str).unwrap_or_default();
     if input_algorithm != "xy" {
@@ -508,7 +508,7 @@ fn check(state: &Value, params: &RuntimeParams) -> Result<(), String> {
 fn check_output_gamut(gamut: &crate::params::OutputGamutCompressParams) -> Result<(), String> {
     match gamut.algorithm.as_str() {
         "off" | "aces_rgc" | "oklch" | "oklrab" | "cam16ucs" => {}
-        "jzazbz" => return Err("The preset uses jzazbz output gamut compression, which Qlick Lab doesn't have.".into()),
+        "jzazbz" => return Err("The recipe uses jzazbz output gamut compression, which Qlick Lab doesn't have.".into()),
         other => return Err(format!("Unknown output gamut compression “{other}”.")),
     }
     for (what, knee) in [("knee", Some(gamut.knee)), ("lightness compression", gamut.lightness_compression)] {

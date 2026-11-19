@@ -59,9 +59,9 @@ import SwiftUI
         command(file, "Export Photograph…", #selector(exportPhotograph), "e", [.command, .shift])
         command(file, "Export LUT…", #selector(exportLUT), "l", [.command, .shift])
         file.addItem(.separator())
-        command(file, "New Preset", #selector(newPreset), "s", [.command, .shift])
-        command(file, "Import Presets…", #selector(importPresets), "o", [.command, .shift])
-        command(file, "Show Presets Folder", #selector(showPresetsFolder), "")
+        command(file, "New Recipe", #selector(newPreset), "s", [.command, .shift])
+        command(file, "Import Recipes…", #selector(importPresets), "o", [.command, .shift])
+        command(file, "Show Recipes Folder", #selector(showPresetsFolder), "")
 
         let edit = submenu("Edit")
         edit.addItem(withTitle: "Undo", action: Selector(("undo:")), keyEquivalent: "z")
@@ -95,7 +95,7 @@ import SwiftUI
         // A plain key too: the photograph with only its caption and label.
         // Esc leaves it first: `EditorWindowController.escapeToGrid`.
         command(view, "Image Only", #selector(toggleImageOnly), "f", [])
-        command(view, "Show Presets", #selector(togglePresets), "p", [.command, .option])
+        command(view, "Show Recipes", #selector(togglePresets), "p", [.command, .option])
         // Every control in every module, as the Lab's Advanced controls switch did.
         command(view, "Show All Controls", #selector(toggleAllControls), "")
         view.addItem(.separator())

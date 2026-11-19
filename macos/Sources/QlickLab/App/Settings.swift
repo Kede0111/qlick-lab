@@ -194,7 +194,7 @@ struct SettingsView: View {
 
     @ViewBuilder private var speed: some View {
         InkSection(title: "Previews") {
-            TickRow(title: "Film, paper and preset previews", isOn: Binding(
+            TickRow(title: "Film, paper and recipe previews", isOn: Binding(
                 get: { model.previews.enabled }, set: { model.setPreviews($0) }))
             HintText("Shown on your own photograph. Turn off on a slower computer.")
             TickRow(title: "Limit preview to 12 MP", isOn: Binding(

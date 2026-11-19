@@ -634,7 +634,7 @@ private struct PresetRow: View {
                 HStack(spacing: 10) {
                     Image(systemName: "square.stack.3d.up.fill").font(.system(size: 13)).foregroundStyle(Theme.accent)
                         .frame(width: 22)
-                    Text("Preset").font(.system(size: 11)).foregroundStyle(Theme.dim).fixedSize()
+                    Text("Recipe").font(.system(size: 11)).foregroundStyle(Theme.dim).fixedSize()
                     Text(name ?? "None").font(.system(size: 12, weight: .medium))
                         .foregroundStyle(name == nil ? Color(white: 0.6) : Color(white: 0.9)).lineLimit(1)
                     Spacer(minLength: 4)
@@ -648,14 +648,14 @@ private struct PresetRow: View {
             }
             .buttonStyle(.plain)
             .onHover { hovered = $0 }
-            .help("The presets: a film, a paper and their settings, saved together (⌥⌘P)")
+            .help("The recipes: a film, a paper and their settings, saved together (⌥⌘P)")
             Button { model.newPreset() } label: {
                 Image(systemName: "plus").font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.dim)
                     .frame(width: 30, height: 36).contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .disabled(!model.canChangePresets)
-            .help("Save this development as a new preset (⇧⌘S)")
+            .help("Save this development as a new recipe (⇧⌘S)")
             .padding(.trailing, 4)
         }
     }
@@ -680,12 +680,12 @@ struct PresetsHeader: View {
             }
             .buttonStyle(.plain)
             .help("Back to the settings (⌥⌘I)")
-            Text("Presets").font(.system(size: 13, weight: .semibold)).foregroundStyle(Color.white).lineLimit(1)
+            Text("Recipes").font(.system(size: 13, weight: .semibold)).foregroundStyle(Color.white).lineLimit(1)
             Spacer(minLength: 0)
             Button("New") { model.newPreset() }.buttonStyle(QPillButtonStyle()).disabled(!model.canChangePresets)
-                .help("Save the film, paper and settings as a preset (⇧⌘S)")
+                .help("Save the film, paper and settings as a recipe (⇧⌘S)")
             Button("Import…") { model.importPresetsPanel() }.buttonStyle(QPillButtonStyle()).disabled(!model.canChangePresets)
-                .help("Import presets (⇧⌘O)")
+                .help("Import recipes (⇧⌘O)")
         }
         .padding(.horizontal, Theme.Size.gutter - 4)
         .frame(height: 46)

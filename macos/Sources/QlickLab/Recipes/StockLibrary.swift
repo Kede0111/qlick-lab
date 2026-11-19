@@ -160,6 +160,11 @@ struct StockLibrary: View {
         HStack(spacing: 0) {
             // Families.
             VStack(alignment: .leading, spacing: 2) {
+                // Stocks: films and papers in one room.
+                QSegmented(options: [(false, "Films", "The films, the negative or slide in the camera (⌥⌘6)"),
+                                     (true, "Papers", "The papers the films are printed on")],
+                           selection: Binding(get: { papers }, set: { lab.show($0 ? .papers : .films) }))
+                    .padding(.bottom, 10)
                 RoomButton(symbol: papers ? "doc.plaintext" : "film.stack", title: papers ? "All papers" : "All films", on: family == nil && !favouritesOnly,
                            trailing: "\(stocks.count)") { family = nil; favouritesOnly = false }
                 RoomButton(symbol: "star", title: "Favourites", on: favouritesOnly, trailing: "\(stocks.filter { lab.favouriteStocks.contains($0.id) }.count)") {

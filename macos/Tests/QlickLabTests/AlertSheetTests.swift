@@ -223,7 +223,7 @@ private let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().d
 
         model.deletePreset(preset)
         try await waitUntil { model.alert != nil }
-        XCTAssertEqual(model.alert?.alert.title, "Delete the preset “Portra”?")
+        XCTAssertEqual(model.alert?.alert.title, "Delete the recipe “Portra”?")
         XCTAssertEqual(model.alert?.alert.buttons.map(\.title), ["Delete", "Cancel"])
         model.dismissAlert()
         try await Task.sleep(for: .milliseconds(100))

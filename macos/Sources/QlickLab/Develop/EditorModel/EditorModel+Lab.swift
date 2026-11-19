@@ -147,7 +147,7 @@ extension EditorModel {
                 let (_, result) = try await engine.request(["command": EngineCommand.presetImport.json, "text": .string(text), "params": self.plainState.params])
                 let (film, paper) = (result["film"].string, result["paper"].string)
                 guard self.films.contains(where: { $0.id == film }), self.papers.contains(where: { $0.id == paper }) else {
-                    throw EngineError(message: "This version of Qlick Lab doesn’t have the preset’s film or paper.")
+                    throw EngineError(message: "This version of Qlick Lab doesn’t have the recipe’s film or paper.")
                 }
                 guard !Task.isCancelled else { return }
                 let kept = self.catalog["preset_kept"].array.map(\.string), params = result["params"]
@@ -156,7 +156,7 @@ extension EditorModel {
                 // Those on screen first: the change shows where you look.
                 let onScreen = self.thumbnailsOnScreen
                 let ordered = items.filter { onScreen.contains($0) } + items.filter { !onScreen.contains($0) }
-                let action = adapting ? "Apply Preset “\(preset.name)” with Auto Balance" : "Apply Preset “\(preset.name)”"
+                let action = adapting ? "Apply Recipe “\(preset.name)” with Auto Balance" : "Apply Recipe “\(preset.name)”"
                 // The recipe, on every photograph at once.
                 let before = await self.changeEditsInBatches(ordered, title: "Applying “\(preset.name)”") { _, base in
                     var next = base

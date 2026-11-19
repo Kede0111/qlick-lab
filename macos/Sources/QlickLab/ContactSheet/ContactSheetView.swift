@@ -711,7 +711,7 @@ import SwiftUI
         add("Paste Edits" + several, #selector(pasteEdits), enabled: model.canPasteEdits)
         add("Paste from Previous" + several, #selector(pasteFromPrevious), enabled: model.canChangeEdits && model.previousEdits != nil)
         shownPresets = model.presets
-        for (title, action) in [("Apply Preset", #selector(applyPreset(_:))), ("Apply Preset with Auto WB & Exposure", #selector(applyPresetAdapting(_:)))] {
+        for (title, action) in [("Apply Recipe", #selector(applyPreset(_:))), ("Apply Recipe with Auto WB & Exposure", #selector(applyPresetAdapting(_:)))] {
             let presets = NSMenu()
             for (index, preset) in model.presets.enumerated() {
                 let entry = presets.addItem(withTitle: preset.name, action: action, keyEquivalent: "")

@@ -108,14 +108,14 @@ import XCTest
         // Box off: the photograph keeps its own Develop settings.
         for path in ["prep.highlights", "prep.saturation", "prep.midtone_detail"] { model.set(path, .number(0)) }
         model.applyPreset(toned)
-        try await waitUntil { model.status == "Applied preset “Toned”" }
+        try await waitUntil { model.status == "Applied recipe “Toned”" }
         XCTAssertEqual(model.value("prep.highlights"), .number(0))
 
         // Box on: the recipe's tone and colour; detail wasn't saved.
         model.recipesApplyDevelop = true
         model.status = ""
         model.applyPreset(toned)
-        try await waitUntil { model.status == "Applied preset “Toned”" }
+        try await waitUntil { model.status == "Applied recipe “Toned”" }
         XCTAssertEqual(model.value("prep.highlights"), .number(-50))
         XCTAssertEqual(model.value("prep.saturation"), .number(25))
         XCTAssertEqual(model.value("prep.midtone_detail"), .number(0))
@@ -124,7 +124,7 @@ import XCTest
         model.set("prep.highlights", .number(12))
         model.status = ""
         model.applyPreset(plain)
-        try await waitUntil { model.status == "Applied preset “Plain”" }
+        try await waitUntil { model.status == "Applied recipe “Plain”" }
         XCTAssertEqual(model.value("prep.highlights"), .number(12))
 
         // The import's recipe has them too, with the box on only.

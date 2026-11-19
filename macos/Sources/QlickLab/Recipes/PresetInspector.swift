@@ -54,7 +54,7 @@ struct PresetInspector: View {
         .disabled(!model.canChangePresets)
         // One named group, which also keeps its rules out of VoiceOver.
         .accessibilityElement(children: .contain)
-        .accessibilityLabel("Presets")
+        .accessibilityLabel("Recipes")
     }
 
     /// The presets in the order shown: as dragged, while a tile is.
@@ -295,7 +295,7 @@ private struct PresetTile: View {
         VStack(alignment: .leading, spacing: 1) {
             if renaming {
                 NameField(name: preset.name, draft: $draft) { model.renamePreset(preset, to: $0) } cancel: { model.cancelRename(preset) } refuse: { name, problem in
-                    model.tell(AppAlert(title: "“\(name)” can’t be used as a preset name.", detail: problem))
+                    model.tell(AppAlert(title: "“\(name)” can’t be used as a recipe name.", detail: problem))
                 }
                 .namingUnderline()
             } else {
@@ -342,20 +342,20 @@ private struct PresetsEmpty: View {
 
     var body: some View {
         VStack(spacing: 10) {
-            Text("No presets yet")
+            Text("No recipes yet")
                 .font(Theme.serif(21, weight: 500)).foregroundStyle(Theme.paper)
             // The bundled serif has no synthetic italic: each part takes its own font.
             (Text("Save this photograph’s film, paper and Lab settings with ").font(Theme.serif(14, italic: true))
              + Text("New").font(Theme.serif(14)).foregroundColor(Theme.label)
-             + Text(", or import presets made in spektrafilm. You can also drop them here.").font(Theme.serif(14, italic: true)))
+             + Text(", or import recipes made in spektrafilm. You can also drop them here.").font(Theme.serif(14, italic: true)))
                 .foregroundStyle(Theme.dim)
                 .lineSpacing(3)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
-            Button("Import Presets…", action: model.importPresetsPanel)
+            Button("Import Recipes…", action: model.importPresetsPanel)
                 .buttonStyle(OutlinedButtonStyle())
                 .padding(.top, 6)
-                .help("Import presets (⇧⌘O)")
+                .help("Import recipes (⇧⌘O)")
         }
         .padding(EdgeInsets(top: 0, leading: 44, bottom: 40, trailing: 44))
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -400,7 +400,7 @@ private struct NameField: NSViewRepresentable {
         field.textColor = Theme.NS.paper
         field.cell?.isScrollable = true
         field.cell?.wraps = false
-        field.setAccessibilityLabel("Preset name")
+        field.setAccessibilityLabel("Recipe name")
         field.delegate = context.coordinator
         return field
     }

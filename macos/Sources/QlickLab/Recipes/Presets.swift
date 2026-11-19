@@ -52,7 +52,7 @@ enum PresetName {
         var name = String(fileName.map { "/\\:*?\"<>|".contains($0) || $0.isNewline ? " " : $0 })
         name = name.trimmingCharacters(in: CharacterSet(charactersIn: " .")).replacingOccurrences(of: "  ", with: " ")
         if name.count > maxLength { name = String(name.prefix(maxLength)).trimmingCharacters(in: CharacterSet(charactersIn: " .")) }
-        return problem(name) == nil ? name : "Preset"
+        return problem(name) == nil ? name : "Recipe"
     }
 }
 
@@ -111,10 +111,10 @@ actor PresetLibrary {
                 try writeOrder(try list().map(\.name).filter { PresetName.key($0) != PresetName.key(candidate) } + [candidate])
                 return try file(at: url)
             }
-            guard errno == EEXIST else { throw posixError("Couldn’t save the preset") }
+            guard errno == EEXIST else { throw posixError("Couldn’t save the recipe") }
             taken.insert(PresetName.key(candidate))
         }
-        throw EngineError(message: "Couldn’t find a free name for the preset.")
+        throw EngineError(message: "Couldn’t find a free name for the recipe.")
     }
 
     func rename(_ preset: PresetFile, to name: String) throws -> PresetFile {
@@ -123,14 +123,14 @@ actor PresetLibrary {
         let url = folder.appendingPathComponent(name).appendingPathExtension("json")
         if PresetName.key(name) == PresetName.key(preset.name) {
             // The same name in another case or form: the same file.
-            guard Darwin.rename(preset.url.path, url.path) == 0 else { throw posixError("Couldn’t rename the preset") }
+            guard Darwin.rename(preset.url.path, url.path) == 0 else { throw posixError("Couldn’t rename the recipe") }
         } else {
             if try list().contains(where: { PresetName.key($0.name) == PresetName.key(name) }) {
-                throw EngineError(message: "A preset named “\(name)” already exists.")
+                throw EngineError(message: "A recipe named “\(name)” already exists.")
             }
             guard renamex_np(preset.url.path, url.path, UInt32(RENAME_EXCL)) == 0 else {
-                if errno == EEXIST { throw EngineError(message: "A preset named “\(name)” already exists.") }
-                throw posixError("Couldn’t rename the preset")
+                if errno == EEXIST { throw EngineError(message: "A recipe named “\(name)” already exists.") }
+                throw posixError("Couldn’t rename the recipe")
             }
         }
         let order = readOrder()
@@ -168,7 +168,7 @@ actor PresetLibrary {
     /// A file's bytes, within the size limit.
     static func read(_ url: URL) throws -> Data {
         let size = (try FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int) ?? 0
-        guard size <= maxFileSize else { throw EngineError(message: "The file is too large to be a preset.") }
+        guard size <= maxFileSize else { throw EngineError(message: "The file is too large to be a recipe.") }
         return try Data(contentsOf: url)
     }
 

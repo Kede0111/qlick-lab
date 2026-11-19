@@ -15,8 +15,7 @@ enum Workspace: String, CaseIterable, Identifiable, Sendable {
         case .develop: "Develop"
         case .compare: "Compare"
         case .recipes: "Recipes"
-        case .films: "Films"
-        case .papers: "Papers"
+        case .films, .papers: "Stocks"
         case .importer: "Import"
         }
     }
@@ -38,7 +37,11 @@ enum Workspace: String, CaseIterable, Identifiable, Sendable {
     var key: String { self == .importer ? "0" : String((Workspace.allCases.firstIndex(of: self) ?? 0) + 1) }
 
     /// As the sidebar and the menu list them: Import first, where a session starts; the others keep their keys.
-    static let ordered: [Workspace] = [.importer] + allCases.filter { $0 != .importer }
+    /// Films and papers are one room, Stocks, with a switch inside (`StockLibrary`): only `films` is listed.
+    static let ordered: [Workspace] = [.importer] + allCases.filter { $0 != .importer && $0 != .papers }
+
+    /// The room a sidebar row or menu item stands for: Stocks is lit for its films and its papers.
+    func listed(as room: Workspace) -> Bool { self == room || (room == .films && self == .papers) }
 }
 
 /// How the contact sheet is laid out and worked on. Kept between launches.

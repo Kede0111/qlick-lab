@@ -30,7 +30,7 @@ struct LabSidebar: View {
             VStack(alignment: .leading, spacing: 2) {
                 ForEach(Workspace.ordered) { room in
                     // A card that's in says so beside Import.
-                    RoomRow(room: room, on: lab.workspace == room, trailing: room == .importer ? lab.importer.cards.first?.name : nil) { lab.show(room) }
+                    RoomRow(room: room, on: lab.workspace.listed(as: room), trailing: room == .importer ? lab.importer.cards.first?.name : nil) { lab.show(room) }
                 }
             }
             .padding(.horizontal, 10)

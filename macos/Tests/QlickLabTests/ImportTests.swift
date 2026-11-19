@@ -337,7 +337,8 @@ final class ImportWordsTests: XCTestCase {
 
     func testImportIsARoomWithItsOwnKeyAndTheOthersKeepTheirs() {
         XCTAssertEqual(Workspace.ordered.first, .importer)
-        XCTAssertEqual(Set(Workspace.ordered), Set(Workspace.allCases))
+        // Films and papers are one room, Stocks: papers is reached from inside it.
+        XCTAssertEqual(Set(Workspace.ordered), Set(Workspace.allCases).subtracting([.papers]))
         XCTAssertEqual(Workspace.importer.key, "0")
         XCTAssertEqual([Workspace.library, .contactSheet, .develop, .compare, .recipes, .films, .papers].map(\.key), ["1", "2", "3", "4", "5", "6", "7"])
     }

@@ -13,7 +13,7 @@ enum ControlHelp {
 
     private static let paths: [String: String] = [
         // Prep: white balance and brightness
-        "io.raw_white_balance.mode": "How the RAW’s colours are balanced before the film. As Shot uses the camera’s setting; Daylight and Tungsten balance for that light; Custom sets temperature and tint. Presets set it too, as they do in the Python app.",
+        "io.raw_white_balance.mode": "How the RAW’s colours are balanced before the film. As Shot uses the camera’s setting; Daylight and Tungsten balance for that light; Custom sets temperature and tint. Recipes set it too, as they do in the Python app.",
         "io.raw_white_balance.temperature": "The colour of the light to balance for, in kelvin. Lower makes the photograph cooler, higher warmer; 6504 K is Daylight.",
         "io.raw_white_balance.tint": "1 is neutral. Higher is greener, lower more magenta.",
         "camera.auto_exposure_method": "Which part of the photograph the meter reads. Average and Median read the whole frame; Center-Weighted, Partial and Multi-Zone favour the centre; Matrix weighs a 5 × 5 grid; Highlight-Weighted favours bright areas, to keep them from clipping.",
