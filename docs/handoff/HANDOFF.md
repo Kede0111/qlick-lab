@@ -93,26 +93,19 @@ the pencil replaces the checkbox at Import (crossed = not imported); start with 
   - Grid in the contact sheet room has the sheet's own bar (`SheetToolbar`), so the view switcher never moves.
   - File Names: Off / On the Edge / Under the Frame (`SheetOptions.fileNames`, menu in the sheet's bar): classic,
     compact, detail and Develop's film strip. Not yet: Compare, the Import grid, the editor's Grid cells.
-- [x] **0.2** (on `feature/import-library`):
-  - One counter: `ImportModeCards` (Copy to My Disk / Move / Leave Where They Are) head the panel; a card offers
-    only Copy. `LabState.importFolders` opens the Import room on a single folder with Leave Where They Are and the
-    project chosen (several folders at once are still added directly). `ImportOptions.projectID` keeps the project
-    by identity (`ImportSession.chosenProject`, `choose(project:)`). Profiles are called Lab Orders in the interface
-    (still `profiles` in code and in `qlick.importProfiles`; not yet moved into the catalogue).
-  - Back / Forward ⌘[ ⌘] in the Lab menu: `LabState.Place` (room + folder), noted by `show`, `open(folder:)`,
-    `follow(mode:)`. The window title is the trail Project › Roll › file. Not yet: clickable crumbs.
-  - The pencil only at Import: crossed out = not imported (`excluded` and the checkbox are gone; I, the bar's
-    buttons and the loupe's button cross or lift the cross; bursts cross all but the first).
-  - Left for later: Lab Orders kept in the catalogue rather than the app's preferences.
+- [ ] **0.2**: one Import counter (Copy to my disk / Move / Leave where they are), every entry point opens it
+  (`LabState.importFolders` goes through `ImportSession`); project kept by UUID not name; Lab Orders in the catalogue;
+  the pencil instead of checkboxes; breadcrumb in the title bar with Back/Forward ⌘[ ⌘].
 - [ ] **0.3**: Binder (disk roots, live tree); living projects (move rolls, `.qlickroll` card); Selections; the contact
   sheet reads a list of photos (no symlink folder); Import reuses the contact sheet's grid, loupe and compare.
 
 ## Current state
 
-- Phase: architecture waves 1–3 on `refactor/architecture`, merged into `feature/import-library`, which also has
-  0.1.5 and 0.2 (local, nothing pushed). Quentin tries them in Qlick Lab Dev.
-- Next: 0.3 (Binder, living projects with `.qlickroll`, Selections, the sheet reading a list of photos, Import on
-  the contact sheet's grid). Architecture leftovers on `refactor/architecture` (see wave 3 notes above).
+- Phase: architecture waves 1–3 on `refactor/architecture`; 0.1.5 on `feature/import-library`, which has wave 3
+  merged in (local, nothing pushed). Quentin is trying 0.1.5 in Qlick Lab Dev.
+- Next: 0.2 on `feature/import-library` (one Import counter, breadcrumb ⌘[ ⌘]). Architecture leftovers (EditorModel
+  step 2, the other typed replies, the last concurrency warning, Swift 6 mode) go on `refactor/architecture`, then
+  merge it into `feature/import-library` again.
 
 ## Build and test
 

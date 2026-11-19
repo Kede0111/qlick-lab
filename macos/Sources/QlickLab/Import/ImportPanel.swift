@@ -132,6 +132,7 @@ struct ImportPanel: View {
                         PanelToggle("Check every copy", isOn: $session.options.verify, help: "Reads each copy back from the disk and compares it with its original (SHA-256). Slower, and the only way to know.")
                     }
                     PanelToggle("Leave out what’s already imported", isOn: $session.options.skipDuplicates, help: "Photographs this catalog imported before, known by name, size and capture time")
+                    PanelToggle("Leave out the frames crossed out", isOn: $session.options.skipRejected, help: "A cross here means the frame isn’t imported")
                     if session.frames.contains(where: { $0.companion != nil }) {
                         HStack {
                             Text("RAW + JPEG").font(.system(size: 11.5)).foregroundStyle(Color(white: 0.8))
