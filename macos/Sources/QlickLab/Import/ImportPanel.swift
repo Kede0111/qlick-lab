@@ -104,7 +104,7 @@ struct ImportPanel: View {
                         Menu {
                             Button("No Project") { session.options.project = "" }
                             Divider()
-                            ForEach(model.lab.projects.projects) { project in Button(project.name) { session.options.project = project.name } }
+                            ForEach(model.lab.projects.ordinary) { project in Button(project.name) { session.options.project = project.name } }
                         } label: { Image(systemName: "chevron.down").font(.system(size: 10, weight: .semibold)) }
                             .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
                     }

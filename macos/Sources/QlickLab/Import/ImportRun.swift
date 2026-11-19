@@ -275,12 +275,13 @@ extension ImportSession {
         model.labWatchSaving()
     }
 
-    /// The folders photographs arrived in become rolls of the project named (made if it isn't there).
+    /// The folders photographs arrived in become rolls of the project named (made if it isn't there). Without a
+    /// name they go to Arrivals, so nothing imported is ever left outside the library.
     private func addRolls(_ folders: [URL], project name: String) {
         let name = name.trimmingCharacters(in: .whitespaces)
-        guard !name.isEmpty, !folders.isEmpty else { return }
+        guard !folders.isEmpty else { return }
         let projects = model.lab.projects
-        let project = projects.projects.first { $0.name.caseInsensitiveCompare(name) == .orderedSame } ?? projects.create(named: name)
+        let project = name.isEmpty ? projects.arrivalsBox() : projects.project(named: name) ?? projects.create(named: name)
         let had = Set(project.rolls.map(\.folder))
         let new = folders.filter { !had.contains($0.standardizedFileURL.path) }
         guard !new.isEmpty else { return }
@@ -381,7 +382,7 @@ extension ImportSession {
                     run.added(frame.id, failure: failure)
                 }
                 // The project is there, and grows, while the photographs are taken in.
-                if !project.isEmpty { addRolls(run.folders, project: project) }
+                addRolls(run.folders, project: project)
                 await Task.yield()
             }
             // Written in the background: the lab shows what's queued, so the photographs can be worked on now.
@@ -396,8 +397,6 @@ extension ImportSession {
             model.library.refreshNow()
             model.library.reload(added)
             model.lab.projects.countAll()
-            // Without a project's name, the lab asks for one.
-            if project.isEmpty, !run.folders.isEmpty { model.lab.importFolders(run.folders) }
             importedNow()
             if NSApp?.isActive == false { NSApp.requestUserAttention(.informationalRequest) }
         }
@@ -407,7 +406,8 @@ extension ImportSession {
     func openImported() {
         guard let run, let first = run.folders.first else { return }
         let name = options.project.trimmingCharacters(in: .whitespaces)
-        if run.folders.count > 1, let project = model.lab.projects.projects.first(where: { $0.name.caseInsensitiveCompare(name) == .orderedSame }) {
+        let projects = model.lab.projects
+        if run.folders.count > 1, let project = name.isEmpty ? projects.arrivals : projects.project(named: name) {
             model.lab.openWhole(project)
         } else {
             model.lab.open(folder: first)

@@ -35,8 +35,8 @@ struct LibraryHome: View {
             .background(Color(white: 0.04))
             .overlay(alignment: .bottom) { Rectangle().fill(Color.white.opacity(0.06)).frame(height: 1) }
 
-            let results = LibrarySearch.results(query, projects: lab.projects.projects, stats: lab.projects.stats, stocks: model.films)
-            if lab.projects.projects.isEmpty {
+            let results = LibrarySearch.results(query, projects: lab.projects.projects.filter { !$0.isArrivals || !$0.rolls.isEmpty }, stats: lab.projects.stats, stocks: model.films)
+            if lab.projects.ordinary.isEmpty && lab.projects.arrivals == nil {
                 LibraryEmpty(model: model)
             } else if results.isEmpty {
                 VStack(spacing: 8) {
@@ -131,14 +131,17 @@ private struct ProjectSection: View {
                         .onExitCommand { renaming = false }
                 } else {
                     Text(project.name).font(Theme.title(20)).foregroundStyle(Theme.paper)
-                        .onTapGesture(count: 2) { name = project.name; renaming = true }
-                        .help("Double-click to rename")
+                        .onTapGesture(count: 2) { if !project.isArrivals { name = project.name; renaming = true } }
+                        .help(project.isArrivals ? "Rolls imported without a project wait here. Move each one to a project from its menu."
+                              : "Double-click to rename")
                 }
                 Text(Self.summary(project, stats: lab.projects.stats)).font(Theme.value(11.5)).foregroundStyle(Theme.dim)
                 Spacer()
                 Menu {
-                    Button("Add a Folder…") { lab.importPanel(into: project.id) }
-                    Button("Rename") { name = project.name; renaming = true }
+                    if !project.isArrivals {
+                        Button("Add a Folder…") { lab.importPanel(into: project.id) }
+                        Button("Rename") { name = project.name; renaming = true }
+                    }
                     Button(project.notes.isEmpty ? "Add a Note" : "Edit the Note") { notes = project.notes; editingNotes = true }
                     Divider()
                     Button("Remove the Project from the Catalog…") { lab.removeProject(project) }
@@ -161,7 +164,7 @@ private struct ProjectSection: View {
                 ForEach(rolls) { roll in
                     RollCard(model: model, project: project, roll: roll, reason: reasons[roll.id])
                 }
-                if rolls.count == project.rolls.count {
+                if rolls.count == project.rolls.count, !project.isArrivals {
                     Button { lab.importPanel(into: project.id) } label: {
                         VStack(spacing: 6) {
                             Image(systemName: "plus").font(.system(size: 16, weight: .light))
@@ -243,6 +246,7 @@ private struct RollCard: View {
             Button("Open the Contact Sheet") { lab.open(roll, in: project) }
             Button("Film, Camera and Notes…") { editing = true }
             Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([roll.url]) }
+            RollMoveMenu(lab: lab, project: project, roll: roll)
             Divider()
             Button("Remove the Roll from the Project") { lab.projects.removeRoll(roll.id, from: project.id) }
         }
@@ -308,7 +312,8 @@ private struct RollStrip: View {
 }
 
 /// What a folder can't say of a roll: the film loaded, the camera, notes.
-private struct RollEditor: View {
+/// A roll's name, film, camera and notes, edited in place (the library's roll cards and the sidebar).
+struct RollEditor: View {
     let lab: LabState
     let project: UUID
     @State var roll: LabRoll
@@ -355,5 +360,22 @@ private struct LibraryEmpty: View {
             Button("Import a Folder…") { model.lab.importPanel() }.buttonStyle(QPrimaryButtonStyle())
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+/// Moves a roll to another project, with its card: the library's roll cards and the sidebar's rolls.
+struct RollMoveMenu: View {
+    let lab: LabState
+    let project: LabProject
+    let roll: LabRoll
+
+    var body: some View {
+        let others = lab.projects.ordinary.filter { $0.id != project.id }
+        Menu("Move to Project") {
+            ForEach(others) { other in
+                Button(other.name) { lab.projects.moveRoll(roll.id, from: project.id, to: other.id) }
+            }
+        }
+        .disabled(others.isEmpty)
     }
 }

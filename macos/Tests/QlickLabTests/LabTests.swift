@@ -152,6 +152,39 @@ final class GreasePencilTests: XCTestCase {
         return folder
     }
 
+    func testRollsWithoutAProjectWaitInArrivalsAndMoveWithTheirCard() throws {
+        let store = ProjectStore(directory: root.appendingPathComponent("projects"))
+        let trip = store.create(named: "Arrivals")  // a project of the user's may bear the name
+        XCTAssertNil(store.arrivals)
+        let box = store.arrivalsBox()
+        XCTAssertTrue(box.isArrivals)
+        XCTAssertEqual(store.arrivalsBox().id, box.id, "one Arrivals per catalogue")
+        XCTAssertEqual(store.ordinary.map(\.id), [trip.id])
+        XCTAssertEqual(store.project(named: "arrivals")?.id, trip.id, "a name finds the user's project, never Arrivals")
+
+        let folder = try roll("Card 1", photographs: 2)
+        store.addRolls([folder], to: box.id)
+        store.updateRoll(store.arrivals!.rolls[0].id, in: box.id) { $0.film = "Tri-X" }
+        store.moveRoll(store.arrivals!.rolls[0].id, from: box.id, to: trip.id)
+        XCTAssertTrue(store.arrivals!.rolls.isEmpty)
+
+        let again = ProjectStore(directory: root.appendingPathComponent("projects"))
+        XCTAssertTrue(again.projects.first!.isArrivals, "Arrivals comes first")
+        XCTAssertEqual(again.project(named: "Arrivals")?.rolls.map(\.film), ["Tri-X"])
+    }
+
+    func testAProjectSavedBeforeArrivalsReadsAsAnOrdinaryProject() throws {
+        let directory = root.appendingPathComponent("projects")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let id = UUID()
+        try Data("""
+        {"schema":1,"id":"\(id.uuidString)","name":"Old","notes":"","createdAt":"2026-01-01T00:00:00Z","rolls":[],"archived":false}
+        """.utf8).write(to: directory.appendingPathComponent(id.uuidString + ".json"))
+        let store = ProjectStore(directory: directory)
+        XCTAssertEqual(store.ordinary.map(\.name), ["Old"])
+        XCTAssertNil(store.arrivals)
+    }
+
     func testAProjectKeepsItsRollsBetweenLaunchesAndNeverTouchesTheFiles() throws {
         let store = ProjectStore(directory: root.appendingPathComponent("projects"))
         let project = store.create(named: "Provence 2026")

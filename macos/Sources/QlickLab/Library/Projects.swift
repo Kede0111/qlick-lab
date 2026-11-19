@@ -30,6 +30,16 @@ struct LabProject: Codable, Identifiable, Hashable, Sendable {
     var createdAt = Date()
     var rolls: [LabRoll] = []
     var archived = false
+    /// Nil for an ordinary project. A file without the key (every catalogue before 0.1.5) reads as one.
+    var kind: Kind? = nil
+
+    enum Kind: String, Codable, Sendable {
+        /// The box where rolls imported without a project wait to be filed, like the tray of envelopes back from the
+        /// lab. One per catalogue, made the first time something lands in it.
+        case arrivals
+    }
+
+    var isArrivals: Bool { kind == .arrivals }
 }
 
 /// What a roll holds, counted from its folder and sidecars.
@@ -80,7 +90,8 @@ struct RollStats: Equatable, Sendable {
             .compactMap { try? decoder.decode(LabProject.self, from: Data(contentsOf: $0)) }
             // A newer schema is left alone, never written over.
             .filter { $0.schema <= LabProject.schema }
-            .sorted { $0.createdAt < $1.createdAt }
+            // Arrivals first, then the projects in the order they were made.
+            .sorted { ($0.isArrivals ? 0 : 1, $0.createdAt) < ($1.isArrivals ? 0 : 1, $1.createdAt) }
     }
 
     private func file(_ id: UUID) -> URL { directory.appendingPathComponent(id.uuidString + ".json") }
@@ -102,6 +113,26 @@ struct RollStats: Equatable, Sendable {
 
     // MARK: Projects
 
+    /// The projects the user made: every project but Arrivals.
+    var ordinary: [LabProject] { projects.filter { !$0.isArrivals } }
+
+    /// Arrivals, if anything has landed in it yet.
+    var arrivals: LabProject? { projects.first(where: \.isArrivals) }
+
+    /// An ordinary project by its name, ignoring case.
+    func project(named name: String) -> LabProject? {
+        ordinary.first { $0.name.caseInsensitiveCompare(name) == .orderedSame }
+    }
+
+    /// Arrivals, made if it isn't there yet.
+    func arrivalsBox() -> LabProject {
+        if let arrivals { return arrivals }
+        let box = LabProject(name: "Arrivals", kind: .arrivals)
+        projects.insert(box, at: 0)
+        save(box)
+        return box
+    }
+
     @discardableResult func create(named name: String) -> LabProject {
         let project = LabProject(name: uniqueName(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "New Project" : name))
         projects.append(project)
@@ -110,7 +141,7 @@ struct RollStats: Equatable, Sendable {
     }
 
     func uniqueName(_ name: String) -> String {
-        let taken = Set(projects.map { $0.name.lowercased() })
+        let taken = Set(ordinary.map { $0.name.lowercased() })
         guard taken.contains(name.lowercased()) else { return name }
         var n = 2
         while taken.contains("\(name) \(n)".lowercased()) { n += 1 }
@@ -170,6 +201,17 @@ struct RollStats: Equatable, Sendable {
             guard let index = project.rolls.firstIndex(where: { $0.id == roll }) else { return }
             change(&project.rolls[index])
         }
+    }
+
+    /// Moves a roll from one project to another, with its card (film, camera, notes). If the other project already
+    /// has the folder, the roll only leaves the first.
+    func moveRoll(_ roll: UUID, from source: UUID, to target: UUID) {
+        guard source != target, let moving = projects.first(where: { $0.id == source })?.rolls.first(where: { $0.id == roll }),
+              projects.contains(where: { $0.id == target }) else { return }
+        update(target) { project in
+            if !project.rolls.contains(where: { $0.folder == moving.folder }) { project.rolls.append(moving) }
+        }
+        update(source) { $0.rolls.removeAll { $0.id == roll } }
     }
 
     func removeRoll(_ roll: UUID, from project: UUID) {

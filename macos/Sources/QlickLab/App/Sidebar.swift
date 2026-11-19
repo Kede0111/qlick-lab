@@ -36,6 +36,19 @@ struct LabSidebar: View {
             .padding(.horizontal, 10)
             .padding(.top, 6)
 
+            if let arrivals = lab.projects.arrivals, !arrivals.rolls.isEmpty {
+                VStack(alignment: .leading, spacing: 1) {
+                    let current = lab.current
+                    let open = expanded.contains(arrivals.id) || (current?.project.id == arrivals.id && !folded.contains(arrivals.id))
+                    ProjectRows(model: model, project: arrivals, currentRoll: current?.roll.id, open: open) {
+                        if open { expanded.remove(arrivals.id); folded.insert(arrivals.id) }
+                        else { expanded.insert(arrivals.id); folded.remove(arrivals.id) }
+                    }
+                }
+                .padding(.horizontal, 10)
+                .padding(.top, 14)
+            }
+
             HStack {
                 CapsLabel("Projects")
                 Spacer()
@@ -51,7 +64,7 @@ struct LabSidebar: View {
             ScrollView(.vertical) {
                 VStack(alignment: .leading, spacing: 1) {
                     let current = lab.current
-                    ForEach(lab.projects.projects) { project in
+                    ForEach(lab.projects.ordinary) { project in
                         // The project being worked on unfolds by itself, unless it was folded by hand.
                         let open = expanded.contains(project.id) || (current?.project.id == project.id && !folded.contains(project.id))
                         ProjectRows(model: model, project: project, currentRoll: current?.roll.id, open: open) {
@@ -59,7 +72,7 @@ struct LabSidebar: View {
                             else { expanded.insert(project.id); folded.remove(project.id) }
                         }
                     }
-                    if lab.projects.projects.isEmpty {
+                    if lab.projects.ordinary.isEmpty && lab.projects.arrivals == nil {
                         Text("Drop a folder of photographs here to make a project.")
                             .font(.system(size: 11.5)).foregroundStyle(Theme.dim)
                             .fixedSize(horizontal: false, vertical: true)
@@ -158,7 +171,8 @@ private struct ProjectRows: View {
                 HStack(spacing: 6) {
                     Text(project.name).font(.system(size: 12.5, weight: shown ? .semibold : .medium)).foregroundStyle(shown ? Theme.paper : Color(white: 0.86)).lineLimit(1)
                     Spacer(minLength: 4)
-                    Text("\(project.rolls.count)").font(Theme.value(11)).foregroundStyle(Theme.faint)
+                    Text("\(project.rolls.count)").font(Theme.value(11, weight: project.isArrivals ? .semibold : .regular))
+                        .foregroundStyle(project.isArrivals ? Theme.accent : Theme.faint)
                 }
                 .padding(.trailing, 8)
                 .frame(height: 27)
@@ -168,23 +182,46 @@ private struct ProjectRows: View {
         }
         .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(Color.white.opacity(dropping ? 0.12 : shown ? 0.08 : hovered ? 0.05 : 0)))
         .onHover { hovered = $0 }
-        .onDrop(of: [.fileURL], isTargeted: $dropping) { providers in LabDrop.load(providers) { lab.importFolders($0, into: project.id) } }
+        .onDrop(of: [.fileURL], isTargeted: $dropping) { providers in
+            LabDrop.load(providers) { project.isArrivals ? lab.importFolders($0) : lab.importFolders($0, into: project.id) }
+        }
+        .help(project.isArrivals ? "Rolls imported without a project. Move each one to a project from its menu." : "")
         .contextMenu {
             Button("Show All Its Photographs") { lab.openWhole(project) }
-            Button("Add a Folder…") { lab.importPanel(into: project.id) }
-            Divider()
-            Button("Remove the Project from the Catalog…") { lab.removeProject(project) }
+            if !project.isArrivals {
+                Button("Add a Folder…") { lab.importPanel(into: project.id) }
+                Divider()
+                Button("Remove the Project from the Catalog…") { lab.removeProject(project) }
+            }
         }
         if open {
             ForEach(project.rolls) { roll in
-                RollRow(roll: roll, stats: lab.projects.stats[roll.id], on: roll.id == currentRoll) { lab.open(roll, in: project) }
-                    .contextMenu {
-                        Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([roll.url]) }
-                        Divider()
-                        Button("Remove the Roll from the Project") { lab.projects.removeRoll(roll.id, from: project.id) }
-                    }
+                SidebarRoll(model: model, project: project, roll: roll, on: roll.id == currentRoll)
             }
         }
+    }
+}
+
+/// A roll in the sidebar, with what can be done to it from there: its card, moving it, removing it.
+private struct SidebarRoll: View {
+    let model: EditorModel
+    let project: LabProject
+    let roll: LabRoll
+    let on: Bool
+    @State private var editing = false
+
+    private var lab: LabState { model.lab }
+
+    var body: some View {
+        RollRow(roll: roll, stats: lab.projects.stats[roll.id], on: on) { lab.open(roll, in: project) }
+            .popover(isPresented: $editing, arrowEdge: .trailing) { RollEditor(lab: lab, project: project.id, roll: roll) }
+            .contextMenu {
+                Button("Rename, Film, Camera and Notes…") { editing = true }
+                RollMoveMenu(lab: lab, project: project, roll: roll)
+                Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([roll.url]) }
+                Divider()
+                Button("Remove the Roll from the Project") { lab.projects.removeRoll(roll.id, from: project.id) }
+            }
     }
 }
 
