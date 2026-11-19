@@ -166,6 +166,8 @@ struct SheetOptions: Codable, Equatable, Sendable {
         let id = UUID()
         var name: String
         var folders: [URL] = []
+        /// A new selection rather than a project, holding these frames.
+        var frames: [URL]? = nil
     }
 
     /// Comparaison's panes, and the helper that develops for it and for the loupe.
@@ -252,7 +254,8 @@ struct SheetOptions: Codable, Equatable, Sendable {
             folder = [Crumb(text: current.project.name, target: .project(current.project.id)),
                       Crumb(text: current.roll.name, target: .roll(current.roll.id, in: current.project.id))]
         } else if let whole = wholeProject {
-            folder = [Crumb(text: whole.name, target: .project(whole.id)), Crumb(text: "All Rolls")]
+            folder = whole.isSelection ? [Crumb(text: whole.name, target: .project(whole.id))]
+                : [Crumb(text: whole.name, target: .project(whole.id)), Crumb(text: "All Rolls")]
         } else if let directory = model.library.directory {
             folder = [Crumb(text: directory.lastPathComponent)]
         }
@@ -324,7 +327,8 @@ struct SheetOptions: Codable, Equatable, Sendable {
         walking = true
         defer { walking = false }
         if let folder = target.folder, folder != model.library.directory?.standardizedFileURL {
-            guard FileManager.default.fileExists(atPath: folder.path) else {
+            if let project = projects.project(viewFolder: folder) { _ = projects.viewFolder(for: project) }
+            guard PhotoFolder.isList(folder) || FileManager.default.fileExists(atPath: folder.path) else {
                 // The folder went (a card taken out): that place is skipped.
                 places.remove(at: index)
                 if placeIndex > index { placeIndex -= 1 }
@@ -344,6 +348,7 @@ struct SheetOptions: Codable, Equatable, Sendable {
     /// Removes a project from the catalogue, once asked. Its photographs and their sidecars stay where they are;
     /// its contact sheet closes, its previews leave the cache and the import forgets it, so it can come back whole.
     func removeProject(_ project: LabProject) {
+        if project.isSelection { return removeSelection(project) }
         Task {
             let answer = await model.ask(AppAlert(
                 title: "Remove “\(project.name)” from the catalog?",
@@ -357,15 +362,6 @@ struct SheetOptions: Codable, Equatable, Sendable {
             let showing = wholeProject?.id == project.id || folders.contains { $0.standardizedFileURL.path == open }
             if showing { model.closeFolder() }
             previewBuilder.cancel(); proxyMaker.cancel()
-            // Shown whole, its photographs are reached through its folder of links: their previews are named by
-            // those paths too. Read before the folder goes.
-            let links = projects.directory.appendingPathComponent("Views", isDirectory: true).appendingPathComponent(project.id.uuidString, isDirectory: true)
-            var aliases: [URL: [URL]] = [:]
-            for link in (try? FileManager.default.contentsOfDirectory(at: links, includingPropertiesForKeys: nil)) ?? [] {
-                guard let target = try? FileManager.default.destinationOfSymbolicLink(atPath: link.path) else { continue }
-                let real = URL(fileURLWithPath: target).standardizedFileURL
-                if let folder = folders.first(where: { $0.standardizedFileURL.path == real.path }) { aliases[folder, default: []].append(link) }
-            }
             projects.remove(project.id)
             if showing || workspace == .contactSheet || workspace == .develop { show(.library) }
             // The cache and the import's memory, off the main thread: a disk on the network answers slowly.
@@ -375,29 +371,24 @@ struct SheetOptions: Codable, Equatable, Sendable {
                 for folder in folders {
                     guard let photos = try? PhotoFolder.listing(in: folder).photos else { continue }
                     for photo in photos {
-                        // The photograph as its folder lists it, and as its project's folder of links did.
-                        let places = [photo.url] + (aliases[folder] ?? []).map { $0.appendingPathComponent(photo.url.lastPathComponent) }
-                        for place in places {
-                            archive.removePreview(of: PhotoFile(url: place))
-                            for lens in [false, true] { if let proxy = PreviewStorage.proxyFile(for: photo.url, as: place, lensCorrection: lens) { try? FileManager.default.removeItem(at: proxy) } }
-                        }
+                        archive.removePreview(of: PhotoFile(url: photo.url))
+                        for lens in [false, true] { if let proxy = PreviewStorage.proxyFile(for: photo.url, as: photo.url, lensCorrection: lens) { try? FileManager.default.removeItem(at: proxy) } }
                     }
                 }
             }
         }
     }
 
-    /// Opens every roll of a project on one contact sheet.
+    /// Opens every roll of a project, or a selection's frames, on one contact sheet.
     func openWhole(_ project: LabProject) {
-        guard !project.rolls.isEmpty else { return show(.library) }
-        guard let folder = projects.viewFolder(for: project) else {
-            model.error = "The project “\(project.name)” couldn’t be opened."
-            return
+        guard project.isSelection ? !(project.frames ?? []).isEmpty : !project.rolls.isEmpty else {
+            if project.isSelection { model.error = "“\(project.name)” is empty. Put frames in it from a contact sheet: right-click › Add to Selection." }
+            return show(.library)
         }
-        // Listed again, in case the project's rolls changed since.
+        let folder = projects.viewFolder(for: project)
+        // Listed again, in case the project's rolls or the selection's frames changed since.
         if model.library.directory?.standardizedFileURL.path == folder.standardizedFileURL.path { model.library.refreshNow() }
         open(folder: folder)
-        model.libraryRoot = folder
     }
 
     /// Opens a roll on its contact sheet.
@@ -413,7 +404,8 @@ struct SheetOptions: Codable, Equatable, Sendable {
         guard !model.cropping else { NSSound.beep(); return }
         loupe = nil
         if model.library.directory?.standardizedFileURL.path != folder.standardizedFileURL.path || model.source == nil {
-            model.open(folder)
+            // A whole project or a selection is a list of photographs, not a folder on disk.
+            if PhotoFolder.isList(folder) { model.openList(folder) } else { model.open(folder) }
         } else if model.mode != .grid {
             model.showGrid()
         }
@@ -457,6 +449,11 @@ struct SheetOptions: Codable, Equatable, Sendable {
 
     func finishNaming(_ naming: ProjectNaming) {
         self.naming = nil
+        if let frames = naming.frames {
+            let selection = projects.createSelection(named: naming.name, frames: frames)
+            if frames.isEmpty { return }
+            return selectionChanged(selection.id)
+        }
         let project = projects.create(named: naming.name)
         if !naming.folders.isEmpty { add(naming.folders, to: project.id) }
     }

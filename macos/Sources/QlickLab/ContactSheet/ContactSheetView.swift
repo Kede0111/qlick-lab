@@ -192,7 +192,7 @@ import SwiftUI
             heading.notes = current.roll.notes
         } else if let whole = lab.wholeProject {
             heading.title = whole.name
-            heading.subtitle = "\(whole.rolls.count) roll\(whole.rolls.count == 1 ? "" : "s")"
+            heading.subtitle = whole.isSelection ? "Selection" : "\(whole.rolls.count) roll\(whole.rolls.count == 1 ? "" : "s")"
             heading.notes = whole.notes
         } else {
             heading.title = model.library.directory?.lastPathComponent ?? ""
@@ -706,6 +706,7 @@ import SwiftUI
         add("Open in Develop", #selector(develop), key: keys.key(.develop))
         add("See Larger", #selector(loupe), key: keys.key(.loupe))
         add(count > 1 ? "Compare the \(count) Frames" : "Compare with the Next", #selector(compare), key: keys.key(.compare))
+        for entry in sheet.lab.selectionItems(for: sheet.lab.selectionTargets) { menu.addItem(entry) }
         menu.addItem(.separator())
         add("Copy Edits", #selector(copyEdits), enabled: model.canCopyEdits)
         add("Paste Edits" + several, #selector(pasteEdits), enabled: model.canPasteEdits)

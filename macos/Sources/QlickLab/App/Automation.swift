@@ -91,6 +91,16 @@ import AppKit
             guard words.count >= 2 else { break }
             let url = URL(fileURLWithPath: words.dropFirst().joined(separator: " "), isDirectory: true)
             if words[0] == "add" { lab.binder.add(url) } else { lab.binder.remove(url.standardizedFileURL) }
+        // selection new <name> | add <name> | remove | open <name>: the sheet's selected frames.
+        case "selection":
+            let name = words.dropFirst().joined(separator: " ")
+            switch words.first {
+            case "new": let made = lab.projects.createSelection(named: name, frames: lab.selectionTargets); lab.selectionChanged(made.id)
+            case "add": if let selection = lab.projects.selections.first(where: { $0.name == name }) { lab.addToSelection(selection.id, frames: lab.selectionTargets) }
+            case "remove": lab.removeFromOpenSelection(lab.selectionTargets)
+            case "open": if let selection = lab.projects.selections.first(where: { $0.name == name }) { lab.openWhole(selection) }
+            default: break
+            }
         case "back": lab.goBack()
         case "forward": lab.goForward()
         // import <what> …: the import room without the mouse.

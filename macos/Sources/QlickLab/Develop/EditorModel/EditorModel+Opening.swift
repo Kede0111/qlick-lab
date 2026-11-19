@@ -65,6 +65,19 @@ extension EditorModel {
         open(url, restoring: nil)
     }
 
+    /// Qlick Lab: a list of photographs from several folders (a whole project, a selection: `PhotoFolder.register`),
+    /// opened in the grid on its first photograph, the library listing the list.
+    func openList(_ list: URL) {
+        guard let first = (try? PhotoFolder.listing(in: list))?.photos.first?.url else {
+            error = "None of these photographs can be found. Their disk may not be connected."
+            return
+        }
+        open(first)
+        guard source == first else { return }
+        libraryRoot = list
+        showGrid()
+    }
+
     /// Opens a library item: a photograph, or a duplicate of one.
     func open(_ item: URL, restoring session: EditorSession?) {
         let item = session?.variant.map { item.photoFile.variant($0) } ?? item

@@ -44,17 +44,29 @@ enum PhotoFolder {
         try listing(in: directory).photos
     }
 
-    /// Qlick Lab: folders listed with their sub-folders, two levels down (following links): a project's rolls on one
-    /// sheet. Their photographs keep the paths they have in their own folders.
-    nonisolated(unsafe) private static var whole: Set<String> = []
-    private static let wholeLock = NSLock()
-    static func listWhole(_ directory: URL, _ on: Bool) {
-        wholeLock.lock(); defer { wholeLock.unlock() }
-        if on { whole.insert(directory.standardizedFileURL.path) } else { whole.remove(directory.standardizedFileURL.path) }
+    /// Qlick Lab: lists of photographs that aren't one folder: a whole project's rolls, a selection's frames. A list is
+    /// named by a path that needn't exist (`<catalogue>/Views/<id>`, `ProjectStore.listFolder`); its sources are
+    /// folders (every photograph in them, a URL with a directory path) or photographs. Nothing is made on disk.
+    nonisolated(unsafe) private static var lists: [String: [URL]] = [:]
+    private static let listsLock = NSLock()
+    static func register(list: URL, sources: [URL]) {
+        listsLock.lock(); defer { listsLock.unlock() }
+        lists[list.standardizedFileURL.path] = sources
     }
-    static func isWhole(_ directory: URL) -> Bool {
-        wholeLock.lock(); defer { wholeLock.unlock() }
-        return whole.contains(directory.standardizedFileURL.path)
+    static func sources(ofList directory: URL) -> [URL]? {
+        listsLock.lock(); defer { listsLock.unlock() }
+        return lists[directory.standardizedFileURL.path]
+    }
+    static func isList(_ directory: URL) -> Bool { sources(ofList: directory) != nil }
+    /// The folders whose photographs a listing shows: the folder itself, or a list's sources' folders.
+    static func folders(of directory: URL) -> [URL] {
+        guard let sources = sources(ofList: directory) else { return [directory] }
+        var seen: Set<String> = [], folders: [URL] = []
+        for source in sources {
+            let folder = source.hasDirectoryPath ? source : source.deletingLastPathComponent()
+            if seen.insert(folder.standardizedFileURL.path).inserted { folders.append(folder) }
+        }
+        return folders
     }
     /// A photograph's key for its sidecar in a listing: its path.
     static func sidecarKey(_ photo: URL) -> String { photo.path }
@@ -62,20 +74,27 @@ enum PhotoFolder {
     /// The folder's photographs in name order (folder by folder for a whole one), and the sidecars beside them
     /// (by `sidecarKey`), from one directory listing.
     static func listing(in directory: URL) throws -> (photos: [PhotoFile], sidecars: [String: PhotoFile]) {
-        guard isWhole(directory) else { return try listing(in: directory, own: true) }
-        var photos: [PhotoFile] = [], sidecars: [String: PhotoFile] = [:]
-        func walk(_ folder: URL, depth: Int) throws {
-            let own = try listing(in: folder, own: false)
-            photos += own.photos
-            sidecars.merge(own.sidecars) { first, _ in first }
-            guard depth > 0 else { return }
-            let children = (try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles])) ?? []
-            for child in children.map({ $0.resolvingSymlinksInPath() }).sorted(by: { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending })
-            where (try? child.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory == true {
-                try walk(child, depth: depth - 1)
+        guard let sources = sources(ofList: directory) else { return try listing(in: directory, own: true) }
+        // Each folder is listed once, however many of its photographs the list names. A folder gone (a disk not
+        // connected) leaves its photographs out.
+        var listed: [String: (photos: [PhotoFile], sidecars: [String: PhotoFile])] = [:]
+        func folder(_ url: URL) throws -> (photos: [PhotoFile], sidecars: [String: PhotoFile]) {
+            let key = url.standardizedFileURL.path
+            if let known = listed[key] { return known }
+            let read: (photos: [PhotoFile], sidecars: [String: PhotoFile])
+            do { read = try listing(in: url, own: false) } catch is CancellationError { throw CancellationError() } catch { read = ([], [:]) }
+            listed[key] = read
+            return read
+        }
+        var photos: [PhotoFile] = [], sidecars: [String: PhotoFile] = [:], seen: Set<String> = []
+        for source in sources {
+            let listing = try folder(source.hasDirectoryPath ? source : source.deletingLastPathComponent())
+            let chosen = source.hasDirectoryPath ? listing.photos : listing.photos.filter { $0.url.path == source.standardizedFileURL.path }
+            for photo in chosen where seen.insert(photo.url.path).inserted {
+                photos.append(photo)
+                if let sidecar = listing.sidecars[sidecarKey(photo.url)] { sidecars[sidecarKey(photo.url)] = sidecar }
             }
         }
-        try walk(directory, depth: 2)
         return (photos, sidecars)
     }
 
@@ -747,6 +766,7 @@ struct LibraryContextMenu: View {
         Button("Open in Develop") { model.click(item); lab.show(.develop); if model.mode == .grid { model.editCurrent() } }
         Button("See Larger") { model.click(item); lab.loupe = item }
         Button(targets.count > 1 ? "Compare the \(targets.count) Frames" : "Compare with the Next") { lab.compareSelection() }
+        SelectionMenuItems(lab: lab, frames: targets.map(\.photoFile))
         Divider()
         Button("Copy Edits") { model.copyEdits(from: item) }.disabled(!editing)
         Button("Paste Edits" + several) { model.pasteEdits(onto: targets) }.disabled(!editing || model.copiedEdits == nil)

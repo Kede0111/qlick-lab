@@ -32,14 +32,20 @@ struct LabProject: Codable, Identifiable, Hashable, Sendable {
     var archived = false
     /// Nil for an ordinary project. A file without the key (every catalogue before 0.1.5) reads as one.
     var kind: Kind? = nil
+    /// A selection's frames: the photographs' paths, in the order they were put in. Nil for the other kinds.
+    var frames: [String]? = nil
 
     enum Kind: String, Codable, Sendable {
         /// The box where rolls imported without a project wait to be filed, like the tray of envelopes back from the
         /// lab. One per catalogue, made the first time something lands in it.
         case arrivals
+        /// Frames chosen from any rolls (a portfolio, an edit for a client): no folder of its own, the photographs stay
+        /// where they are.
+        case selection
     }
 
     var isArrivals: Bool { kind == .arrivals }
+    var isSelection: Bool { kind == .selection }
 }
 
 /// What a roll holds, counted from its folder and sidecars.
@@ -86,6 +92,8 @@ struct RollStats: Equatable, Sendable {
         let files = (try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)) ?? []
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
+        // The folders of links whole projects were shown through before 0.3: lists need none now. Only the links go.
+        try? FileManager.default.removeItem(at: directory.appendingPathComponent("Views", isDirectory: true))
         projects = files.filter { $0.pathExtension == "json" && $0.lastPathComponent != SavedImportSettings.fileName }
             .compactMap { try? decoder.decode(LabProject.self, from: Data(contentsOf: $0)) }
             // A newer schema is left alone, never written over.
@@ -113,8 +121,11 @@ struct RollStats: Equatable, Sendable {
 
     // MARK: Projects
 
-    /// The projects the user made: every project but Arrivals.
-    var ordinary: [LabProject] { projects.filter { !$0.isArrivals } }
+    /// The projects the user made: every project but Arrivals and the selections.
+    var ordinary: [LabProject] { projects.filter { $0.kind == nil } }
+
+    /// The selections, in the order they were made.
+    var selections: [LabProject] { projects.filter(\.isSelection) }
 
     /// Arrivals, if anything has landed in it yet.
     var arrivals: LabProject? { projects.first(where: \.isArrivals) }
@@ -138,6 +149,40 @@ struct RollStats: Equatable, Sendable {
         projects.append(project)
         save(project)
         return project
+    }
+
+    /// A new selection, holding `frames`.
+    @discardableResult func createSelection(named name: String, frames: [URL] = []) -> LabProject {
+        let taken = Set(selections.map { $0.name.lowercased() })
+        var unique = name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "New Selection" : name
+        if taken.contains(unique.lowercased()) { var n = 2; while taken.contains("\(unique) \(n)".lowercased()) { n += 1 }; unique = "\(unique) \(n)" }
+        let selection = LabProject(name: unique, kind: .selection, frames: Self.paths(frames))
+        projects.append(selection)
+        save(selection)
+        return selection
+    }
+
+    /// Puts frames in a selection, after those it has; a frame already in it stays where it is.
+    func addFrames(_ frames: [URL], to id: UUID) {
+        update(id) { selection in
+            guard selection.isSelection else { return }
+            var list = selection.frames ?? []
+            let known = Set(list)
+            list += Self.paths(frames).filter { !known.contains($0) }
+            selection.frames = list
+        }
+    }
+
+    /// Takes frames out of a selection. The photographs aren't touched.
+    func removeFrames(_ frames: [URL], from id: UUID) {
+        let gone = Set(Self.paths(frames))
+        update(id) { $0.frames?.removeAll { gone.contains($0) } }
+    }
+
+    /// The photographs' own paths, once each: a version (`#variant=`) is its photograph.
+    private static func paths(_ frames: [URL]) -> [String] {
+        var seen: Set<String> = []
+        return frames.map { $0.photoFile.standardizedFileURL.path }.filter { seen.insert($0).inserted }
     }
 
     func uniqueName(_ name: String) -> String {
@@ -258,27 +303,13 @@ struct RollStats: Equatable, Sendable {
 
     // MARK: A whole project
 
-    /// A project's own folder: a link to each of its rolls, listed whole (`PhotoFolder.listWhole`), so its contact
-    /// sheet shows every roll's photographs at their own paths.
-    func viewFolder(for project: LabProject) -> URL? {
+    /// A project's own list (`PhotoFolder.register(list:)`): every roll's photographs, or a selection's frames, on one
+    /// sheet at their own paths. Named `<catalogue>/Views/<id>`, which is never made on disk.
+    func viewFolder(for project: LabProject) -> URL {
         let folder = directory.appendingPathComponent("Views", isDirectory: true).appendingPathComponent(project.id.uuidString, isDirectory: true)
-        let fm = FileManager.default
-        do {
-            try? fm.removeItem(at: folder)
-            try fm.createDirectory(at: folder, withIntermediateDirectories: true)
-            var used: Set<String> = []
-            for (index, roll) in project.rolls.enumerated() {
-                guard let target = resolve(roll, in: project.id) else { continue }
-                // In the project's order: the links sort as the rolls are listed.
-                var name = String(format: "%03d ", index) + roll.name.replacingOccurrences(of: "/", with: "-")
-                while used.contains(name) { name += " +" }
-                used.insert(name)
-                try fm.createSymbolicLink(at: folder.appendingPathComponent(name), withDestinationURL: target)
-            }
-        } catch {
-            return nil
-        }
-        PhotoFolder.listWhole(folder, true)
+        let sources = project.isSelection ? (project.frames ?? []).map { URL(fileURLWithPath: $0, isDirectory: false) }
+            : project.rolls.compactMap { roll in resolve(roll, in: project.id).map { URL(fileURLWithPath: $0.path, isDirectory: true) } }
+        PhotoFolder.register(list: folder, sources: sources)
         return folder
     }
 

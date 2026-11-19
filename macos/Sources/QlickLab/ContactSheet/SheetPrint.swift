@@ -142,6 +142,10 @@ struct SheetPagination: Equatable {
             heading.title = current.roll.name
             heading.subtitle = [current.project.name, current.roll.film, current.roll.camera].filter { !$0.isEmpty }.joined(separator: "  ·  ")
             heading.notes = current.roll.notes
+        } else if let whole = lab.wholeProject {
+            heading.title = whole.name
+            heading.subtitle = whole.isSelection ? "Selection" : "\(whole.rolls.count) roll\(whole.rolls.count == 1 ? "" : "s")"
+            heading.notes = whole.notes
         } else {
             heading.title = model.library.directory?.lastPathComponent ?? "Contact Sheet"
         }

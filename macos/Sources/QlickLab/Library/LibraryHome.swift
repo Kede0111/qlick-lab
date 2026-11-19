@@ -35,7 +35,7 @@ struct LibraryHome: View {
             .background(Color(white: 0.04))
             .overlay(alignment: .bottom) { Rectangle().fill(Color.white.opacity(0.06)).frame(height: 1) }
 
-            let results = LibrarySearch.results(query, projects: lab.projects.projects.filter { !$0.isArrivals || !$0.rolls.isEmpty }, stats: lab.projects.stats, stocks: model.films)
+            let results = LibrarySearch.results(query, projects: lab.projects.projects.filter { !$0.isSelection && (!$0.isArrivals || !$0.rolls.isEmpty) }, stats: lab.projects.stats, stocks: model.films)
             if lab.projects.ordinary.isEmpty && lab.projects.arrivals == nil {
                 LibraryEmpty(model: model)
             } else if results.isEmpty {

@@ -331,10 +331,11 @@ struct LibraryFilter: Codable, Equatable, Sendable {
         let (requests, continuation) = AsyncStream<Void>.makeStream(bufferingPolicy: .bufferingNewest(1))
         rescans[id] = continuation
         // Armed before the first listing, so arrivals during it aren't missed.
-        let watcher = PhotoFolderWatcher(directory: directory)
-        let forward = watcher.map { watcher in Task { for await _ in watcher.changes { continuation.yield(()) } } }
+        // Qlick Lab: a list (a whole project, a selection) follows each of its folders.
+        let watchers = PhotoFolder.folders(of: directory).compactMap { PhotoFolderWatcher(directory: $0) }
+        let forwards = watchers.map { watcher in Task { for await _ in watcher.changes { continuation.yield(()) } } }
         defer {
-            watcher?.stop(); forward?.cancel(); continuation.finish()
+            watchers.forEach { $0.stop() }; forwards.forEach { $0.cancel() }; continuation.finish()
             rescans[id] = nil
         }
         await refresh(directory)
@@ -350,7 +351,7 @@ struct LibraryFilter: Codable, Equatable, Sendable {
             if self.directory == directory, files != filesBefore || looks != looksBefore || summaries != summariesBefore { looksChanged?() }
         }
         let scan = Task.detached(priority: .utility) {
-            (try PhotoFolder.listing(in: directory), !PhotoLibrary.canWrite(in: directory))
+            (try PhotoFolder.listing(in: directory), !PhotoFolder.folders(of: directory).allSatisfy { PhotoLibrary.canWrite(in: $0) })
         }
         let listing: (photos: [PhotoFile], sidecars: [String: PhotoFile]), readOnly: Bool
         do {

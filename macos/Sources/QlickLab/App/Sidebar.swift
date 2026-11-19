@@ -78,6 +78,7 @@ struct LabSidebar: View {
                             .fixedSize(horizontal: false, vertical: true)
                             .padding(.horizontal, 10).padding(.top, 4)
                     }
+                    SelectionsSection(model: model)
                     BinderSection(model: model)
                 }
                 .padding(.horizontal, 10)
@@ -288,11 +289,12 @@ struct ProjectNamingSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("New Project").font(Theme.title(17)).foregroundStyle(Theme.paper)
-            Text(naming.folders.isEmpty ? "A project gathers rolls or sessions: folders of photographs, where they are."
+            Text(naming.frames == nil ? "New Project" : "New Selection").font(Theme.title(17)).foregroundStyle(Theme.paper)
+            Text(naming.frames != nil ? "A selection gathers frames from any rolls: a portfolio, an edit to show. The photographs stay where they are."
+                 : naming.folders.isEmpty ? "A project gathers rolls or sessions: folders of photographs, where they are."
                  : "The folders chosen become this project's rolls. Nothing is copied or moved.")
                 .font(.system(size: 12)).foregroundStyle(Theme.dim).fixedSize(horizontal: false, vertical: true)
-            TextField("Project name", text: $naming.name)
+            TextField(naming.frames == nil ? "Project name" : "Selection name", text: $naming.name)
                 .textFieldStyle(.roundedBorder)
                 .focused($focused)
                 .onSubmit(create)
@@ -342,5 +344,65 @@ private struct SidebarWork: View {
     let model: EditorModel
     var body: some View {
         ForEach(BackgroundWork.tasks(model).filter { $0.kind != .importing }) { task in BackgroundTaskRow(task: task) }
+    }
+}
+
+/// The sidebar's selections: frames from any rolls, each on one contact sheet.
+private struct SelectionsSection: View {
+    let model: EditorModel
+    private var lab: LabState { model.lab }
+
+    var body: some View {
+        HStack {
+            CapsLabel("Selections")
+            Spacer()
+            Button { lab.newSelection(with: []) } label: {
+                Image(systemName: "plus").font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.dim).frame(width: 22, height: 22).contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help("New selection")
+        }
+        .padding(.leading, 10).padding(.trailing, 2)
+        .padding(.top, 22).padding(.bottom, 6)
+        if lab.projects.selections.isEmpty {
+            Text("Gather frames from any rolls: right-click them on a contact sheet › Add to Selection.")
+                .font(.system(size: 11.5)).foregroundStyle(Theme.dim)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, 10).padding(.top, 2)
+        }
+        let open = lab.openSelection?.id
+        ForEach(lab.projects.selections) { selection in
+            SelectionRow(name: selection.name, count: selection.frames?.count ?? 0, on: selection.id == open) { lab.openWhole(selection) }
+                .contextMenu {
+                    Button("Show Its Frames") { lab.openWhole(selection) }
+                    Divider()
+                    Button("Remove the Selection…") { lab.removeSelection(selection) }
+                }
+        }
+    }
+}
+
+private struct SelectionRow: View {
+    let name: String
+    let count: Int
+    let on: Bool
+    let action: () -> Void
+    @State private var hovered = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 7) {
+                Image(systemName: "rectangle.stack").font(.system(size: 10.5)).foregroundStyle(on ? Theme.accent : Theme.dim).frame(width: 18)
+                Text(name).font(.system(size: 12.5, weight: on ? .semibold : .medium)).foregroundStyle(on ? Theme.paper : Color(white: 0.86)).lineLimit(1)
+                Spacer(minLength: 4)
+                Text("\(count)").font(Theme.value(11)).foregroundStyle(Theme.faint)
+            }
+            .padding(.leading, 6).padding(.trailing, 8)
+            .frame(height: 27)
+            .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(Color.white.opacity(on ? 0.08 : hovered ? 0.05 : 0)))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovered = $0 }
     }
 }
