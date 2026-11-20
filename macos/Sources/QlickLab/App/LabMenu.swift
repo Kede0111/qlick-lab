@@ -18,7 +18,8 @@ import AppKit
         add("Back", #selector(goBack), "[", .command)
         add("Forward", #selector(goForward), "]", .command)
         menu.addItem(.separator())
-        add("New Project…", #selector(newProject), "n", [.command, .shift])
+        add("New Archive…", #selector(newProject), "n", [.command, .shift])
+        add("New Box…", #selector(newBox), "")
         add("Import a Folder…", #selector(importFolder), "i", [.command, .shift])
         menu.addItem(.separator())
         // The catalog's commands, also in File, where their keys are.
@@ -97,7 +98,8 @@ import AppKit
     }
 
     @objc private func showRoom(_ item: NSMenuItem) { if let room = (item.representedObject as? String).flatMap(Workspace.init) { lab.show(room) } }
-    @objc private func newProject() { lab.naming = LabState.ProjectNaming(name: lab.projects.uniqueName("New Project")); if lab.workspace == .develop { lab.show(.library) } }
+    @objc private func newProject() { lab.newArchive(); if lab.workspace == .develop { lab.show(.library) } }
+    @objc private func newBox() { lab.newBox(with: lab.workspace == .contactSheet || lab.workspace == .develop ? lab.selectionTargets : []) }
     @objc private func importFolder() { lab.importPanel() }
     @objc private func goBack() { lab.goBack() }
     @objc private func goForward() { lab.goForward() }

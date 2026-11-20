@@ -158,8 +158,8 @@ private final class ImportMailbox: @unchecked Sendable {
 }
 
 extension ImportSession {
-    /// The project the import's options name: by its identity first, so a renamed project is still found, then by
-    /// name. Nil for a name no project has yet (the import makes it) and for none (Arrivals).
+    /// The Archive the import's options name: by its identity first, so a renamed Archive is still found, then by
+    /// name. Nil for a name no Archive has yet (the import makes it) and for none (“To Sort”).
     var chosenProject: LabProject? {
         let projects = model.lab.projects
         if let id = options.projectID, let project = projects.ordinary.first(where: { $0.id == id }) { return project }
@@ -167,7 +167,7 @@ extension ImportSession {
         return name.isEmpty ? nil : projects.project(named: name)
     }
 
-    /// Chooses a project for the import, by identity.
+    /// Chooses an Archive for the import, by identity.
     func choose(project: LabProject?) {
         options.project = project?.name ?? ""
         options.projectID = project?.id
@@ -290,13 +290,13 @@ extension ImportSession {
         model.labWatchSaving()
     }
 
-    /// The folders photographs arrived in become rolls of the project named (made if it isn't there). Without a
-    /// name they go to Arrivals, so nothing imported is ever left outside the library.
+    /// The folders photographs arrived in become Folders of the Archive named (made if it isn't there). Without a
+    /// name they go to the Archive “To Sort”, so nothing imported is ever left outside the library.
     private func addRolls(_ folders: [URL], project name: String) {
         let name = name.trimmingCharacters(in: .whitespaces)
         guard !folders.isEmpty else { return }
         let projects = model.lab.projects
-        let project = name.isEmpty ? projects.arrivalsBox() : chosenProject ?? projects.create(named: name)
+        let project = name.isEmpty ? projects.toSort() : chosenProject ?? projects.create(named: name)
         let had = Set(project.rolls.map(\.folder))
         let new = folders.filter { !had.contains($0.standardizedFileURL.path) }
         guard !new.isEmpty else { return }
@@ -422,7 +422,7 @@ extension ImportSession {
         guard let run, let first = run.folders.first else { return }
         let name = options.project.trimmingCharacters(in: .whitespaces)
         let projects = model.lab.projects
-        if run.folders.count > 1, let project = name.isEmpty ? projects.arrivals : chosenProject {
+        if run.folders.count > 1, let project = name.isEmpty ? projects.project(named: ProjectStore.toSortName) : chosenProject {
             model.lab.openWhole(project)
         } else {
             model.lab.open(folder: first)

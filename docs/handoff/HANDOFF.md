@@ -159,21 +159,22 @@ which creates folders and copies (Move mode: originals of the card to the Trash 
 (2) the explicit Remove dialog below. Writing metadata IS allowed: XMP inside DNG ("Inside DNG files" stays), `.qlick`
 sidecars, import `.xmp`, `Roll.qlickroll` cards.
 
-Structure (sidebar, top to bottom):
+Structure (sidebar, top to bottom; corrected by Quentin 2026-11-20 during R1: Boxes are their own section, not inside
+Archives, and they nest):
 - Fixed entries: **All Photographs**, **Last Import**, **Picks**, **By Date** (year › month › day).
 - **Archives** (was "Project"; name decided: Archive). One per import subject ("Leica M11", "Voyage en Espagne"),
-  renamable. An Archive holds:
-  - its **Folders**: the imported disk locations, shown as a READ-ONLY tree with every sub-folder at every depth
-    (today rolls stop at depth 2), live (FSEvents), with counts. A folder keeps its card (film, camera, notes,
-    `Roll.qlickroll`). Dropping photos on a Folder is refused (row stays dark, a line says the disk is shown as it is).
-    One can work directly in an Archive or a Folder without any Box.
-  - its **Boxes**: virtual containers (catalogue only). A Box holds photos directly and/or **Rolls** (virtual
-    sub-sets, one level: Box › Roll). A photo can be in any number of Boxes/Rolls, from any Archive (references, never
-    copies). **Smart Rolls**: a Roll filled by rules.
+  renamable. An Archive holds only its **Folders**: the imported disk locations, shown as a READ-ONLY tree with every
+  sub-folder at every depth, live (FSEvents), with counts. A folder keeps its card (film, camera, notes,
+  `Roll.qlickroll`). Dropping photos on a Folder is refused (row stays dark, a line says the disk is shown as it is).
+  One can work directly in an Archive or a Folder without any Box.
+- **Boxes**: a second, separate top-level section (like Projects and Binder were): one list of Boxes for the whole
+  catalogue. A Box holds photos directly, **sub-Boxes to any depth** (like collection sets: "Espagne" › "Madrid" ›
+  …), and **Rolls** (a Roll is a leaf holding photos). Opening a Box lists its own photos plus everything under it.
+  A photo can be in any number of Boxes/Rolls, from any Archive (references, never copies). **Smart Rolls**: a Roll
+  filled by rules. Sub-Box from a Box's context menu and its +.
 - Gone: Binder (and its amber dot), Arrivals, Selections, Import's Recent list (replaced by recent Archives' locations).
 - Conversion of old catalogues (once, automatic, nothing on disk moves): Project → Archive; its rolls → Folders;
-  Arrivals → an Archive "To Sort"; each Selection → a Box of the same name (in an Archive "Selections"); Binder roots
-  preference dropped.
+  Arrivals → an Archive "To Sort"; each Selection → a top-level Box of the same name; Binder roots preference dropped.
 
 Gestures (every one undoable with one ⌘Z, a label during the drag says what will happen, e.g. "Move 12 photos to
 Rue" / "Copy 12 photos to Rue"):
@@ -181,8 +182,11 @@ Rue" / "Copy 12 photos to Rue"):
 - Photos from a Roll/Box → another Roll/Box: **MOVED** (leave the first); with **⌥ held: COPIED** (in both). The
   cursor/badge must show which (copy = the green "+" drag cursor and the label "Copy"; move = plain arrow, "Move").
 - **⌘C / ⌘V** between Rolls/Boxes: paste ADDS (never moves).
-- Photos → an Archive row: into its Box "To Sort". Photos in a Box/Roll grid: reorder by hand (manual order).
-- Roll → another Box: moves the Roll. Boxes, Rolls, Archives reorder in the sidebar by drag.
+- Photos → an Archive row: was "into its Box To Sort"; since Boxes are no longer inside Archives, to settle with
+  Quentin in R2. Photos in a Box/Roll grid: reorder by
+  hand (manual order).
+- Archive Folder → a Box: creates a Roll in that Box holding the folder's photos (virtual; `createRoll(frames:)`).
+- Roll → another Box: moves the Roll; Box → another Box: nests it. Boxes, Rolls, Archives reorder in the sidebar by drag.
 - Folder → another Archive: the folder joins that Archive (nothing moves on disk).
 - Finder folder → Archive or window: opens Import on it.
 - Closed rows spring open after 0.7 s while dragging; the sidebar auto-scrolls near its edges.

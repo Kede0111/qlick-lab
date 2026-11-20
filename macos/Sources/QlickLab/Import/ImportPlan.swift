@@ -138,7 +138,7 @@ enum ImportMode: String, Codable, CaseIterable, Sendable {
         switch self {
         case .copy: "Copies the photographs and checks every copy. The source is left as it is."
         case .move: "Copies and checks, then moves the source files to the Trash. Not for memory cards."
-        case .add: "Copies nothing: each folder becomes a roll where it lies."
+        case .add: "Copies nothing: each folder joins the Archive where it lies."
         }
     }
 }
@@ -210,7 +210,7 @@ enum ImportTemplate {
         ("20260919-L1004394", "{date}-{name}"),
         ("20260919_113856", "{date}_{time}"),
     ]
-    static let tokens = ["yyyy", "yy", "mm", "dd", "month", "hh", "min", "ss", "date", "time", "name", "seq", "job", "camera", "lens", "project", "card"]
+    static let tokens = ["yyyy", "yy", "mm", "dd", "month", "hh", "min", "ss", "date", "time", "name", "seq", "job", "camera", "lens", "archive", "card"]
     private static let months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
 
     struct Values {
@@ -259,7 +259,8 @@ enum ImportTemplate {
         case "job": return v.job
         case "camera": return v.camera
         case "lens": return v.lens
-        case "project": return v.project
+        // `{project}`, its name before 0.4, still reads.
+        case "archive", "project": return v.project
         case "card": return v.card
         default: return nil
         }
@@ -290,7 +291,7 @@ enum ImportTemplate {
         var rest = Substring(template)
         while let open = rest.firstIndex(of: "{"), let close = rest[open...].firstIndex(of: "}") {
             let token = rest[rest.index(after: open)..<close].split(separator: ":").first.map(String.init) ?? ""
-            if !tokens.contains(token) { return "“{\(token)}” isn’t a token." }
+            if !tokens.contains(token), token != "project" { return "“{\(token)}” isn’t a token." }
             rest = rest[rest.index(after: close)...]
         }
         if !folders, template.contains("/") { return "A file name can’t contain /." }

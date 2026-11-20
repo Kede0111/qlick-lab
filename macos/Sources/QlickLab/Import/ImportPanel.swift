@@ -36,7 +36,7 @@ struct ImportPanel: View {
                             .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
                         Spacer()
                         Button("Save…") { profileName = currentProfile(session) ?? ""; naming = true }.buttonStyle(QPillButtonStyle())
-                            .help("Keeps every choice of this panel under a name (destination, folders, recipe, project, words), to use them again in one click. They are kept in this catalog.")
+                            .help("Keeps every choice of this panel under a name (destination, folders, recipe, Archive, words), to use them again in one click. They are kept in this catalog.")
                     }
                     if naming {
                         HStack(spacing: 6) {
@@ -102,20 +102,20 @@ struct ImportPanel: View {
 
                 PanelSection("Recipe") { RecipeChooser(model: model) }
 
-                PanelSection("Project") {
+                PanelSection("Archive") {
                     HStack(spacing: 6) {
-                        PanelField("Arrivals", text: Binding(get: { session.chosenProject?.name ?? session.options.project },
+                        PanelField(ProjectStore.toSortName, text: Binding(get: { session.chosenProject?.name ?? session.options.project },
                                                               set: { session.options.project = $0; session.options.projectID = nil }))
                         Menu {
-                            Button("Arrivals (No Project)") { session.choose(project: nil) }
+                            Button("\(ProjectStore.toSortName) (No Archive)") { session.choose(project: nil) }
                             Divider()
                             ForEach(model.lab.projects.ordinary) { project in Button(project.name) { session.choose(project: project) } }
                         } label: { Image(systemName: "chevron.down").font(.system(size: 10, weight: .semibold)) }
                             .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
                     }
                     PanelHint(options.project.trimmingCharacters(in: .whitespaces).isEmpty
-                              ? "Without a project, each folder waits in Arrivals, to be filed later."
-                              : "Each folder of the import becomes a roll of “\(session.chosenProject?.name ?? options.project)”.")
+                              ? "Without an Archive, the photographs go to the Archive “\(ProjectStore.toSortName)”, to be filed later."
+                              : "The folders of the import go in the Archive “\(session.chosenProject?.name ?? options.project)”, as they are on the disk.")
                 }
 
                 PanelSection("Words") {

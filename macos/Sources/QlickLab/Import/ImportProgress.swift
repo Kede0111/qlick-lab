@@ -41,7 +41,7 @@ struct ImportProgressView: View {
                             .help("Waits after the file being copied")
                     }
                     Button("Stop") { session.stop() }.buttonStyle(QPillButtonStyle())
-                        .help(run.adding ? "Stops after the photographs being added. Those added stay in the project."
+                        .help(run.adding ? "Stops after the photographs being added. Those added stay in the Archive."
                                          : "Stops after the file being copied. What’s copied stays, and the rest can be taken up later.")
                 }
             }
@@ -322,7 +322,7 @@ private struct ImportAccount: View {
                     VStack(alignment: .leading, spacing: 3) {
                         if run.adding {
                             Text("\(run.done) \(run.done == 1 ? "photograph" : "photographs") added").font(Theme.title(18)).foregroundStyle(Theme.paper)
-                            Text("in \(ImportRun.duration(run.elapsed)), as \(run.folders.count) \(run.folders.count == 1 ? "roll" : "rolls")\(project.isEmpty ? "" : " of “\(project)”")").font(.system(size: 12.5)).foregroundStyle(Theme.dim)
+                            Text("in \(ImportRun.duration(run.elapsed)), from \(run.folders.count) \(run.folders.count == 1 ? "folder" : "folders")\(project.isEmpty ? "" : ", in “\(project)”")").font(.system(size: 12.5)).foregroundStyle(Theme.dim)
                         } else {
                             Text("\(good) \(good == 1 ? "photograph" : "photographs") copied\(checked ? " and checked" : "")").font(Theme.title(18)).foregroundStyle(Theme.paper)
                             Text("in \(ImportRun.duration(run.elapsed)), to \(run.folders.count) \(run.folders.count == 1 ? "folder" : "folders")").font(.system(size: 12.5)).foregroundStyle(Theme.dim)
@@ -330,7 +330,7 @@ private struct ImportAccount: View {
                     }
                 }
                 if run.stopped, left > 0 {
-                    line(run.adding ? "\(left) not added. Add them again whenever you like: those already in the project are left as they are."
+                    line(run.adding ? "\(left) not added. Add them again whenever you like: those already in the Archive are left as they are."
                                     : "\(left) still to copy. Nothing is lost: take the import up again whenever you like.")
                 }
                 if !run.adding, !run.stopped, run.failed == 0, session.source?.kind == .card {

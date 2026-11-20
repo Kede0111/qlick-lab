@@ -76,9 +76,15 @@ namespace `http://ns.jackfrom.be/qlicklab/1.0/` (`Film`, `Paper`, `WhiteBalance`
 
 ## Related files
 
-- `.qlicklab`: a catalogue (a package of small files: one JSON per project or selection (`kind: "selection"` with
-  `frames`, the photographs' paths), `saved-settings.json` for the import's
-  Saved Settings under the top-level key `qlick`, `import-ledger.jsonl`). `Library/Catalogs.swift`.
-- `Roll.qlickroll`: a roll's card inside the roll's folder, `{"qlick": {"schema": 1, "roll": {"name", "film",
+- `.qlicklab`: a catalogue (a package of small files): one JSON per Archive (`schema` 2: `id`, `name`, `notes`,
+  `createdAt`, `rolls` = its Folders, each `{id, name, folder, bookmark, film, camera, notes, addedAt}`; the folders
+  under them are read from the disk, not stored); `boxes.json`, the Boxes, `{"qlick": {"schema": 1, "boxes": [...]}}`,
+  each Box `{id, name, frames, boxes, rolls, createdAt}` (`frames`: photographs' paths; `boxes`: the Boxes inside it,
+  to any depth; `rolls`: `{id, name, frames, createdAt}`); `saved-settings.json` for the import's Saved Settings under
+  the top-level key `qlick`; `import-ledger.jsonl`. `Library/Projects.swift`, `Library/Catalogs.swift`.
+  Before 0.4 (`schema` 1) a file could be Arrivals (`kind: "arrivals"`) or a selection (`kind: "selection"` with
+  `frames`): read once and converted (Arrivals → the Archive “To Sort”, each selection → a Box on top, its file then
+  removed). A newer schema, Archive or `boxes.json`, is left alone.
+- `Roll.qlickroll`: a Folder's card inside the folder (the name kept from when Folders were rolls), `{"qlick": {"schema": 1, "roll": {"name", "film",
   "camera", "notes"}}}`. Unknown keys are kept; a newer schema is left alone. The catalogue keeps a copy; when a
-  folder is read the card wins, and a roll from before 0.3 gets one. `Library/RollCardFile.swift`.
+  folder is read the card wins, and a Folder from before 0.3 gets one. `Library/RollCardFile.swift`.

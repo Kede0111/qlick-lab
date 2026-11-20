@@ -152,25 +152,21 @@ final class GreasePencilTests: XCTestCase {
         return folder
     }
 
-    func testRollsWithoutAProjectWaitInArrivalsAndMoveWithTheirCard() throws {
+    func testImportsWithoutAnArchiveGoToSortAndFoldersMoveWithTheirCard() throws {
         let store = ProjectStore(directory: root.appendingPathComponent("projects"))
-        let trip = store.create(named: "Arrivals")  // a project of the user's may bear the name
-        XCTAssertNil(store.arrivals)
-        let box = store.arrivalsBox()
-        XCTAssertTrue(box.isArrivals)
-        XCTAssertEqual(store.arrivalsBox().id, box.id, "one Arrivals per catalogue")
-        XCTAssertEqual(store.ordinary.map(\.id), [trip.id])
-        XCTAssertEqual(store.project(named: "arrivals")?.id, trip.id, "a name finds the user's project, never Arrivals")
+        let trip = store.create(named: "Trip")
+        let box = store.toSort()
+        XCTAssertEqual(box.name, "To Sort")
+        XCTAssertEqual(store.toSort().id, box.id, "one To Sort per catalogue")
 
         let folder = try roll("Card 1", photographs: 2)
         store.addRolls([folder], to: box.id)
-        store.updateRoll(store.arrivals!.rolls[0].id, in: box.id) { $0.film = "Tri-X" }
-        store.moveRoll(store.arrivals!.rolls[0].id, from: box.id, to: trip.id)
-        XCTAssertTrue(store.arrivals!.rolls.isEmpty)
+        store.updateRoll(store.archive(box.id)!.rolls[0].id, in: box.id) { $0.film = "Tri-X" }
+        store.moveRoll(store.archive(box.id)!.rolls[0].id, from: box.id, to: trip.id)
+        XCTAssertTrue(store.archive(box.id)!.rolls.isEmpty)
 
         let again = ProjectStore(directory: root.appendingPathComponent("projects"))
-        XCTAssertTrue(again.projects.first!.isArrivals, "Arrivals comes first")
-        XCTAssertEqual(again.project(named: "Arrivals")?.rolls.map(\.film), ["Tri-X"])
+        XCTAssertEqual(again.project(named: "Trip")?.rolls.map(\.film), ["Tri-X"])
     }
 
     func testAProjectSavedBeforeArrivalsReadsAsAnOrdinaryProject() throws {
@@ -181,8 +177,7 @@ final class GreasePencilTests: XCTestCase {
         {"schema":1,"id":"\(id.uuidString)","name":"Old","notes":"","createdAt":"2026-01-01T00:00:00Z","rolls":[],"archived":false}
         """.utf8).write(to: directory.appendingPathComponent(id.uuidString + ".json"))
         let store = ProjectStore(directory: directory)
-        XCTAssertEqual(store.ordinary.map(\.name), ["Old"])
-        XCTAssertNil(store.arrivals)
+        XCTAssertEqual(store.projects.map(\.name), ["Old"])
     }
 
     func testAProjectKeepsItsRollsBetweenLaunchesAndNeverTouchesTheFiles() throws {
@@ -206,20 +201,27 @@ final class GreasePencilTests: XCTestCase {
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: folder.path).count, 3)
     }
 
-    func testAFolderOfFoldersGivesARollForEachThatHoldsPhotographs() throws {
-        let a = try roll("Séance/Jour 1", photographs: 2), b = try roll("Séance/Jour 2", photographs: 1)
-        try FileManager.default.createDirectory(at: root.appendingPathComponent("photos/Séance/Vide"), withIntermediateDirectories: true)
-        let found = ProjectStore.rollFolders(in: root.appendingPathComponent("photos/Séance"))
-        XCTAssertEqual(found.map(\.lastPathComponent), [a.lastPathComponent, b.lastPathComponent])
-        XCTAssertEqual(ProjectStore.rollFolders(in: a).map(\.path), [a.path])
-        XCTAssertTrue(ProjectStore.rollFolders(in: root.appendingPathComponent("nowhere")).isEmpty)
+    func testAFolderOfFoldersIsAddedWholeWhenPhotographsLieDeepInIt() throws {
+        let a = try roll("Séance/Jour 1/Matin/Carte", photographs: 2)
+        try FileManager.default.createDirectory(at: root.appendingPathComponent("photos/Vide/Rien"), withIntermediateDirectories: true)
+        XCTAssertTrue(ProjectStore.holdsPhotographs(root.appendingPathComponent("photos/Séance")))
+        XCTAssertTrue(ProjectStore.holdsPhotographs(a))
+        XCTAssertFalse(ProjectStore.holdsPhotographs(root.appendingPathComponent("photos/Vide")))
+        XCTAssertFalse(ProjectStore.holdsPhotographs(root.appendingPathComponent("nowhere")))
+        let store = ProjectStore(directory: root.appendingPathComponent("projects"))
+        let archive = store.create(named: "Séances")
+        XCTAssertEqual(store.addRolls([root.appendingPathComponent("photos/Séance"), root.appendingPathComponent("photos/Vide")], to: archive.id).map(\.name), ["Séance"],
+                       "the folder itself, not one per folder of photographs; an empty one is left out")
+        let stats = ProjectStore.stats(of: root.appendingPathComponent("photos/Séance"), store: nil)
+        XCTAssertEqual(stats.total, 2, "counted with the folders under it")
+        XCTAssertEqual(stats.names.first, "Jour 1/Matin/Carte/IMG_0000.jpg")
     }
 
     func testNamesStayUniqueAndCountsComeFromTheFolder() throws {
         let store = ProjectStore(directory: root.appendingPathComponent("projects"))
         store.create(named: "Rouleau")
         XCTAssertEqual(store.create(named: "rouleau").name, "rouleau 2")
-        XCTAssertEqual(store.create(named: "  ").name, "New Project")
+        XCTAssertEqual(store.create(named: "  ").name, "New Archive")
         let stats = ProjectStore.stats(of: try roll("Compte", photographs: 5), store: nil)
         XCTAssertEqual(stats.total, 5)
         XCTAssertEqual(stats.names.first, "IMG_0000.jpg")

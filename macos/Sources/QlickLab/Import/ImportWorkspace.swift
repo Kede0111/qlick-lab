@@ -17,7 +17,7 @@ struct ImportWorkspace: View {
                 ImportProgressView(model: model, run: run)
             } else {
                 HStack(spacing: 0) {
-                    ImportSources(session: session, binder: model.lab.binder)
+                    ImportSources(session: session, projects: model.lab.projects)
                         .frame(width: 208)
                         .background(Color(white: 0.045))
                         .overlay(alignment: .trailing) { Rectangle().fill(Color.white.opacity(0.06)).frame(width: 1) }
@@ -49,7 +49,7 @@ struct ImportWorkspace: View {
 
 private struct ImportSources: View {
     let session: ImportSession
-    let binder: Binder
+    let projects: ProjectStore
     @State private var dropping = false
 
     var body: some View {
@@ -81,11 +81,15 @@ private struct ImportSources: View {
                 let disks = session.volumes.filter { $0.kind == .disk }
                 ForEach(disks) { disk in row(disk, trailing: "…") { session.chooseFolder(startingAt: disk.root) } }
                 RoomButton(symbol: "folder.badge.plus", title: "Choose a Folder…", on: false) { session.chooseFolder() }
-                // The Binder's folders, where the photographs already on disk live.
-                if !binder.roots.isEmpty {
-                    heading("Binder")
-                    ForEach(binder.roots, id: \.self) { folder in
-                        row(ImportVolumes.folder(folder)) { session.open(ImportVolumes.folder(folder)) }
+                // Where the recent Archives' photographs live, to add what came in since.
+                let places = recentPlaces
+                if !places.isEmpty {
+                    heading("Archives")
+                    ForEach(places, id: \.folder) { place in
+                        // The Archive's name beside a folder that doesn't bear it.
+                        row(ImportVolumes.folder(place.folder), trailing: place.archive == place.folder.lastPathComponent ? nil : place.archive) {
+                            session.open(ImportVolumes.folder(place.folder))
+                        }
                     }
                 }
             }
@@ -101,6 +105,18 @@ private struct ImportSources: View {
                 session.open(ImportVolumes.folder(folder))
             }
         }
+    }
+
+    /// The Folders on top of the Archives most recently added to, newest first, those on a disk not connected left out.
+    private var recentPlaces: [(folder: URL, archive: String)] {
+        let archives = projects.projects.sorted { ($0.rolls.map(\.addedAt).max() ?? $0.createdAt) > ($1.rolls.map(\.addedAt).max() ?? $1.createdAt) }
+        var places: [(folder: URL, archive: String)] = []
+        for archive in archives.prefix(6) {
+            for root in projects.roots(of: archive) where !places.contains(where: { $0.folder == root }) && FileManager.default.fileExists(atPath: root.path) {
+                places.append((root, archive.name))
+            }
+        }
+        return Array(places.prefix(8))
     }
 
     private func heading(_ text: String) -> some View {

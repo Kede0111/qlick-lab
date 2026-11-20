@@ -35,7 +35,7 @@ struct SheetPrintOptions: Codable, Equatable, Sendable {
         case all, shown, picks
         var title: String {
             switch self {
-            case .all: "The whole roll"
+            case .all: "Every frame on the sheet"
             case .shown: "The frames shown"
             case .picks: "The picked frames"
             }
@@ -136,25 +136,16 @@ struct SheetPagination: Equatable {
     }
 
     var heading: SheetHeading {
-        var heading = SheetHeading()
         let lab = model.lab
-        if let current = lab.current {
-            heading.title = current.roll.name
-            heading.subtitle = [current.project.name, current.roll.film, current.roll.camera].filter { !$0.isEmpty }.joined(separator: "  ·  ")
-            heading.notes = current.roll.notes
-        } else if let whole = lab.wholeProject {
-            heading.title = whole.name
-            heading.subtitle = whole.isSelection ? "Selection" : "\(whole.rolls.count) roll\(whole.rolls.count == 1 ? "" : "s")"
-            heading.notes = whole.notes
-        } else {
-            heading.title = model.library.directory?.lastPathComponent ?? "Contact Sheet"
-        }
+        var heading = lab.sheetHeading
+        if heading.title.isEmpty { heading.title = model.library.directory.map { PhotoFolder.isList($0) ? "" : $0.lastPathComponent } ?? "" }
+        if heading.title.isEmpty { heading.title = "Contact Sheet" }
         return heading
     }
 
     var suggestedName: String {
         let heading = heading
-        let parts = [model.lab.current?.project.name, heading.title].compactMap { $0 }.filter { !$0.isEmpty }
+        let parts = [model.lab.current?.project.name ?? model.lab.workingArchive?.name, heading.title].compactMap { $0 }.filter { !$0.isEmpty }
         return (parts.isEmpty ? "Contact Sheet" : "Contact sheet — " + parts.joined(separator: " — ")) + ".pdf"
     }
 
@@ -285,7 +276,7 @@ struct SheetPrintDialog: View {
                     Toggle("Red pencil marks", isOn: $options.marks)
                     Toggle("Frame numbers", isOn: $options.numbers)
                     Toggle("File names", isOn: $options.names).disabled(options.compact)
-                    Toggle("Heading: roll, project, film, notes", isOn: $options.heading)
+                    Toggle("Heading: folder, Archive, film, notes", isOn: $options.heading)
                     Toggle("Upright frames on their side", isOn: $options.sidewaysVerticals)
                 }
                 .toggleStyle(.checkbox).font(.system(size: 12))

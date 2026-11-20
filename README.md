@@ -58,7 +58,8 @@ sheet with a red grease pencil, compare frames, develop the keepers and print.
 </p>
 
 ### Library, import and export
-- **Catalogues and projects**: a roll is a folder, wherever it is. Nothing is copied and no original is ever changed.
+- **Catalogues, Archives and Boxes**: an Archive shows its folders as they are on the disk; Boxes gather photographs
+  from any Archive. Nothing is copied and no original is ever changed.
 - **Import** from a memory card, with a journal that survives an interruption.
 - RAW files from most cameras (Apple's RAW decoder and rawler), including Leica DNG, plus JPEG, TIFF and PNG.
 - Export 8- or 16-bit JPEG, TIFF or PNG with an ICC profile, one at a time or in batches. The rating goes into the
@@ -138,7 +139,7 @@ New versions are announced on the [releases page](https://github.com/Kede0111/ql
 
 - Each photograph's marks, rating and development live in a small `.qlick` file beside it (`IMG_0412.CR3.qlick`).
   They travel with the folder, and your originals are never written to.
-- A catalogue is a `.qlicklab` package: the projects and their rolls, as small JSON files. The photographs stay where
+- A catalogue is a `.qlicklab` package: the Archives and Boxes, as small JSON files. The photographs stay where
   they are.
 - Both are plain, documented JSON. They belong to Qlick Lab, but nothing is locked in.
 

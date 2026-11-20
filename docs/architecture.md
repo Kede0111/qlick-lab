@@ -41,7 +41,7 @@ added is mostly SwiftUI).
 | Folder | What's in it |
 |---|---|
 | `App/` | Start, menus, windows, the rooms and navigation (`LabState`, `LabShell`, `Sidebar`, `TitleBar`), settings, shortcuts, updates, automation for `scripts/drive.sh`, background work |
-| `Library/` | Folders, catalogues (`Catalogs`, `.qlicklab`), projects, the library grid and film strip, marks and ratings, thumbnails, previews and proxies, deleting |
+| `Library/` | Folders, catalogues (`Catalogs`, `.qlicklab`), Archives and Boxes (`Projects`, `Boxes`), the Archives' folder trees (`FolderTrees`), the library grid and film strip, marks and ratings, thumbnails, previews and proxies, deleting |
 | `Import/` | The Import room: `ImportSession`, plan, copier, journal, `ImportRun` (adds rolls) |
 | `ContactSheet/` | The contact sheet: layout, renderer, view, loupe, print, grease pencil |
 | `Develop/` | Editing state (`EditorModel.swift` holds the state, `EditorModel/EditorModel+<Concern>.swift` the work, one file per concern), parameters, the inspector and ink sliders, preview canvas, crop, borders, tone graph, histogram |

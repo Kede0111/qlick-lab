@@ -524,7 +524,7 @@ private struct CompareEmpty: View {
                 .font(Theme.title(17)).foregroundStyle(Theme.paper)
             Text(model.lab.compare.kind == .recipes && model.presets.isEmpty
                  ? "First save a development as a recipe, in Develop or Recipes."
-                 : "Open a roll, select frames on the contact sheet, then come back here.")
+                 : "Open a folder or a Box, select frames on the contact sheet, then come back here.")
                 .font(.system(size: 12.5)).foregroundStyle(Theme.dim).multilineTextAlignment(.center)
             if model.source != nil { Button("Contact Sheet") { model.lab.show(.contactSheet) }.buttonStyle(QPillButtonStyle()) }
         }

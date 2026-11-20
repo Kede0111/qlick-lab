@@ -114,8 +114,8 @@ struct SheetOptions: Codable, Equatable, Sendable {
     @ObservationIgnored private(set) lazy var proxyMaker = ProxyMaker(model: model)
     /// The import room: its source, what's chosen of it, and the import running.
     let importer: ImportSession
-    /// The folders on disk where the photographs live, as a tree (the sidebar's Binder).
-    let binder = Binder()
+    /// The sidebar's rows unfolded or folded by hand (`SidebarFold`), kept while the lab is open.
+    var sidebarFold = SidebarFold()
 
     private(set) var workspace = Workspace.develop
     /// The adjustments float over the photograph on glass, instead of in a column beside it.
@@ -159,15 +159,25 @@ struct SheetOptions: Codable, Equatable, Sendable {
     }
     /// The print dialog of the contact sheet.
     var printing = false
-    /// A sheet asking for a new project's name, and the folders waiting for it.
-    var naming: ProjectNaming?
+    /// A sheet asking for a name: a new Archive (and the folders waiting for it), a new Box or Roll (and the photographs
+    /// going in), or a new name for one of them.
+    var naming: Naming?
 
-    struct ProjectNaming: Identifiable {
+    struct Naming: Identifiable {
+        enum Kind: Equatable {
+            case archive
+            /// On top, or inside a Box.
+            case box(in: UUID?)
+            case roll(in: UUID)
+            case renameArchive(UUID)
+            case renameBox(UUID)
+            case renameRoll(UUID, box: UUID)
+        }
         let id = UUID()
+        var kind: Kind
         var name: String
         var folders: [URL] = []
-        /// A new selection rather than a project, holding these frames.
-        var frames: [URL]? = nil
+        var frames: [URL] = []
     }
 
     /// Comparaison's panes, and the helper that develops for it and for the loupe.
@@ -192,7 +202,9 @@ struct SheetOptions: Codable, Equatable, Sendable {
         importer = ImportSession(model: model)
         projects = ProjectStore(directory: CatalogList().initial)
         importer.loadProfiles(inCatalog: projects.directory)
-        if NSClassFromString("XCTestCase") == nil { binder.start() }
+        // The Binder's folders and the import's old Recent list (before 0.4): the Archives' Folders replace them.
+        for key in ["qlick.binderRoots", "qlick.importRecent"] { UserDefaults.standard.removeObject(forKey: key) }
+        if NSClassFromString("XCTestCase") == nil { projects.folders.start() }
         model.canvasScale.contextMenu = { [weak self] point in self?.developCommands.menu(at: point) }
     }
 
@@ -226,23 +238,42 @@ struct SheetOptions: Codable, Equatable, Sendable {
         notePlace(place)
     }
 
-    // MARK: Rolls
+    // MARK: Where the lab is
 
-    /// The roll being worked on: the one whose folder is open.
-    var current: (project: LabProject, roll: LabRoll)? { projects.find(folder: model.library.directory) }
+    /// The list open on the sheet, if one is: a whole Archive, a Folder with those under it, a Box, a Roll.
+    var openView: LabView? { projects.view(of: model.library.directory) }
 
-    /// The window's title, as a trail: where the photographs come from, then the photograph. Project › Roll ›
-    /// L1003911.DNG in Develop, Project › Roll on the sheet, Project › All Rolls for a whole project.
+    /// The Box or Roll open on the sheet.
+    var openHolder: Holder? { openView?.holder }
+
+    /// The Folder being worked on, with its Archive: the folder open (or the Folder whose list is open), as the lab
+    /// knows it (`ProjectStore.folder`).
+    var current: (project: LabProject, roll: LabRoll)? {
+        let path: String
+        if case .folder(let folder, _)? = openView { path = folder }
+        else if let directory = model.library.directory, !PhotoFolder.isList(directory) { path = directory.standardizedFileURL.path }
+        else { return nil }
+        guard let place = projects.place(of: path) else { return nil }
+        return (place.archive, projects.folder(path, in: place.archive))
+    }
+
+    /// The Archive being worked on: the one open, or the one whose folder is.
+    var workingArchive: LabProject? {
+        if case .archive(let id)? = openView { return projects.archive(id) }
+        return current?.project
+    }
+
+    /// The window's title, as a trail: where the photographs come from, then the photograph. Archive › Folder ›
+    /// L1003911.DNG in Develop, Archive › Folder on the sheet, Box › Box › Roll for a Roll of a Box inside a Box.
     var title: String { trail.joined(separator: "  ›  ") }
 
     var trail: [String] { crumbs.map(\.text) }
 
-    /// One word of the title's trail, and where a click on it leads: the project opens whole, the roll on its sheet.
-    /// The last word is where the lab is, and leads nowhere.
+    /// One word of the title's trail, and where a click on it leads: the Archive, Box or Roll opens whole, the Folder
+    /// on its sheet. The last word is where the lab is, and leads nowhere.
     struct Crumb: Equatable {
         enum Target: Equatable {
-            case project(UUID)
-            case roll(UUID, in: UUID)
+            case view(LabView)
         }
         var text: String
         var target: Target? = nil
@@ -250,13 +281,17 @@ struct SheetOptions: Codable, Equatable, Sendable {
 
     var crumbs: [Crumb] {
         var folder: [Crumb] = []
+        let view = openView
         if let current {
-            folder = [Crumb(text: current.project.name, target: .project(current.project.id)),
-                      Crumb(text: current.roll.name, target: .roll(current.roll.id, in: current.project.id))]
-        } else if let whole = wholeProject {
-            folder = whole.isSelection ? [Crumb(text: whole.name, target: .project(whole.id))]
-                : [Crumb(text: whole.name, target: .project(whole.id)), Crumb(text: "All Rolls")]
-        } else if let directory = model.library.directory {
+            folder = [Crumb(text: current.project.name, target: .view(.archive(current.project.id))),
+                      Crumb(text: current.roll.name, target: .view(.folder(current.roll.folder, archive: current.project.id)))]
+        } else if case .archive(let id)? = view, let archive = projects.archive(id) {
+            folder = [Crumb(text: archive.name, target: .view(.archive(id)))]
+        } else if case .box(let id)? = view, let path = projects.boxPath(id) {
+            folder = path.map { Crumb(text: $0.name, target: .view(.box($0.id))) }
+        } else if case .roll(let id, let boxID)? = view, let path = projects.boxPath(boxID), let roll = path.last?.rolls.first(where: { $0.id == id }) {
+            folder = path.map { Crumb(text: $0.name, target: .view(.box($0.id))) } + [Crumb(text: roll.name, target: .view(.roll(id, box: boxID)))]
+        } else if let directory = model.library.directory, !PhotoFolder.isList(directory) {
             folder = [Crumb(text: directory.lastPathComponent)]
         }
         let room = Crumb(text: workspace.title)
@@ -269,22 +304,18 @@ struct SheetOptions: Codable, Equatable, Sendable {
         case .compare: crumbs = folder.isEmpty ? [room] : folder + [room]
         default: crumbs = [room]
         }
-        // Where the lab is leads nowhere: the last word, and the whole project's name when it's open whole.
+        // Where the lab is leads nowhere: the last word, and any word that is the list already open.
         if !crumbs.isEmpty { crumbs[crumbs.count - 1].target = nil }
-        if wholeProject != nil, workspace == .contactSheet { crumbs[0].target = nil }
+        if workspace == .contactSheet, let view {
+            for index in crumbs.indices where crumbs[index].target == .view(view) { crumbs[index].target = nil }
+        }
         return crumbs
     }
 
     /// A click on a word of the trail.
     func follow(_ target: Crumb.Target) {
         switch target {
-        case .project(let id):
-            guard let project = projects.projects.first(where: { $0.id == id }) else { return }
-            openWhole(project)
-        case .roll(let id, let projectID):
-            guard let project = projects.projects.first(where: { $0.id == projectID }),
-                  let roll = project.rolls.first(where: { $0.id == id }) else { return }
-            open(roll, in: project)
+        case .view(let view): open(view)
         }
     }
 
@@ -327,8 +358,10 @@ struct SheetOptions: Codable, Equatable, Sendable {
         walking = true
         defer { walking = false }
         if let folder = target.folder, folder != model.library.directory?.standardizedFileURL {
-            if let project = projects.project(viewFolder: folder) { _ = projects.viewFolder(for: project) }
-            guard PhotoFolder.isList(folder) || FileManager.default.fileExists(atPath: folder.path) else {
+            // A list is listed again (its Box may have changed since); a list whose Box went is skipped.
+            if let view = projects.view(of: folder) { projects.viewFolder(for: view) }
+            let gone = folder.path.hasPrefix(projects.directory.appendingPathComponent("Views").path + "/") && projects.view(of: folder) == nil
+            guard !gone, PhotoFolder.isList(folder) || FileManager.default.fileExists(atPath: folder.path) else {
                 // The folder went (a card taken out): that place is skipped.
                 places.remove(at: index)
                 if placeIndex > index { placeIndex -= 1 }
@@ -342,24 +375,22 @@ struct SheetOptions: Codable, Equatable, Sendable {
         placesChanged += 1
     }
 
-    /// The project shown whole, all its rolls on one sheet.
+    /// The Archive shown whole, all its Folders on one sheet.
     var wholeProject: LabProject? { projects.project(viewFolder: model.library.directory) }
 
-    /// Removes a project from the catalogue, once asked. Its photographs and their sidecars stay where they are;
+    /// Removes an Archive from the catalogue, once asked. Its photographs and their sidecars stay where they are;
     /// its contact sheet closes, its previews leave the cache and the import forgets it, so it can come back whole.
     func removeProject(_ project: LabProject) {
-        if project.isSelection { return removeSelection(project) }
         Task {
             let answer = await model.ask(AppAlert(
-                title: "Remove “\(project.name)” from the catalog?",
-                detail: "Its photographs and their marks stay where they are: its folders can be added again at any time. Its previews are removed from the cache.",
+                title: "Remove the Archive “\(project.name)” from the catalog?",
+                detail: "Its photographs and their marks stay where they are, on the disk and in their Boxes: its folders can be added again at any time. Its previews are removed from the cache.",
                 buttons: [.init(title: "Cancel", role: .cancel), .init(title: "Remove", role: .destructive)]))
             guard answer.button == 1, projects.projects.contains(where: { $0.id == project.id }) else { return }
             let others = Set(projects.projects.filter { $0.id != project.id }.flatMap { $0.rolls.map(\.folder) })
-            let folders = project.rolls.compactMap { projects.resolve($0, in: project.id) }.filter { !others.contains($0.standardizedFileURL.path) }
+            let folders = projects.photoFolders(of: project).filter { !others.contains($0.standardizedFileURL.path) }
             // What's open of it closes: its contact sheet, its photograph.
-            let open = model.library.directory?.standardizedFileURL.path
-            let showing = wholeProject?.id == project.id || folders.contains { $0.standardizedFileURL.path == open }
+            let showing = workingArchive?.id == project.id
             if showing { model.closeFolder() }
             previewBuilder.cancel(); proxyMaker.cancel()
             projects.remove(project.id)
@@ -379,19 +410,34 @@ struct SheetOptions: Codable, Equatable, Sendable {
         }
     }
 
-    /// Opens every roll of a project, or a selection's frames, on one contact sheet.
-    func openWhole(_ project: LabProject) {
-        guard project.isSelection ? !(project.frames ?? []).isEmpty : !project.rolls.isEmpty else {
-            if project.isSelection { model.error = "“\(project.name)” is empty. Put frames in it from a contact sheet: right-click › Add to Selection." }
-            return show(.library)
+    /// Opens every Folder of an Archive on one contact sheet.
+    func openWhole(_ project: LabProject) { open(.archive(project.id)) }
+
+    /// Opens a list on the contact sheet: a whole Archive, a Folder with those under it, a Box, a Roll of a Box.
+    func open(_ view: LabView) {
+        switch view {
+        case .archive(let id):
+            guard let archive = projects.archive(id), !archive.rolls.isEmpty else { return show(.library) }
+        case .folder(let path, let id):
+            // A folder with nothing under it opens as itself.
+            if projects.node(path)?.photosBelow != true {
+                if let archive = projects.archive(id), let entry = archive.rolls.first(where: { $0.folder == path }) { return open(entry, in: archive) }
+                return open(folder: URL(fileURLWithPath: path, isDirectory: true))
+            }
+        case .box, .roll:
+            guard let holder = view.holder, let name = projects.name(of: holder) else { return }
+            guard !projects.frames(of: holder).isEmpty else {
+                model.error = "“\(name)” is empty. Put photographs in it from a contact sheet: right-click › Add to Box."
+                return
+            }
         }
-        let folder = projects.viewFolder(for: project)
-        // Listed again, in case the project's rolls or the selection's frames changed since.
+        let folder = projects.viewFolder(for: view)
+        // Listed again, in case the Archive's folders or the Box's photographs changed since.
         if model.library.directory?.standardizedFileURL.path == folder.standardizedFileURL.path { model.library.refreshNow() }
         open(folder: folder)
     }
 
-    /// Opens a roll on its contact sheet.
+    /// Opens a Folder on its contact sheet.
     func open(_ roll: LabRoll, in project: LabProject) {
         guard let folder = projects.resolve(roll, in: project.id) else {
             model.error = "The folder “\(roll.name)” can't be found. It may have moved, or its disk isn't connected."
@@ -414,7 +460,7 @@ struct SheetOptions: Codable, Equatable, Sendable {
         notePlace(Place(workspace: .contactSheet, folder: folder.standardizedFileURL))
     }
 
-    /// Folders dropped on the window or chosen in the panel: rolls of `project`, or of a new project that asks its name.
+    /// Folders dropped on the window or chosen in the panel: Folders of `project`, or of a new Archive that asks its name.
     func importFolders(_ urls: [URL], into project: UUID? = nil) {
         let folders = urls.filter { (try? $0.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory == true }
         // A photograph dropped alone opens, as in NEgs.
@@ -422,13 +468,13 @@ struct SheetOptions: Codable, Equatable, Sendable {
             if let file = urls.first(where: \.isFileURL) { model.open(file); show(.develop) }
             return
         }
-        guard !folders.flatMap({ ProjectStore.rollFolders(in: $0) }).isEmpty else {
+        guard folders.contains(where: ProjectStore.holdsPhotographs) else {
             model.error = "No readable photographs in “\(folders[0].lastPathComponent)”."
             return
         }
-        // One counter: a single folder opens the Import room on it, Leave Where They Are chosen, the project already
-        // named, so the recipe, the marks and the words are chosen as for a card. Several at once are added directly.
-        let target = (project ?? current?.project.id).flatMap { id in projects.ordinary.first { $0.id == id } }
+        // One counter: a single folder opens the Import room on it, Leave in Place chosen, the Archive already named, so
+        // the recipe, the marks and the words are chosen as for a card. Several at once are added directly.
+        let target = (project ?? workingArchive?.id).flatMap { projects.archive($0) }
         if folders.count == 1, importer.run == nil {
             importer.open(ImportVolumes.folder(folders[0]))
             importer.options.mode = .add
@@ -437,26 +483,41 @@ struct SheetOptions: Codable, Equatable, Sendable {
         } else if let target {
             add(folders, to: target.id)
         } else {
-            naming = ProjectNaming(name: projects.uniqueName(folders.count == 1 ? folders[0].lastPathComponent : "New Project"), folders: folders)
+            naming = Naming(kind: .archive, name: projects.uniqueName(folders.count == 1 ? folders[0].lastPathComponent : "New Archive"), folders: folders)
         }
     }
 
     func add(_ folders: [URL], to project: UUID) {
         projects.sidecars = model.sidecarLookup?.store
         let added = projects.addRolls(folders, to: project)
-        if let first = added.first { open(folder: first.url) }
+        // Opened as the sidebar opens it: with the folders under it, read from the disk now if they aren't yet.
+        if let first = added.first {
+            if projects.node(first.folder) == nil { projects.folders.rescanNow(first.url) }
+            open(.folder(first.folder, archive: project))
+        }
     }
 
-    func finishNaming(_ naming: ProjectNaming) {
+    func finishNaming(_ naming: Naming) {
         self.naming = nil
-        if let frames = naming.frames {
-            let selection = projects.createSelection(named: naming.name, frames: frames)
-            if frames.isEmpty { return }
-            return selectionChanged(selection.id)
+        switch naming.kind {
+        case .archive:
+            let project = projects.create(named: naming.name)
+            if !naming.folders.isEmpty { add(naming.folders, to: project.id) }
+        case .box(let parent):
+            guard let box = projects.createBox(named: naming.name, in: parent, frames: naming.frames) else { return }
+            if let parent { sidebarFold.unfold(.box(parent)) }
+            if !naming.frames.isEmpty { holderChanged(.box(box.id)) }
+        case .roll(let boxID):
+            guard let roll = projects.createRoll(named: naming.name, in: boxID, frames: naming.frames) else { return }
+            sidebarFold.unfold(.box(boxID))
+            if !naming.frames.isEmpty { holderChanged(.roll(roll.id, box: boxID)) }
+        case .renameArchive(let id): projects.rename(id, to: naming.name)
+        case .renameBox(let id): projects.renameBox(id, to: naming.name)
+        case .renameRoll(let id, let boxID): projects.renameRoll(id, in: boxID, to: naming.name)
         }
-        let project = projects.create(named: naming.name)
-        if !naming.folders.isEmpty { add(naming.folders, to: project.id) }
     }
+
+    func newArchive() { naming = Naming(kind: .archive, name: projects.uniqueName("New Archive")) }
 
     func importPanel(into project: UUID? = nil) {
         let panel = NSOpenPanel()

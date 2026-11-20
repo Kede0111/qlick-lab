@@ -182,7 +182,7 @@ import SwiftUI
             let left = run.total - run.done
             questions.append((AppAlert(
                 title: "Stop adding \(left == 1 ? "the last photograph" : "the \(left) remaining photographs")?",
-                detail: "Those already added stay in the project with their marks. The others can be added again next time.",
+                detail: "Those already added stay in the Archive with their marks. The others can be added again next time.",
                 buttons: [.init(title: "Quit"), .init(title: "Cancel", role: .cancel)]), 0))
         } else if let run = model.lab.importer.run, !run.finished {
             let left = run.total - run.done

@@ -157,7 +157,7 @@ private struct SheetEmpty: View {
         VStack(spacing: 16) {
             QMark(size: 54)
             Text("No contact sheet open").font(Theme.title(19)).foregroundStyle(Theme.paper)
-            Text("Drop a folder of photographs on the window,\nor open a roll of a project.")
+            Text("Drop a folder of photographs on the window,\nor open a folder of an Archive.")
                 .font(.system(size: 13)).foregroundStyle(Theme.dim).multilineTextAlignment(.center)
             Button("Import a Folder…") { model.lab.importPanel() }.buttonStyle(QPrimaryButtonStyle())
         }

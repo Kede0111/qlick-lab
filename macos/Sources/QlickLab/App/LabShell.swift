@@ -22,7 +22,7 @@ struct WorkspaceOverlay: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .sheet(item: Binding(get: { lab.naming }, set: { lab.naming = $0 })) { naming in
-            ProjectNamingSheet(lab: lab, naming: naming)
+            NamingSheet(lab: lab, naming: naming)
         }
         .sheet(isPresented: Binding(get: { lab.printing }, set: { lab.printing = $0 })) {
             SheetPrintDialog(model: model)

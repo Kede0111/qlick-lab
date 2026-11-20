@@ -184,19 +184,9 @@ import SwiftUI
     }
 
     private func makeHeading() -> SheetHeading {
-        var heading = SheetHeading()
         let counts = lab.counts
-        if let current = lab.current {
-            heading.title = current.roll.name
-            heading.subtitle = [current.project.name, current.roll.film, current.roll.camera].filter { !$0.isEmpty }.joined(separator: "  ·  ")
-            heading.notes = current.roll.notes
-        } else if let whole = lab.wholeProject {
-            heading.title = whole.name
-            heading.subtitle = whole.isSelection ? "Selection" : "\(whole.rolls.count) roll\(whole.rolls.count == 1 ? "" : "s")"
-            heading.notes = whole.notes
-        } else {
-            heading.title = model.library.directory?.lastPathComponent ?? ""
-        }
+        var heading = lab.sheetHeading
+        if heading.title.isEmpty { heading.title = model.library.directory?.lastPathComponent ?? "" }
         var parts = [counts.total == 1 ? "1 frame" : "\(counts.total) frames"]
         if counts.picks > 0 { parts.append("\(counts.picks) picked") }
         if counts.rejects > 0 { parts.append("\(counts.rejects) rejected") }
@@ -706,7 +696,7 @@ import SwiftUI
         add("Open in Develop", #selector(develop), key: keys.key(.develop))
         add("See Larger", #selector(loupe), key: keys.key(.loupe))
         add(count > 1 ? "Compare the \(count) Frames" : "Compare with the Next", #selector(compare), key: keys.key(.compare))
-        for entry in sheet.lab.selectionItems(for: sheet.lab.selectionTargets) { menu.addItem(entry) }
+        for entry in sheet.lab.boxItems(for: sheet.lab.selectionTargets) { menu.addItem(entry) }
         menu.addItem(.separator())
         add("Copy Edits", #selector(copyEdits), enabled: model.canCopyEdits)
         add("Paste Edits" + several, #selector(pasteEdits), enabled: model.canPasteEdits)

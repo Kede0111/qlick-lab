@@ -766,7 +766,7 @@ struct LibraryContextMenu: View {
         Button("Open in Develop") { model.click(item); lab.show(.develop); if model.mode == .grid { model.editCurrent() } }
         Button("See Larger") { model.click(item); lab.loupe = item }
         Button(targets.count > 1 ? "Compare the \(targets.count) Frames" : "Compare with the Next") { lab.compareSelection() }
-        SelectionMenuItems(lab: lab, frames: targets.map(\.photoFile))
+        BoxMenuItems(lab: lab, frames: targets.map(\.photoFile))
         Divider()
         Button("Copy Edits") { model.copyEdits(from: item) }.disabled(!editing)
         Button("Paste Edits" + several) { model.pasteEdits(onto: targets) }.disabled(!editing || model.copiedEdits == nil)

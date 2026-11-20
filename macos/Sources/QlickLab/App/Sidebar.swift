@@ -2,13 +2,10 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// The lab's navigation: its rooms, then the projects and their rolls. It sits in the window's sidebar, which
-/// macOS 26 draws as a floating pane of Liquid Glass.
+/// The lab's navigation: its rooms, then the Archives and their folders, then the Boxes. It sits in the window's
+/// sidebar, which macOS 26 draws as a floating pane of Liquid Glass.
 struct LabSidebar: View {
     let model: EditorModel
-    @State private var expanded: Set<UUID> = []
-    /// Folded by hand: stays folded even while one of its rolls is open.
-    @State private var folded: Set<UUID> = []
     @State private var dropping = false
 
     private var lab: LabState { model.lab }
@@ -36,50 +33,11 @@ struct LabSidebar: View {
             .padding(.horizontal, 10)
             .padding(.top, 6)
 
-            if let arrivals = lab.projects.arrivals, !arrivals.rolls.isEmpty {
-                VStack(alignment: .leading, spacing: 1) {
-                    let current = lab.current
-                    let open = expanded.contains(arrivals.id) || (current?.project.id == arrivals.id && !folded.contains(arrivals.id))
-                    ProjectRows(model: model, project: arrivals, currentRoll: current?.roll.id, open: open) {
-                        if open { expanded.remove(arrivals.id); folded.insert(arrivals.id) }
-                        else { expanded.insert(arrivals.id); folded.remove(arrivals.id) }
-                    }
-                }
-                .padding(.horizontal, 10)
-                .padding(.top, 14)
-            }
-
-            HStack {
-                CapsLabel("Projects")
-                Spacer()
-                Button { lab.naming = LabState.ProjectNaming(name: lab.projects.uniqueName("New Project")) } label: {
-                    Image(systemName: "plus").font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.dim).frame(width: 22, height: 22).contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .help("New project")
-            }
-            .padding(.leading, 20).padding(.trailing, 12)
-            .padding(.top, 22).padding(.bottom, 6)
-
+            // Room is kept here for the fixed entries (All Photographs, Last Import…), to come.
             ScrollView(.vertical) {
                 VStack(alignment: .leading, spacing: 1) {
-                    let current = lab.current
-                    ForEach(lab.projects.ordinary) { project in
-                        // The project being worked on unfolds by itself, unless it was folded by hand.
-                        let open = expanded.contains(project.id) || (current?.project.id == project.id && !folded.contains(project.id))
-                        ProjectRows(model: model, project: project, currentRoll: current?.roll.id, open: open) {
-                            if open { expanded.remove(project.id); folded.insert(project.id) }
-                            else { expanded.insert(project.id); folded.remove(project.id) }
-                        }
-                    }
-                    if lab.projects.ordinary.isEmpty && lab.projects.arrivals == nil {
-                        Text("Drop a folder of photographs here to make a project.")
-                            .font(.system(size: 11.5)).foregroundStyle(Theme.dim)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .padding(.horizontal, 10).padding(.top, 4)
-                    }
-                    SelectionsSection(model: model)
-                    BinderSection(model: model)
+                    ArchivesSection(model: model)
+                    BoxesSection(model: model)
                 }
                 .padding(.horizontal, 10)
                 .padding(.bottom, 10)
@@ -146,113 +104,6 @@ struct RoomButton: View {
     }
 }
 
-private struct ProjectRows: View {
-    let model: EditorModel
-    let project: LabProject
-    let currentRoll: UUID?
-    let open: Bool
-    let toggle: () -> Void
-    @State private var hovered = false
-    @State private var dropping = false
-
-    private var lab: LabState { model.lab }
-
-    var body: some View {
-        let shown = lab.wholeProject?.id == project.id
-        HStack(spacing: 0) {
-            // The arrow only folds or unfolds the project's rolls: nothing opens.
-            Button(action: toggle) {
-                Image(systemName: "chevron.right").font(.system(size: 8.5, weight: .bold)).foregroundStyle(Theme.dim)
-                    .rotationEffect(.degrees(open ? 90 : 0))
-                    .frame(width: 26, height: 27)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .help(open ? "Hide the rolls" : "Show the rolls")
-            Button { lab.openWhole(project); if !open { toggle() } } label: {
-                HStack(spacing: 6) {
-                    Text(project.name).font(.system(size: 12.5, weight: shown ? .semibold : .medium)).foregroundStyle(shown ? Theme.paper : Color(white: 0.86)).lineLimit(1)
-                    Spacer(minLength: 4)
-                    Text("\(project.rolls.count)").font(Theme.value(11, weight: project.isArrivals ? .semibold : .regular))
-                        .foregroundStyle(project.isArrivals ? Theme.accent : Theme.faint)
-                }
-                .padding(.trailing, 8)
-                .frame(height: 27)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-        }
-        .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(Color.white.opacity(dropping ? 0.12 : shown ? 0.08 : hovered ? 0.05 : 0)))
-        .onHover { hovered = $0 }
-        .onDrop(of: [.fileURL], isTargeted: $dropping) { providers in
-            LabDrop.load(providers) { project.isArrivals ? lab.importFolders($0) : lab.importFolders($0, into: project.id) }
-        }
-        .help(project.isArrivals ? "Rolls imported without a project. Move each one to a project from its menu." : "")
-        .contextMenu {
-            Button("Show All Its Photographs") { lab.openWhole(project) }
-            if !project.isArrivals {
-                Button("Add a Folder…") { lab.importPanel(into: project.id) }
-                Divider()
-                Button("Remove the Project from the Catalog…") { lab.removeProject(project) }
-            }
-        }
-        if open {
-            ForEach(project.rolls) { roll in
-                SidebarRoll(model: model, project: project, roll: roll, on: roll.id == currentRoll)
-            }
-        }
-    }
-}
-
-/// A roll in the sidebar, with what can be done to it from there: its card, moving it, removing it.
-private struct SidebarRoll: View {
-    let model: EditorModel
-    let project: LabProject
-    let roll: LabRoll
-    let on: Bool
-    @State private var editing = false
-
-    private var lab: LabState { model.lab }
-
-    var body: some View {
-        RollRow(roll: roll, stats: lab.projects.stats[roll.id], on: on) { lab.open(roll, in: project) }
-            .popover(isPresented: $editing, arrowEdge: .trailing) { RollEditor(lab: lab, project: project.id, roll: roll) }
-            .contextMenu {
-                Button("Rename, Film, Camera and Notes…") { editing = true }
-                RollMoveMenu(lab: lab, project: project, roll: roll)
-                Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([roll.url]) }
-                Divider()
-                Button("Remove the Roll from the Project") { lab.projects.removeRoll(roll.id, from: project.id) }
-            }
-    }
-}
-
-private struct RollRow: View {
-    let roll: LabRoll
-    let stats: RollStats?
-    let on: Bool
-    let action: () -> Void
-    @State private var hovered = false
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 7) {
-                Circle().fill(on ? Theme.accent : Color.clear).frame(width: 5, height: 5).frame(width: 12)
-                Text(roll.name).font(.system(size: 12.5, weight: on ? .semibold : .regular)).foregroundStyle(on ? Theme.paper : Color(white: 0.72)).lineLimit(1)
-                Spacer(minLength: 4)
-                if let stats, !stats.missing { Text("\(stats.total)").font(Theme.value(11)).foregroundStyle(Theme.faint) }
-                if stats?.missing == true { Image(systemName: "questionmark.folder").font(.system(size: 10)).foregroundStyle(Theme.dim).help("Folder not found") }
-            }
-            .padding(.leading, 14).padding(.trailing, 8)
-            .frame(height: 25)
-            .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(Color.white.opacity(on ? 0.08 : hovered ? 0.05 : 0)))
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .onHover { hovered = $0 }
-    }
-}
-
 /// Folders and files dropped from the Finder.
 enum LabDrop {
     static func load(_ providers: [NSItemProvider], then: @escaping @MainActor ([URL]) -> Void) -> Bool {
@@ -281,27 +132,26 @@ enum LabDrop {
     }
 }
 
-/// Asks a new project's name.
-struct ProjectNamingSheet: View {
+/// Asks a name: a new Archive, Box or Roll, or a new name for one.
+struct NamingSheet: View {
     let lab: LabState
-    @State var naming: LabState.ProjectNaming
+    @State var naming: LabState.Naming
     @FocusState private var focused: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text(naming.frames == nil ? "New Project" : "New Selection").font(Theme.title(17)).foregroundStyle(Theme.paper)
-            Text(naming.frames != nil ? "A selection gathers frames from any rolls: a portfolio, an edit to show. The photographs stay where they are."
-                 : naming.folders.isEmpty ? "A project gathers rolls or sessions: folders of photographs, where they are."
-                 : "The folders chosen become this project's rolls. Nothing is copied or moved.")
-                .font(.system(size: 12)).foregroundStyle(Theme.dim).fixedSize(horizontal: false, vertical: true)
-            TextField(naming.frames == nil ? "Project name" : "Selection name", text: $naming.name)
+            Text(title).font(Theme.title(17)).foregroundStyle(Theme.paper)
+            if let explanation {
+                Text(explanation).font(.system(size: 12)).foregroundStyle(Theme.dim).fixedSize(horizontal: false, vertical: true)
+            }
+            TextField(placeholder, text: $naming.name)
                 .textFieldStyle(.roundedBorder)
                 .focused($focused)
-                .onSubmit(create)
+                .onSubmit(finish)
             HStack {
                 Spacer()
                 Button("Cancel") { lab.naming = nil }.buttonStyle(QPillButtonStyle()).keyboardShortcut(.cancelAction)
-                Button("Create", action: create).buttonStyle(QPrimaryButtonStyle()).keyboardShortcut(.defaultAction)
+                Button(renaming ? "Rename" : "Create", action: finish).buttonStyle(QPrimaryButtonStyle()).keyboardShortcut(.defaultAction)
                     .disabled(naming.name.trimmingCharacters(in: .whitespaces).isEmpty)
             }
         }
@@ -312,7 +162,47 @@ struct ProjectNamingSheet: View {
         .onAppear { focused = true }
     }
 
-    private func create() {
+    private var renaming: Bool {
+        switch naming.kind {
+        case .renameArchive, .renameBox, .renameRoll: true
+        default: false
+        }
+    }
+
+    private var title: String {
+        switch naming.kind {
+        case .archive: "New Archive"
+        case .box(let parent): parent.flatMap { lab.projects.box($0) }.map { "New Box in “\($0.name)”" } ?? "New Box"
+        case .roll(let box): lab.projects.box(box).map { "New Roll in “\($0.name)”" } ?? "New Roll"
+        case .renameArchive: "Rename the Archive"
+        case .renameBox: "Rename the Box"
+        case .renameRoll: "Rename the Roll"
+        }
+    }
+
+    private var placeholder: String {
+        switch naming.kind {
+        case .archive, .renameArchive: "Archive name"
+        case .box, .renameBox: "Box name"
+        case .roll, .renameRoll: "Roll name"
+        }
+    }
+
+    private var explanation: String? {
+        let photos = naming.frames.count == 1 ? "The photograph chosen goes in it. " : naming.frames.isEmpty ? "" : "The \(naming.frames.count) photographs chosen go in it. "
+        switch naming.kind {
+        case .archive:
+            return naming.folders.isEmpty ? "An Archive holds the folders of one subject, shown as they are on the disk."
+                : "The folders chosen become this Archive's folders. Nothing is copied or moved."
+        case .box:
+            return photos + "A Box gathers photographs from any Archive, in Rolls and in Boxes inside it. The photographs stay where they are."
+        case .roll:
+            return photos + "A Roll holds photographs from any Archive. The photographs stay where they are."
+        case .renameArchive, .renameBox, .renameRoll: return nil
+        }
+    }
+
+    private func finish() {
         guard !naming.name.trimmingCharacters(in: .whitespaces).isEmpty else { return }
         lab.finishNaming(naming)
     }
@@ -334,7 +224,7 @@ private struct CatalogMenu: View {
             Text(lab.catalogName + "  ⌄").font(.system(size: 10.5)).foregroundStyle(Theme.dim).lineLimit(1)
         }
         .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
-        .help("The open catalog: a set of projects of its own, kept in a file you can copy, move or archive")
+        .help("The open catalog: a set of Archives and Boxes of its own, kept in a file you can copy, move or keep apart")
     }
 }
 
@@ -344,65 +234,5 @@ private struct SidebarWork: View {
     let model: EditorModel
     var body: some View {
         ForEach(BackgroundWork.tasks(model).filter { $0.kind != .importing }) { task in BackgroundTaskRow(task: task) }
-    }
-}
-
-/// The sidebar's selections: frames from any rolls, each on one contact sheet.
-private struct SelectionsSection: View {
-    let model: EditorModel
-    private var lab: LabState { model.lab }
-
-    var body: some View {
-        HStack {
-            CapsLabel("Selections")
-            Spacer()
-            Button { lab.newSelection(with: []) } label: {
-                Image(systemName: "plus").font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.dim).frame(width: 22, height: 22).contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .help("New selection")
-        }
-        .padding(.leading, 10).padding(.trailing, 2)
-        .padding(.top, 22).padding(.bottom, 6)
-        if lab.projects.selections.isEmpty {
-            Text("Gather frames from any rolls: right-click them on a contact sheet › Add to Selection.")
-                .font(.system(size: 11.5)).foregroundStyle(Theme.dim)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.horizontal, 10).padding(.top, 2)
-        }
-        let open = lab.openSelection?.id
-        ForEach(lab.projects.selections) { selection in
-            SelectionRow(name: selection.name, count: selection.frames?.count ?? 0, on: selection.id == open) { lab.openWhole(selection) }
-                .contextMenu {
-                    Button("Show Its Frames") { lab.openWhole(selection) }
-                    Divider()
-                    Button("Remove the Selection…") { lab.removeSelection(selection) }
-                }
-        }
-    }
-}
-
-private struct SelectionRow: View {
-    let name: String
-    let count: Int
-    let on: Bool
-    let action: () -> Void
-    @State private var hovered = false
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 7) {
-                Image(systemName: "rectangle.stack").font(.system(size: 10.5)).foregroundStyle(on ? Theme.accent : Theme.dim).frame(width: 18)
-                Text(name).font(.system(size: 12.5, weight: on ? .semibold : .medium)).foregroundStyle(on ? Theme.paper : Color(white: 0.86)).lineLimit(1)
-                Spacer(minLength: 4)
-                Text("\(count)").font(Theme.value(11)).foregroundStyle(Theme.faint)
-            }
-            .padding(.leading, 6).padding(.trailing, 8)
-            .frame(height: 27)
-            .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(Color.white.opacity(on ? 0.08 : hovered ? 0.05 : 0)))
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .onHover { hovered = $0 }
     }
 }

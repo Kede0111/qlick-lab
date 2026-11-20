@@ -58,6 +58,16 @@ import AppKit
     private var lab: LabState { model.lab }
     private var sheet: ContactSheetView? { lab.sheetView }
 
+    /// A Box by its names from the top.
+    private func box(_ names: [String]) -> LabBox? {
+        guard let first = names.first, var box = lab.projects.boxes.first(where: { $0.name == first }) else { return nil }
+        for name in names.dropFirst() {
+            guard let inner = box.boxes.first(where: { $0.name == name }) else { return nil }
+            box = inner
+        }
+        return box
+    }
+
     private func run(_ line: String) {
         let parts = line.split(separator: " ", maxSplits: 1).map(String.init)
         let command = parts[0], rest = parts.count > 1 ? parts[1] : ""
@@ -86,19 +96,53 @@ import AppKit
                 if let event = NSEvent.mouseEvent(with: type, location: CGPoint(x: x, y: y), modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
                                                   windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1) { window.sendEvent(event) }
             }
-        // binder add|remove <folder>
-        case "binder":
-            guard words.count >= 2 else { break }
-            let url = URL(fileURLWithPath: words.dropFirst().joined(separator: " "), isDirectory: true)
-            if words[0] == "add" { lab.binder.add(url) } else { lab.binder.remove(url.standardizedFileURL) }
-        // selection new <name> | add <name> | remove | open <name>: the sheet's selected frames.
-        case "selection":
+        // archive new <name> | open <name> | rename <name>|<new name>
+        case "archive":
             let name = words.dropFirst().joined(separator: " ")
             switch words.first {
-            case "new": let made = lab.projects.createSelection(named: name, frames: lab.selectionTargets); lab.selectionChanged(made.id)
-            case "add": if let selection = lab.projects.selections.first(where: { $0.name == name }) { lab.addToSelection(selection.id, frames: lab.selectionTargets) }
-            case "remove": lab.removeFromOpenSelection(lab.selectionTargets)
-            case "open": if let selection = lab.projects.selections.first(where: { $0.name == name }) { lab.openWhole(selection) }
+            case "new": lab.projects.create(named: name)
+            case "open": if let archive = lab.projects.project(named: name) { lab.open(.archive(archive.id)) }
+            case "rename":
+                let fields = name.split(separator: "|").map(String.init)
+                if fields.count == 2, let archive = lab.projects.project(named: fields[0]) { lab.projects.rename(archive.id, to: fields[1]) }
+            default: break
+            }
+        // box new <path> | add <path> | open <path> | remove | delete <path> | rename <path>|<new name> | ask <path>:
+        // a Box by the names from the top, separated by `|` (`Spain|Madrid`); add puts the sheet's selected frames in it.
+        case "box":
+            let path = words.dropFirst().joined(separator: " ").split(separator: "|").map(String.init)
+            switch words.first {
+            case "new": lab.projects.createBox(named: path.last ?? "", in: path.count > 1 ? box(Array(path.dropLast()))?.id : nil)
+            case "add": if let box = box(path) { lab.add(lab.selectionTargets, to: .box(box.id)) }
+            case "open": if let box = box(path) { lab.open(.box(box.id)) }
+            case "remove": lab.removeFromOpenHolder(lab.selectionTargets)
+            case "delete": if let box = box(path) { lab.projects.deleteBox(box.id) }
+            case "rename": if path.count > 1, let box = box(Array(path.dropLast())) { lab.projects.renameBox(box.id, to: path.last!) }
+            case "ask": lab.newBox(in: box(path)?.id, with: lab.selectionTargets)
+            default: break
+            }
+        // boxroll new <box path>|<roll> | add … | open …: a Roll of a Box.
+        case "boxroll":
+            let path = words.dropFirst().joined(separator: " ").split(separator: "|").map(String.init)
+            guard path.count > 1, let box = box(Array(path.dropLast())) else { break }
+            let roll = box.rolls.first { $0.name == path.last! }
+            switch words.first {
+            case "new": lab.projects.createRoll(named: path.last!, in: box.id)
+            case "add": if let roll { lab.add(lab.selectionTargets, to: .roll(roll.id, box: box.id)) }
+            case "open": if let roll { lab.open(.roll(roll.id, box: box.id)) }
+            default: break
+            }
+        // folder <path>: a folder of an Archive, with those under it, as a click in the sidebar opens it.
+        case "folder":
+            let path = URL(fileURLWithPath: rest, isDirectory: true).standardizedFileURL.path
+            if let place = lab.projects.place(of: path) { lab.open(.folder(path, archive: place.archive.id)) }
+        // unfold archive <name> | folder <path> | box <path>: a row of the sidebar.
+        case "unfold":
+            let argument = words.dropFirst().joined(separator: " ")
+            switch words.first {
+            case "archive": if let archive = lab.projects.project(named: argument) { lab.sidebarFold.unfold(.archive(archive.id)) }
+            case "folder": lab.sidebarFold.unfold(.folder(URL(fileURLWithPath: argument, isDirectory: true).standardizedFileURL.path))
+            case "box": if let box = box(argument.split(separator: "|").map(String.init)) { lab.sidebarFold.unfold(.box(box.id)) }
             default: break
             }
         case "back": lab.goBack()
@@ -431,7 +475,7 @@ import AppKit
             try? text.write(toFile: rest, atomically: true, encoding: .utf8)
         case "state":
             let counts = lab.counts
-            let text = "previews=\(lab.previewBuilder.done)/\(lab.previewBuilder.total)\(lab.previewBuilder.running ? "+" : "") proxies=\(lab.proxyMaker.done)/\(lab.proxyMaker.total)\(lab.proxyMaker.busy ? "+" : "") leftout=\(lab.proxyMaker.leftOut.count) thumbnails=\(model.thumbnailsAsked.done)/\(model.thumbnailsAsked.total) left=\(model.thumbnailsLeft) work=[\(BackgroundWork.tasks(model).map { "\($0.kind.rawValue):\($0.figure.replacingOccurrences(of: " ", with: "_"))" }.joined(separator: ","))] kept=\(model.showsKeptRender) catalog=\(lab.catalogName) projects=\(lab.projects.projects.count) room=\(lab.workspace.rawValue) frames=\(lab.frames.count) picks=\(counts.picks) rejects=\(counts.rejects) selected=\(model.selection.selected.count) "
+            let text = "previews=\(lab.previewBuilder.done)/\(lab.previewBuilder.total)\(lab.previewBuilder.running ? "+" : "") proxies=\(lab.proxyMaker.done)/\(lab.proxyMaker.total)\(lab.proxyMaker.busy ? "+" : "") leftout=\(lab.proxyMaker.leftOut.count) thumbnails=\(model.thumbnailsAsked.done)/\(model.thumbnailsAsked.total) left=\(model.thumbnailsLeft) work=[\(BackgroundWork.tasks(model).map { "\($0.kind.rawValue):\($0.figure.replacingOccurrences(of: " ", with: "_"))" }.joined(separator: ","))] kept=\(model.showsKeptRender) catalog=\(lab.catalogName) archives=\(lab.projects.projects.count) boxes=\(lab.projects.allBoxes.count) room=\(lab.workspace.rawValue) frames=\(lab.frames.count) picks=\(counts.picks) rejects=\(counts.rejects) selected=\(model.selection.selected.count) "
                 + "current=\(model.selection.current?.lastPathComponent ?? "-") mode=\(model.mode) ready=\(model.ready) preview=\(model.previewCurrent) "
                 + "status=[\(model.status)] film=\(model.film) panes=\(lab.compareModel.panes.count) images=\(lab.compareModel.images.values.map { "\($0.width)x\($0.height)" }.joined(separator: ",")) undo=\(window?.undoManager?.canUndo ?? false) "
                 + "presets=[\(model.presets.map(\.name).joined(separator: "|"))] wb=\(model.value("io.raw_white_balance.mode").string)/\(Int(model.value("io.raw_white_balance.temperature").double))/\(model.value("io.raw_white_balance.tint").double) match=\(model.state.brightnessMatch?.ev.map { String(format: "%.2f", $0) } ?? (model.state.brightnessMatch == nil ? "off" : "pending")) renaming=\(model.renamingPreset?.lastPathComponent ?? "-") pane=\(model.inspectorPane) responder=\(window.map { w in (w.firstResponder as? NSTextView).flatMap { $0.delegate as? NSTextField }.map { "field:\($0.stringValue.replacingOccurrences(of: " ", with: "_")):hidden=\($0.isHiddenOrHasHiddenAncestor)" } ?? String(describing: w.firstResponder.map { Swift.type(of: $0) }) } ?? "-")\n"

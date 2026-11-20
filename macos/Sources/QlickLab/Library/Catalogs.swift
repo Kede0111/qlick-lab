@@ -64,7 +64,7 @@ extension LabState {
     func newCatalogPanel() {
         let panel = NSSavePanel()
         panel.title = "New Catalog"
-        panel.message = "A catalog holds its own projects. The photographs stay where they are."
+        panel.message = "A catalog holds its own Archives and Boxes. The photographs stay where they are."
         panel.prompt = "Create"
         panel.nameFieldStringValue = "Untitled Catalog"
         panel.allowedContentTypes = [CatalogList.type]
@@ -101,7 +101,7 @@ extension LabState {
     func saveCatalogAsPanel() {
         let panel = NSSavePanel()
         panel.title = "Save Catalog As"
-        panel.message = "A copy of these projects in a catalog of its own, which then stays open."
+        panel.message = "A copy of these Archives and Boxes in a catalog of its own, which then stays open."
         panel.prompt = "Save"
         panel.nameFieldStringValue = catalogName == "Default Catalog" ? "My Catalog" : catalogName + " copy"
         panel.allowedContentTypes = [CatalogList.type]

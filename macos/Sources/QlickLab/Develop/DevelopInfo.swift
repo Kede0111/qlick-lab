@@ -122,7 +122,7 @@ struct CaptionOptions: Codable, Equatable, Sendable {
         menu.addItem(withTitle: "Zoom", action: nil, keyEquivalent: "").submenu = zoom
         add(menu, "Zoom Tool", #selector(toggleLoupe), key: "z", modifiers: [], on: lab.developLoupe)
         menu.addItem(.separator())
-        for entry in lab.selectionItems(for: [item.photoFile]) { menu.addItem(entry) }
+        for entry in lab.boxItems(for: [item.photoFile]) { menu.addItem(entry) }
         menu.addItem(.separator())
 
         add(menu, "Copy Edits", #selector(copyEdits), key: "c", modifiers: [.command, .shift], enabled: editing)
