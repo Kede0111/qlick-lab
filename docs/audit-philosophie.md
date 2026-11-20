@@ -194,9 +194,24 @@ logiciels, le magasin de recettes et les signatures, l'IA générative, le débr
 Avant : en-tête de catalogue, six pièces (Import, Contact Sheet, Develop, Compare, Recipes, Stocks), Library
 repliable, Archives, Boxes, Settings.
 
-Après : **seulement des lieux**. Last Import et Picks en haut, Archives (avec leurs Rolls), Boxes. Import devient un
-bouton dans l'en-tête de Library ; les pièces sont remplacées par le sélecteur ; Settings rejoint le menu de l'app.
-La barre reste visible dans les trois parties, repliable.
+Après : **la barre suit le sélecteur**. En haut, les pièces de la partie choisie (Library : Import, Contact Sheet ;
+Lab : Develop, Recipes, Stocks ; Print : Export). En dessous, toujours : Archives (avec leurs Rolls) et Boxes. Picks,
+Rejects et étoiles passent dans la barre de tri du bas (4.4). Settings rejoint le menu de l'app. Une barre qui
+listerait les trois parties en permanence ferait double porte avec le sélecteur.
+
+### 4.4 Les images d'inspiration de Quentin (20 novembre)
+
+Deux maquettes générées, à ne pas recopier. Ce qu'on reprend, parce que c'est du labo :
+
+- le sélecteur Library · Lab · Print au centre de la bande de titre ;
+- **la cartouche avec sa languette de film** pour les Rolls (image 2), numéro et photo affichés par l'app en vrai
+  texte et vraie image ; fichier demandé en SVG, ou PNG transparent d'au moins 2048 px ;
+- **une barre de tri en bas** de la planche : All, Picks, Rejects, Unmarked, étoiles, Sort ;
+- l'état vide dessiné en trait fin.
+
+Ce qu'on laisse ou vérifie : les boîtes des deux images (Quentin ne les aime pas ; les visuels boîte à archives de R8
+restent) ; le logo cercle et point rouge, trop proche du point rouge Leica ; les emballages de marques de films
+(citer le nom du film, ne pas copier l'habillage) ; une barre latérale qui répète les trois parties.
 
 ---
 
