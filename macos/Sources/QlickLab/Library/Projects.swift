@@ -568,18 +568,13 @@ struct RollStats: Equatable, Sendable {
         }
     }
 
-    /// Takes photographs out of a Box (from it and everything inside it, as it shows them all) or a Roll. The
-    /// photographs aren't touched.
+    /// Takes photographs out of a Box (its own: those of the Boxes and Rolls inside it are shown on its shelf and stay
+    /// there) or a Roll. The photographs aren't touched.
     func removeFrames(_ frames: [URL], from holder: Holder) {
         let gone = Set(Self.paths(frames))
-        func strip(_ box: inout LabBox) {
-            box.frames.removeAll { gone.contains($0) }
-            for index in box.rolls.indices { box.rolls[index].frames.removeAll { gone.contains($0) } }
-            for index in box.boxes.indices { strip(&box.boxes[index]) }
-        }
         switch holder {
         case .box(let id):
-            changeBox(id) { strip(&$0) }
+            changeBox(id) { $0.frames.removeAll { gone.contains($0) } }
         case .roll(let id, let boxID):
             changeBox(boxID) { box in
                 if let index = box.rolls.firstIndex(where: { $0.id == id }) { box.rolls[index].frames.removeAll { gone.contains($0) } }
@@ -848,7 +843,8 @@ struct RollStats: Equatable, Sendable {
             sources = photoFolders(under: path)
         case .box(let id):
             folder = views.appendingPathComponent("box/\(id.uuidString)", isDirectory: true)
-            sources = frames(of: .box(id)).map { URL(fileURLWithPath: $0, isDirectory: false) }
+            // Its own photographs: those of the Boxes and Rolls inside it are on its shelf (`BoxShelf`).
+            sources = ownFrames(of: .box(id)).map { URL(fileURLWithPath: $0, isDirectory: false) }
         case .roll(let id, let box):
             folder = views.appendingPathComponent("roll/\(box.uuidString)/\(id.uuidString)", isDirectory: true)
             sources = frames(of: .roll(id, box: box)).map { URL(fileURLWithPath: $0, isDirectory: false) }

@@ -19,6 +19,11 @@ import SwiftUI
     private(set) var layout = ContactSheetLayout(style: .classic, count: 0, width: 1, frameWidth: 168)
     private var heading = SheetHeading()
     private var options = SheetOptions()
+    /// Qlick Lab: an open Box's shelf, its Boxes and Rolls above its photographs (`BoxShelfView`), in the space kept
+    /// under the heading; it scrolls with the sheet.
+    private var shelf: BoxShelfContent?
+    private(set) var shelfLayout: BoxShelfLayout?
+    private var shelfHost: NSHostingView<BoxShelfView>?
 
     // Thumbnails: only those near the view are kept.
     private var images: [URL: CGImage] = [:]
@@ -181,7 +186,10 @@ import SwiftUI
             indexOf = Dictionary(shown.enumerated().map { ($1.url, $0) }) { first, _ in first }
         }
         let headingNow = makeHeading()
-        let relaid = relayout(options: optionsNow, heading: headingNow, force: filesChanged)
+        let shelfNow = lab.openShelf
+        let shelfChanged = shelfNow != shelf || optionsNow.lightTable != options.lightTable
+        shelf = shelfNow
+        let relaid = relayout(options: optionsNow, heading: headingNow, force: filesChanged || shelfChanged)
         if optionsNow.tool != .loupe { hideLens() }
         options = optionsNow
         // A sheet always has a frame the keys act on: the first, until another is chosen.
@@ -237,9 +245,18 @@ import SwiftUI
     /// Lays the sheet out for the view's width. True if the layout changed.
     @discardableResult private func relayout(options: SheetOptions, heading: SheetHeading, force: Bool = false) -> Bool {
         let width = max(clipSize.width, 200)
-        let header: CGFloat = heading.notes.isEmpty ? 52 : 70
-        let next = ContactSheetLayout(style: options.style, count: files.count, width: width, frameWidth: options.frameWidth, header: header,
-                                      showsNames: options.showNames, showsFilm: options.showFilm, namesUnder: options.fileNames == .under)
+        let headingHeight: CGFloat = heading.notes.isEmpty ? 52 : 70
+        func make(header: CGFloat) -> ContactSheetLayout {
+            ContactSheetLayout(style: options.style, count: files.count, width: width, frameWidth: options.frameWidth, header: header,
+                               showsNames: options.showNames, showsFilm: options.showFilm, namesUnder: options.fileNames == .under)
+        }
+        // The shelf keeps to the frames' columns: laid out on the strips' length, its height added to the heading's.
+        var next = make(header: headingHeight)
+        let shelfNext = shelf.map {
+            BoxShelfLayout(spans: $0.spans, width: next.stripLength, frame: next.frame, pitch: next.pitch, lead: next.lead, note: $0.note)
+        }
+        if let shelfNext, shelfNext.height > 0 { next = make(header: headingHeight + shelfNext.height) }
+        placeShelf(shelfNext, in: next, below: headingHeight, light: options.lightTable)
         let headingChanged = heading != self.heading
         self.heading = heading
         guard next != layout || force else {
@@ -264,6 +281,28 @@ import SwiftUI
         }
         needsDisplay = true
         return true
+    }
+
+    /// The shelf's view, under the heading on the strips' left edge; gone when no Box is open.
+    private func placeShelf(_ next: BoxShelfLayout?, in sheet: ContactSheetLayout, below heading: CGFloat, light: Bool) {
+        guard let shelf, let next, next.height > 0 else {
+            shelfLayout = nil
+            shelfHost?.removeFromSuperview(); shelfHost = nil
+            return
+        }
+        let frame = CGRect(x: sheet.originX, y: sheet.margin + heading, width: next.width, height: next.height)
+        if let host = shelfHost {
+            if next != shelfLayout || host.rootView.content != shelf || host.rootView.light != light {
+                host.rootView = BoxShelfView(lab: lab, content: shelf, layout: next, light: light)
+            }
+        } else {
+            let host = NSHostingView(rootView: BoxShelfView(lab: lab, content: shelf, layout: next, light: light))
+            host.sizingOptions = []
+            addSubview(host)
+            shelfHost = host
+        }
+        shelfLayout = next
+        if shelfHost?.frame != frame { shelfHost?.frame = frame }
     }
 
     @objc private func scrolled() { hideLens(); loadVisible() }

@@ -241,9 +241,17 @@ private struct SheetGrid: View {
         let target = CGFloat(model.gridCellSize)
         // Landscape pictures are about 1.5 × the row height across.
         let size = PhotoThumbnails.Size.grid(points: target * 1.5, scale: displayScale)
+        // Qlick Lab: an open Box's shelf, its Boxes and Rolls above its own photographs (`BoxShelfView`), objects as
+        // wide as a landscape cell.
+        let shelf = model.lab.openShelf
         GeometryReader { geometry in
-            let layout = SheetLayout(ratios: shown.map { ratios[$0.url] ?? PhotoAspects.fallback }, width: geometry.size.width, target: target)
-            grid(layout: layout, shown: shown, size: size, viewport: geometry.size)
+            let shelfLayout = shelf.map {
+                BoxShelfLayout(spans: $0.spans, width: geometry.size.width - 2 * SheetLayout.side, frame: CGSize(width: (target * 1.5).rounded(), height: target),
+                               pitch: (target * 1.5).rounded() + 16, note: $0.note)
+            }
+            let layout = SheetLayout(ratios: shown.map { ratios[$0.url] ?? PhotoAspects.fallback }, width: geometry.size.width, target: target,
+                                     header: shelfLayout?.height ?? 0)
+            grid(layout: layout, shown: shown, size: size, viewport: geometry.size, shelf: shelf.flatMap { content in shelfLayout.map { (content, $0) } })
         }
         .focusable()
         .focusEffectDisabled()
@@ -269,7 +277,7 @@ private struct SheetGrid: View {
         .overlay {
             if library.loading || library.filtering { ProgressView() }
             else if library.failed { SheetNote(text: "This folder couldn’t be read.") }
-            else if library.files.isEmpty { SheetNote(text: "No supported photographs in this folder.") }
+            else if library.files.isEmpty { if shelf == nil { SheetNote(text: "No supported photographs in this folder.") } }
             else if shown.isEmpty { SheetNote(text: "No photographs match the filter.") }
         }
         .accessibilityLabel("Photographs")
@@ -278,7 +286,8 @@ private struct SheetGrid: View {
     /// Cells are built this far above and below the grid's view.
     static let margin: CGFloat = 300
 
-    private func grid(layout: SheetLayout, shown: [PhotoFile], size: PhotoThumbnails.Size, viewport: CGSize) -> some View {
+    private func grid(layout: SheetLayout, shown: [PhotoFile], size: PhotoThumbnails.Size, viewport: CGSize,
+                      shelf: (content: BoxShelfContent, layout: BoxShelfLayout)? = nil) -> some View {
         let selection = model.selection
         let currentIndex = selection.current.flatMap { current in shown.firstIndex { $0.url == current } }
         let currentRow = currentIndex.flatMap(layout.row(of:))
@@ -300,6 +309,10 @@ private struct SheetGrid: View {
                         focused = true
                         if NSEvent.modifierFlags.isDisjoint(with: [.command, .shift]) { model.deselectAll() }
                     }
+                if let shelf, shelf.layout.height > 0 {
+                    BoxShelfView(lab: model.lab, content: shelf.content, layout: shelf.layout)
+                        .offset(x: SheetLayout.side, y: SheetLayout.top)
+                }
                 ForEach(cells, id: \.file.url) { cell in
                     self.cell(cell.file, frame: layout.frames[cell.index], size: size)
                 }

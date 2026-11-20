@@ -16,7 +16,7 @@ struct ImportSource: Identifiable, Hashable, Sendable {
     var id: URL { root }
     var symbol: String {
         switch kind {
-        case .card: "sdcard"
+        case .card: LabGlyph.card.symbol
         case .disk: "externaldrive"
         case .folder: "folder"
         }

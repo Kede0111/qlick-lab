@@ -71,15 +71,17 @@ import XCTest
         XCTAssertEqual(store.name(of: .roll(day.id, box: night.id)), "Spain › Madrid › Night › Day 1")
         XCTAssertEqual(store.allBoxes.count, 3)
 
-        // Opening a Box lists its own photographs, then everything under it, each once.
+        // Opening a Box lists its own photographs (R8: those under it are on its shelf); it holds everything under it.
         let list = store.viewFolder(for: .box(spain.id))
-        XCTAssertEqual(try PhotoFolder.listing(in: list).photos.map(\.name), ["A1.DNG", "B1.DNG", "A3.DNG"])
+        XCTAssertEqual(try PhotoFolder.listing(in: list).photos.map(\.name), ["A1.DNG"])
+        XCTAssertEqual(store.frames(of: .box(spain.id)).map { ($0 as NSString).lastPathComponent }, ["A1.DNG", "B1.DNG", "A3.DNG"])
         XCTAssertEqual(try PhotoFolder.listing(in: store.viewFolder(for: .roll(day.id, box: night.id))).photos.map(\.name), ["A3.DNG", "A1.DNG"])
         XCTAssertEqual(store.view(of: store.viewFolder(for: .roll(day.id, box: night.id))), .roll(day.id, box: night.id))
 
-        // Taking a photograph out of a Box takes it out of everything under it; the file stays.
+        // Taking a photograph out of a Box takes it out of the Box itself (R8: the Rolls under it keep theirs); the file stays.
         store.removeFrames([a.appendingPathComponent("A1.DNG")], from: .box(spain.id))
-        XCTAssertEqual(store.frames(of: .box(spain.id)), [b.appendingPathComponent("B1.DNG").path, a.appendingPathComponent("A3.DNG").path])
+        XCTAssertEqual(store.frames(of: .box(spain.id)), [b.appendingPathComponent("B1.DNG").path, a.appendingPathComponent("A3.DNG").path,
+                                                          a.appendingPathComponent("A1.DNG").path])
         XCTAssertTrue(FileManager.default.fileExists(atPath: a.appendingPathComponent("A1.DNG").path))
 
         // Names are unique beside each other only.

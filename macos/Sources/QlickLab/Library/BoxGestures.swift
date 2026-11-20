@@ -44,8 +44,19 @@ extension LabState {
         let views = projects.directory.appendingPathComponent("Views", isDirectory: true).standardizedFileURL.path
         guard directory.path.hasPrefix(views + "/") else { return }
         if let open = projects.view(of: directory) {
-            if let holder = open.holder, !projects.isSmart(holder), projects.frames(of: holder).isEmpty { model.closeFolder(); show(.library); return }
+            if let holder = open.holder, !projects.isSmart(holder) {
+                // A Box stays open while it's there (its shelf, or its empty state, shows); an empty Roll closes.
+                let gone: Bool = switch holder {
+                case .box(let id): projects.box(id) == nil
+                case .roll: projects.frames(of: holder).isEmpty
+                }
+                if gone { model.closeFolder(); show(.library); return }
+            }
             projects.viewFolder(for: open)
+            // A Box whose own photographs all left keeps its shelf, no photograph open.
+            if case .box(let id) = open, projects.ownFrames(of: .box(id)).isEmpty, model.source != nil {
+                model.openList(directory, allowEmpty: true)
+            }
             model.library.refreshNow()
             return
         }
@@ -138,14 +149,14 @@ extension LabState {
     /// pastes the edits, as it always has.
     var pasteTarget: Holder? {
         guard let holder = openHolder, !copiedPhotos.isEmpty else { return nil }
-        let inside = Set(projects.frames(of: holder))
+        let inside = Set(projects.ownFrames(of: holder))
         return copiedPhotos.contains { !inside.contains($0.standardizedFileURL.path) } ? holder : nil
     }
 
     /// ⌘V, or Paste in a Box's menu: the photographs copied are added (never moved: they stay where they were too).
     func pastePhotos(into holder: Holder? = nil) {
         guard let holder = holder ?? pasteTarget, !copiedPhotos.isEmpty, !projects.isSmart(holder) else { return }
-        let inside = Set(projects.frames(of: holder))
+        let inside = Set(projects.ownFrames(of: holder))
         let new = copiedPhotos.filter { !inside.contains($0.standardizedFileURL.path) }
         guard !new.isEmpty else { return note("Already There", "in “\(projects.shortName(holder) ?? "")”") }
         if undoable("Paste \(Self.title(new.count))", { projects.addFrames(new, to: holder); return true }) {
@@ -158,7 +169,7 @@ extension LabState {
     func add(_ frames: [URL], to holder: Holder) {
         guard !frames.isEmpty else { return }
         guard !projects.isSmart(holder) else { return note("Not Added", "a Smart Roll is filled by its rules") }
-        let inside = Set(projects.frames(of: holder))
+        let inside = Set(projects.ownFrames(of: holder))
         let new = frames.filter { !inside.contains($0.photoFile.standardizedFileURL.path) }
         guard !new.isEmpty else { return note("Already There", "in “\(projects.shortName(holder) ?? "")”") }
         if undoable("Add \(Self.title(new.count)) to Box", { projects.addFrames(new, to: holder); return true }) {
@@ -166,7 +177,7 @@ extension LabState {
         }
     }
 
-    /// Remove from Box: out of the Box or Roll open (and everything inside it). The files stay where they are.
+    /// Remove from Box: out of the Box or Roll open (a Box's own photographs: its Boxes' and Rolls' stay). The files stay.
     func removeFromOpenHolder(_ frames: [URL]) {
         guard let holder = openHolder, !frames.isEmpty else { return }
         let name = projects.shortName(holder) ?? ""

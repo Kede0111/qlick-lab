@@ -22,14 +22,15 @@ enum Workspace: String, CaseIterable, Identifiable, Sendable {
 
     var symbol: String {
         switch self {
-        case .library: "square.stack.3d.up"
-        case .contactSheet: "film"
-        case .develop: "slider.horizontal.3"
-        case .compare: "rectangle.split.2x1"
-        case .recipes: "flask"
-        case .films: "film.stack"
+        // The lab's own glyphs (`LabGlyph`), drawn by `LabSymbol`; Papers keeps a system symbol, it's never listed.
+        case .library: LabGlyph.prints.symbol
+        case .contactSheet: LabGlyph.strip.symbol
+        case .develop: LabGlyph.aperture.symbol
+        case .compare: LabGlyph.eye.symbol
+        case .recipes: LabGlyph.flask.symbol
+        case .films: LabGlyph.stocks.symbol
         case .papers: "doc.plaintext"
-        case .importer: "square.and.arrow.down"
+        case .importer: LabGlyph.card.symbol
         }
     }
 
@@ -473,7 +474,10 @@ struct SheetOptions: Codable, Equatable, Sendable {
                 if let archive = projects.archive(id), let entry = archive.rolls.first(where: { $0.folder == path }) { return open(entry, in: archive) }
                 return open(folder: URL(fileURLWithPath: path, isDirectory: true))
             }
-        case .box, .roll:
+        case .box(let id):
+            // A Box always opens: its shelf of Boxes and Rolls, its own photographs, or what to put in it.
+            guard projects.box(id) != nil else { return }
+        case .roll:
             guard let holder = view.holder, let name = projects.name(of: holder) else { return }
             guard !projects.frames(of: holder).isEmpty else {
                 model.error = projects.isSmart(holder)
@@ -513,7 +517,13 @@ struct SheetOptions: Codable, Equatable, Sendable {
         loupe = nil
         if model.library.directory?.standardizedFileURL.path != folder.standardizedFileURL.path || model.source == nil {
             // A whole project or a selection is a list of photographs, not a folder on disk.
-            if PhotoFolder.isList(folder) { model.openList(folder) } else { model.open(folder) }
+            if PhotoFolder.isList(folder) {
+                // A Box opens even with no photographs of its own: its shelf shows what it holds.
+                let box: Bool = { if case .box? = projects.view(of: folder) { return true }; return false }()
+                model.openList(folder, allowEmpty: box)
+            } else {
+                model.open(folder)
+            }
         } else if model.mode != .grid {
             model.showGrid()
         }

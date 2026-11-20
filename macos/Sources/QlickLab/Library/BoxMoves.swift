@@ -84,7 +84,7 @@ extension ProjectStore {
                 return DropPlan(operation: .move, verb: "Move", rest: "\(photographs(urls.count)) to “\(name)”",
                                 action: .movePhotos(urls, from: source, to: holder))
             }
-            let inside = Set(frames(of: holder))
+            let inside = Set(ownFrames(of: holder))
             let new = urls.filter { !inside.contains($0.photoFile.standardizedFileURL.path) }
             guard !new.isEmpty else { return .refused(urls.count == 1 ? "Already in “\(name)”" : "All already in “\(name)”") }
             let already = urls.count - new.count
@@ -316,18 +316,12 @@ extension Array where Element == LabBox {
         }
     }
 
-    /// Takes paths out of a Box (and everything inside it) or a Roll, leaving `keeping` (a Box or Roll inside it) as it is.
+    /// Takes paths out of a Box (its own photographs: what its list shows) or a Roll, leaving `keeping` as it is.
     mutating func strip(_ gone: Set<String>, from holder: Holder, keeping: Holder?) {
-        func strip(_ box: inout LabBox) {
-            if keeping == .box(box.id) { return }
-            box.frames.removeAll { gone.contains($0) }
-            for index in box.rolls.indices where keeping != .roll(box.rolls[index].id, box: box.id) {
-                box.rolls[index].frames.removeAll { gone.contains($0) }
-            }
-            for index in box.boxes.indices { strip(&box.boxes[index]) }
-        }
         switch holder {
-        case .box(let id): _ = change(id) { strip(&$0) }
+        case .box(let id):
+            guard keeping != holder else { return }
+            _ = change(id) { $0.frames.removeAll { gone.contains($0) } }
         case .roll(let id, let boxID):
             _ = change(boxID) { box in if let index = box.rolls.firstIndex(where: { $0.id == id }) { box.rolls[index].frames.removeAll { gone.contains($0) } } }
         }

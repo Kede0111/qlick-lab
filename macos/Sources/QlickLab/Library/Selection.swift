@@ -122,13 +122,14 @@ struct SheetLayout: Equatable {
     /// The whole grid's height, padding included.
     let height: CGFloat
 
-    /// `ratios`: each photograph's width ÷ height, in order.
-    init(ratios: [CGFloat], width: CGFloat, target: CGFloat) {
+    /// `ratios`: each photograph's width ÷ height, in order. `header`: room kept above the first row (an open Box's
+    /// shelf, `BoxShelfLayout`).
+    init(ratios: [CGFloat], width: CGFloat, target: CGFloat, header: CGFloat = 0) {
         let usable = max(width - 2 * Self.side, 1)
         let target = max(target, 1)
         var frames: [CGRect] = [], rows: [Row] = []
         frames.reserveCapacity(ratios.count)
-        var y = Self.top, start = 0
+        var y = Self.top + header, start = 0
         func ratio(_ index: Int) -> CGFloat { min(max(ratios[index], 0.1), 10) }
         while start < ratios.count {
             var end = start, sum: CGFloat = 0, full = false
@@ -160,7 +161,7 @@ struct SheetLayout: Equatable {
         self.width = width
         self.frames = frames
         self.rows = rows
-        height = rows.isEmpty ? Self.top + Self.bottom : y - Self.gap + Self.bottom
+        height = rows.isEmpty ? Self.top + header + Self.bottom : y - Self.gap + Self.bottom
     }
 
     /// Whether a photograph is drawn as selected, boxed in yellow: the

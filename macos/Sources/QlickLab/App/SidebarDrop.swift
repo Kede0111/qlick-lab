@@ -186,7 +186,7 @@ private struct SidebarDragPreview: View {
     let name: String
     var body: some View {
         HStack(spacing: 6) {
-            Image(systemName: symbol).font(.system(size: 11)).foregroundStyle(Theme.accent)
+            LabSymbol(symbol: symbol, points: 11, color: Theme.accent)
             Text(name).font(.system(size: 12.5, weight: .medium)).foregroundStyle(Theme.paper).lineLimit(1)
         }
         .padding(.horizontal, 10).frame(height: 26)

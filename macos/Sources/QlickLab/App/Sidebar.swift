@@ -25,7 +25,8 @@ struct LabSidebar: View {
             .frame(height: 40)
 
             VStack(alignment: .leading, spacing: 2) {
-                ForEach(Workspace.ordered) { room in
+                // The Library is the first row of the list below, holding the catalogue's fixed entries.
+                ForEach(Workspace.ordered.filter { $0 != .library }) { room in
                     // A card that's in says so beside Import.
                     RoomRow(room: room, on: lab.workspace.listed(as: room), trailing: room == .importer ? lab.importer.cards.first?.name : nil) { lab.show(room) }
                 }
@@ -37,7 +38,10 @@ struct LabSidebar: View {
             // rows, a folder on a Box, folders from the Finder; the label over the list says what a drop does.
             ScrollView(.vertical) {
                 VStack(alignment: .leading, spacing: 1) {
-                    FindingSection(model: model).padding(.top, 12)
+                    LibraryFold(lab: lab).padding(.top, 10)
+                    if lab.sidebarFold.isOpen(.library, leadsToOpen: true) {
+                        FindingSection(model: model).padding(.top, 1)
+                    }
                     ArchivesSection(model: model)
                     BoxesSection(model: model)
                 }
@@ -84,6 +88,27 @@ private struct RoomRow: View {
     }
 }
 
+/// The Library's row: a click opens the room, its arrow folds or unfolds the catalogue's fixed entries under it (All
+/// Photographs, Last Import, Picks, By Date).
+private struct LibraryFold: View {
+    let lab: LabState
+    var body: some View {
+        let open = lab.sidebarFold.isOpen(.library, leadsToOpen: true)
+        RoomButton(symbol: Workspace.library.symbol, title: Workspace.library.title, on: lab.workspace.listed(as: .library)) { lab.show(.library) }
+            .overlay(alignment: .trailing) {
+                Button { withAnimation(Theme.quick) { lab.sidebarFold.toggle(.library, leadsToOpen: true) } } label: {
+                    Image(systemName: "chevron.right").font(.system(size: 9, weight: .bold)).foregroundStyle(Theme.dim)
+                        .rotationEffect(.degrees(open ? 90 : 0))
+                        .frame(width: 26, height: 30).contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .padding(.trailing, 2)
+                .help(open ? "Fold the Library's entries" : "Show All Photographs, Last Import, Picks and By Date")
+            }
+            .help("\(Workspace.library.title) (⌥⌘\(Workspace.library.key))")
+    }
+}
+
 /// A row of the sidebar. The open room is marked by the pencil's red and a faint fill.
 struct RoomButton: View {
     let symbol: String
@@ -96,8 +121,7 @@ struct RoomButton: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 9) {
-                Image(systemName: symbol).font(.system(size: 13, weight: .regular)).frame(width: 20)
-                    .foregroundStyle(on ? Theme.accent : Color(white: 0.72))
+                LabSymbol(symbol: symbol, points: 13, color: on ? Theme.accent : Color(white: 0.72)).frame(width: 20)
                 Text(title).font(.system(size: 13, weight: on ? .semibold : .regular)).foregroundStyle(on ? Theme.paper : Color(white: 0.82)).lineLimit(1)
                 Spacer(minLength: 4)
                 if let trailing { Text(trailing).font(Theme.value(11)).foregroundStyle(Theme.dim).lineLimit(1).truncationMode(.tail).layoutPriority(-1) }

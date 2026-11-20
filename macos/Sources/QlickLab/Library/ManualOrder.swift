@@ -86,7 +86,7 @@ extension LabState {
     /// becomes Custom Order so the result shows.
     @discardableResult func reorderOpen(_ photos: [URL], slot: Int, shown: [URL]) -> Bool {
         guard let holder = openHolder else { return false }
-        let list = projects.frames(of: holder)
+        let list = projects.ownFrames(of: holder)
         let custom = sort.key == .custom
         // Matched by one spelling, written back in the list's own.
         var own: [String: String] = [:]

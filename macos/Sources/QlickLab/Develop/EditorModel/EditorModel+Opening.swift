@@ -66,10 +66,19 @@ extension EditorModel {
     }
 
     /// Qlick Lab: a list of photographs from several folders (a whole project, a selection: `PhotoFolder.register`),
-    /// opened in the grid on its first photograph, the library listing the list.
-    func openList(_ list: URL) {
+    /// opened in the grid on its first photograph, the library listing the list. `allowEmpty`: a list with nothing in it
+    /// opens too, no photograph open (a Box holding only Boxes and Rolls, shown on its shelf).
+    func openList(_ list: URL, allowEmpty: Bool = false) {
         guard let first = (try? PhotoFolder.listing(in: list))?.photos.first?.url else {
-            error = "None of these photographs can be found. Their disk may not be connected."
+            guard allowEmpty, !cropping else {
+                error = "None of these photographs can be found. Their disk may not be connected."
+                return
+            }
+            flushSidecar()
+            forgetPhotograph()
+            selection = LibrarySelection()
+            libraryRoot = list
+            mode = .grid
             return
         }
         open(first)

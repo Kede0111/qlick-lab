@@ -18,7 +18,7 @@ struct ContactSheetWorkspace: View {
                         .overlay {
                             if library.loading || library.filtering { ProgressView().controlSize(.small) }
                             else if library.failed { SheetMessage(text: "This folder can't be read.") }
-                            else if library.files.isEmpty { SheetMessage(text: "No readable photographs in this folder.") }
+                            else if library.files.isEmpty { if lab.openShelf == nil { SheetMessage(text: "No readable photographs in this folder.") } }
                             else if lab.frames.isEmpty { SheetMessage(text: "No frame matches this filter.") }
                         }
                 }

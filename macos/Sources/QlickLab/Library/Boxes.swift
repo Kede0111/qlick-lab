@@ -196,6 +196,8 @@ struct SidebarFold: Equatable {
         case box(UUID)
         /// Qlick Lab: By Date (empty), a year or a month.
         case date(String)
+        /// Qlick Lab: the Library's row, over the fixed entries.
+        case library
     }
     private(set) var opened: Set<Row> = []
     private(set) var folded: Set<Row> = []
