@@ -545,8 +545,10 @@ and speed/memory/disk comparisons. Measures and what changed: `docs/performance/
   (local, nothing pushed, `main` untouched). Swift tests: 555 (24 skipped), all pass (561 after R8); the Rust side wasn't changed.
   Qlick Lab Dev is built from it (`dist/qlick-lab-dev/Qlick Lab Dev.app`).
 - Phase: **lab structure** on `feature/lab-structure` (from `feature/import-library`, local). Lots A to I done, G but the recipes' door (question to Quentin); J and the recipes' door done. Next: waiting for Quentin to try Qlick Lab Dev; decision 4 (a recipe format shared with QLab) is for the very end.
-- Phase: **speed test branch** `feature/speed-redlamp` (local, from `feature/lab-structure`): done, measured; Quentin
-  compares Qlick Lab Dev and Qlick Lab Dev Speed and decides whether to keep it.
+- Phase: **speed kept** (Quentin, 2026-11-21): `feature/speed-redlamp` = `feature/lab-structure` at 64547fc + speed +
+  settings respected (c56d3b7: helpers relaunched when Make proxies changes, no previews on disk with Build previews
+  ahead off, Settings › Upkeep › Develop thumbnails ahead). Qlick Lab Dev is now built from it. To do: merge it into
+  `feature/lab-structure` once the UX work there is committed (it's checked out in `.worktrees/lab-structure`).
 
 ## Build and test
 
