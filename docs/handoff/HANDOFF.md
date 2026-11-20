@@ -302,7 +302,7 @@ Steps (one local commit each, tests, `scripts/drive.sh` screenshots checked, Dev
   Left / risky: an open computed list (Picks, a Smart Roll) follows the index when files change, not each mark given
   (reopen it); a photograph outside every Archive is searched by its file's facts as they're read; the first reading of
   a large catalogue takes a while (counts show once it's done).
-- [x] R6 Import (HASH6): **Archive required** (`ImportSession.hasArchive`, blocker "Choose an Archive for these
+- [x] R6 Import (cf9c44e): **Archive required** (`ImportSession.hasArchive`, blocker "Choose an Archive for these
   photographs, or a new one."): the panel's Archive row (`ArchiveChooser`) offers the Archives (most recently added to
   first) or a new one pre-named `suggestedArchiveName` ("R6 Card · 2026-11-20"; a `DCIM` folder takes its parent's name),
   editable; the Archive, Box/Roll and film card are cleared when another source opens (`lastSource`), kept for the same
