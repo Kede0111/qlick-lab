@@ -68,6 +68,16 @@ final class TitleBand: NSView {
 
     /// A click on the word at this index of `crumbs`.
     var onCrumb: ((Int) -> Void)?
+    /// The Library · Lab · Print selector, in the middle of the window (the main window only).
+    var selector: PartSelector? {
+        didSet {
+            oldValue?.removeFromSuperview()
+            if let selector { addSubview(selector) }
+            needsLayout = true
+        }
+    }
+    /// Between the trail and the selector.
+    static let selectorGap: CGFloat = 16
     private(set) var words: [CrumbWord] = []
     private var separators: [NSTextField] = []
     /// Between the zoom button and the name (`.lights`' 14 pt padding).
@@ -117,9 +127,10 @@ final class TitleBand: NSView {
         needsLayout = true
     }
 
-    /// Only the links take clicks.
+    /// Only the links and the selector's segments take clicks.
     override func hitTest(_ point: NSPoint) -> NSView? {
         let hit = super.hitTest(point)
+        if hit is PartSegment { return hit }
         return (hit as? CrumbWord)?.clickable == true ? hit : nil
     }
     override var mouseDownCanMoveWindow: Bool { true }
@@ -158,7 +169,18 @@ final class TitleBand: NSView {
         }
         let markWidth = separators.first.map { size($0).width + 10 } ?? 0
         var widths = words.map { size($0).width }
-        let room = max(bounds.width - left - Theme.Size.gutter - markWidth * CGFloat(separators.count), 0)
+        // The selector in the middle of the window; a long trail pushes it right, as far as the band allows, before
+        // its words give way.
+        var right = bounds.width - Theme.Size.gutter
+        if let selector {
+            let size = selector.fittingSize
+            let windowMiddle = window.map { convert(NSPoint(x: $0.frame.width / 2, y: 0), from: nil).x } ?? bounds.midX
+            let trail = left + widths.reduce(0, +) + markWidth * CGFloat(separators.count) + Self.selectorGap
+            let x = min(max(windowMiddle - size.width / 2, trail, left), max(bounds.width - Theme.Size.gutter - size.width, left))
+            selector.frame = NSRect(x: x.rounded(), y: (middle - size.height / 2).rounded(), width: size.width, height: size.height)
+            right = x - Self.selectorGap
+        }
+        let room = max(right - left - markWidth * CGFloat(separators.count), 0)
         // Too long: the earlier words give way first, down to a few letters, then the last.
         var over = widths.reduce(0, +) - room
         for index in widths.indices where over > 0 {
@@ -245,4 +267,118 @@ final class CrumbWord: NSTextField {
         pressed()
         return true
     }
+}
+
+/// The lab's three parts in one capsule, in the middle of the title band: Library · Lab · Print. The part chosen is
+/// filled with the lab's red. A segment acts as the mouse goes down, with no animation: the part shows at once.
+final class PartSelector: NSView {
+    private(set) var segments: [PartSegment] = []
+    /// A segment pressed (or chosen by VoiceOver).
+    var onChoose: ((LabPart) -> Void)?
+    static let height: CGFloat = 24
+    static let inset: CGFloat = 2
+
+    var chosen: LabPart = .lab {
+        didSet { if chosen != oldValue { segments.forEach { $0.on = $0.part == chosen } } }
+    }
+
+    init() {
+        super.init(frame: .zero)
+        wantsLayer = true
+        layer?.cornerRadius = Self.height / 2
+        layer?.cornerCurve = .continuous
+        layer?.backgroundColor = NSColor.white.withAlphaComponent(0.07).cgColor
+        segments = LabPart.allCases.map { part in
+            let segment = PartSegment(part: part)
+            segment.on = part == chosen
+            segment.pressed = { [weak self] in self?.onChoose?(part) }
+            addSubview(segment)
+            return segment
+        }
+        setAccessibilityElement(true)
+        setAccessibilityRole(.radioGroup)
+        setAccessibilityLabel("Library, Lab, Print")
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+
+    override var fittingSize: NSSize {
+        NSSize(width: segments.reduce(0) { $0 + $1.width } + Self.inset * 2, height: Self.height)
+    }
+
+    override func layout() {
+        super.layout()
+        var x = Self.inset
+        for segment in segments {
+            segment.frame = NSRect(x: x, y: Self.inset, width: segment.width, height: bounds.height - Self.inset * 2)
+            x += segment.width
+        }
+    }
+
+    override var mouseDownCanMoveWindow: Bool { false }
+
+    /// Where a segment lies, in the window, for automation.
+    func centre(of part: LabPart) -> NSPoint? {
+        guard let segment = segments.first(where: { $0.part == part }) else { return nil }
+        return segment.convert(NSPoint(x: segment.bounds.midX, y: segment.bounds.midY), to: nil)
+    }
+}
+
+/// One part of the selector: its name in spaced capitals, white on red when chosen.
+final class PartSegment: NSView {
+    let part: LabPart
+    var pressed: () -> Void = {}
+    var on = false { didSet { if on != oldValue { needsDisplay = true; setAccessibilityValue(on) } } }
+    private var hovered = false { didSet { if hovered != oldValue { needsDisplay = true } } }
+    static let padding: CGFloat = 13
+    static let size = Theme.Caps.size
+
+    init(part: LabPart) {
+        self.part = part
+        super.init(frame: .zero)
+        toolTip = part.help
+        setAccessibilityElement(true)
+        setAccessibilityRole(.radioButton)
+        setAccessibilityLabel(part.title)
+        setAccessibilityValue(false)
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+
+    private func text(on: Bool) -> NSAttributedString {
+        NSAttributedString(string: part.title.uppercased(), attributes: [
+            .font: NSFont.systemFont(ofSize: Self.size, weight: on ? .semibold : .medium),
+            .kern: Self.size * Theme.Caps.tracking,
+            .foregroundColor: on ? Theme.NS.onAccent : hovered ? Theme.NS.paper : Theme.NS.dim,
+        ])
+    }
+
+    /// Wide enough for the name in semibold, so the segments never shift when one is chosen.
+    var width: CGFloat { ceil(text(on: true).size().width) + Self.padding * 2 }
+
+    override func draw(_ dirtyRect: NSRect) {
+        if on {
+            Theme.NS.accent.setFill()
+            NSBezierPath(roundedRect: bounds, xRadius: bounds.height / 2, yRadius: bounds.height / 2).fill()
+        }
+        let string = text(on: on), size = string.size()
+        string.draw(at: NSPoint(x: ((bounds.width - size.width) / 2).rounded(), y: ((bounds.height - size.height) / 2).rounded()))
+    }
+
+    override var mouseDownCanMoveWindow: Bool { false }
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        trackingAreas.forEach(removeTrackingArea)
+        addTrackingArea(NSTrackingArea(rect: bounds, options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect], owner: self))
+    }
+
+    override func mouseEntered(with event: NSEvent) { hovered = true }
+    override func mouseExited(with event: NSEvent) { hovered = false }
+
+    /// On the way down, not on release.
+    override func mouseDown(with event: NSEvent) { pressed() }
+
+    override func accessibilityPerformPress() -> Bool { pressed(); return true }
 }

@@ -414,8 +414,19 @@ Lots, in order:
   `#f8000a`. Surface `panel` #131314 (was #141415). `CapsLabel` 11 pt, tracking 0.11 × size; floating panels 26,
   dialog 22, glass cards 14, icon buttons 7. White on the red is 4.2 : 1 (test floor 4.0 for the main button's
   semibold capitals; told Quentin). Not in the QLab repository (decision 4 later). Tests: 564.
-- [ ] C Central selector Library · Lab · Print in `TitleBand`; the sidebar follows it (the part's rooms on top,
-  Archives and Boxes always below); switch on mouseDown, no animation; ⌘1/2/3; one key for Lab ↔ contact sheet.
+- [x] C Central selector: `LabPart` (library, lab, print; `rooms`, `firstRoom`, `of(room)`: the contact sheet is the
+  Library's and the Lab's), `LabState.part`, `choose(_:)` (each part comes back to the room it was left in; Lab again
+  switches Develop ↔ contact sheet), `toggleSheet()`, `show(_:in:)`. `PartSelector` / `PartSegment` (TitleBar.swift):
+  a capsule in the middle of the window (a long trail pushes it right before its words give way), the chosen part
+  white on the red, capitals; acts on mouseDown, no animation; the band hands its clicks over
+  (`EditorWindow.sendEvent`, as for the crumbs). ⌘1/⌘2/⌘3 (Lab menu, top); Actual Size moved to ⇧⌘1. G is the one
+  key between Develop and the contact sheet (View › Show Contact Sheet / Show Develop; Esc and E/Return as before).
+  Sidebar: the part's rooms on top (Library: Import, Contact Sheet; Lab: Develop, Compare, Recipes, Stocks; Print:
+  Print), then always the Library's fixed entries, Archives, Boxes. A provisional Print room (`Print/PrintWorkspace`,
+  ⌥⌘8): count, Export…, Print Contact Sheet… (lot F fills it). Automation: `part <name>` (a press through the window),
+  `togglesheet`; `state` has `part=`. Tests: 567 (`LabPartTests`).
+  Found, not mine and left alone (lot H rule): after Develop → contact sheet, the open photograph's thumbnail on the
+  sheet stays empty (also on the code before C: `room contactSheet`, `room develop`, `room contactSheet`).
 - [ ] D The Lab's shelf: show/hide per recipe and per stock, favourites by identifier in one system, sort and search.
 - [ ] E Export and import of recipes in a bundle (no shared QLab format).
 - [ ] F The Print room.
@@ -429,7 +440,7 @@ Lots, in order:
 - Phase: **0.4 is done** (R1–R8; R8 from Quentin's first try of Dev). `feature/import-library` holds architecture waves 1–3, 0.1.5, 0.2, 0.3 and 0.4
   (local, nothing pushed, `main` untouched). Swift tests: 555 (24 skipped), all pass (561 after R8); the Rust side wasn't changed.
   Qlick Lab Dev is built from it (`dist/qlick-lab-dev/Qlick Lab Dev.app`).
-- Phase: **lab structure** on `feature/lab-structure` (from `feature/import-library`, local). Lots A and B done; next is lot C.
+- Phase: **lab structure** on `feature/lab-structure` (from `feature/import-library`, local). Lots A, B and C done; next is lot D.
 
 ## Build and test
 

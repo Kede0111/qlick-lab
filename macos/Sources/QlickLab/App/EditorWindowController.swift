@@ -17,6 +17,11 @@ import SwiftUI
             word.mouseDown(with: event)
             return
         }
+        // The Library · Lab · Print selector lies there too, and acts as the mouse goes down.
+        if event.type == .leftMouseDown, let segment = contentView?.superview?.hitTest(event.locationInWindow) as? PartSegment {
+            segment.mouseDown(with: event)
+            return
+        }
         if [.leftMouseDown, .rightMouseDown, .otherMouseDown].contains(event.type),
            let editor = firstResponder as? NSTextView, editor.isFieldEditor,
            let field = editor.delegate as? NSTextField,
@@ -167,6 +172,11 @@ final class EdgeSplitView: NSSplitView {
             let crumbs = lab.crumbs
             if crumbs.indices.contains(index), let target = crumbs[index].target { lab.follow(target) }
         }
+        // Qlick Lab: Library · Lab · Print in the middle of the title band.
+        let selector = PartSelector()
+        selector.chosen = model.lab.part
+        selector.onChoose = { [weak model] part in model?.lab.choose(part) }
+        editorFrame.band.selector = selector
         model.presentBatch = { [weak self] view in self?.showBatchPopover(below: view) }
         // Dragging the inspector closed hides the adjustments, like ⌥⌘I.
         collapsing = inspector.observe(\.isCollapsed) { [weak self] item, _ in
@@ -516,6 +526,7 @@ final class EdgeSplitView: NSSplitView {
         let title = lab.title
         if window.title != title { window.title = title }
         editorFrame.band.crumbs = lab.crumbs.map { TitleBand.Crumb(text: $0.text, clickable: $0.target != nil) }
+        editorFrame.band.selector?.chosen = lab.part
         let alert = model.alert
         if alert != nil, alertPresenter == nil { alertPresenter = AlertPresenter(model: model, window: window, root: root) }
         alertPresenter?.show(alert)

@@ -5,7 +5,7 @@ import SwiftUI
 
 /// The lab's rooms. `develop` is the editor underneath; the others are laid over it.
 enum Workspace: String, CaseIterable, Identifiable, Sendable {
-    case library, contactSheet, develop, compare, recipes, films, papers, importer
+    case library, contactSheet, develop, compare, recipes, films, papers, importer, print
     var id: String { rawValue }
 
     var title: String {
@@ -17,6 +17,7 @@ enum Workspace: String, CaseIterable, Identifiable, Sendable {
         case .recipes: "Recipes"
         case .films, .papers: "Stocks"
         case .importer: "Import"
+        case .print: "Print"
         }
     }
 
@@ -31,11 +32,18 @@ enum Workspace: String, CaseIterable, Identifiable, Sendable {
         case .films: LabGlyph.stocks.symbol
         case .papers: "doc.plaintext"
         case .importer: LabGlyph.card.symbol
+        case .print: LabGlyph.print.symbol
         }
     }
 
-    /// ⌘1…⌘7 in the Espace menu.
-    var key: String { self == .importer ? "0" : String((Workspace.allCases.firstIndex(of: self) ?? 0) + 1) }
+    /// ⌥⌘1…⌥⌘7 in the Lab menu; Import ⌥⌘0, Print ⌥⌘8.
+    var key: String {
+        switch self {
+        case .importer: "0"
+        case .print: "8"
+        default: String((Workspace.allCases.firstIndex(of: self) ?? 0) + 1)
+        }
+    }
 
     /// As the sidebar and the menu list them: Import first, where a session starts; the others keep their keys.
     /// Films and papers are one room, Stocks, with a switch inside (`StockLibrary`): only `films` is listed.
@@ -43,6 +51,61 @@ enum Workspace: String, CaseIterable, Identifiable, Sendable {
 
     /// The room a sidebar row or menu item stands for: Stocks is lit for its films and its papers.
     func listed(as room: Workspace) -> Bool { self == room || (room == .films && self == .papers) }
+}
+
+/// The lab's three parts, chosen in the title band's selector (⌘1, ⌘2, ⌘3): the Library (import, the contact
+/// sheet, Archives, Boxes), the Lab (development, recipes, stocks) and Print (export). The contact sheet belongs to
+/// the Library and to the Lab alike: from Develop one key (G) or a click on Lab shows it without leaving the Lab.
+enum LabPart: String, CaseIterable, Identifiable, Sendable {
+    case library, lab, print
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .library: "Library"
+        case .lab: "Lab"
+        case .print: "Print"
+        }
+    }
+
+    /// ⌘1, ⌘2, ⌘3.
+    var key: String { String((LabPart.allCases.firstIndex(of: self) ?? 0) + 1) }
+
+    /// The part's rooms, as the sidebar lists them on top.
+    var rooms: [Workspace] {
+        switch self {
+        case .library: [.importer, .contactSheet]
+        case .lab: [.develop, .compare, .recipes, .films]
+        case .print: [.print]
+        }
+    }
+
+    /// The room a part opens on the first time.
+    var firstRoom: Workspace {
+        switch self {
+        case .library: .contactSheet
+        case .lab: .develop
+        case .print: .print
+        }
+    }
+
+    /// The part a room belongs to; nil for the contact sheet, which is the Library's and the Lab's.
+    static func of(_ room: Workspace) -> LabPart? {
+        switch room {
+        case .library, .importer: .library
+        case .develop, .compare, .recipes, .films, .papers: .lab
+        case .print: .print
+        case .contactSheet: nil
+        }
+    }
+
+    var help: String {
+        switch self {
+        case .library: "Library: import, the contact sheet, Archives and Boxes (⌘1)"
+        case .lab: "Lab: develop, recipes and stocks (⌘2). G, or a click here, switches between Develop and the contact sheet"
+        case .print: "Print: export the photographs (⌘3)"
+        }
+    }
 }
 
 /// How the contact sheet is laid out and worked on. Kept between launches.
@@ -140,6 +203,10 @@ struct SheetOptions: Codable, Equatable, Sendable {
     var libraryQuery = ""
 
     private(set) var workspace = Workspace.develop
+    /// The part chosen in the title band's selector; the sidebar lists its rooms on top.
+    private(set) var part = LabPart.lab
+    /// The room each part was last in, to come back to it.
+    @ObservationIgnored private var lastRoom: [LabPart: Workspace] = [:]
     /// The adjustments float over the photograph on glass, instead of in a column beside it.
     var floatingPanel = NSClassFromString("XCTestCase") == nil && (UserDefaults.standard.object(forKey: "qlick.floatingPanel") as? Bool ?? true) {
         didSet { UserDefaults.standard.set(floatingPanel, forKey: "qlick.floatingPanel") }
@@ -254,7 +321,8 @@ struct SheetOptions: Codable, Equatable, Sendable {
 
     /// Opens a room, bringing the editor to the state it needs: the sheet works on the folder as the editor's grid
     /// does (rating and edit commands act on the selection), developing on one photograph.
-    func show(_ next: Workspace) {
+    /// `part` says which part the contact sheet opens in (the Library's or the Lab's); by default the one chosen.
+    func show(_ next: Workspace, in chosen: LabPart? = nil) {
         guard !model.cropping || next == .develop else { NSSound.beep(); return }
         loupe = nil
         switch next {
@@ -268,15 +336,44 @@ struct SheetOptions: Codable, Equatable, Sendable {
         if next == .library { projects.sidecars = model.sidecarLookup?.store; projects.countAll() }
         if next == .importer { importer.refreshVolumes() }
         if workspace != next { workspace = next }
+        // The contact sheet stays in the part it was opened from (the Library's or the Lab's); from Print, the Library's.
+        let nextPart = LabPart.of(next) ?? chosen ?? (part == .print ? .library : part)
+        if part != nextPart { part = nextPart }
+        lastRoom[nextPart] = next
         notePlace(Place(workspace: next, folder: model.library.directory?.standardizedFileURL))
+    }
+
+    /// The selector's segments (and ⌘1, ⌘2, ⌘3): the part's room as it was left. Lab again, when it's already
+    /// chosen, switches between Develop and the contact sheet.
+    func choose(_ next: LabPart) {
+        guard !model.cropping else { NSSound.beep(); return }
+        if next == part {
+            if next == .lab { toggleSheet() }
+            return
+        }
+        if next == .library, workspace == .contactSheet {
+            part = .library
+            lastRoom[.library] = .contactSheet
+            return
+        }
+        show(lastRoom[next] ?? next.firstRoom, in: next)
+    }
+
+    /// One key (G) between Develop and the contact sheet, in the part chosen.
+    func toggleSheet() {
+        show(workspace == .contactSheet ? .develop : .contactSheet)
     }
 
     /// Follows the editor when it changes between one photograph and the folder by itself (G, Esc, a double-click).
     func follow(mode: LibraryMode) {
         guard mode != seenMode else { return }
         seenMode = mode
-        if mode == .grid, workspace == .develop { workspace = .contactSheet }
-        if mode == .photo, workspace == .contactSheet { workspace = .develop }
+        if mode == .grid, workspace == .develop { workspace = .contactSheet; lastRoom[part] = .contactSheet }
+        if mode == .photo, workspace == .contactSheet {
+            workspace = .develop
+            if part != .lab { part = .lab }
+            lastRoom[.lab] = .develop
+        }
         notePlace(place)
     }
 

@@ -37,7 +37,8 @@ import XCTest
         XCTAssertEqual(band.words[0].font?.pointSize, 13.5)
         let frame = controller.editorFrame.view
         // Clicks on the band reach the title bar under it, which drags and zooms.
-        XCTAssertNil(frame.hitTest(NSPoint(x: 400, y: frame.bounds.height - 19)), "the window drags from the band")
+        XCTAssertNil(frame.hitTest(NSPoint(x: frame.bounds.width - 60, y: frame.bounds.height - 19)), "the window drags from the band")
+        XCTAssertNotNil(band.selector, "Library · Lab · Print in the band")
         XCTAssertNotNil(frame.hitTest(NSPoint(x: 400, y: frame.bounds.height - 100)), "the columns take their clicks")
         XCTAssertEqual(band.frame, NSRect(x: 0, y: frame.bounds.height - 38, width: frame.bounds.width, height: 38))
         XCTAssertEqual(controller.editorFrame.split.view.frame,
@@ -118,6 +119,7 @@ import XCTest
         band.layoutSubtreeIfNeeded()
         XCTAssertLessThanOrEqual(band.words[2].frame.maxX, band.bounds.width - Theme.Size.gutter + 1)
         XCTAssertGreaterThan(band.words[2].frame.width, 60, "the photograph's name keeps its room")
+        if let selector = band.selector { XCTAssertLessThanOrEqual(band.words[2].frame.maxX, selector.frame.minX, "the trail stops short of the selector") }
     }
 
     /// The smallest window: a 640 pt canvas beside the inspector at 340 (§7).

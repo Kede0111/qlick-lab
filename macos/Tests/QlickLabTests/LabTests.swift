@@ -435,7 +435,7 @@ final class LabWordsTests: XCTestCase {
         XCTAssertEqual(Set(Workspace.allCases.map(\.title)).count, Workspace.allCases.count - 1)
         XCTAssertEqual(Workspace.papers.title, Workspace.films.title)
         // Import has a key of its own, so the seven rooms before it keep theirs.
-        XCTAssertEqual(Workspace.allCases.map(\.key), ["1", "2", "3", "4", "5", "6", "7", "0"])
+        XCTAssertEqual(Workspace.allCases.map(\.key), ["1", "2", "3", "4", "5", "6", "7", "0", "8"])
         XCTAssertEqual(Workspace.contactSheet.title, "Contact Sheet")
     }
 

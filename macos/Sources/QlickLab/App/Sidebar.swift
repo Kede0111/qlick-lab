@@ -2,8 +2,8 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// The lab's navigation: its rooms, then the Archives and their folders, then the Boxes. It sits in the window's
-/// sidebar, which macOS 26 draws as a floating pane of Liquid Glass.
+/// The lab's navigation: the rooms of the part chosen (Library, Lab or Print), then the Archives and their folders,
+/// then the Boxes. It sits in the window's sidebar, which macOS 26 draws as a floating pane of Liquid Glass.
 struct LabSidebar: View {
     let model: EditorModel
     @State private var dropping = false
@@ -25,8 +25,9 @@ struct LabSidebar: View {
             .frame(height: 40)
 
             VStack(alignment: .leading, spacing: 2) {
-                // The Library is the first row of the list below, holding the catalogue's fixed entries.
-                ForEach(Workspace.ordered.filter { $0 != .library }) { room in
+                // The rooms of the part chosen in the title band's selector; the places (the Library's fixed
+                // entries, Archives, Boxes) are always below.
+                ForEach(lab.part.rooms) { room in
                     // A card that's in says so beside Import.
                     RoomRow(room: room, on: lab.workspace.listed(as: room), trailing: room == .importer ? lab.importer.cards.first?.name : nil) { lab.show(room) }
                 }

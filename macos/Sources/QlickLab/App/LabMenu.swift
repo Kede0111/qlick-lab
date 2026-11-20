@@ -10,6 +10,11 @@ import AppKit
     init(model: EditorModel) {
         self.model = model
         super.init()
+        for part in LabPart.allCases {
+            let item = add(part.title, #selector(choosePart(_:)), part.key, .command)
+            item.representedObject = part.rawValue
+        }
+        menu.addItem(.separator())
         for room in Workspace.ordered {
             let item = add(room.title, #selector(showRoom(_:)), room.key, [.command, .option])
             item.representedObject = room.rawValue
@@ -83,6 +88,7 @@ import AppKit
         return item
     }
 
+    @objc private func choosePart(_ item: NSMenuItem) { if let part = (item.representedObject as? String).flatMap(LabPart.init) { lab.choose(part) } }
     @objc private func showRoom(_ item: NSMenuItem) { if let room = (item.representedObject as? String).flatMap(Workspace.init) { lab.show(room) } }
     @objc private func newProject() { lab.newArchive(); if lab.workspace == .develop { lab.show(.library) } }
     @objc private func newBox() { lab.newBox(with: lab.workspace == .contactSheet || lab.workspace == .develop ? lab.selectionTargets : []) }
@@ -124,6 +130,9 @@ import AppKit
         guard model.alert == nil else { return false }
         let sheet = lab.workspace == .contactSheet, photo = model.source != nil
         switch item.action {
+        case #selector(choosePart(_:)):
+            item.state = (item.representedObject as? String) == lab.part.rawValue ? .on : .off
+            return !model.cropping
         case #selector(showRoom(_:)):
             let room = (item.representedObject as? String).flatMap(Workspace.init)
             item.state = room == lab.workspace ? .on : .off

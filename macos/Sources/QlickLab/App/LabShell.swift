@@ -18,6 +18,7 @@ struct WorkspaceOverlay: View {
             case .films: StockLibrary(model: model, papers: false)
             case .papers: StockLibrary(model: model, papers: true)
             case .importer: ImportWorkspace(model: model)
+            case .print: PrintWorkspace(model: model)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

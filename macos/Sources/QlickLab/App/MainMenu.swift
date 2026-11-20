@@ -92,7 +92,8 @@ import SwiftUI
         // Plain keys, behind the same check as the rating keys.
         command(view, "Edit Photograph", #selector(editPhotograph), "e", [])
         hidden(view, #selector(editPhotograph), "\r")
-        command(view, "Show Grid", #selector(showGrid), "g", [])
+        // G: one key between Develop and the contact sheet, in the part chosen.
+        command(view, "Show Contact Sheet", #selector(showGrid), "g", [])
         // Esc shows the grid too: `EditorWindowController.escapeToGrid`.
         command(view, "Larger Thumbnails", #selector(largerThumbnails), "+")
         hidden(view, #selector(largerThumbnails), "=", .command)
@@ -106,7 +107,8 @@ import SwiftUI
         command(view, "Show All Controls", #selector(toggleAllControls), "")
         view.addItem(.separator())
         command(view, "Fit Photograph", #selector(fitPhotograph), "0")
-        command(view, "Actual Size", #selector(actualSize), "1")
+        // ⇧⌘1 (one to one): ⌘1, ⌘2, ⌘3 choose Library, Lab and Print.
+        command(view, "Actual Size", #selector(actualSize), "1", [.command, .shift])
         // Rotate lives in cropping (§4.10); from here it starts cropping.
         command(view, "Rotate Clockwise", #selector(rotate), "r")
         command(view, "Rotate Counterclockwise", #selector(rotateLeft), "r", [.command, .option])
@@ -335,7 +337,7 @@ import SwiftUI
         guard NSApp.keyWindow is EditorWindow else { return }
         model.copyEditsChoosing()
     }
-    @objc private func showGrid() { model.showGrid() }
+    @objc private func showGrid() { model.lab.toggleSheet() }
     @objc private func largerThumbnails() { model.changeGridCellSize(larger: true) }
     @objc private func smallerThumbnails() { model.changeGridCellSize(larger: false) }
 
@@ -410,7 +412,10 @@ import SwiftUI
         case #selector(autoStraighten): return model.image != nil && model.mode == .photo && model.lab.workspace == .develop
         case #selector(resetAdjustments): return model.hasCatalog && !model.cropping && model.mode == .photo
         case #selector(editPhotograph): return model.mode == .grid && model.selection.current != nil && Self.takesRatingKeys(NSApp.keyWindow)
-        case #selector(showGrid): return editing && !model.cropping && Self.takesRatingKeys(NSApp.keyWindow)
+        case #selector(showGrid):
+            let sheet = model.lab.workspace == .contactSheet
+            item.title = sheet ? "Show Develop" : "Show Contact Sheet"
+            return !model.cropping && Self.takesRatingKeys(NSApp.keyWindow) && (sheet ? model.selection.current != nil || model.source != nil : true)
         case #selector(largerThumbnails): return model.mode == .grid && model.gridCellSize < SheetLayout.sizes.upperBound
         case #selector(smallerThumbnails): return model.mode == .grid && model.gridCellSize > SheetLayout.sizes.lowerBound
         case #selector(copyEdits), #selector(copyEditsChoosing):
