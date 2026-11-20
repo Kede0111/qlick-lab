@@ -17,7 +17,7 @@ struct LibraryHome: View {
             HStack(spacing: 10) {
                 HStack(spacing: 6) {
                     Image(systemName: "magnifyingglass").font(.system(size: 11)).foregroundStyle(Theme.dim)
-                    TextField("Search Archives, folders, films, files, or rating:>=3 camera:m11…", text: Binding(get: { lab.libraryQuery }, set: { lab.libraryQuery = $0 }))
+                    TextField("Search", text: Binding(get: { lab.libraryQuery }, set: { lab.libraryQuery = $0 }))
                         .textFieldStyle(.plain).font(.system(size: 12.5)).focused($searching)
                     if !query.isEmpty {
                         Button { lab.libraryQuery = "" } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(Theme.dim) }.buttonStyle(.plain)

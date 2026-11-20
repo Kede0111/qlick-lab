@@ -358,23 +358,22 @@ private struct KeywordFilter: View {
     }
 }
 
-/// Over the sort bar: the search, which understands fields (`PhotoQuery`: `rating:>=3 film:portra iso:>800
-/// date:2026-09`…), the period, film, camera and lens of what's listed, developed or not, colour labels, keywords,
-/// and Save as Smart Roll… for the whole filter.
+/// Over the sort bar: the search (it understands fields, `PhotoQuery`: `rating:>=3 film:portra iso:>800`…), and the
+/// funnel that opens the filters (`LibraryFilters`), lit with a red dot while one is on.
 struct LibraryFindBar: View {
     let model: EditorModel
     /// Without its own pane of glass: over the grid's foot.
     var inline = false
     private var lab: LabState { model.lab }
     @FocusState private var typing: Bool
+    @State private var filtersOpen = false
 
     var body: some View {
         let filter = model.library.filter
         HStack(spacing: 4) {
             HStack(spacing: 6) {
                 Image(systemName: "magnifyingglass").font(.system(size: 11)).foregroundStyle(filter.search.isEmpty ? Theme.dim : Theme.accent)
-                TextField("Search, or rating:>=3 iso:>800…", text: Binding(get: { model.library.filter.search },
-                                                                                             set: { model.library.filter.search = $0 }))
+                TextField("Search", text: Binding(get: { model.library.filter.search }, set: { model.library.filter.search = $0 }))
                     .textFieldStyle(.plain).font(.system(size: 12)).focused($typing)
                     .onExitCommand { typing = false }
                 if !filter.search.isEmpty {
@@ -382,62 +381,30 @@ struct LibraryFindBar: View {
                         .buttonStyle(.plain).help("Clear the search")
                 }
             }
-            .padding(.horizontal, 10).frame(width: 240, height: 24)
+            .padding(.horizontal, 10).frame(width: 200, height: 24)
             .background(Capsule().fill(Color.white.opacity(0.07)))
-            .help(LibraryFindBar.searchHelp)
-            separator
-            let facets = Facets(model: model)
-            FacetMenu(title: "Period", symbol: "calendar", chosen: filter.period.map(Self.periodTitle), help: "Only the photographs taken then") {
-                ForEach([7, 30, 365], id: \.self) { days in
-                    choice("Last \(days) Days", on: filter.period == "last:\(days)") { model.library.filter.period = "last:\(days)" }
-                }
-                Divider()
-                ForEach(facets.periods.years) { year in
-                    Menu("\(year.title)  \(year.count)") {
-                        choice("All of \(year.title)", on: filter.period == year.key) { model.library.filter.period = year.key }
-                        Divider()
-                        ForEach(year.children) { month in
-                            choice("\(month.title)  \(month.count)", on: filter.period == month.key) { model.library.filter.period = month.key }
-                        }
+            .help("Search the photographs")
+            // Qlick Lab: the finer filters behind one button; a red dot while one is on.
+            Button { filtersOpen.toggle() } label: {
+                Image(systemName: "line.3.horizontal.decrease").font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(filtersOpen ? Theme.paper : Color(white: 0.75))
+                    .frame(width: 28, height: 24).contentShape(Rectangle())
+                    .overlay(alignment: .topTrailing) {
+                        if Self.refined(filter) { Circle().fill(Theme.accent).frame(width: 6, height: 6).offset(x: -3, y: 3) }
                     }
-                }
-                if filter.period != nil {
-                    Divider()
-                    Button("Any Time") { model.library.filter.period = nil }
-                }
             }
-            FacetMenu(title: "Film", symbol: "film", chosen: filter.film, help: "Only the photographs of a film: loaded in the camera or developed on") {
-                values(facets.films, chosen: filter.film) { model.library.filter.film = $0 }
-            }
-            FacetMenu(title: "Camera", symbol: "camera", chosen: filter.camera, help: "Only the photographs of a camera") {
-                values(facets.cameras, chosen: filter.camera) { model.library.filter.camera = $0 }
-            }
-            FacetMenu(title: "Lens", symbol: "camera.aperture", chosen: filter.lens, help: "Only the photographs of a lens") {
-                values(facets.lenses, chosen: filter.lens) { model.library.filter.lens = $0 }
-            }
-            // Qlick Lab: the finer filters, out of the sort bar under it.
-            separator
-            Button { model.library.filter.editedOnly.toggle() } label: {
-                Text("Developed").font(Theme.caps(12, weight: filter.editedOnly ? .semibold : .regular))
-                    .foregroundStyle(filter.editedOnly ? Theme.film : Theme.paper)
-                    .padding(.horizontal, 10).frame(height: 24)
-                    .background(Capsule().fill(filter.editedOnly ? Theme.paper : Color.white.opacity(0.001)))
-                    .contentShape(Capsule())
-            }
-            .buttonStyle(.plain).help("Only the photographs with a development of their own")
-            LabelFilter(model: model)
-            KeywordFilter(model: model)
-            separator
-            Button { lab.saveFilterAsSmartRoll() } label: {
-                Label("Save as Smart Roll…", systemImage: SmartRollEditor.symbol).font(Theme.caps(12))
-                    .foregroundStyle(filter.active ? Theme.paper : Theme.dim)
-                    .padding(.horizontal, 8).frame(height: 24).contentShape(Rectangle())
-            }
-            .buttonStyle(.plain).disabled(!filter.active)
-            .help("A Smart Roll with these filters and this search: it finds them again across the whole catalog")
+            .buttonStyle(.plain)
+            .help("Filters: period, film, camera, lens, developed, keyword")
+            .accessibilityLabel(Self.refined(filter) ? "Filters, on" : "Filters")
+            .popover(isPresented: $filtersOpen, arrowEdge: .top) { LibraryFilters(model: model) }
         }
         .padding(inline ? 0 : 5)
         .modifier(FindGlass(on: !inline))
+    }
+
+    /// Whether a filter of the popover is on (the search and the sort bar's marks aside).
+    static func refined(_ filter: LibraryFilter) -> Bool {
+        filter.period != nil || filter.film != nil || filter.camera != nil || filter.lens != nil || filter.editedOnly || filter.keyword != nil
     }
 
     static let searchHelp = """
@@ -496,6 +463,98 @@ struct LibraryFindBar: View {
             cameras = counted(records.compactMap(\.camera))
             lenses = counted(records.compactMap(\.lens))
         }
+    }
+}
+
+/// The find bar's filters, in a small popover under its funnel: period, film, camera and lens of what's listed,
+/// developed or not, a keyword, Clear, and Save as Smart Roll… for the whole filter.
+struct LibraryFilters: View {
+    let model: EditorModel
+    private var lab: LabState { model.lab }
+
+    var body: some View {
+        let filter = model.library.filter
+        let facets = LibraryFindBar.Facets(model: model)
+        VStack(alignment: .leading, spacing: 10) {
+            CapsLabel("Filters", color: Theme.paper)
+            Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 8) {
+                row("Period") {
+                    FacetMenu(title: "Any Time", symbol: "calendar", chosen: filter.period.map(LibraryFindBar.periodTitle), help: "Only the photographs taken then") {
+                        ForEach([7, 30, 365], id: \.self) { days in
+                            choice("Last \(days) Days", on: filter.period == "last:\(days)") { model.library.filter.period = "last:\(days)" }
+                        }
+                        Divider()
+                        ForEach(facets.periods.years) { year in
+                            Menu("\(year.title)  \(year.count)") {
+                                choice("All of \(year.title)", on: filter.period == year.key) { model.library.filter.period = year.key }
+                                Divider()
+                                ForEach(year.children) { month in
+                                    choice("\(month.title)  \(month.count)", on: filter.period == month.key) { model.library.filter.period = month.key }
+                                }
+                            }
+                        }
+                        if filter.period != nil { Divider(); Button("Any Time") { model.library.filter.period = nil } }
+                    }
+                }
+                row("Film") {
+                    FacetMenu(title: "Any Film", symbol: "film", chosen: filter.film, help: "Only the photographs of a film: loaded in the camera or developed on") {
+                        values(facets.films, chosen: filter.film) { model.library.filter.film = $0 }
+                    }
+                }
+                row("Camera") {
+                    FacetMenu(title: "Any Camera", symbol: "camera", chosen: filter.camera, help: "Only the photographs of a camera") {
+                        values(facets.cameras, chosen: filter.camera) { model.library.filter.camera = $0 }
+                    }
+                }
+                row("Lens") {
+                    FacetMenu(title: "Any Lens", symbol: "camera.aperture", chosen: filter.lens, help: "Only the photographs of a lens") {
+                        values(facets.lenses, chosen: filter.lens) { model.library.filter.lens = $0 }
+                    }
+                }
+                row("Keyword") { KeywordFilter(model: model) }
+                row("Developed") {
+                    Toggle("Only those developed", isOn: Binding(get: { model.library.filter.editedOnly }, set: { model.library.filter.editedOnly = $0 }))
+                        .toggleStyle(.checkbox).font(.system(size: 12)).tint(Theme.accent)
+                }
+            }
+            Divider().overlay(Color.white.opacity(0.1))
+            HStack(spacing: 8) {
+                Button("Clear") {
+                    model.library.filter.period = nil; model.library.filter.film = nil; model.library.filter.camera = nil
+                    model.library.filter.lens = nil; model.library.filter.keyword = nil; model.library.filter.editedOnly = false
+                }
+                .buttonStyle(QPillButtonStyle()).disabled(!LibraryFindBar.refined(filter))
+                Spacer(minLength: 0)
+                Button { lab.saveFilterAsSmartRoll() } label: { Label("Save as Smart Roll…", systemImage: SmartRollEditor.symbol) }
+                    .buttonStyle(QPillButtonStyle()).disabled(!filter.active)
+                    .help("A Smart Roll with these filters and this search: it finds them again across the whole catalog")
+            }
+        }
+        .padding(14)
+        .frame(width: 300)
+        .background(Theme.panel)
+        .environment(\.colorScheme, .dark)
+    }
+
+    private func row(_ title: String, @ViewBuilder _ content: () -> some View) -> some View {
+        GridRow {
+            Text(title).font(.system(size: 12)).foregroundStyle(Theme.dim).gridColumnAlignment(.trailing)
+            content()
+        }
+    }
+
+    @ViewBuilder private func choice(_ title: String, on: Bool, _ action: @escaping () -> Void) -> some View {
+        Button(action: action) { if on { Label(title, systemImage: "checkmark") } else { Text(title) } }
+    }
+
+    @ViewBuilder private func values(_ list: [(name: String, count: Int)], chosen: String?, set: @escaping (String?) -> Void) -> some View {
+        if list.isEmpty { Text("None here") }
+        ForEach(list, id: \.name) { entry in
+            choice("\(entry.name)  \(entry.count)", on: chosen?.caseInsensitiveCompare(entry.name) == .orderedSame) {
+                set(chosen?.caseInsensitiveCompare(entry.name) == .orderedSame ? nil : entry.name)
+            }
+        }
+        if chosen != nil { Divider(); Button("Any") { set(nil) } }
     }
 }
 
