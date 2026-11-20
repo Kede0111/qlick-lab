@@ -26,13 +26,13 @@ enum Workspace: String, CaseIterable, Identifiable, Sendable {
         // The lab's own glyphs (`LabGlyph`), drawn by `LabSymbol`; Papers keeps a system symbol, it's never listed.
         case .library: LabGlyph.prints.symbol
         case .contactSheet: LabGlyph.strip.symbol
-        case .develop: LabGlyph.aperture.symbol
-        case .compare: LabGlyph.eye.symbol
+        case .develop: LabGlyph.tank.symbol
+        case .compare: LabGlyph.loupe.symbol
         case .recipes: LabGlyph.flask.symbol
         case .films: LabGlyph.stocks.symbol
         case .papers: "doc.plaintext"
         case .importer: LabGlyph.card.symbol
-        case .print: LabGlyph.print.symbol
+        case .print: LabGlyph.enlarger.symbol
         }
     }
 

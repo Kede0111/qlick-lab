@@ -487,14 +487,22 @@ Lots, in order:
   - Left: the recipes' doors (Develop's ⌥⌘P panel and the film card's "Browse", or the Recipes room); the lab words
     for Scanner / Color Management (audit 2.3, "one by one with Quentin"); the sidebar's Picks entry stays (a
     catalogue-wide place, not the sheet's filter).
-- [ ] I Fine-line glyphs in `LabGlyph`, a word with each; for Rolls a provisional cartridge until Quentin's SVG.
+- [x] I Fine-line pictograms (`Design/LabGlyphs.swift`): every `LabGlyph` redrawn as one stroke, no fill, on a
+  24-unit grid; the line is 1.5 units, at least 1 pt and at most 1.75 pt (`LabGlyph.lineWidth`); micro-text in
+  condensed capitals only from 44 pt up ("135" on the cartridge, "RC" on the paper, "24" by the frame arrow). New:
+  tank (Develop), enlarger (Print), loupe (Compare), lightTable, tray, clip, scissors, pencil (red tip), paper,
+  safelight (red glass), frameArrow. The Roll's cartridge (canister, smartCanister with its red spark) is provisional,
+  until Quentin's SVG. Every glyph stands by its word (sidebar rows, rooms). `BoxShelfTests` checks a fine line draws
+  enough; `QLICK_GLYPH_SHEET=<png>` renders them all. Not done: the sheet's toolbar icon buttons (light table, file
+  names, information, filters) still have no word beside them, only their help.
+  Quentin, 2026-11-20: "Scanner" and "Color Management" stay as they are.
 
 ## Current state
 
 - Phase: **0.4 is done** (R1–R8; R8 from Quentin's first try of Dev). `feature/import-library` holds architecture waves 1–3, 0.1.5, 0.2, 0.3 and 0.4
   (local, nothing pushed, `main` untouched). Swift tests: 555 (24 skipped), all pass (561 after R8); the Rust side wasn't changed.
   Qlick Lab Dev is built from it (`dist/qlick-lab-dev/Qlick Lab Dev.app`).
-- Phase: **lab structure** on `feature/lab-structure` (from `feature/import-library`, local). Lots A to F done, G done but the recipes' door (question to Quentin); next is lot I.
+- Phase: **lab structure** on `feature/lab-structure` (from `feature/import-library`, local). Lots A to I done, G but the recipes' door (question to Quentin); next is lot J (output colour space and proofing in Print).
 
 ## Build and test
 

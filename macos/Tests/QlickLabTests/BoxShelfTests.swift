@@ -101,7 +101,7 @@ final class BoxShelfTests: XCTestCase {
                     if x == 0 || y == 0 || x == image.width - 1 || y == image.height - 1 { edge += 1 }
                 }
             }
-            XCTAssertGreaterThan(lit, side * side / 12, "\(glyph) draws something")
+            XCTAssertGreaterThan(lit, side * side / 25, "\(glyph) draws something (a fine line)")
             XCTAssertLessThan(lit, side * side * 3 / 4, "\(glyph) isn't a solid square")
             XCTAssertLessThanOrEqual(edge, 4, "\(glyph) stays inside its square")
             XCTAssertEqual(LabGlyph(symbol: glyph.symbol), glyph)

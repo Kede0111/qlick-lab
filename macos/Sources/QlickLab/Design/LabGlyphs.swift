@@ -1,9 +1,11 @@
 // Qlick Lab — GPL-3.0-only.
 import SwiftUI
 
-/// The lab's own icons: solid glyphs drawn in code on a 20-unit grid (an SD card, prints, a film strip, an aperture,
-/// a canister, an archive box…), crisp from 14 to 20 points. Where a sidebar row or a room names one (`lab.card`,
-/// `lab.canister`…), `LabSymbol` draws it; any other name is a system symbol.
+/// The lab's own pictograms, in a fine line: one stroke of about 1.5 pt at their usual size, no fill, square or
+/// slightly rounded corners, drawn in code on a 24-unit grid (a memory card, prints, a strip of film, a developing
+/// tank, an enlarger, a loupe, a 135 cartridge, an archive box…). Each stands beside its word (a sidebar row, a room):
+/// a pictogram alone is hard to read. Where a row or a room names one (`lab.card`, `lab.tank`…), `LabSymbol` draws it;
+/// any other name is a system symbol. Original drawings in the spirit of the darkroom, traced from nothing.
 enum LabGlyph: String, CaseIterable, Sendable {
     /// Import: a memory card.
     case card
@@ -13,19 +15,19 @@ enum LabGlyph: String, CaseIterable, Sendable {
     case prints
     /// All Photographs: one print.
     case print
-    /// The Contact Sheet: a strip of film, torn at one end.
+    /// The Contact Sheet: a strip of film, its frames and sprocket holes.
     case strip
-    /// Develop: the lens's aperture.
+    /// A lens's aperture.
     case aperture
-    /// Compare: an eye with an iris for a pupil.
+    /// An eye.
     case eye
-    /// Recipes: a flask.
+    /// Recipes: a flask, its liquid's line.
     case flask
-    /// Stocks: a canister with its film drawn out.
+    /// Stocks: a 135 cartridge with its film drawn out.
     case stocks
-    /// A Roll: a canister and its leader.
+    /// A Roll: the 135 cartridge and its tongue (provisional, until Quentin's drawing).
     case canister
-    /// A Smart Roll: the canister, with a spark in the lab's red.
+    /// A Smart Roll: the cartridge, with a spark in the lab's red.
     case smartCanister
     /// The Archives: an archive box seen from the front, its hand hole and label holder.
     case archive
@@ -35,6 +37,28 @@ enum LabGlyph: String, CaseIterable, Sendable {
     case calendar
     /// Picks: the pencil's ring.
     case ring
+    /// Develop: the developing tank, its lid and its spiral reel.
+    case tank
+    /// Print: the enlarger, its head, column and baseboard.
+    case enlarger
+    /// Compare: the loupe laid on a frame.
+    case loupe
+    /// The light table.
+    case lightTable
+    /// A developing tray.
+    case tray
+    /// A film clip, to hang a strip to dry.
+    case clip
+    /// Scissors, to cut a strip.
+    case scissors
+    /// The grease pencil.
+    case pencil
+    /// A sheet of photographic paper, its corner turned.
+    case paper
+    /// The safelight.
+    case safelight
+    /// The frame arrow printed on the film's edge.
+    case frameArrow
 
     /// The name a row or a room gives it.
     var symbol: String { "lab." + rawValue }
@@ -44,316 +68,283 @@ enum LabGlyph: String, CaseIterable, Sendable {
         self.init(rawValue: String(symbol.dropFirst(4)))
     }
 
+    /// The line: 1.5 units of the grid (about 1.1 pt at 18 pt, 1.5 pt at 24 pt), never under 1 pt nor over 1.75 pt, so
+    /// a large pictogram keeps the fine line.
+    static func lineWidth(side: CGFloat) -> CGFloat { min(1.75, max(1, side / 24 * 1.5)) }
+
     /// Draws the glyph in `rect` (square) in `ink`; `mark` is the lab's red, for the few that carry it.
     func draw(_ context: GraphicsContext, in rect: CGRect, ink: Color, mark: Color = Theme.accent) {
         let g = Grid(rect)
-        let shading = GraphicsContext.Shading.color(ink)
-        // Cuts through what's drawn: the gaps between parts, the windows of a print, the holes of the film.
-        func cut(_ path: Path) {
-            var c = context
-            c.blendMode = .destinationOut
-            c.fill(path, with: .color(.black))
+        let style = StrokeStyle(lineWidth: Self.lineWidth(side: g.side), lineCap: .round, lineJoin: .round)
+        func line(_ build: (inout Path) -> Void) {
+            var path = Path()
+            build(&path)
+            context.stroke(path, with: .color(ink), style: style)
         }
-        func cutLine(_ path: Path, width: CGFloat) {
-            var c = context
-            c.blendMode = .destinationOut
-            c.stroke(path, with: .color(.black), style: StrokeStyle(lineWidth: g.s * width, lineCap: .round, lineJoin: .round))
+        func box(_ x: CGFloat, _ y: CGFloat, _ w: CGFloat, _ h: CGFloat, radius: CGFloat = 1) {
+            line { $0.addRoundedRect(in: g.r(x, y, w, h), cornerSize: CGSize(width: g.s * radius, height: g.s * radius)) }
         }
+        func dot(_ x: CGFloat, _ y: CGFloat, _ d: CGFloat = 1.6, color: Color? = nil) {
+            context.fill(Path(ellipseIn: g.r(x - d / 2, y - d / 2, d, d)), with: .color(color ?? ink))
+        }
+        /// Micro-text in condensed capitals, only where it can be read (48 pt and up).
+        func label(_ text: String, _ x: CGFloat, _ y: CGFloat) {
+            guard g.side >= 44 else { return }
+            context.draw(Text(text).font(.system(size: g.s * 2.6, weight: .semibold).width(.condensed)).foregroundColor(ink), at: g.p(x, y))
+        }
+
         switch self {
         case .card, .cardIn:
-            var body = Path()
-            body.move(to: g.p(5.6, 2))
-            body.addLine(to: g.p(12.4, 2))
-            body.addLine(to: g.p(15.6, 5.2))
-            body.addLine(to: g.p(15.6, 16.6))
-            body.addQuadCurve(to: g.p(14.2, 18), control: g.p(15.6, 18))
-            body.addLine(to: g.p(5.8, 18))
-            body.addQuadCurve(to: g.p(4.4, 16.6), control: g.p(4.4, 18))
-            // The notch of the lock, on the left.
-            body.addLine(to: g.p(4.4, 10.4))
-            body.addLine(to: g.p(5.2, 9.8))
-            body.addLine(to: g.p(5.2, 8.2))
-            body.addLine(to: g.p(4.4, 7.6))
-            body.addLine(to: g.p(4.4, 3.2))
-            body.addQuadCurve(to: g.p(5.6, 2), control: g.p(4.4, 2))
-            body.closeSubpath()
-            context.fill(body, with: shading)
-            // The contacts.
-            for x in stride(from: 6.4, through: 12.4, by: 2) {
-                cut(Path(roundedRect: g.r(x, 3.6, 1.15, 3.2), cornerRadius: g.s * 0.3))
+            line { p in
+                p.move(to: g.p(7.5, 3)); p.addLine(to: g.p(15, 3)); p.addLine(to: g.p(18.5, 6.5))
+                p.addLine(to: g.p(18.5, 20)); p.addQuadCurve(to: g.p(17.5, 21), control: g.p(18.5, 21))
+                p.addLine(to: g.p(6.5, 21)); p.addQuadCurve(to: g.p(5.5, 20), control: g.p(5.5, 21))
+                p.addLine(to: g.p(5.5, 12.5)); p.addLine(to: g.p(6.5, 11.8)); p.addLine(to: g.p(6.5, 10.2)); p.addLine(to: g.p(5.5, 9.5))
+                p.addLine(to: g.p(5.5, 5)); p.addQuadCurve(to: g.p(7.5, 3), control: g.p(5.5, 3))
+                p.closeSubpath()
             }
+            line { p in for x in stride(from: 8.5, through: 14.5, by: 2) { p.move(to: g.p(x, 5.5)); p.addLine(to: g.p(x, 8)) } }
             if self == .cardIn {
-                // An arrow going down into the card.
-                var arrow = Path()
-                arrow.move(to: g.p(10, 9))
-                arrow.addLine(to: g.p(10, 15))
-                arrow.move(to: g.p(7.6, 12.8))
-                arrow.addLine(to: g.p(10, 15.3))
-                arrow.addLine(to: g.p(12.4, 12.8))
-                cutLine(arrow, width: 1.5)
-            } else {
-                cut(Path(roundedRect: g.r(7, 13.3, 6, 1.5), cornerRadius: g.s * 0.5))
+                line { p in
+                    p.move(to: g.p(12, 11)); p.addLine(to: g.p(12, 17.5))
+                    p.move(to: g.p(9.5, 15)); p.addLine(to: g.p(12, 17.5)); p.addLine(to: g.p(14.5, 15))
+                }
             }
 
         case .print:
-            drawPrint(context, g, x: 2.5, y: 3, w: 15, h: 14, shading: shading, cut: cut)
+            printShape(g, line: line, x: 3.5, y: 4, w: 17, h: 16, picture: true)
 
         case .prints:
-            drawPrint(context, g, x: 6, y: 1.8, w: 12.2, h: 11.4, shading: shading, cut: cut, picture: false)
-            // The front print stands clear of the one behind.
-            cut(Path(roundedRect: g.r(0.6, 5.6, 14.2, 13.6), cornerRadius: g.s * 1.4))
-            drawPrint(context, g, x: 1.8, y: 6.8, w: 11.8, h: 11.4, shading: shading, cut: cut)
+            line { p in
+                p.move(to: g.p(8, 6)); p.addLine(to: g.p(8, 3)); p.addLine(to: g.p(21, 3)); p.addLine(to: g.p(21, 15)); p.addLine(to: g.p(18, 15))
+            }
+            printShape(g, line: line, x: 3, y: 7, w: 15, h: 14, picture: true)
 
         case .strip:
-            var film = Path()
-            film.move(to: g.p(1.2, 4))
-            film.addLine(to: g.p(16.6, 4))
-            // Torn at the right end.
-            let tear: [(CGFloat, CGFloat)] = [(17.4, 5.2), (16.8, 6.6), (18.2, 8), (17.3, 9.6), (18.6, 11.1), (17.6, 12.5), (18.4, 14.2), (17.5, 16)]
-            for (x, y) in tear { film.addLine(to: g.p(x, y)) }
-            film.addLine(to: g.p(1.2, 16))
-            film.closeSubpath()
-            context.fill(film, with: shading)
-            for x in stride(from: 2.2, through: 15.4, by: 2.4) {
-                cut(Path(roundedRect: g.r(x, 5, 1.3, 1.6), cornerRadius: g.s * 0.3))
-                cut(Path(roundedRect: g.r(x, 13.4, 1.3, 1.6), cornerRadius: g.s * 0.3))
+            box(2, 5, 20, 14, radius: 0.6)
+            line { p in
+                for x in stride(from: 3.6, through: 20.4, by: 2.8) {
+                    p.move(to: g.p(x, 6.8)); p.addLine(to: g.p(x + 0.9, 6.8))
+                    p.move(to: g.p(x, 17.2)); p.addLine(to: g.p(x + 0.9, 17.2))
+                }
             }
-            cut(Path(roundedRect: g.r(2.4, 7.6, 6.2, 4.8), cornerRadius: g.s * 0.5))
-            cut(Path(roundedRect: g.r(9.8, 7.6, 6.2, 4.8), cornerRadius: g.s * 0.5))
+            box(3.6, 8.8, 7.8, 6.4, radius: 0.5)
+            box(12.6, 8.8, 7.8, 6.4, radius: 0.5)
 
         case .aperture:
-            context.drawLayer { layer in
-                drawAperture(layer, g, centre: (10, 10), radius: 7.1, opening: 2.9, shading: shading)
+            line { $0.addEllipse(in: g.r(3, 3, 18, 18)) }
+            line { p in
+                for i in 0..<6 {
+                    let a = CGFloat(i) * .pi / 3 + 0.3
+                    let inner = g.p(12 + cos(a) * 3.6, 12 + sin(a) * 3.6)
+                    let b = a + .pi / 3
+                    let next = g.p(12 + cos(b) * 3.6, 12 + sin(b) * 3.6)
+                    p.move(to: inner); p.addLine(to: next)
+                    p.move(to: next); p.addLine(to: g.p(12 + cos(b + 0.55) * 9, 12 + sin(b + 0.55) * 9))
+                }
             }
-            context.stroke(Path(ellipseIn: g.r(1.1, 1.1, 17.8, 17.8)), with: shading, lineWidth: g.s * 1.3)
 
         case .eye:
-            var lids = Path()
-            lids.move(to: g.p(1, 10))
-            lids.addQuadCurve(to: g.p(19, 10), control: g.p(10, 0.2))
-            lids.addQuadCurve(to: g.p(1, 10), control: g.p(10, 19.8))
-            lids.closeSubpath()
-            context.fill(lids, with: shading)
-            cut(Path { p in
-                p.move(to: g.p(3.1, 10))
-                p.addQuadCurve(to: g.p(16.9, 10), control: g.p(10, 2.5))
-                p.addQuadCurve(to: g.p(3.1, 10), control: g.p(10, 17.5))
-                p.closeSubpath()
-            })
-            // In a layer of its own, so the blades' lines cut the iris only.
-            context.drawLayer { layer in
-                drawAperture(layer, g, centre: (10, 10), radius: 4.9, opening: 1.9, shading: shading, blades: 0.6)
+            line { p in
+                p.move(to: g.p(2.5, 12)); p.addQuadCurve(to: g.p(21.5, 12), control: g.p(12, 2.5))
+                p.addQuadCurve(to: g.p(2.5, 12), control: g.p(12, 21.5)); p.closeSubpath()
             }
+            line { $0.addEllipse(in: g.r(8.5, 8.5, 7, 7)) }
+            dot(12, 12, 2.4)
 
         case .flask:
-            var flask = Path()
-            flask.move(to: g.p(7.6, 3.4))
-            flask.addLine(to: g.p(7.6, 8))
-            flask.addLine(to: g.p(3, 15.6))
-            flask.addQuadCurve(to: g.p(4.6, 18), control: g.p(2.3, 18))
-            flask.addLine(to: g.p(15.4, 18))
-            flask.addQuadCurve(to: g.p(17, 15.6), control: g.p(17.7, 18))
-            flask.addLine(to: g.p(12.4, 8))
-            flask.addLine(to: g.p(12.4, 3.4))
-            context.stroke(flask, with: shading, style: StrokeStyle(lineWidth: g.s * 1.5, lineCap: .round, lineJoin: .round))
-            // The rim.
-            context.fill(Path(roundedRect: g.r(6.2, 1.6, 7.6, 1.9), cornerRadius: g.s * 0.6), with: shading)
-            // What's in it, up to the line.
-            var liquid = Path()
-            liquid.move(to: g.p(5.5, 11.6))
-            liquid.addLine(to: g.p(14.5, 11.6))
-            liquid.addLine(to: g.p(17, 15.6))
-            liquid.addQuadCurve(to: g.p(15.4, 18), control: g.p(17.7, 18))
-            liquid.addLine(to: g.p(4.6, 18))
-            liquid.addQuadCurve(to: g.p(3, 15.6), control: g.p(2.3, 18))
-            liquid.closeSubpath()
-            context.fill(liquid, with: shading)
-            cut(Path(ellipseIn: g.r(8.2, 13.6, 1.8, 1.8)))
-            cut(Path(ellipseIn: g.r(11.4, 15.2, 1.2, 1.2)))
+            line { p in
+                p.move(to: g.p(9.5, 3)); p.addLine(to: g.p(14.5, 3))
+                p.move(to: g.p(10.3, 3)); p.addLine(to: g.p(10.3, 9.5)); p.addLine(to: g.p(4.6, 18.8))
+                p.addQuadCurve(to: g.p(5.8, 21), control: g.p(4, 21)); p.addLine(to: g.p(18.2, 21))
+                p.addQuadCurve(to: g.p(19.4, 18.8), control: g.p(20, 21)); p.addLine(to: g.p(13.7, 9.5)); p.addLine(to: g.p(13.7, 3))
+            }
+            line { p in p.move(to: g.p(7.2, 15.2)); p.addQuadCurve(to: g.p(16.8, 15.2), control: g.p(12, 13.4)) }
 
         case .stocks:
-            drawCanister(context, g, x: 1.6, shading: shading, cut: cut)
-            // The film drawn out, perforated, cut to its tongue.
-            var film = Path()
-            film.move(to: g.p(9.4, 5.4))
-            film.addLine(to: g.p(14.2, 5.4))
-            film.addQuadCurve(to: g.p(15.6, 8.6), control: g.p(15.4, 5.6))
-            film.addLine(to: g.p(17.6, 8.6))
-            film.addQuadCurve(to: g.p(18.6, 9.6), control: g.p(18.6, 8.6))
-            film.addLine(to: g.p(18.6, 14.6))
-            film.addLine(to: g.p(9.4, 14.6))
-            film.closeSubpath()
-            context.fill(film, with: shading)
-            for x in stride(from: 10.4, through: 16.4, by: 2.1) {
-                cut(Path(roundedRect: g.r(x, 12.6, 1.1, 1.2), cornerRadius: g.s * 0.25))
+            cartridge(g, line: line, x: 2.5)
+            line { p in
+                p.move(to: g.p(11, 8)); p.addLine(to: g.p(21.5, 8)); p.addLine(to: g.p(21.5, 16)); p.addLine(to: g.p(11, 16))
+                for x in stride(from: 13, through: 20, by: 2.4) { p.move(to: g.p(x, 9.6)); p.addLine(to: g.p(x + 0.8, 9.6)) }
+                for x in stride(from: 13, through: 20, by: 2.4) { p.move(to: g.p(x, 14.4)); p.addLine(to: g.p(x + 0.8, 14.4)) }
             }
-            for x in [10.4, 12.5] { cut(Path(roundedRect: g.r(x, 6.2, 1.1, 1.2), cornerRadius: g.s * 0.25)) }
 
         case .canister, .smartCanister:
-            drawCanister(context, g, x: 4.4, shading: shading, cut: cut)
-            // A short leader at the lip.
-            var tongue = Path()
-            tongue.move(to: g.p(12.2, 6.6))
-            tongue.addLine(to: g.p(14, 6.6))
-            tongue.addQuadCurve(to: g.p(15, 9.4), control: g.p(15, 6.8))
-            tongue.addLine(to: g.p(16.2, 9.4))
-            tongue.addQuadCurve(to: g.p(17, 10.2), control: g.p(17, 9.4))
-            tongue.addLine(to: g.p(17, 13.4))
-            tongue.addLine(to: g.p(12.2, 13.4))
-            tongue.closeSubpath()
-            context.fill(tongue, with: shading)
+            // Provisional: the cartridge standing, its tongue of film cut at an angle (Quentin's drawing will replace it).
+            cartridge(g, line: line, x: 3)
+            line { p in
+                p.move(to: g.p(11.5, 8.5)); p.addLine(to: g.p(17, 8.5)); p.addQuadCurve(to: g.p(20.5, 12), control: g.p(20.5, 8.5))
+                p.addLine(to: g.p(20.5, 15.5)); p.addLine(to: g.p(11.5, 15.5))
+                for x in [13.2, 15.6] { p.move(to: g.p(x, 10)); p.addLine(to: g.p(x + 0.8, 10)) }
+            }
+            label("135", 7, 12.2)
             if self == .smartCanister {
-                // The spark of a Roll filled by rules, clear of the canister.
-                cut(Path(ellipseIn: g.r(12.6, -0.6, 8.2, 8.2)))
-                context.fill(spark(g, centre: (16.7, 3.5), radius: 3.4), with: .color(mark))
+                context.fill(spark(g, centre: (19.5, 4.5), radius: 3.6), with: .color(mark))
             }
 
         case .archive:
-            // Lid, its band overhanging the body.
-            context.fill(Path(roundedRect: g.r(1.4, 3, 17.2, 4.4), cornerRadius: g.s * 0.8), with: shading)
-            context.fill(Path(roundedRect: g.r(2.4, 8.2, 15.2, 9.6), cornerRadius: g.s * 0.8), with: shading)
-            // The hand hole in the lid's band, the label holder and its card on the front.
-            cut(Path(roundedRect: g.r(7.4, 4.5, 5.2, 1.5), cornerRadius: g.s * 0.75))
-            cut(Path(roundedRect: g.r(5.4, 10.6, 9.2, 5), cornerRadius: g.s * 0.6))
-            context.fill(Path(roundedRect: g.r(6.6, 11.8, 6.8, 2.6), cornerRadius: g.s * 0.3), with: shading)
-            cut(Path(roundedRect: g.r(7.6, 12.7, 4.8, 0.8), cornerRadius: g.s * 0.4))
+            box(3, 4, 18, 17, radius: 0.8)
+            line { p in p.move(to: g.p(3, 7.5)); p.addLine(to: g.p(21, 7.5)) }
+            box(8.5, 10, 7, 3.6, radius: 0.4)
+            line { p in p.move(to: g.p(9.5, 17)); p.addQuadCurve(to: g.p(14.5, 17), control: g.p(12, 18.8)) }
 
         case .box:
-            // Three quarters: the front, the side going back to the right, the lid on top.
-            var side = Path()
-            side.move(to: g.p(13.6, 8))
-            side.addLine(to: g.p(18.4, 4.8))
-            side.addLine(to: g.p(18.4, 14.4))
-            side.addLine(to: g.p(13.6, 17.8))
-            side.closeSubpath()
-            context.fill(side, with: shading)
-            var lid = Path()
-            lid.move(to: g.p(1, 5.2))
-            lid.addLine(to: g.p(5.6, 2))
-            lid.addLine(to: g.p(19, 2))
-            lid.addLine(to: g.p(19, 5))
-            lid.addLine(to: g.p(14.4, 8.4))
-            lid.addLine(to: g.p(1, 8.4))
-            lid.closeSubpath()
-            context.fill(lid, with: shading)
-            context.fill(Path(g.r(1.6, 8.4, 12, 9.4)), with: shading)
-            // The edges, cut thin: lid from body, front from side, the lid's top from its band.
-            var edges = Path()
-            edges.move(to: g.p(1, 8.6)); edges.addLine(to: g.p(14.2, 8.6)); edges.addLine(to: g.p(18.8, 5.4))
-            edges.move(to: g.p(13.6, 8.8)); edges.addLine(to: g.p(13.6, 17.8))
-            edges.move(to: g.p(1.4, 5.3)); edges.addLine(to: g.p(14.4, 5.3)); edges.addLine(to: g.p(18.6, 2.3))
-            cutLine(edges, width: 0.75)
-            // The label on the front.
-            cut(Path(roundedRect: g.r(3.6, 11, 7.8, 4.4), cornerRadius: g.s * 0.4))
-            cut(Path(roundedRect: g.r(15.4, 9.2, 1.6, 3), cornerRadius: g.s * 0.8))
+            line { p in
+                p.move(to: g.p(3, 8)); p.addLine(to: g.p(15, 8)); p.addLine(to: g.p(15, 21)); p.addLine(to: g.p(3, 21)); p.closeSubpath()
+                p.move(to: g.p(3, 8)); p.addLine(to: g.p(9, 3)); p.addLine(to: g.p(21, 3)); p.addLine(to: g.p(15, 8))
+                p.move(to: g.p(21, 3)); p.addLine(to: g.p(21, 16)); p.addLine(to: g.p(15, 21))
+            }
+            box(5.5, 12, 7, 3.4, radius: 0.4)
 
         case .calendar:
-            context.stroke(Path(roundedRect: g.r(2.6, 4.6, 14.8, 13), cornerRadius: g.s * 1.6), with: shading, lineWidth: g.s * 1.4)
-            context.fill(Path(g.r(2.6, 4.6, 14.8, 4.2)), with: shading)
-            context.fill(Path(roundedRect: g.r(1.9, 3.9, 16.2, 5), cornerRadius: g.s * 2), with: shading)
-            for x in [6.2, 12.4] {
-                cut(Path(roundedRect: g.r(x - 0.4, 1, 2.2, 4.6), cornerRadius: g.s * 1.1))
-                context.fill(Path(roundedRect: g.r(x, 1.6, 1.4, 4.4), cornerRadius: g.s * 0.7), with: shading)
+            box(3.5, 5, 17, 16, radius: 1.4)
+            line { p in
+                p.move(to: g.p(3.5, 9.5)); p.addLine(to: g.p(20.5, 9.5))
+                p.move(to: g.p(8, 3)); p.addLine(to: g.p(8, 6.5)); p.move(to: g.p(16, 3)); p.addLine(to: g.p(16, 6.5))
             }
-            for (i, j) in [(0, 0), (1, 0), (2, 0), (0, 1), (1, 1)] {
-                context.fill(Path(roundedRect: g.r(5.2 + CGFloat(i) * 3.6, 10.6 + CGFloat(j) * 3.3, 2.2, 2), cornerRadius: g.s * 0.35), with: shading)
-            }
-            context.fill(Path(roundedRect: g.r(12.4, 13.9, 2.2, 2), cornerRadius: g.s * 0.35), with: .color(mark))
+            for (x, y) in [(8.0, 13.5), (12.0, 13.5), (16.0, 13.5), (8.0, 17.0), (12.0, 17.0)] { dot(x, y, 1.5) }
 
         case .ring:
-            // A ring drawn in one stroke, as the pencil does: a little more than round, its end past its start.
-            var ring = Path()
-            let steps = 48
-            for step in 0...steps {
-                let t = CGFloat(step) / CGFloat(steps)
-                let angle = -2.2 + t * (2 * .pi + 0.55)
-                let radius = 6.6 + 0.9 * t - 0.35 * sin(t * .pi * 3)
-                let point = g.p(10 + cos(angle) * radius * 1.04, 10.2 + sin(angle) * radius * 0.96)
-                if step == 0 { ring.move(to: point) } else { ring.addLine(to: point) }
+            line { p in
+                p.addEllipse(in: g.r(3.5, 5, 17, 14))
+                p.move(to: g.p(16.5, 5.4)); p.addQuadCurve(to: g.p(20.8, 9.5), control: g.p(21.2, 6))
             }
-            context.stroke(ring, with: shading, style: StrokeStyle(lineWidth: g.s * 1.7, lineCap: .round, lineJoin: .round))
+
+        case .tank:
+            // The lid with its funnel, the tank, and the spiral reel seen through.
+            line { p in
+                p.move(to: g.p(10, 2.5)); p.addLine(to: g.p(14, 2.5)); p.addLine(to: g.p(14, 5))
+                p.move(to: g.p(10, 2.5)); p.addLine(to: g.p(10, 5))
+                p.move(to: g.p(4.5, 5)); p.addLine(to: g.p(19.5, 5)); p.addLine(to: g.p(19.5, 7.5)); p.addLine(to: g.p(4.5, 7.5)); p.closeSubpath()
+                p.move(to: g.p(5.5, 7.5)); p.addLine(to: g.p(5.5, 20)); p.addQuadCurve(to: g.p(7, 21.5), control: g.p(5.5, 21.5))
+                p.addLine(to: g.p(17, 21.5)); p.addQuadCurve(to: g.p(18.5, 20), control: g.p(18.5, 21.5)); p.addLine(to: g.p(18.5, 7.5))
+            }
+            line { p in
+                // The reel's spiral.
+                var r: CGFloat = 4.6, a: CGFloat = 0
+                p.move(to: g.p(12 + r, 14.5))
+                while r > 0.8 { a += 0.35; r -= 0.13; p.addLine(to: g.p(12 + cos(a) * r, 14.5 + sin(a) * r)) }
+            }
+
+        case .enlarger:
+            line { p in
+                // Baseboard, column, the head and its lens, the light falling.
+                p.move(to: g.p(2.5, 21)); p.addLine(to: g.p(21.5, 21))
+                p.move(to: g.p(18, 21)); p.addLine(to: g.p(18, 2.5))
+                p.move(to: g.p(18, 5)); p.addLine(to: g.p(14.5, 5))
+                p.move(to: g.p(5, 3.5)); p.addLine(to: g.p(14.5, 3.5)); p.addLine(to: g.p(14.5, 8.5)); p.addLine(to: g.p(5, 8.5)); p.closeSubpath()
+                p.move(to: g.p(8, 8.5)); p.addLine(to: g.p(8, 11)); p.addLine(to: g.p(11.5, 11)); p.addLine(to: g.p(11.5, 8.5))
+            }
+            line { p in
+                p.move(to: g.p(8, 13)); p.addLine(to: g.p(5, 19))
+                p.move(to: g.p(11.5, 13)); p.addLine(to: g.p(14.5, 19))
+            }
+
+        case .loupe:
+            line { p in
+                // The frame on the light, the loupe standing over it.
+                p.move(to: g.p(2.5, 20.5)); p.addLine(to: g.p(21.5, 20.5))
+                p.move(to: g.p(6, 20.5)); p.addLine(to: g.p(8, 9)); p.addLine(to: g.p(16, 9)); p.addLine(to: g.p(18, 20.5))
+                p.move(to: g.p(8, 9)); p.addQuadCurve(to: g.p(16, 9), control: g.p(12, 2.5))
+            }
+
+        case .lightTable:
+            line { p in
+                p.move(to: g.p(2.5, 13)); p.addLine(to: g.p(21.5, 13)); p.addLine(to: g.p(19.5, 18)); p.addLine(to: g.p(4.5, 18)); p.closeSubpath()
+                p.move(to: g.p(6, 18)); p.addLine(to: g.p(6, 21.5)); p.move(to: g.p(18, 18)); p.addLine(to: g.p(18, 21.5))
+                for x in [7.0, 12.0, 17.0] { p.move(to: g.p(x, 10.5)); p.addLine(to: g.p(x, 8)) }
+                p.move(to: g.p(3.5, 9)); p.addLine(to: g.p(5, 10.5)); p.move(to: g.p(20.5, 9)); p.addLine(to: g.p(19, 10.5))
+            }
+
+        case .tray:
+            line { p in
+                p.move(to: g.p(2.5, 10)); p.addLine(to: g.p(21.5, 10)); p.addLine(to: g.p(19.5, 18.5)); p.addLine(to: g.p(4.5, 18.5)); p.closeSubpath()
+                p.move(to: g.p(5.5, 13.5)); p.addQuadCurve(to: g.p(12, 13.5), control: g.p(8.7, 12)); p.addQuadCurve(to: g.p(18.5, 13.5), control: g.p(15.3, 15))
+            }
+            box(8, 5.5, 8, 6.5, radius: 0.3)
+
+        case .clip:
+            line { p in
+                p.move(to: g.p(12, 2.5)); p.addLine(to: g.p(12, 5.5))
+                p.move(to: g.p(7, 5.5)); p.addLine(to: g.p(17, 5.5)); p.addLine(to: g.p(17, 10)); p.addLine(to: g.p(7, 10)); p.closeSubpath()
+                p.move(to: g.p(8.5, 10)); p.addLine(to: g.p(8.5, 21.5)); p.move(to: g.p(15.5, 10)); p.addLine(to: g.p(15.5, 21.5))
+                for y in stride(from: 12.5, through: 20, by: 2.6) { p.move(to: g.p(9.8, y)); p.addLine(to: g.p(9.8, y + 0.8)) }
+            }
+
+        case .scissors:
+            line { p in
+                p.addEllipse(in: g.r(3, 14, 6, 6)); p.addEllipse(in: g.r(15, 14, 6, 6))
+                p.move(to: g.p(8, 14.8)); p.addLine(to: g.p(17.5, 3))
+                p.move(to: g.p(16, 14.8)); p.addLine(to: g.p(6.5, 3))
+            }
+
+        case .pencil:
+            line { p in
+                p.move(to: g.p(4, 20)); p.addLine(to: g.p(5, 15.5)); p.addLine(to: g.p(16.5, 4)); p.addLine(to: g.p(20, 7.5)); p.addLine(to: g.p(8.5, 19)); p.closeSubpath()
+                p.move(to: g.p(5, 15.5)); p.addLine(to: g.p(8.5, 19))
+                p.move(to: g.p(14, 6.5)); p.addLine(to: g.p(17.5, 10))
+            }
+            dot(4.6, 19.4, 1.8, color: mark)
+
+        case .paper:
+            line { p in
+                p.move(to: g.p(5, 3)); p.addLine(to: g.p(15, 3)); p.addLine(to: g.p(19, 7)); p.addLine(to: g.p(19, 21)); p.addLine(to: g.p(5, 21)); p.closeSubpath()
+                p.move(to: g.p(15, 3)); p.addLine(to: g.p(15, 7)); p.addLine(to: g.p(19, 7))
+            }
+            label("RC", 12, 15)
+
+        case .safelight:
+            line { p in
+                p.move(to: g.p(6, 3.5)); p.addLine(to: g.p(18, 3.5)); p.addLine(to: g.p(20, 13)); p.addLine(to: g.p(4, 13)); p.closeSubpath()
+                p.move(to: g.p(9, 13)); p.addLine(to: g.p(9, 15.5)); p.addLine(to: g.p(15, 15.5)); p.addLine(to: g.p(15, 13))
+                p.move(to: g.p(7, 18.5)); p.addLine(to: g.p(5.5, 21)); p.move(to: g.p(12, 18.5)); p.addLine(to: g.p(12, 21.5)); p.move(to: g.p(17, 18.5)); p.addLine(to: g.p(18.5, 21))
+            }
+            context.fill(Path(roundedRect: g.r(8.6, 7, 6.8, 3.4), cornerRadius: g.s * 0.6), with: .color(mark))
+
+        case .frameArrow:
+            line { p in p.move(to: g.p(3, 21)); p.addLine(to: g.p(21, 21)) }
+            context.fill(Path { p in p.move(to: g.p(5, 7)); p.addLine(to: g.p(16, 12)); p.addLine(to: g.p(5, 17)); p.closeSubpath() }, with: .color(ink))
+            label("24", 19, 12)
         }
     }
 
     // MARK: Parts
 
-    /// The 20-unit grid mapped onto a square.
+    /// The grid: 24 units across the square.
     struct Grid {
         let origin: CGPoint
         let s: CGFloat
+        let side: CGFloat
         init(_ rect: CGRect) {
-            let side = min(rect.width, rect.height)
-            s = side / 20
+            side = min(rect.width, rect.height)
+            s = side / 24
             origin = CGPoint(x: rect.midX - side / 2, y: rect.midY - side / 2)
         }
         func p(_ x: CGFloat, _ y: CGFloat) -> CGPoint { CGPoint(x: origin.x + x * s, y: origin.y + y * s) }
         func r(_ x: CGFloat, _ y: CGFloat, _ w: CGFloat, _ h: CGFloat) -> CGRect { CGRect(x: origin.x + x * s, y: origin.y + y * s, width: w * s, height: h * s) }
     }
 
-    /// A print: its border, the picture's window, a hill and the sun in it.
-    private func drawPrint(_ context: GraphicsContext, _ g: Grid, x: CGFloat, y: CGFloat, w: CGFloat, h: CGFloat,
-                           shading: GraphicsContext.Shading, cut: (Path) -> Void, picture: Bool = true) {
-        context.fill(Path(roundedRect: g.r(x, y, w, h), cornerRadius: g.s * 1.2), with: shading)
-        let border = w * 0.12
-        let window = g.r(x + border, y + border, w - 2 * border, h - border * 2.6)
-        cut(Path(roundedRect: window, cornerRadius: g.s * 0.4))
+    /// A print: its border, the picture's window, a hill in it.
+    private func printShape(_ g: Grid, line: ((inout Path) -> Void) -> Void, x: CGFloat, y: CGFloat, w: CGFloat, h: CGFloat, picture: Bool) {
+        line { p in p.addRoundedRect(in: g.r(x, y, w, h), cornerSize: CGSize(width: g.s * 0.8, height: g.s * 0.8)) }
         guard picture else { return }
-        let wx = x + border, wy = y + border, ww = w - 2 * border, wh = h - border * 2.6
-        var hill = Path()
-        hill.move(to: g.p(wx, wy + wh))
-        hill.addLine(to: g.p(wx + ww * 0.36, wy + wh * 0.42))
-        hill.addLine(to: g.p(wx + ww * 0.58, wy + wh * 0.72))
-        hill.addLine(to: g.p(wx + ww * 0.74, wy + wh * 0.54))
-        hill.addLine(to: g.p(wx + ww, wy + wh))
-        hill.closeSubpath()
-        context.fill(hill, with: shading)
-        let sun = ww * 0.15
-        context.fill(Path(ellipseIn: g.r(wx + ww * 0.7, wy + wh * 0.14, sun, sun)), with: shading)
+        let b: CGFloat = 2, wx = x + b, wy = y + b, ww = w - 2 * b, wh = h - b * 2.8
+        line { p in
+            p.addRect(g.r(wx, wy, ww, wh))
+            p.move(to: g.p(wx, wy + wh)); p.addLine(to: g.p(wx + ww * 0.38, wy + wh * 0.45))
+            p.addLine(to: g.p(wx + ww * 0.6, wy + wh * 0.75)); p.addLine(to: g.p(wx + ww * 0.76, wy + wh * 0.58)); p.addLine(to: g.p(wx + ww, wy + wh * 0.9))
+        }
     }
 
-    /// An aperture: blades round a six-sided opening, each parted from the next by a thin line.
-    private func drawAperture(_ context: GraphicsContext, _ g: Grid, centre: (CGFloat, CGFloat), radius: CGFloat, opening: CGFloat,
-                              shading: GraphicsContext.Shading, blades: CGFloat = 0.85) {
-        var cutting = context
-        cutting.blendMode = .destinationOut
-        let (cx, cy) = centre
-        context.fill(Path(ellipseIn: g.r(cx - radius, cy - radius, radius * 2, radius * 2)), with: shading)
-        func vertex(_ i: Int) -> (CGFloat, CGFloat) {
-            let a = CGFloat(i) * .pi / 3 - .pi / 2 + 0.25
-            return (cx + cos(a) * opening, cy + sin(a) * opening)
+    /// A 135 cartridge standing, `x` its left: the spool's knob, the caps, the body, the lip the film leaves by.
+    private func cartridge(_ g: Grid, line: ((inout Path) -> Void) -> Void, x: CGFloat) {
+        line { p in
+            p.addRoundedRect(in: g.r(x + 2.8, 2.5, 2.8, 2), cornerSize: CGSize(width: g.s * 0.5, height: g.s * 0.5))
+            p.addRoundedRect(in: g.r(x + 0.5, 4.5, 7.6, 15), cornerSize: CGSize(width: g.s * 1.2, height: g.s * 1.2))
+            p.move(to: g.p(x + 0.5, 7)); p.addLine(to: g.p(x + 8.1, 7))
+            p.move(to: g.p(x + 0.5, 17)); p.addLine(to: g.p(x + 8.1, 17))
+            p.move(to: g.p(x + 3.4, 19.5)); p.addLine(to: g.p(x + 3.4, 21.5)); p.addLine(to: g.p(x + 5.2, 21.5)); p.addLine(to: g.p(x + 5.2, 19.5))
         }
-        var hexagon = Path()
-        for i in 0..<6 {
-            let (x, y) = vertex(i)
-            if i == 0 { hexagon.move(to: g.p(x, y)) } else { hexagon.addLine(to: g.p(x, y)) }
-        }
-        hexagon.closeSubpath()
-        cutting.fill(hexagon, with: .color(.black))
-        // Each blade's edge runs on from a corner of the opening to the rim.
-        var edges = Path()
-        for i in 0..<6 {
-            let (x0, y0) = vertex(i), (x1, y1) = vertex(i + 1)
-            let dx = x1 - x0, dy = y1 - y0, length = (dx * dx + dy * dy).squareRoot()
-            let reach = radius * 1.05
-            edges.move(to: g.p(x1, y1))
-            edges.addLine(to: g.p(x1 + dx / length * reach, y1 + dy / length * reach))
-        }
-        cutting.stroke(edges, with: .color(.black), style: StrokeStyle(lineWidth: g.s * blades, lineCap: .round))
-    }
-
-    /// A 35 mm canister standing, `x` its left: the spool's knob, the caps, the body, the lip the film leaves by.
-    private func drawCanister(_ context: GraphicsContext, _ g: Grid, x: CGFloat, shading: GraphicsContext.Shading, cut: (Path) -> Void) {
-        context.fill(Path(roundedRect: g.r(x + 2.4, 0.9, 2.4, 2), cornerRadius: g.s * 0.4), with: shading)
-        context.fill(Path(roundedRect: g.r(x, 2.6, 7.2, 2.2), cornerRadius: g.s * 0.7), with: shading)
-        context.fill(Path(g.r(x + 0.4, 4.2, 6.4, 11.6)), with: shading)
-        context.fill(Path(roundedRect: g.r(x, 15.2, 7.2, 2.2), cornerRadius: g.s * 0.7), with: shading)
-        context.fill(Path(roundedRect: g.r(x + 2.6, 17, 2, 1.6), cornerRadius: g.s * 0.4), with: shading)
-        // The lip, standing out on the right.
-        context.fill(Path(roundedRect: g.r(x + 6.2, 4.6, 1.8, 10.8), cornerRadius: g.s * 0.6), with: shading)
-        // The caps parted from the body, and a light down the curve.
-        cut(Path(g.r(x + 0.2, 4.7, 6, 0.55)))
-        cut(Path(g.r(x + 0.2, 14.75, 6, 0.55)))
-        cut(Path(roundedRect: g.r(x + 1.5, 6.4, 1, 7), cornerRadius: g.s * 0.5))
     }
 
     /// A four-pointed spark.
