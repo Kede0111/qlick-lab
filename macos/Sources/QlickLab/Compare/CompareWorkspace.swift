@@ -200,7 +200,7 @@ struct ComparePane: Identifiable, Equatable {
             if setup.films.isEmpty { setup.films = defaultFilms(for: subject) }
         case .recipes:
             if let subject { setup.items = [subject] }
-            if setup.recipes.isEmpty { setup.recipes = model.presets.prefix(3).map(\.url) }
+            if setup.recipes.isEmpty { setup.recipes = model.listedPresets.prefix(3).map(\.url) }
         case .versions, .beforeAfter:
             if let subject { setup.items = [subject] }
         }
@@ -220,7 +220,7 @@ struct ComparePane: Identifiable, Equatable {
         var films: [String] = []
         if let subject { films.append(model.labEdits(for: subject).state.film) }
         let known = Set(model.films.map(\.id))
-        for film in lab.favouriteStocks.sorted() + ["kodak_portra_400", "kodak_ektar_100", "fujifilm_velvia_50", "kodak_gold_200"]
+        for film in lab.shelf.favouriteIDs(.film) + ["kodak_portra_400", "kodak_ektar_100", "fujifilm_velvia_50", "kodak_gold_200"]
         where known.contains(film) && !films.contains(film) && films.count < 3 {
             films.append(film)
         }
@@ -243,7 +243,7 @@ struct ComparePane: Identifiable, Equatable {
         let setup = lab.compare
         switch setup.kind {
         case .films: return setup.films.count < CompareSetup.most
-        case .recipes: return setup.recipes.count < min(CompareSetup.most, model.presets.count)
+        case .recipes: return setup.recipes.count < min(CompareSetup.most, model.listedPresets.count)
         case .photographs: return setup.items.count < CompareSetup.most
         case .versions: return panes.count < CompareSetup.most && model.canChangeEdits
         case .beforeAfter: return false
@@ -255,10 +255,10 @@ struct ComparePane: Identifiable, Equatable {
         switch setup.kind {
         case .films:
             let used = Set(setup.films)
-            if let next = (lab.favouriteStocks.sorted() + model.films.map(\.id)).first(where: { !used.contains($0) && model.films.map(\.id).contains($0) }) { setup.films.append(next) }
+            if let next = (lab.shelf.favouriteIDs(.film) + model.films.map(\.id)).first(where: { !used.contains($0) && model.films.map(\.id).contains($0) }) { setup.films.append(next) }
         case .recipes:
             let used = Set(setup.recipes)
-            if let next = model.presets.first(where: { !used.contains($0.url) }) { setup.recipes.append(next.url) }
+            if let next = model.listedPresets.first(where: { !used.contains($0.url) }) { setup.recipes.append(next.url) }
         case .photographs:
             let order = model.shownPhotos.map(\.url)
             if let last = setup.items.last, let index = order.firstIndex(of: last), order.indices.contains(index + 1), !setup.items.contains(order[index + 1]) {
@@ -441,7 +441,7 @@ private struct PaneLabel: View {
                     .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
                 case .recipes:
                     Menu {
-                        ForEach(model.presets) { preset in Button(preset.name) { compare.setRecipe(preset.url, pane: index) } }
+                        ForEach(model.listedPresets) { preset in Button(preset.name) { compare.setRecipe(preset.url, pane: index) } }
                     } label: { tagText(pane.title, chevron: true) }
                     .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
                 default:

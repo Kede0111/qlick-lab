@@ -150,11 +150,6 @@ struct SettingsView: View {
                 get: { model.autoPlaceNewImages }, set: { model.autoPlaceNewImages = $0 }))
             HintText("Starts each photograph about as bright as the camera’s own preview.")
         }
-        InkSection(title: "Films") {
-            ChoiceRow(title: "Fotufilm films", items: FotufilmFilms.allCases.map { .option($0.title, tag: $0.rawValue) },
-                      selection: model.fotufilmFilms.rawValue) { model.fotufilmFilms = FotufilmFilms(rawValue: $0) ?? .all }
-            HintText("From datasheets hides the eight films modelled from sample photographs.")
-        }
         InkSection(title: "Changing film") {
             TickRow(title: "Keep paper when changing film", isOn: Binding(
                 get: { model.previews.keepPaper }, set: { model.setKeepPaper($0) }))

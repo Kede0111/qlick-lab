@@ -261,9 +261,6 @@ struct SheetOptions: Codable, Equatable, Sendable {
     var editingKeywordSet = false
     /// The photographs laid side by side in Comparaison.
     var compare = CompareSetup()
-    var favouriteStocks: Set<String> = Set(UserDefaults.standard.stringArray(forKey: "qlick.favouriteStocks") ?? []) {
-        didSet { UserDefaults.standard.set(favouriteStocks.sorted(), forKey: "qlick.favouriteStocks") }
-    }
     /// The print dialog of the contact sheet.
     var printing = false
     /// A sheet asking for a name: a new Archive (and the folders waiting for it), a new Box or Roll (and the photographs
@@ -768,16 +765,26 @@ struct SheetOptions: Codable, Equatable, Sendable {
         show(.compare)
     }
 
-    /// Favourite recipes, by name (a recipe is a file the photographer names).
-    var favouriteRecipes: Set<String> = Set(UserDefaults.standard.stringArray(forKey: "qlick.favouriteRecipes") ?? []) {
-        didSet { UserDefaults.standard.set(favouriteRecipes.sorted(), forKey: "qlick.favouriteRecipes") }
+    // MARK: The Lab's shelf
+
+    /// Favourite and hidden films, papers and recipes: one system (`LabShelf`), seen in every view.
+    var shelf: LabShelf { model.shelf }
+
+    /// A stock's kind on the shelf: a paper if the catalogue has a paper by that id, else a film.
+    func shelfKind(stock id: String) -> LabShelf.Kind { model.papers.contains { $0.id == id } && !model.films.contains { $0.id == id } ? .paper : .film }
+
+    func isFavourite(stock id: String) -> Bool { shelf.isFavourite(shelfKind(stock: id), id) }
+    func toggleFavourite(_ stock: String) { shelf.toggleFavourite(shelfKind(stock: stock), stock) }
+    func isHidden(stock id: String) -> Bool { shelf.isHidden(shelfKind(stock: id), id) }
+
+    /// Hides a stock from the trays, menus and Compare, or shows it again; the tray's tiles follow.
+    func setHidden(stock id: String, _ hide: Bool) {
+        shelf.setHidden(shelfKind(stock: id), id, hide)
+        model.pumpPreviews()
     }
 
-    func toggleFavouriteRecipe(_ name: String) {
-        if favouriteRecipes.contains(name) { favouriteRecipes.remove(name) } else { favouriteRecipes.insert(name) }
-    }
-
-    func toggleFavourite(_ stock: String) {
-        if favouriteStocks.contains(stock) { favouriteStocks.remove(stock) } else { favouriteStocks.insert(stock) }
-    }
+    func isFavourite(recipe: PresetFile) -> Bool { shelf.isFavourite(.recipe, recipe.shelfID) }
+    func toggleFavourite(recipe: PresetFile) { shelf.toggleFavourite(.recipe, recipe.shelfID) }
+    func isHidden(recipe: PresetFile) -> Bool { shelf.isHidden(.recipe, recipe.shelfID) }
+    func setHidden(recipe: PresetFile, _ hide: Bool) { shelf.setHidden(.recipe, recipe.shelfID, hide) }
 }

@@ -427,7 +427,22 @@ Lots, in order:
   `togglesheet`; `state` has `part=`. Tests: 567 (`LabPartTests`).
   Found, not mine and left alone (lot H rule): after Develop → contact sheet, the open photograph's thumbnail on the
   sheet stays empty (also on the code before C: `room contactSheet`, `room develop`, `room contactSheet`).
-- [ ] D The Lab's shelf: show/hide per recipe and per stock, favourites by identifier in one system, sort and search.
+- [x] D The Lab's shelf: `LabShelf` (Recipes/LabShelf.swift, `model.shelf`, `lab.shelf`): one system of favourites
+  (ordered keys `film:<id>`, `paper:<id>`, `recipe:<shelfID>`) and hidden ones, in `<Application Support>/Shelf.json`
+  (key `qlick`; tests: `.memory` or a defaults key). The tray's `favoriteFilms`/`favoritePapers`, the Stocks room's
+  `qlick.favouriteStocks`, the recipes' `qlick.favouriteRecipes` (by name) and Settings' Fotufilm films come in once
+  (`adoptFormer`, then `adopt(stocks:)`/`adopt(recipes:)` sort out kinds and names; Fotufilm "From datasheets"/"None"
+  become hidden films). `Previews` reads and stars through the shelf. Recipes have an identifier: `PresetFile.shelfID`,
+  kept by name in the Presets folder's `.ids.json` (follows a rename, new for a file copied in by hand, `setID` for
+  bundles); a deleted recipe's marks go (`forget`). Hidden films, papers and recipes leave the trays and their tiles,
+  menus (`listedFilms`, `listedPapers`, `listedPresets`), Develop's recipes, the frame menus, Compare, Import; the one
+  in use stays listed. Recipes room: All / Favourites / Hidden N, search (name and film), Sort (Custom Order, Name,
+  Film, Date Changed; `qlick.recipeSort`), Hide/Show in the menu and the detail, hidden cards dimmed. Stocks room:
+  Hidden row, Sort (Maker, Name, Speed; `qlick.stockSort`), context menu, Hide/Show in the detail. Settings' Fotufilm
+  films row gone. Automation: `hide|unhide <stock>`, `hide|unhide recipe <name>`, `favouriterecipe <name>`; `state`
+  has `shelf=<favourites>/<hidden>`. Tests: 572 (`LabShelfTests`).
+  Not done (lot G): Recipes and Stocks are still rooms of the Lab, not a drawer; the Develop recipes panel (⌥⌘P)
+  stays until G decides the doors.
 - [ ] E Export and import of recipes in a bundle (no shared QLab format).
 - [ ] F The Print room.
 - [ ] G Simplifications: Effects folded into Emulsion; one door per function; keywords and caption in the info
@@ -440,7 +455,7 @@ Lots, in order:
 - Phase: **0.4 is done** (R1–R8; R8 from Quentin's first try of Dev). `feature/import-library` holds architecture waves 1–3, 0.1.5, 0.2, 0.3 and 0.4
   (local, nothing pushed, `main` untouched). Swift tests: 555 (24 skipped), all pass (561 after R8); the Rust side wasn't changed.
   Qlick Lab Dev is built from it (`dist/qlick-lab-dev/Qlick Lab Dev.app`).
-- Phase: **lab structure** on `feature/lab-structure` (from `feature/import-library`, local). Lots A, B and C done; next is lot D.
+- Phase: **lab structure** on `feature/lab-structure` (from `feature/import-library`, local). Lots A to D done; next is lot E.
 
 ## Build and test
 

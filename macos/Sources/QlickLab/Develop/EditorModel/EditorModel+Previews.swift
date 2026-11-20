@@ -48,7 +48,10 @@ extension EditorModel {
             let listed = Set(listedFilms.map(\.id))
             entries += previews.filmsFavoritesFirst.filter { listed.contains($0.stock.id) }
         }
-        if previews.paperOpen, previews.paperShown, !scanning { entries += previews.papersFavoritesFirst }
+        if previews.paperOpen, previews.paperShown, !scanning {
+            let listed = Set(listedPapers.map(\.id))
+            entries += previews.papersFavoritesFirst.filter { listed.contains($0.stock.id) }
+        }
         for entry in entries {
             let command = PreviewRules.request(for: entry.stock, keepPaper: previews.keepPaper, state: rendered, stocks: stocks,
                                                source: source, generation: generation)

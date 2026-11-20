@@ -64,6 +64,7 @@
 		3BC2D47C819D78706935A0FF /* DesignTokensTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10395DEEACF619024AC8285 /* DesignTokensTests.swift */; };
 		3BC30516CAD1153724F18D3B /* AutoStraightenTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED178390894958C83C40F37D /* AutoStraightenTests.swift */; };
 		3BCF4D672645DB3307FC949F /* Inspector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04C0E1C84C96409B68A5CE48 /* Inspector.swift */; };
+		3BDC33BED177926419B91333 /* LabShelf.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53681059610811AFDFC73CC3 /* LabShelf.swift */; };
 		3C642EBF429F214E4EB2156A /* qlick-lab.icns in Resources */ = {isa = PBXBuildFile; fileRef = FF3FE495ADC22EB1F0239034 /* qlick-lab.icns */; };
 		3DD149E5CED474FA0DD0DB29 /* LabGlyphs.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D2E9F7C1EA414F7B851C610 /* LabGlyphs.swift */; };
 		3E440BFFA3908CC2586ECAF1 /* LICENSE in Resources */ = {isa = PBXBuildFile; fileRef = 8849AD7B339631EF03FAFEA7 /* LICENSE */; };
@@ -122,6 +123,7 @@
 		6E1C4DFABC98C8938B451FC2 /* ExportSizeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32DE2EAE2832DE09CF88A00C /* ExportSizeTests.swift */; };
 		6F93DF0F9841DBB7AC9A74F3 /* SheetLoupe.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DA34CCFF81F41780D12EFE4 /* SheetLoupe.swift */; };
 		6FCE868EB6A5FD59C92175EB /* LibrarySorting.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFE9943AB5BEB3E8C0DAD47C /* LibrarySorting.swift */; };
+		70A0D3842CD96BA89A521A3F /* LabShelfTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51E66E504A3C61268286754F /* LabShelfTests.swift */; };
 		71F8BB25CFD6851D7AF75598 /* ContactSheetRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = D33BB4E0CA9854D0473F90E5 /* ContactSheetRenderer.swift */; };
 		72141A3ABAD2697BC2543580 /* LabShell.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9483836EF9311825BF4F029 /* LabShell.swift */; };
 		732F27FCD4BEBDD0C71BB897 /* MenuShortcuts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B40FA5C22145DC125BCBEA5 /* MenuShortcuts.swift */; };
@@ -355,9 +357,11 @@
 		4C9E635B3ED8BB2BF873A8EB /* AutoStraighten.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoStraighten.swift; sourceTree = "<group>"; };
 		4D3B8F775F50B0DC54ABACDA /* PickBoxTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PickBoxTests.swift; sourceTree = "<group>"; };
 		4E4056C8DB04AADFB36DA344 /* EngineCommand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EngineCommand.swift; sourceTree = "<group>"; };
+		51E66E504A3C61268286754F /* LabShelfTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LabShelfTests.swift; sourceTree = "<group>"; };
 		5295F9D735BAF41491029229 /* EditorModel+Cropping.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "EditorModel+Cropping.swift"; sourceTree = "<group>"; };
 		52A3601F36058588617EEBA5 /* SidebarDrop.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarDrop.swift; sourceTree = "<group>"; };
 		534ACE5ACF8C09448F21E45A /* Support.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Support.swift; sourceTree = "<group>"; };
+		53681059610811AFDFC73CC3 /* LabShelf.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LabShelf.swift; sourceTree = "<group>"; };
 		54D003B4A436CDAFCD9CBF0F /* DevelopBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevelopBar.swift; sourceTree = "<group>"; };
 		54F8F89B256DFD3F9A1C060D /* BoxMovesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoxMovesTests.swift; sourceTree = "<group>"; };
 		556A7BE9794CBEFC28EE9AD6 /* WindowMinimumTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowMinimumTests.swift; sourceTree = "<group>"; };
@@ -783,6 +787,7 @@
 				34777687D9E619CA6A0CC905 /* InspectorLayoutTests.swift */,
 				A4F389E67A0A191B7AE93961 /* LabPartTests.swift */,
 				CB8F9194088E038B68B4495B /* LabSelectionTests.swift */,
+				51E66E504A3C61268286754F /* LabShelfTests.swift */,
 				9ADB5C7E5E7E518E4CA5CDC3 /* LabTests.swift */,
 				8582BD7082853AD69852B480 /* LibraryTests.swift */,
 				BF9EA4C40008B929194253F6 /* LifecycleTests.swift */,
@@ -851,6 +856,7 @@
 		958B43D6DDA7AADFF56134DB /* Recipes */ = {
 			isa = PBXGroup;
 			children = (
+				53681059610811AFDFC73CC3 /* LabShelf.swift */,
 				77B0A13106B6159459A0F0BE /* PresetInspector.swift */,
 				D5784AE8AAF7BDB20C5BC3CF /* Presets.swift */,
 				A208C44A2F6FB74537BB8087 /* RecipesWorkspace.swift */,
@@ -1169,6 +1175,7 @@
 				4FCCFA2F5091926AD871648C /* LabDeveloper.swift in Sources */,
 				3DD149E5CED474FA0DD0DB29 /* LabGlyphs.swift in Sources */,
 				D3798E19E51B0AC06A73E712 /* LabMenu.swift in Sources */,
+				3BDC33BED177926419B91333 /* LabShelf.swift in Sources */,
 				72141A3ABAD2697BC2543580 /* LabShell.swift in Sources */,
 				5BB98867187CD8AA1334093E /* LabState.swift in Sources */,
 				B152EA07B585949AF01B2CEB /* Library.swift in Sources */,
@@ -1282,6 +1289,7 @@
 				4C8360C57B26A7687D08D85A /* LUTExportTests.swift in Sources */,
 				1805EE86B60C4C9872C45B65 /* LabPartTests.swift in Sources */,
 				FB4DDC5252785DD92DA51754 /* LabSelectionTests.swift in Sources */,
+				70A0D3842CD96BA89A521A3F /* LabShelfTests.swift in Sources */,
 				CA4DD8377AE5346718635A51 /* LabTests.swift in Sources */,
 				2E18ED22C59D62FD133A26C7 /* LibraryTests.swift in Sources */,
 				3EA3063196726BB359DB9FB6 /* LifecycleTests.swift in Sources */,

@@ -139,24 +139,28 @@ struct StockLibrary: View {
     let papers: Bool
     @State private var query = ""
     @State private var family: StockFacts.Family?
-    @State private var favouritesOnly = false
+    @State private var filter = ShelfFilter.all
+    @AppStorage(StockSort.key) private var sort = StockSort.catalogue
     @State private var selected: String?
 
     private var lab: LabState { model.lab }
 
     var body: some View {
-        let stocks = papers ? model.papers : model.listedFilms(keeping: [model.film])
+        // Every stock, hidden ones too: the shelf is where they're shown again.
+        let all = papers ? model.papers : model.films
+        let stocks = all.filter { !lab.isHidden(stock: $0.id) }
+        let hiddenCount = all.count - stocks.count
         let cinemaPrints = Set(model.papers.filter(\.isMotionPicturePrint).map(\.id))
         let families = Dictionary(grouping: stocks) { StockFacts.family($0, cinemaPrints: cinemaPrints) }
         let words = query.split(whereSeparator: \.isWhitespace).map(String.init)
-        let shown = stocks.filter { stock in
+        let shown = ShelfRules.stocks(all, sort: sort, speed: StockFacts.speed).filter { stock in
             let stockFamily = StockFacts.family(stock, cinemaPrints: cinemaPrints)
             if let family, stockFamily != family { return false }
-            if favouritesOnly, !lab.favouriteStocks.contains(stock.id) { return false }
+            if !filter.keeps(favourite: lab.isFavourite(stock: stock.id), hidden: lab.isHidden(stock: stock.id)) { return false }
             let text = "\(stock.name) \(StockFacts.maker(stock)) \(stockFamily.title) \(StockFacts.speed(stock).map { "ISO \($0)" } ?? "")"
             return words.allSatisfy { text.localizedStandardContains($0) }
         }
-        let current = selected.flatMap { id in stocks.first { $0.id == id } } ?? stocks.first { $0.id == (papers ? model.paper : model.film) } ?? shown.first
+        let current = selected.flatMap { id in all.first { $0.id == id } } ?? stocks.first { $0.id == (papers ? model.paper : model.film) } ?? shown.first
         HStack(spacing: 0) {
             // Families.
             VStack(alignment: .leading, spacing: 2) {
@@ -165,15 +169,19 @@ struct StockLibrary: View {
                                      (true, "Papers", "The papers the films are printed on")],
                            selection: Binding(get: { papers }, set: { lab.show($0 ? .papers : .films) }))
                     .padding(.bottom, 10)
-                RoomButton(symbol: papers ? "doc.plaintext" : "film.stack", title: papers ? "All papers" : "All films", on: family == nil && !favouritesOnly,
-                           trailing: "\(stocks.count)") { family = nil; favouritesOnly = false }
-                RoomButton(symbol: "star", title: "Favourites", on: favouritesOnly, trailing: "\(stocks.filter { lab.favouriteStocks.contains($0.id) }.count)") {
-                    favouritesOnly.toggle(); family = nil
+                RoomButton(symbol: papers ? "doc.plaintext" : "film.stack", title: papers ? "All papers" : "All films", on: family == nil && filter == .all,
+                           trailing: "\(stocks.count)") { family = nil; filter = .all }
+                RoomButton(symbol: "star", title: "Favourites", on: filter == .favourites, trailing: "\(stocks.filter { lab.isFavourite(stock: $0.id) }.count)") {
+                    filter = filter == .favourites ? .all : .favourites; family = nil
                 }
+                RoomButton(symbol: "eye.slash", title: "Hidden", on: filter == .hidden, trailing: "\(hiddenCount)") {
+                    filter = filter == .hidden ? .all : .hidden; family = nil
+                }
+                .help("Kept off the trays, the menus and Compare: shown here to bring them back")
                 CapsLabel("Categories").padding(.leading, 10).padding(.top, 16).padding(.bottom, 4)
                 ForEach(StockFacts.Family.allCases.filter { families[$0] != nil }) { item in
                     RoomButton(symbol: "circle", title: item.title, on: family == item, trailing: "\(families[item]?.count ?? 0)") {
-                        family = family == item ? nil : item; favouritesOnly = false
+                        family = family == item ? nil : item; if filter == .favourites { filter = .all }
                     }
                 }
                 Spacer()
@@ -184,12 +192,12 @@ struct StockLibrary: View {
 
             VStack(spacing: 0) {
                 HStack(spacing: 10) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "magnifyingglass").font(.system(size: 11)).foregroundStyle(Theme.dim)
-                        TextField(papers ? "Search papers…" : "Search films…", text: $query).textFieldStyle(.plain).font(.system(size: 12.5))
-                    }
-                    .padding(.horizontal, 10).frame(width: 280, height: 28)
-                    .background(Capsule().fill(Color.white.opacity(0.07)))
+                    ShelfSearch(prompt: papers ? "Search papers…" : "Search films…", query: $query, width: 280)
+                    Menu {
+                        Picker("Sort", selection: $sort) { ForEach(StockSort.allCases, id: \.self) { Text($0.title).tag($0) } }
+                            .pickerStyle(.inline).labelsHidden()
+                    } label: { Text("Sort  \(sort.title)").font(Theme.caps(11)) }
+                    .menuStyle(.borderlessButton).fixedSize().help("The order of the \(papers ? "papers" : "films")")
                     Spacer()
                     if model.source == nil {
                         Text("Open a photograph to see each \(papers ? "paper" : "film") on it.").font(.system(size: 11.5)).foregroundStyle(Theme.dim)
@@ -209,7 +217,7 @@ struct StockLibrary: View {
                     }
                     .padding(20)
                     if shown.isEmpty {
-                        Text("No \(papers ? "paper" : "film") matches.").font(.system(size: 12.5)).foregroundStyle(Theme.dim).padding(.top, 60)
+                        Text(filter == .hidden && query.isEmpty ? "No \(papers ? "paper" : "film") is hidden." : "No \(papers ? "paper" : "film") matches.").font(.system(size: 12.5)).foregroundStyle(Theme.dim).padding(.top, 60)
                     }
                 }
             }
@@ -249,7 +257,7 @@ private struct StockCard: View {
 
     var body: some View {
         let lab = model.lab
-        let favourite = lab.favouriteStocks.contains(stock.id)
+        let favourite = lab.isFavourite(stock: stock.id)
         VStack(alignment: .leading, spacing: 7) {
             ZStack {
                 Color(white: 0.09)
@@ -277,11 +285,16 @@ private struct StockCard: View {
                 if inUse { Circle().fill(Theme.accent).frame(width: 5, height: 5).help("Used by the open photograph") }
                 Text(stock.name).font(.system(size: 12.5, weight: .semibold)).foregroundStyle(Theme.paper).lineLimit(1)
             }
-            Text([StockFacts.speed(stock).map { "ISO \($0)" }, StockFacts.kind(stock, family: family)].compactMap { $0 }.joined(separator: " · "))
+            Text(([lab.isHidden(stock: stock.id) ? "Hidden" : nil, StockFacts.speed(stock).map { "ISO \($0)" }, StockFacts.kind(stock, family: family)] as [String?]).compactMap { $0 }.joined(separator: " · "))
                 .font(.system(size: 11)).foregroundStyle(Theme.dim).lineLimit(1)
         }
+        .opacity(lab.isHidden(stock: stock.id) ? 0.55 : 1)
         .contentShape(Rectangle())
         .onTapGesture(perform: select)
+        .contextMenu {
+            Button(favourite ? "Remove from Favourites" : "Add to Favourites") { lab.toggleFavourite(stock.id) }
+            Button(lab.isHidden(stock: stock.id) ? "Show in the Lists" : "Hide from the Lists") { lab.setHidden(stock: stock.id, !lab.isHidden(stock: stock.id)) }
+        }
         .onHover { hovered = $0 }
         .task(id: model.sourceItem) {
             image = nil
@@ -301,7 +314,7 @@ private struct StockDetail: View {
     var body: some View {
         let lab = model.lab
         let profile = lab.stockProfiles.get(stock.id, data: model.labEnginePaths?.data)
-        let favourite = lab.favouriteStocks.contains(stock.id)
+        let favourite = lab.isFavourite(stock: stock.id)
         ScrollView(.vertical) {
             VStack(alignment: .leading, spacing: 16) {
                 if let image {
@@ -358,7 +371,7 @@ private struct StockDetail: View {
                         Button("Compare with Other Films") {
                             var films = [model.film, stock.id]
                             films = films.reduce(into: []) { if !$0.contains($1) { $0.append($1) } }
-                            for other in lab.favouriteStocks.sorted() where films.count < 3 && !films.contains(other) && model.films.contains(where: { $0.id == other }) { films.append(other) }
+                            for other in lab.shelf.favouriteIDs(.film) where films.count < 3 && !films.contains(other) && model.films.contains(where: { $0.id == other }) { films.append(other) }
                             if films.count < 2, let other = model.films.first(where: { !films.contains($0.id) }) { films.append(other.id) }
                             lab.compare.films = films
                             lab.show(.compare); lab.compareModel.setKind(.films)
@@ -371,6 +384,10 @@ private struct StockDetail: View {
                     }
                     .buttonStyle(QPillButtonStyle()).disabled(isDefault)
                     .help("The contact sheet's undeveloped frames are shown on this \(stock.paper ? "paper" : "film")")
+                    let hidden = lab.isHidden(stock: stock.id)
+                    Button(hidden ? "Show in the Lists" : "Hide from the Lists") { lab.setHidden(stock: stock.id, !hidden) }
+                        .buttonStyle(QPillButtonStyle())
+                        .help("A hidden \(stock.paper ? "paper" : "film") leaves the tray, the menus and Compare; it stays here, under Hidden. Photographs developed with it keep it.")
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }

@@ -129,7 +129,7 @@ struct CaptionOptions: Codable, Equatable, Sendable {
         add(menu, "Copy Edits…", #selector(copyEditsChoosing), key: "c", modifiers: [.command, .shift, .option], enabled: editing)
         add(menu, "Paste Edits", #selector(pasteEdits), key: "v", modifiers: [.command, .shift], enabled: editing && model.copiedEdits != nil)
         add(menu, "Paste from Previous", #selector(pasteFromPrevious), key: "v", modifiers: [.command, .shift, .option], enabled: editing && model.previousEdits != nil)
-        presets = model.presets
+        presets = model.listedPresets
         for (title, action) in [("Apply Recipe", #selector(applyPreset(_:))), ("Apply Recipe with Auto WB & Exposure", #selector(applyPresetAdapting(_:)))] {
             let list = NSMenu()
             for (index, preset) in presets.enumerated() { add(list, preset.name, action).tag = index }

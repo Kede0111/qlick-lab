@@ -792,15 +792,15 @@ struct LibraryContextMenu: View {
         Button("Paste Edits" + several) { model.pasteEdits(onto: targets) }.disabled(!editing || model.copiedEdits == nil)
         Button("Paste from Previous" + several) { model.pasteFromPrevious(onto: targets) }.disabled(!editing || model.previousEdits == nil)
         Menu("Apply Recipe" + several) {
-            ForEach(model.presets) { preset in Button(preset.name) { model.labApply(preset, to: targets) } }
+            ForEach(model.listedPresets) { preset in Button(preset.name) { model.labApply(preset, to: targets) } }
             Divider()
             Toggle("Apply Develop Settings Too", isOn: Binding(get: { model.recipesApplyDevelop }, set: { model.recipesApplyDevelop = $0 }))
-        }.disabled(!editing || !model.canChangePresets || model.presets.isEmpty)
+        }.disabled(!editing || !model.canChangePresets || model.listedPresets.isEmpty)
         Menu("Apply Recipe with Auto WB & Exposure" + several) {
-            ForEach(model.presets) { preset in Button(preset.name) { model.labApply(preset, to: targets, adapting: true) } }
+            ForEach(model.listedPresets) { preset in Button(preset.name) { model.labApply(preset, to: targets, adapting: true) } }
             Divider()
             Toggle("Apply Develop Settings Too", isOn: Binding(get: { model.recipesApplyDevelop }, set: { model.recipesApplyDevelop = $0 }))
-        }.disabled(!editing || !model.canChangePresets || model.presets.isEmpty)
+        }.disabled(!editing || !model.canChangePresets || model.listedPresets.isEmpty)
         .help("The recipe's look, with each photograph's own white balance and exposure, for photographs taken in different light")
         ForEach(PresetSection.allCases, id: \.self) { section in
             let presets = SectionPresets.shared.list(section)

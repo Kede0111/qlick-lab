@@ -56,7 +56,7 @@ extension EditorModel {
     func stepTray(by offset: Int) {
         guard let tray else { return }
         let sections = StockTrayRules.sections(tray.paper ? paperGroups : filmGroups,
-                                               favorites: previews.favorites(in: tray.paper ? papers : listedFilms, paper: tray.paper), query: tray.query)
+                                               favorites: previews.favorites(in: tray.paper ? listedPapers : listedFilms, paper: tray.paper), query: tray.query)
         guard let place = StockTrayRules.step(from: tray.paper ? paper : film, inFavourites: tray.inFavourites, by: offset,
                                               in: StockTrayRules.places(sections)) else { return }
         tray.inFavourites = place.favourite

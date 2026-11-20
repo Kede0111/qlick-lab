@@ -162,7 +162,7 @@ private struct StockName: View {
         if model.previews.enabled {
             model.toggleTray(paper: paper)
         } else {
-            let stocks = paper ? model.papers : model.listedFilms
+            let stocks = paper ? model.listedPapers : model.listedFilms
             let groups = paper ? model.paperGroups : model.filmGroups
             let favorites = model.previews.favorites(in: stocks, paper: paper)
             var items: [ChoiceItem] = []

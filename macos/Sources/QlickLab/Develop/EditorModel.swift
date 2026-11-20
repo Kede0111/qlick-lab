@@ -48,7 +48,7 @@ import UserNotifications
     /// The 35mm strip for the film and the photograph's format, loaded while
     /// that border is chosen.
     private(set) var filmStrip: FilmStrip?
-    private(set) var stocks: [Stock] = []
+    private(set) var stocks: [Stock] = [] { didSet { shelf.adopt(stocks: stocks) } }
     var source: URL?
     /// The camera's facts for the caption over the photograph, read off the main actor.
     var photoFacts: PhotoFacts?
@@ -131,13 +131,6 @@ import UserNotifications
         didSet {
             UserDefaults.standard.set(autoPlaceNewImages, forKey: "autoPlaceNewImages")
             refreshUneditedLook()
-        }
-    }
-    /// Settings › Fotufilm films.
-    var fotufilmFilms = FotufilmFilms(rawValue: UserDefaults.standard.string(forKey: FotufilmFilms.key) ?? "") ?? .all {
-        didSet {
-            UserDefaults.standard.set(fotufilmFilms.rawValue, forKey: FotufilmFilms.key)
-            pumpPreviews()
         }
     }
     /// Enlarger › Shifts move.
@@ -418,15 +411,22 @@ import UserNotifications
     var hasCatalog: Bool { !stocks.isEmpty }
     var films: [Stock] { stocks.filter { !$0.paper } }
     var papers: [Stock] { stocks.filter(\.paper) }
-    /// The films the menus and the tray list (Settings › Fotufilm films).
+    /// The films the menus and the tray list: those not hidden on the Lab's shelf (`LabShelf`).
     /// A hidden film in use stays listed, so a menu always shows its choice:
     /// the photograph's, and while the tray is open the one it opened on.
     var listedFilms: [Stock] { listedFilms(keeping: [film, tray?.before.film].compactMap { $0 }) }
     func listedFilms(keeping kept: [String]) -> [Stock] {
-        films.filter { fotufilmFilms.lists($0) || kept.contains($0.id) }
+        films.filter { !shelf.isHidden(.film, $0.id) || kept.contains($0.id) }
     }
+    /// The papers the menus and the tray list, as `listedFilms`.
+    var listedPapers: [Stock] { listedPapers(keeping: [paper, tray?.before.paper].compactMap { $0 }) }
+    func listedPapers(keeping kept: [String]) -> [Stock] {
+        papers.filter { !shelf.isHidden(.paper, $0.id) || kept.contains($0.id) }
+    }
+    /// The recipes the menus, the panels, Compare and Import list: those not hidden on the shelf.
+    var listedPresets: [PresetFile] { presets.filter { !shelf.isHidden(.recipe, $0.shelfID) } }
     var filmGroups: [StockGroup] { StockGroup.films(listedFilms, papers: papers) }
-    var paperGroups: [StockGroup] { StockGroup.papers(papers) }
+    var paperGroups: [StockGroup] { StockGroup.papers(listedPapers) }
     var filmName: String { films.first { $0.id == film }?.name ?? film }
     var paperName: String { papers.first { $0.id == paper }?.name ?? paper }
     var canSave: Bool { previewCurrent && image != nil && !rendering && !saving && !cropping && !showsHalationMask && !imageIsMask }
@@ -472,8 +472,10 @@ import UserNotifications
     }
     /// The Develop part to apply with a recipe's text: nil when the box is off or the recipe has none.
     func recipeDevelop(_ text: String) -> RecipeDevelop? { recipesApplyDevelop ? RecipeDevelop.read(text) : nil }
+    /// The Lab's shelf: favourite and hidden films, papers and recipes.
+    @ObservationIgnored let shelf: LabShelf
     /// Film and paper preview grids (`Previews.swift`).
-    @ObservationIgnored let previews = Previews()
+    @ObservationIgnored let previews: Previews
     /// Where photographs' sidecars are read and written; nil, none are.
     @ObservationIgnored let sidecars: SidecarStore?
     /// The open photograph's folder, with its photographs' ratings.
@@ -525,6 +527,9 @@ import UserNotifications
          sidecars: SidecarStore? = SidecarStore.forApp) {
         self.previewCache = previewCache
         self.presetLibrary = presetLibrary
+        let shelf = LabShelf.forApp()
+        self.shelf = shelf
+        previews = Previews(shelf: shelf)
         self.sidecars = sidecars
         let enabled = UserDefaults.standard.object(forKey: "sidecars") as? Bool ?? true
         library = PhotoLibrary(store: enabled ? sidecars : nil)

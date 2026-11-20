@@ -837,10 +837,10 @@ extension ContactSheetView: NSDraggingSource {
         add("Copy Edits", #selector(copyEdits), enabled: model.canCopyEdits)
         add("Paste Edits" + several, #selector(pasteEdits), enabled: model.canPasteEdits)
         add("Paste from Previous" + several, #selector(pasteFromPrevious), enabled: model.canChangeEdits && model.previousEdits != nil)
-        shownPresets = model.presets
+        shownPresets = model.listedPresets
         for (title, action) in [("Apply Recipe", #selector(applyPreset(_:))), ("Apply Recipe with Auto WB & Exposure", #selector(applyPresetAdapting(_:)))] {
             let presets = NSMenu()
-            for (index, preset) in model.presets.enumerated() {
+            for (index, preset) in shownPresets.enumerated() {
                 let entry = presets.addItem(withTitle: preset.name, action: action, keyEquivalent: "")
                 entry.tag = index; entry.target = self; entry.representedObject = self
             }
@@ -848,7 +848,7 @@ extension ContactSheetView: NSDraggingSource {
             let develop = presets.addItem(withTitle: "Apply Develop Settings Too", action: #selector(toggleRecipeDevelop), keyEquivalent: "")
             develop.target = self; develop.representedObject = self; develop.state = model.recipesApplyDevelop ? .on : .off
             let applying = menu.addItem(withTitle: title + several, action: nil, keyEquivalent: "")
-            if model.canChangeEdits, model.canChangePresets, !model.presets.isEmpty { applying.submenu = presets } else { applying.isEnabled = false }
+            if model.canChangeEdits, model.canChangePresets, !shownPresets.isEmpty { applying.submenu = presets } else { applying.isEnabled = false }
         }
         // Qlick Lab: the user's own Grain and Halation presets, that section alone.
         for section in PresetSection.allCases {

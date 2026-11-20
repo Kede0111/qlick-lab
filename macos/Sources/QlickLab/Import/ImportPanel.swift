@@ -552,8 +552,8 @@ private struct RecipeChooser: View {
 
     var body: some View {
         @Bindable var session = model.lab.importer
-        let favourites = model.lab.favouriteRecipes
-        let presets = model.presets.sorted { (favourites.contains($0.name) ? 0 : 1, $0.name.lowercased()) < (favourites.contains($1.name) ? 0 : 1, $1.name.lowercased()) }
+        let favourites = Set(model.listedPresets.filter(model.lab.isFavourite(recipe:)).map(\.name))
+        let presets = model.listedPresets.sorted { (favourites.contains($0.name) ? 0 : 1, $0.name.lowercased()) < (favourites.contains($1.name) ? 0 : 1, $1.name.lowercased()) }
         let inUse = session.recipesInUse
         if presets.isEmpty {
             PanelHint("No recipes yet. Save a development as a recipe in Recipes, and it can be given to photographs as they’re imported.")

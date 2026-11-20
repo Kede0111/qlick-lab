@@ -42,6 +42,7 @@ extension EditorModel {
     /// the engine about files it hasn't seen.
     func refreshPresets() async {
         do { presets = try await presetLibrary.list() } catch { presets = []; report(error) }
+        shelf.adopt(recipes: presets)
         presetStatus = presetStatus.filter { presets.contains($0.key) }
         presetTexts = presetTexts.filter { presets.contains($0.key) }
         presetWhiteBalances = presetWhiteBalances.filter { presets.contains($0.key) }
@@ -250,7 +251,7 @@ extension EditorModel {
         unnamedPreset = nil
         forgetApplied(preset.url)
         Task {
-            do { try await presetLibrary.delete(preset) } catch { report(error) }
+            do { try await presetLibrary.delete(preset); shelf.forget(recipe: preset.shelfID) } catch { report(error) }
             await refreshPresets()
         }
     }
@@ -296,6 +297,7 @@ extension EditorModel {
             guard answer.button == 0 else { return }
             do {
                 try await presetLibrary.delete(preset)
+                shelf.forget(recipe: preset.shelfID)
                 forgetApplied(preset.url)
             } catch { report(error) }
             await refreshPresets()

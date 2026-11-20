@@ -175,15 +175,14 @@ struct StockEntry {
     /// Settings › Keep paper when changing film; a missing value means off.
     /// Here because the film tiles follow it too.
     var keepPaper: Bool { didSet { defaults.set(keepPaper, forKey: Self.keepPaperKey) } }
-    static let favoriteFilmsKey = "favoriteFilms"
-    static let favoritePapersKey = "favoritePapers"
-    /// Starred for new users, as on the web; once they change the list,
-    /// theirs is kept, even when empty.
-    static let defaultFavoriteFilms = ["kodak_gold_200", "kodak_portra_400", "kodak_ektar_100", "fujifilm_c200"]
+    /// Starred for new users; once they change the list, theirs is kept, even when empty.
+    static let defaultFavoriteFilms = LabShelf.firstFavouriteFilms
+    /// Qlick Lab: the favourites are the Lab's shelf's (`LabShelf`), one system for every view.
+    @ObservationIgnored let shelf: LabShelf
     /// Starred stock ids, in the order starred. Ids the catalog no longer
     /// has are kept, in case it brings them back.
-    private(set) var favoriteFilms: [String] { didSet { defaults.set(favoriteFilms, forKey: Self.favoriteFilmsKey) } }
-    private(set) var favoritePapers: [String] { didSet { defaults.set(favoritePapers, forKey: Self.favoritePapersKey) } }
+    var favoriteFilms: [String] { shelf.favouriteIDs(.film) }
+    var favoritePapers: [String] { shelf.favouriteIDs(.paper) }
     @ObservationIgnored private let defaults: UserDefaults
     /// Which tray is open (`EditorModel.tray`): its tiles develop.
     var filmOpen = false
@@ -199,21 +198,17 @@ struct StockEntry {
     @ObservationIgnored private(set) var presets: [URL: PreviewTile] = [:]
     @ObservationIgnored var busy = false
 
-    init(defaults: UserDefaults = .standard) {
+    /// `shelf`: the app's; without one (tests), a shelf kept in `defaults`.
+    init(defaults: UserDefaults = .standard, shelf: LabShelf? = nil) {
         self.defaults = defaults
+        self.shelf = shelf ?? LabShelf(storage: .defaults(defaults, key: LabShelf.defaultsKey), defaults: defaults)
         enabled = defaults.object(forKey: Self.defaultsKey) as? Bool ?? true
         keepPaper = defaults.object(forKey: Self.keepPaperKey) as? Bool ?? false
-        favoriteFilms = defaults.stringArray(forKey: Self.favoriteFilmsKey) ?? Self.defaultFavoriteFilms
-        favoritePapers = defaults.stringArray(forKey: Self.favoritePapersKey) ?? []
     }
 
     func isFavorite(_ id: String, paper: Bool) -> Bool { (paper ? favoritePapers : favoriteFilms).contains(id) }
     /// Stars `id` (last among the favourites) or unstars it.
-    func toggleFavorite(_ id: String, paper: Bool) {
-        var ids = paper ? favoritePapers : favoriteFilms
-        if let index = ids.firstIndex(of: id) { ids.remove(at: index) } else { ids.append(id) }
-        if paper { favoritePapers = ids } else { favoriteFilms = ids }
-    }
+    func toggleFavorite(_ id: String, paper: Bool) { shelf.toggleFavourite(paper ? .paper : .film, id) }
     /// The starred stocks among `stocks`, in the order starred.
     func favorites(in stocks: [Stock], paper: Bool) -> [Stock] {
         (paper ? favoritePapers : favoriteFilms).compactMap { id in stocks.first { $0.paper == paper && $0.id == id } }

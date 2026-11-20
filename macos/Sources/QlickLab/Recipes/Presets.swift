@@ -9,8 +9,14 @@ struct PresetFile: Identifiable, Equatable, Hashable, Sendable {
     let url: URL
     let size: Int
     let modified: Date
+    /// Qlick Lab: the recipe's own identifier on the shelf (`LabShelf`), kept in the folder's `.ids.json`, so its
+    /// star and its place survive a rename. Not part of the file's identity.
+    var shelfID = ""
     var name: String { url.deletingPathExtension().lastPathComponent }
     var id: URL { url }
+
+    static func == (a: PresetFile, b: PresetFile) -> Bool { a.url == b.url && a.size == b.size && a.modified == b.modified }
+    func hash(into hasher: inout Hasher) { hasher.combine(url); hasher.combine(size); hasher.combine(modified) }
 }
 
 /// One naming policy on every platform: names Windows, macOS and Linux all
@@ -66,6 +72,8 @@ enum PresetName {
 actor PresetLibrary {
     let folder: URL
     var orderFile: URL { folder.appendingPathComponent(".order.json") }
+    /// Qlick Lab: each recipe's identifier, by file name: `{"ids": {"Portra warm.json": "<UUID>"}}`.
+    var idsFile: URL { folder.appendingPathComponent(".ids.json") }
     /// Larger files aren't GUI states.
     static let maxFileSize = 1_048_576
 
@@ -84,10 +92,53 @@ actor PresetLibrary {
             .sorted { PresetName.key($0.name) < PresetName.key($1.name) }
         let position = Dictionary(readOrder().enumerated().map { (PresetName.key($1), $0) }) { first, _ in first }
         // Stable: unordered files keep their name order after the ordered ones.
-        return files.enumerated().sorted { a, b in
+        let ordered = files.enumerated().sorted { a, b in
             let (x, y) = (position[PresetName.key(a.element.name)] ?? Int.max, position[PresetName.key(b.element.name)] ?? Int.max)
             return x != y ? x < y : a.offset < b.offset
         }.map(\.element)
+        return identified(ordered)
+    }
+
+    /// Gives each recipe its identifier: the one kept for its file name, or a new one (a file copied in by hand).
+    private func identified(_ presets: [PresetFile]) -> [PresetFile] {
+        var ids = readIDs(), changed = false
+        let named = presets.map { preset -> PresetFile in
+            var preset = preset
+            let key = PresetName.key(preset.name)
+            if let id = ids[key] { preset.shelfID = id } else {
+                preset.shelfID = UUID().uuidString
+                ids[key] = preset.shelfID
+                changed = true
+            }
+            return preset
+        }
+        // Names no longer there are forgotten.
+        let present = Set(presets.map { PresetName.key($0.name) })
+        if ids.keys.contains(where: { !present.contains($0) }) { ids = ids.filter { present.contains($0.key) }; changed = true }
+        if changed { try? writeIDs(ids) }
+        return named
+    }
+
+    /// The identifiers by name key (`PresetName.key`).
+    private func readIDs() -> [String: String] {
+        guard let data = try? Data(contentsOf: idsFile),
+              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let ids = object["ids"] as? [String: String] else { return [:] }
+        return Dictionary(ids.map { (PresetName.key(($0.key as NSString).deletingPathExtension), $0.value) }) { first, _ in first }
+    }
+
+    private func writeIDs(_ ids: [String: String]) throws {
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let named = Dictionary(ids.map { ("\($0.key).json", $0.value) }) { first, _ in first }
+        let data = try JSONSerialization.data(withJSONObject: ["ids": named], options: [.prettyPrinted, .sortedKeys])
+        try data.write(to: idsFile, options: .atomic)
+    }
+
+    /// Gives the recipe named `name` the identifier `id` (a bundle brings its recipes' own).
+    func setID(_ id: String, for name: String) throws {
+        var ids = readIDs()
+        ids[PresetName.key(name)] = id
+        try writeIDs(ids)
     }
 
     /// Remembers this order of the presets.
@@ -138,7 +189,15 @@ actor PresetLibrary {
             var renamed = order; renamed[index] = name
             try writeOrder(renamed)
         }
-        return try file(at: url)
+        // The identifier follows the recipe to its new name.
+        var ids = readIDs()
+        if let id = ids.removeValue(forKey: PresetName.key(preset.name)) ?? (preset.shelfID.isEmpty ? nil : preset.shelfID) {
+            ids[PresetName.key(name)] = id
+            try? writeIDs(ids)
+        }
+        var renamed = try file(at: url)
+        renamed.shelfID = ids[PresetName.key(name)] ?? ""
+        return renamed
     }
 
     func delete(_ preset: PresetFile) throws {

@@ -670,6 +670,12 @@ import AppKit
             }
         case "sidebar": lab.sidebarVisible = rest != "off"
         case "favourite": lab.toggleFavourite(rest)
+        // hide|unhide <stock id> or recipe <name>: on the Lab's shelf.
+        case "hide", "unhide":
+            let hide = command == "hide"
+            if rest.hasPrefix("recipe "), let preset = model.presets.first(where: { $0.name == String(rest.dropFirst(7)) }) { lab.setHidden(recipe: preset, hide) }
+            else if !rest.isEmpty { lab.setHidden(stock: rest, hide) }
+        case "favouriterecipe": if let preset = model.presets.first(where: { $0.name == rest }) { lab.toggleFavourite(recipe: preset) }
         case "print":
             // print <pdf path> [columns] [white]
             guard let path = words.first else { break }
@@ -700,7 +706,7 @@ import AppKit
             try? text.write(toFile: rest, atomically: true, encoding: .utf8)
         case "state":
             let counts = lab.counts
-            let text = "previews=\(lab.previewBuilder.done)/\(lab.previewBuilder.total)\(lab.previewBuilder.running ? "+" : "") proxies=\(lab.proxyMaker.done)/\(lab.proxyMaker.total)\(lab.proxyMaker.busy ? "+" : "") leftout=\(lab.proxyMaker.leftOut.count) thumbnails=\(model.thumbnailsAsked.done)/\(model.thumbnailsAsked.total) left=\(model.thumbnailsLeft) work=[\(BackgroundWork.tasks(model).map { "\($0.kind.rawValue):\($0.figure.replacingOccurrences(of: " ", with: "_"))" }.joined(separator: ","))] kept=\(model.showsKeptRender) catalog=\(lab.catalogName) archives=\(lab.projects.projects.count) boxes=\(lab.projects.allBoxes.count) room=\(lab.workspace.rawValue) part=\(lab.part.rawValue) frames=\(lab.frames.count) picks=\(counts.picks) rejects=\(counts.rejects) selected=\(model.selection.selected.count) "
+            let text = "previews=\(lab.previewBuilder.done)/\(lab.previewBuilder.total)\(lab.previewBuilder.running ? "+" : "") proxies=\(lab.proxyMaker.done)/\(lab.proxyMaker.total)\(lab.proxyMaker.busy ? "+" : "") leftout=\(lab.proxyMaker.leftOut.count) thumbnails=\(model.thumbnailsAsked.done)/\(model.thumbnailsAsked.total) left=\(model.thumbnailsLeft) work=[\(BackgroundWork.tasks(model).map { "\($0.kind.rawValue):\($0.figure.replacingOccurrences(of: " ", with: "_"))" }.joined(separator: ","))] kept=\(model.showsKeptRender) catalog=\(lab.catalogName) archives=\(lab.projects.projects.count) boxes=\(lab.projects.allBoxes.count) shelf=\(lab.shelf.favourites.count)/\(lab.shelf.hidden.count) room=\(lab.workspace.rawValue) part=\(lab.part.rawValue) frames=\(lab.frames.count) picks=\(counts.picks) rejects=\(counts.rejects) selected=\(model.selection.selected.count) "
                 + "current=\(model.selection.current?.lastPathComponent ?? "-") order=\(lab.frames.map { $0.url.lastPathComponent }.joined(separator: ",")) sort=\(lab.sort.key.rawValue) stacks=\(lab.projects.stacks.map { "\($0.frames.count)\($0.open ? "o" : "c")" }.joined(separator: ",")) advance=\(model.advanceAfterRating) mode=\(model.mode) ready=\(model.ready) preview=\(model.previewCurrent) "
                 + "status=[\(model.status)] film=\(model.film) panes=\(lab.compareModel.panes.count) images=\(lab.compareModel.images.values.map { "\($0.width)x\($0.height)" }.joined(separator: ",")) undo=\(window?.undoManager?.canUndo ?? false) "
                 + "presets=[\(model.presets.map(\.name).joined(separator: "|"))] wb=\(model.value("io.raw_white_balance.mode").string)/\(Int(model.value("io.raw_white_balance.temperature").double))/\(model.value("io.raw_white_balance.tint").double) match=\(model.state.brightnessMatch?.ev.map { String(format: "%.2f", $0) } ?? (model.state.brightnessMatch == nil ? "off" : "pending")) renaming=\(model.renamingPreset?.lastPathComponent ?? "-") pane=\(model.inspectorPane) responder=\(window.map { w in (w.firstResponder as? NSTextView).flatMap { $0.delegate as? NSTextField }.map { "field:\($0.stringValue.replacingOccurrences(of: " ", with: "_")):hidden=\($0.isHiddenOrHasHiddenAncestor)" } ?? String(describing: w.firstResponder.map { Swift.type(of: $0) }) } ?? "-")\n"

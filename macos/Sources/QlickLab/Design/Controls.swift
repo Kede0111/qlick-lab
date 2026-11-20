@@ -140,3 +140,23 @@ struct QMark: View {
         .accessibilityHidden(true)
     }
 }
+
+/// A search field in a capsule, for the shelves (recipes, stocks).
+struct ShelfSearch: View {
+    let prompt: String
+    @Binding var query: String
+    var width: CGFloat = 220
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "magnifyingglass").font(.system(size: 11)).foregroundStyle(Theme.dim)
+            TextField(prompt, text: $query).textFieldStyle(.plain).font(.system(size: 12.5))
+            if !query.isEmpty {
+                Button { query = "" } label: { Image(systemName: "xmark.circle.fill").font(.system(size: 11)).foregroundStyle(Theme.dim) }
+                    .buttonStyle(.plain).help("Clear the search")
+            }
+        }
+        .padding(.horizontal, 10).frame(width: width, height: 28)
+        .background(Capsule().fill(Color.white.opacity(0.07)))
+    }
+}

@@ -59,8 +59,9 @@ struct PresetInspector: View {
 
     /// The presets in the order shown: as dragged, while a tile is.
     private var shown: [PresetFile] {
-        guard let dragOrder else { return model.presets }
-        return dragOrder.compactMap { url in model.presets.first { $0.url == url } }
+        // Qlick Lab: hidden recipes stay on the shelf only (`LabShelf`).
+        guard let dragOrder else { return model.listedPresets }
+        return dragOrder.compactMap { url in model.listedPresets.first { $0.url == url } }
     }
 
     private var tiles: some View {

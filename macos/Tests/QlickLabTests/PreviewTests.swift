@@ -259,10 +259,11 @@ final class PreviewTests: XCTestCase {
     @MainActor func testAFavoriteMissingFromTheCatalogIsKeptButNotShown() {
         let suite = TestDefaults.name("qlick-favorites-missing"), defaults = UserDefaults(suiteName: suite)!
         defer { TestDefaults.remove(suite) }
-        defaults.set(["gone", "velvia"], forKey: Previews.favoriteFilmsKey)
+        // The tray's former list comes into the Lab's shelf (`LabShelf`).
+        defaults.set(["gone", "velvia"], forKey: "favoriteFilms")
         let previews = Previews(defaults: defaults)
         XCTAssertEqual(previews.favorites(in: stocks, paper: false).map(\.id), ["velvia"])
         previews.toggleFavorite("gold", paper: false)
-        XCTAssertEqual(defaults.stringArray(forKey: Previews.favoriteFilmsKey), ["gone", "velvia", "gold"])
+        XCTAssertEqual(Previews(defaults: defaults).favoriteFilms, ["gone", "velvia", "gold"])
     }
 }

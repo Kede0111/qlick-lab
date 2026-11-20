@@ -7,18 +7,31 @@ import SwiftUI
 struct RecipesWorkspace: View {
     let model: EditorModel
     @State private var selected: URL?
-    @State private var favouritesOnly = false
+    @State private var filter = ShelfFilter.all
+    @State private var query = ""
+    @AppStorage(RecipeSort.key) private var sort = RecipeSort.custom
     @State private var renaming: URL?
     @State private var name = ""
 
     private var lab: LabState { model.lab }
 
     var body: some View {
-        let presets = model.presets.filter { !favouritesOnly || lab.favouriteRecipes.contains($0.name) }
-        let current = selected.flatMap { url in model.presets.first { $0.url == url } } ?? model.appliedPreset.flatMap { url in model.presets.first { $0.url == url } } ?? presets.first
+        let presets = ShelfRules.recipes(model.presets, filter: filter, query: query, sort: sort,
+                                         favourite: lab.isFavourite(recipe:), hidden: lab.isHidden(recipe:)) { RecipeFacts.film(model, $0) }
+        // The one chosen, else the one applied if it's shown, else the first shown.
+        let current = selected.flatMap { url in model.presets.first { $0.url == url } } ?? model.appliedPreset.flatMap { url in presets.first { $0.url == url } } ?? presets.first
         VStack(spacing: 0) {
             HStack(spacing: 10) {
-                QSegmented(options: [(false, "All", "All recipes"), (true, "Favourites", "Recipes marked with a star")], selection: $favouritesOnly)
+                QSegmented(options: [(ShelfFilter.all, "All", "The recipes the lab lists"),
+                                     (.favourites, "Favourites", "Recipes marked with a star"),
+                                     (.hidden, "Hidden \(model.presets.filter(lab.isHidden(recipe:)).count)", "Recipes kept off the lists, to show them again")],
+                           selection: $filter)
+                ShelfSearch(prompt: "Search recipes…", query: $query)
+                Menu {
+                    Picker("Sort", selection: $sort) { ForEach(RecipeSort.allCases, id: \.self) { Text($0.title).tag($0) } }
+                        .pickerStyle(.inline).labelsHidden()
+                } label: { Text("Sort  \(sort.title)").font(Theme.caps(11)) }
+                .menuStyle(.borderlessButton).fixedSize().help("The order of the recipes")
                 Spacer()
                 if let item = model.sourceItem {
                     Text("Previews developed on \(model.library.name(of: item))").font(.system(size: 11.5)).foregroundStyle(Theme.dim)
@@ -56,6 +69,10 @@ struct RecipesWorkspace: View {
                             }
                         }
                         .padding(20)
+                        if presets.isEmpty {
+                            Text(filter == .hidden && query.isEmpty ? "No recipe is hidden." : "No recipe matches.")
+                                .font(.system(size: 12.5)).foregroundStyle(Theme.dim).padding(.top, 60)
+                        }
                     }
                     if let current {
                         RecipeDetail(model: model, preset: current) { name = current.name; renaming = current.url }
@@ -75,7 +92,8 @@ struct RecipesWorkspace: View {
         Button("Apply to the Open Photograph") { model.labApply(preset, to: model.sourceItem.map { [$0] } ?? []) }.disabled(model.source == nil)
         Button("Rename") { name = preset.name; renaming = preset.url }
         Button("Duplicate as a New Version") { model.labDuplicate(preset) }
-        Button(lab.favouriteRecipes.contains(preset.name) ? "Remove from Favourites" : "Add to Favourites") { lab.toggleFavouriteRecipe(preset.name) }
+        Button(lab.isFavourite(recipe: preset) ? "Remove from Favourites" : "Add to Favourites") { lab.toggleFavourite(recipe: preset) }
+        Button(lab.isHidden(recipe: preset) ? "Show in the Lists" : "Hide from the Lists") { lab.setHidden(recipe: preset, !lab.isHidden(recipe: preset)) }
         Divider()
         Button("Export…") { model.exportPresetPanel(preset) }
         Button("Show the Recipes Folder") { model.showPresetsFolder() }
@@ -99,7 +117,7 @@ private struct RecipeCard: View {
 
     var body: some View {
         let lab = model.lab
-        let favourite = lab.favouriteRecipes.contains(preset.name)
+        let favourite = lab.isFavourite(recipe: preset), hidden = lab.isHidden(recipe: preset)
         VStack(alignment: .leading, spacing: 7) {
             ZStack {
                 Color(white: 0.09)
@@ -110,7 +128,7 @@ private struct RecipeCard: View {
             .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: 4, style: .continuous).strokeBorder(selected ? Theme.paper : Color.white.opacity(hovered ? 0.3 : 0.08), lineWidth: selected ? 1.5 : 1))
             .overlay(alignment: .topTrailing) {
-                Button { lab.toggleFavouriteRecipe(preset.name) } label: {
+                Button { lab.toggleFavourite(recipe: preset) } label: {
                     Image(systemName: favourite ? "star.fill" : "star").font(.system(size: 11.5)).foregroundStyle(favourite ? Theme.paper : Color.white.opacity(0.7))
                         .frame(width: 26, height: 26).contentShape(Rectangle()).shadow(color: .black.opacity(0.7), radius: 2)
                 }
@@ -125,8 +143,9 @@ private struct RecipeCard: View {
                     Text(preset.name).font(.system(size: 12.5, weight: .semibold)).foregroundStyle(Theme.paper).lineLimit(1)
                 }
             }
-            Text(RecipeFacts.line(model, preset)).font(.system(size: 11)).foregroundStyle(Theme.dim).lineLimit(1)
+            Text(hidden ? "Hidden · " + RecipeFacts.line(model, preset) : RecipeFacts.line(model, preset)).font(.system(size: 11)).foregroundStyle(Theme.dim).lineLimit(1)
         }
+        .opacity(hidden ? 0.55 : 1)
         .contentShape(Rectangle())
         .onTapGesture(perform: select)
         .onHover { hovered = $0 }
@@ -139,6 +158,12 @@ private struct RecipeCard: View {
 }
 
 enum RecipeFacts {
+    /// The recipe's film's name, for the search and the Film order.
+    @MainActor static func film(_ model: EditorModel, _ preset: PresetFile) -> String {
+        guard case .valid(let film, _, _) = model.presetStatus[preset] else { return "" }
+        return model.films.first { $0.id == film }?.name ?? film
+    }
+
     @MainActor static func line(_ model: EditorModel, _ preset: PresetFile) -> String {
         switch model.presetStatus[preset] {
         case .valid(let film, let paper, let scan):
@@ -197,7 +222,7 @@ private struct RecipeDetail: View {
                         .help("The recipe's look, with each photograph's own white balance and exposure, for photographs taken in different light")
                     Button("Compare with Other Recipes") {
                         var recipes = [preset.url]
-                        for other in model.presets where recipes.count < 3 && other.url != preset.url { recipes.append(other.url) }
+                        for other in model.listedPresets where recipes.count < 3 && other.url != preset.url { recipes.append(other.url) }
                         lab.compare.recipes = recipes
                         lab.show(.compare); lab.compareModel.setKind(.recipes)
                     }
@@ -207,6 +232,9 @@ private struct RecipeDetail: View {
                         Button("Duplicate") { model.labDuplicate(preset) }.buttonStyle(QPillButtonStyle()).help("A new version of the recipe, to change without losing this one")
                         Button("Export…") { model.exportPresetPanel(preset) }.buttonStyle(QPillButtonStyle())
                     }
+                    Button(lab.isHidden(recipe: preset) ? "Show in the Lists" : "Hide from the Lists") { lab.setHidden(recipe: preset, !lab.isHidden(recipe: preset)) }
+                        .buttonStyle(QPillButtonStyle())
+                        .help("A hidden recipe leaves Develop's recipes, the menus, Compare and Import; it stays here, under Hidden")
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 Text("spektrafilm format: the recipe opens in spektrafilm too. To change it, apply it, adjust the development, then save that as a new recipe.")

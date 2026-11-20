@@ -398,7 +398,7 @@ private struct PickerRow: View {
     private func open() {
         // With the preview tiles, the tray under the photograph; else the plain menu.
         if model.previews.enabled { model.toggleTray(paper: paper); return }
-        let stocks = paper ? model.papers : model.listedFilms
+        let stocks = paper ? model.listedPapers : model.listedFilms
         let favorites = model.previews.favorites(in: stocks, paper: paper)
         var items: [ChoiceItem] = []
         if !favorites.isEmpty {
