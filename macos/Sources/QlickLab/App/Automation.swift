@@ -77,11 +77,14 @@ import AppKit
         case .roll(let id, let box)?: return .roll(id, box: box)
         case .archive(let id)?: return .archive(id)
         case .folder(let path, let archive)?: return .folder(path, archive: archive)
-        case nil: return nil
+        case .archives?, .boxes?, nil: return nil
         }
     }
 
     private func sidebarTarget(_ text: String) -> SidebarTarget? {
+        // Qlick Lab: the Archives' and the Boxes' headings, as drop targets.
+        if text == "archives" { return .archives }
+        if text == "boxes" { return .boxes }
         let parts = text.split(separator: ":", maxSplits: 1).map(String.init)
         guard parts.count == 2 else { return nil }
         let path = parts[1].split(separator: "|").map(String.init)

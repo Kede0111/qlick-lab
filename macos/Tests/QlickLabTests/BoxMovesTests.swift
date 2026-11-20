@@ -35,6 +35,34 @@ import XCTest
         return (walk?.allObjects as? [String] ?? []).sorted()
     }
 
+    /// Qlick Lab: photographs dropped under the Boxes make a new Box named after their folder; a folder dropped on
+    /// the Archives' heading becomes an Archive; a Roll dropped there gets a Box of its own. Nothing moves on disk.
+    func testDropsOnTheHeadingsMakeBoxesAndArchives() throws {
+        let a = try photos("Madrid", ["M1.DNG", "M2.DNG"])
+        let before = try disk()
+        let store = ProjectStore(directory: catalogue)
+        let urls = ["M1.DNG", "M2.DNG"].map { a.appendingPathComponent($0) }
+
+        let photosPlan = try XCTUnwrap(store.plan(.photos(urls, from: nil), onto: .boxes, at: 0.5, copying: false))
+        XCTAssertEqual(photosPlan.label, "New Box “Madrid”, 2 photographs")
+        XCTAssertTrue(store.apply(try XCTUnwrap(photosPlan.action)))
+        XCTAssertEqual(shape(store.boxes), "[Madrid: M1.DNG,M2.DNG  ]")
+
+        let folderPlan = try XCTUnwrap(store.plan(.finder, onto: .archives, at: 0.5, copying: false))
+        XCTAssertEqual(folderPlan.verb, "New Archive")
+        XCTAssertTrue(store.apply(.newArchive(folders: [a.path], from: nil)))
+        XCTAssertEqual(store.projects.map(\.name), ["Madrid"])
+        XCTAssertEqual(store.projects.first?.rolls.map(\.folder), [a.standardizedFileURL.path])
+
+        let box = try XCTUnwrap(store.boxes.first)
+        let roll = try XCTUnwrap(store.createRoll(named: "Night", in: box.id, frames: [urls[0]]))
+        let rollPlan = try XCTUnwrap(store.plan(.roll(roll.id, box: box.id), onto: .boxes, at: 0.5, copying: false))
+        XCTAssertTrue(store.apply(try XCTUnwrap(rollPlan.action)))
+        XCTAssertEqual(store.boxes.map(\.name), ["Madrid", "Night"])
+        XCTAssertEqual(store.boxes.last?.rolls.map(\.name), ["Night"])
+        XCTAssertEqual(try disk(), before, "the disk is untouched")
+    }
+
     func testPhotographsFromAnArchiveAreAddedOnceWithTheCopyWording() throws {
         let a = try photos("A", ["A1.DNG", "A2.DNG", "A3.DNG"])
         let store = ProjectStore(directory: catalogue)

@@ -137,6 +137,10 @@ struct SidebarDropDelegate: DropDelegate {
         let row = lab.sidebarDrop.row(at: info.location)
         if item == .finder {
             let plan = row.flatMap { lab.projects.plan(.finder, onto: $0.target, at: 0.5, copying: false) }
+            if case .newArchive? = plan?.action, let plan {
+                return LabDrop.load(info.itemProviders(for: [.fileURL])) { [lab] urls in lab.perform(plan, finder: urls) }
+            }
+            guard plan?.operation != .refused else { return false }
             let archive: UUID? = { if case .importFinder(let id)? = plan?.action { return id }; return nil }()
             return LabDrop.load(info.itemProviders(for: [.fileURL])) { [lab] urls in lab.importFolders(urls, into: archive) }
         }

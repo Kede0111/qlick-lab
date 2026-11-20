@@ -23,6 +23,10 @@ enum SidebarTarget: Hashable, Sendable {
     case folder(String, archive: UUID)
     case box(UUID)
     case roll(UUID, box: UUID)
+    /// Qlick Lab: the Archives' heading: a folder dropped there becomes an Archive of its own.
+    case archives
+    /// The Boxes' heading and the empty place under them: what's dropped there makes a new Box.
+    case boxes
 }
 
 /// Where a drop goes against a row: before it, in it, after it.
@@ -43,6 +47,13 @@ enum DropAction: Equatable, Sendable {
     case moveFolder(String, from: UUID, to: UUID)
     /// Folders from the Finder: Import opens on them.
     case importFinder(into: UUID?)
+    /// Qlick Lab: folders (from an Archive, `from`, or the Finder) made a new Archive, named after the first, the
+    /// photographs where they are.
+    case newArchive(folders: [String], from: UUID?)
+    /// A new Box at the top, named `name`, holding `frames`, or the photographs of `folder`.
+    case newBox(String, frames: [URL], folder: String?)
+    /// A Roll dropped on the Boxes: a new Box named after it, holding it.
+    case newBoxForRoll(UUID, from: UUID)
 }
 
 /// What a drop on a row would do, said before it's done: the label under the row and the pointer's badge.
@@ -71,6 +82,8 @@ extension ProjectStore {
     /// What dropping `item` on the row `target` does, `fraction` of the way down the row (0 at its top); `copying`
     /// when ⌥ is held. Nil when it would do nothing worth saying (a row dropped where it already is).
     func plan(_ item: LabDragItem, onto target: SidebarTarget, at fraction: Double, copying: Bool) -> DropPlan? {
+        if target == .archives { return planOntoArchives(item) }
+        if target == .boxes { return planOntoBoxes(item) }
         let edges: DropZone = fraction < 0.25 ? .before : fraction > 0.75 ? .after : .on
         let halves: DropZone = fraction < 0.5 ? .before : .after
         switch item {
@@ -116,6 +129,7 @@ extension ProjectStore {
                                 action: .moveFolder(path, from: archiveID, to: id))
             case .folder:
                 return .refused(Self.diskAsItIs)
+            case .archives, .boxes: return nil
             }
 
         case .box(let id):
@@ -138,6 +152,7 @@ extension ProjectStore {
                                 action: .placeBox(id, in: at.parent, at: index), line: edges)
             case .archive, .folder:
                 return .refused("A Box goes in the Boxes, not in an Archive")
+            case .archives, .boxes: return nil
             }
 
         case .roll(let id, let from):
@@ -156,6 +171,7 @@ extension ProjectStore {
                                 action: .placeRoll(id, from: from, in: otherBox, at: index), line: halves)
             case .archive, .folder:
                 return .refused("A Roll goes in a Box, not in an Archive")
+            case .archives, .boxes: return nil
             }
 
         case .archive(let id):
@@ -173,6 +189,7 @@ extension ProjectStore {
                 return DropPlan(operation: .copy, verb: "Import", rest: "into “\(into.name)”", action: .importFinder(into: id))
             case .box, .roll:
                 return DropPlan(operation: .copy, verb: "Import", rest: "the folder", action: .importFinder(into: nil))
+            case .archives, .boxes: return nil
             }
         }
     }
@@ -217,8 +234,61 @@ extension ProjectStore {
                 addRolls([url], to: to)
             }
         case .importFinder: return false
+        case .newArchive(let folders, let from):
+            guard let first = folders.first else { return false }
+            let made = create(named: (first as NSString).lastPathComponent)
+            for path in folders {
+                let url = URL(fileURLWithPath: path, isDirectory: true)
+                if let from, let source = archive(from), let entry = source.rolls.first(where: { $0.folder == path }), roots(of: source).contains(url) {
+                    moveRoll(entry.id, from: from, to: made.id)
+                } else {
+                    addRolls([url], to: made.id)
+                }
+            }
+        case .newBox(let name, let frames, let folder):
+            createBox(named: name, frames: folder.map(folderPhotos) ?? frames)
+        case .newBoxForRoll(let id, let from):
+            guard let roll = boxRoll(id, in: from)?.roll, let box = createBox(named: roll.name) else { return false }
+            moveBoxRoll(id, from: from, into: box.id, at: 0)
         }
         return snapshot != before
+    }
+
+    /// A drop on the Archives' heading: a folder becomes an Archive of its own.
+    private func planOntoArchives(_ item: LabDragItem) -> DropPlan? {
+        switch item {
+        case .folder(let path, let archiveID):
+            let name = archive(archiveID).map { folder(path, in: $0).name } ?? (path as NSString).lastPathComponent
+            return DropPlan(operation: .copy, verb: "New Archive", rest: "“\(name)”", action: .newArchive(folders: [path], from: archiveID))
+        case .finder:
+            return DropPlan(operation: .copy, verb: "New Archive", rest: "of the folder, where it is", action: .newArchive(folders: [], from: nil))
+        default:
+            return .refused("Drop a folder here to make an Archive")
+        }
+    }
+
+    /// A drop on the Boxes' heading or under them: a new Box, named after the folder, holding what's dropped.
+    private func planOntoBoxes(_ item: LabDragItem) -> DropPlan? {
+        switch item {
+        case .photos(let urls, _):
+            guard let first = urls.first else { return nil }
+            let name = first.photoFile.deletingLastPathComponent().lastPathComponent
+            return DropPlan(operation: .copy, verb: "New Box", rest: "“\(name)”, \(photographs(urls.count))", action: .newBox(name, frames: urls, folder: nil))
+        case .folder(let path, let archiveID):
+            let name = archive(archiveID).map { folder(path, in: $0).name } ?? (path as NSString).lastPathComponent
+            if node(path)?.total == 0 { return .refused("No photographs in “\(name)”") }
+            return DropPlan(operation: .copy, verb: "New Box", rest: "“\(name)”", action: .newBox(name, frames: [], folder: path))
+        case .roll(let id, let from):
+            guard let roll = boxRoll(id, in: from)?.roll else { return nil }
+            return DropPlan(operation: .move, verb: "New Box", rest: "“\(roll.name)” holding the Roll", action: .newBoxForRoll(id, from: from))
+        case .box(let id):
+            guard let at = place(ofBox: id), at.parent != nil else { return .refused("Already in the Boxes") }
+            return DropPlan(operation: .move, verb: "Move", rest: "“\(box(id)?.name ?? "")” to the top of the Boxes", action: .placeBox(id, in: nil, at: boxes.count))
+        case .finder:
+            return .refused("Drop the folder on Archives first")
+        case .archive:
+            return .refused("An Archive stays in the Archives")
+        }
     }
 
     /// The photographs of a folder and of every folder under it, as its sheet shows them.

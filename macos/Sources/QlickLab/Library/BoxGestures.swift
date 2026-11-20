@@ -82,6 +82,12 @@ extension LabState {
             if !urls.isEmpty { importFolders(urls, into: archive) }
             return
         }
+        // Qlick Lab: folders from the Finder on the Archives' heading: an Archive of them, the photographs where they are.
+        if case .newArchive(let folders, let from) = action, folders.isEmpty {
+            let dirs = urls.filter { (try? $0.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory == true }.map(\.path)
+            guard !dirs.isEmpty else { return }
+            return perform(DropPlan(operation: plan.operation, verb: plan.verb, rest: plan.rest, action: .newArchive(folders: dirs, from: from)))
+        }
         let done = undoable(undoName(action, plan: plan)) { projects.apply(action) }
         guard done else { return }
         switch action {
@@ -91,6 +97,8 @@ extension LabState {
             sidebarFold.unfold(.box(box))
             note("Made", "the Roll " + (plan.rest.components(separatedBy: ",").first ?? ""))
         case .placeBox(_, let parent?, _): sidebarFold.unfold(.box(parent))
+        case .newArchive: note("Made", "the Archive " + plan.rest)
+        case .newBox, .newBoxForRoll: note("Made", "the Box " + (plan.rest.components(separatedBy: ",").first ?? ""))
         case .placeRoll(_, _, let into, _): sidebarFold.unfold(.box(into))
         default: break
         }
@@ -107,6 +115,8 @@ extension LabState {
         case .placeArchive: "Move Archive"
         case .moveFolder: plan.operation == .move ? "Move Folder" : "Add Folder"
         case .importFinder: "Import"
+        case .newArchive: "New Archive"
+        case .newBox, .newBoxForRoll: "New Box"
         }
     }
 

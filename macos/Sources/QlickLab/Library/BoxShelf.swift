@@ -27,6 +27,7 @@ struct BoxShelfItem: Identifiable, Equatable, Sendable {
         case .roll(let id, let box): .roll(id, box: box)
         case .archive(let id): .archive(id)
         case .folder(let path, let archive): .folder(path, archive: archive)
+        case .archives, .boxes: .finder
         }
     }
 

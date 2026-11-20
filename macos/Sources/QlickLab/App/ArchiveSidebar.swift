@@ -13,6 +13,8 @@ struct ArchivesSection: View {
 
     var body: some View {
         SidebarHeading(title: "Archives", help: "New Archive") { lab.newArchive() }
+            // A folder dropped here (from an Archive or the Finder) becomes an Archive of its own.
+            .sidebarDrop(lab, .archives, depth: 0)
         let archives = lab.projects.projects
         if archives.isEmpty {
             SidebarHint("Drop a folder of photographs here to make an Archive.")
@@ -132,10 +134,15 @@ struct BoxesSection: View {
             Button("New Box…") { lab.newBox() }
             Button("New Smart Roll…") { lab.newSmartRoll() }
         }
+        .sidebarDrop(lab, .boxes, depth: 0)
         if lab.projects.boxes.isEmpty {
             SidebarHint("Gather photographs from any Archive: make a Box with +, then drag photographs onto it.")
         }
         ForEach(lab.projects.boxes) { box in rows(box, depth: 0, open: lab.openView) }
+        // Qlick Lab: the place under the Boxes: photographs, a folder or a Roll dropped there make a new Box.
+        Color.clear.frame(height: 64).contentShape(Rectangle())
+            .sidebarDrop(lab, .boxes, depth: 0)
+            .help("Drop photographs, a folder or a Roll here to make a new Box")
     }
 
     private func rows(_ box: LabBox, depth: Int, open view: LabView?) -> AnyView {
