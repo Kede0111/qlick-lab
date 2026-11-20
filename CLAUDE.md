@@ -11,6 +11,41 @@ version of Negs 0.15.0; Negs is credited (README, LICENSES.md, About) but is no 
   `http://ns.jackfrom.be/qlicklab/1.0/`. Bundle identifier `be.jackfrom.qlicklab`.
 - Donations: `Support.swift` (PayPal link, the single question after 50 exported photographs). Keep it discreet.
 
+## What Qlick Lab is (and is not)
+
+In Quentin's words:
+
+> Le logiciel Qlick Lab est un laboratoire de traitement et de développement argentique pour la photographie
+> numérique. En d'autres termes, Qlick Lab développe vos photos numériques comme un labo argentique, en leur donnant
+> le plus fidèlement possible le rendu des photographies argentiques grâce à la simulation spectrale de véritables
+> pellicules. Qlick Lab utilise tous les codes et clins d'œil du développement en laboratoire argentique et gère le
+> workflow du début à la fin : la bibliothèque (Library) avec ses rolls, boxes et archives, le développement (Lab),
+> l'export (Print). L'expérience doit être agréable, visuellement comme dans les réflexes de labo. C'est un puissant
+> logiciel de simulation de pellicule argentique basé sur la simulation spectrale, avec des capacités de retouche
+> adaptées à ce type de photographie.
+>
+> Qlick Lab n'est pas une alternative à Lightroom, Photomator, Capture One, etc. Le but n'est pas d'en faire un
+> logiciel de traitement photo alternatif, mais un véritable logiciel de transformation de photos raw numériques en
+> argentique, en gardant les codes d'un labo physique.
+
+**Rule:** every change proposed or made is checked against this philosophy first. When a request, a feature or a
+fix drifts from it (general-purpose photo editing, a tool that copies another app's habit, clutter that breaks the
+minimal Leica-like look), say so to Quentin plainly before doing it, and suggest the lab's way instead.
+
+### Three parts: Library, Lab, Print
+
+The interface is organised in three main parts; everything belongs to one of them, and the sidebar stays simple.
+
+- **Library**: import, the contact sheet, Archives, Boxes, Rolls. Archives and Boxes are reachable at any time,
+  from any part.
+- **Lab**: development, recipes, film stocks. From Develop, one click or one key switches to the contact sheet
+  (a central toggle at the top), which shows what is selected in the Archives and Boxes.
+- **Print**: export.
+
+The look: minimal and premium, red / white / greys, in the spirit of Leica (inspiration only, no Leica marks), and
+shared with QLab (`Kede0111/QLab`) so the two apps can merge later. The photographs on disk are never moved or
+deleted by the app (import may create folders; the one exception is "Remove rejected", behind a clear confirmation).
+
 ## Architecture
 
 Two processes: the Swift app (`macos/Sources/QlickLab`, AppKit at the root, SwiftUI in `Lab/`) and the Rust engine
