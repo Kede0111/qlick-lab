@@ -646,15 +646,30 @@ final class EdgeSplitView: NSSplitView {
     // like Photo › Copy Edits and Paste Edits (⇧⌘C, ⇧⌘V). They reach here,
     // the end of the responder chain, only when no text field or view takes
     // them first, so typed text keeps its own copy and paste.
-    @objc func copy(_ sender: Any?) { model.copyEdits() }
-    @objc func paste(_ sender: Any?) { model.pasteEdits() }
+    // Qlick Lab: Copy also keeps the photographs selected; Paste with a Box or
+    // a Roll open adds them to it (never moves them) when some aren't in it
+    // yet, and otherwise pastes the edits as before.
+    @objc func copy(_ sender: Any?) {
+        let lab = model.lab
+        lab.copyPhotos()
+        let edits = model.canCopyEdits
+        if edits { model.copyEdits() }
+        let count = lab.copiedPhotos.count
+        if count > 1 || (!edits && count > 0) {
+            model.libraryNote = EditorModel.LibraryNote(text: "Copied", detail: photographs(count) + (edits ? " and the edits" : ""),
+                                                        serial: (model.libraryNote?.serial ?? 0) + 1)
+        }
+    }
+    @objc func paste(_ sender: Any?) {
+        if model.lab.pasteTarget != nil { model.lab.pastePhotos() } else { model.pasteEdits() }
+    }
 
     func validateMenuItem(_ item: NSMenuItem) -> Bool {
         switch item.action {
         case #selector(selectAll(_:)), #selector(deselectAll(_:)): selecting && model.alert == nil
         // Not while a sheet or another window has the keys, as for Photo › Copy Edits.
-        case #selector(copy(_:)): model.canCopyEdits && MainMenu.takesRatingKeys(NSApp.keyWindow)
-        case #selector(paste(_:)): model.canPasteEdits && MainMenu.takesRatingKeys(NSApp.keyWindow)
+        case #selector(copy(_:)): (model.canCopyEdits || !model.lab.selectionTargets.isEmpty) && MainMenu.takesRatingKeys(NSApp.keyWindow)
+        case #selector(paste(_:)): (model.lab.pasteTarget != nil || model.canPasteEdits) && MainMenu.takesRatingKeys(NSApp.keyWindow)
         default: true
         }
     }

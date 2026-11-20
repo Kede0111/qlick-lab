@@ -34,6 +34,8 @@ struct LabSidebar: View {
             .padding(.top, 6)
 
             // Room is kept here for the fixed entries (All Photographs, Last Import…), to come.
+            // One drop target for the whole list (`SidebarDropDelegate`): photographs on a Box or a Roll, rows among
+            // rows, a folder on a Box, folders from the Finder; the label over the list says what a drop does.
             ScrollView(.vertical) {
                 VStack(alignment: .leading, spacing: 1) {
                     ArchivesSection(model: model)
@@ -41,8 +43,15 @@ struct LabSidebar: View {
                 }
                 .padding(.horizontal, 10)
                 .padding(.bottom, 10)
+                .background(SidebarScrollProbe(drop: lab.sidebarDrop))
             }
             .scrollIndicators(.never)
+            .coordinateSpace(name: SidebarDropModel.space)
+            .onPreferenceChange(SidebarDropRowsKey.self) { rows in
+                MainActor.assumeIsolated { lab.sidebarDrop.rows = rows }
+            }
+            .onDrop(of: [LabDragItem.type, .fileURL], delegate: SidebarDropDelegate(lab: lab))
+            .overlay { SidebarDropOverlay(drop: lab.sidebarDrop) }
 
             Spacer(minLength: 0)
             ImportSidebarProgress(model: model)

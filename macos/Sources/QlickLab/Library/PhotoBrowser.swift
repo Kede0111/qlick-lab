@@ -89,7 +89,9 @@ enum PhotoFolder {
         var photos: [PhotoFile] = [], sidecars: [String: PhotoFile] = [:], seen: Set<String> = []
         for source in sources {
             let listing = try folder(source.hasDirectoryPath ? source : source.deletingLastPathComponent())
-            let chosen = source.hasDirectoryPath ? listing.photos : listing.photos.filter { $0.url.path == source.standardizedFileURL.path }
+            // Both sides standardized: a path through a link (/private/tmp, /tmp) is still the photograph.
+            let wanted = source.standardizedFileURL.path
+            let chosen = source.hasDirectoryPath ? listing.photos : listing.photos.filter { $0.url.standardizedFileURL.path == wanted }
             for photo in chosen where seen.insert(photo.url.path).inserted {
                 photos.append(photo)
                 if let sidecar = listing.sidecars[sidecarKey(photo.url)] { sidecars[sidecarKey(photo.url)] = sidecar }
@@ -306,7 +308,8 @@ struct PhotoBrowser: View {
                     StripFrame(file: file, width: layout.widths[frame.index],
                                current: file.url == model.sourceItem, selected: selected.contains(file.url),
                                summary: library.summary(for: file.url), readOnly: library.readOnly,
-                               edited: model.editedThumbnail(for: file.url), names: model.lab.sheet.fileNames) { visible in
+                               edited: model.editedThumbnail(for: file.url), names: model.lab.sheet.fileNames,
+                               lab: model.lab, dragCount: selected.contains(file.url) ? max(selected.count, 1) : 1) { visible in
                         model.thumbnailShown(file, visible)
                     } loaded: { image in
                         aspects.note(file.url, image: image)
@@ -563,6 +566,9 @@ private struct StripFrame: View {
     let edited: EditedThumbnail?
     /// File Names, as the contact sheet has them: on the strip's edge or under the frame.
     let names: SheetOptions.FileNames
+    /// Dragged, the photographs go to a Box or a Roll in the sidebar: the selection if it's in it.
+    let lab: LabState
+    let dragCount: Int
     /// On and off screen: what's shown is developed first.
     let shown: (Bool) -> Void
     let loaded: (CGImage) -> Void
@@ -600,6 +606,7 @@ private struct StripFrame: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(StripFrameStyle())
+        .photoDrag(lab, file.url, image: image, count: dragCount)
         .help(PhotoMarks.help(file.name, summary: summary, readOnly: readOnly))
         .accessibilityLabel(PhotoMarks.accessibilityLabel(file.name, summary: summary))
         .accessibilityAddTraits(current || selected ? [.isSelected] : [])

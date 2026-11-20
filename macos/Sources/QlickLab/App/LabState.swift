@@ -116,6 +116,14 @@ struct SheetOptions: Codable, Equatable, Sendable {
     let importer: ImportSession
     /// The sidebar's rows unfolded or folded by hand (`SidebarFold`), kept while the lab is open.
     var sidebarFold = SidebarFold()
+    /// What a drag started in the lab carries (`LabDragItem`), from its start to its drop.
+    @ObservationIgnored var dragging: LabDragItem?
+    /// The sidebar's side of a drag: its rows, the one under the pointer, what a drop there would do.
+    let sidebarDrop = SidebarDropModel()
+    /// The photographs copied (⌘C), which ⌘V adds to the Box or Roll open.
+    var copiedPhotos: [URL] = []
+    /// The undo target of the Boxes' and Archives' changes (`undoable`).
+    @ObservationIgnored let libraryEdits = LibraryEditsUndoTarget()
 
     private(set) var workspace = Workspace.develop
     /// The adjustments float over the photograph on glass, instead of in a column beside it.
@@ -419,8 +427,11 @@ struct SheetOptions: Codable, Equatable, Sendable {
         case .archive(let id):
             guard let archive = projects.archive(id), !archive.rolls.isEmpty else { return show(.library) }
         case .folder(let path, let id):
-            // A folder with nothing under it opens as itself.
-            if projects.node(path)?.photosBelow != true {
+            // A folder with nothing under it opens as itself. Before its tree is read (a Folder just added), the disk
+            // is asked now: a folder whose photographs are all in folders under it opens as their list, never as an
+            // empty folder.
+            let tree = projects.node(path) ?? FolderTrees.read(URL(fileURLWithPath: path, isDirectory: true))
+            if tree?.photosBelow != true {
                 if let archive = projects.archive(id), let entry = archive.rolls.first(where: { $0.folder == path }) { return open(entry, in: archive) }
                 return open(folder: URL(fileURLWithPath: path, isDirectory: true))
             }
@@ -504,16 +515,17 @@ struct SheetOptions: Codable, Equatable, Sendable {
             let project = projects.create(named: naming.name)
             if !naming.folders.isEmpty { add(naming.folders, to: project.id) }
         case .box(let parent):
-            guard let box = projects.createBox(named: naming.name, in: parent, frames: naming.frames) else { return }
+            // One undo step, as every change to the Boxes.
+            guard undoable(naming.frames.isEmpty ? "New Box" : "New Box from Selection", {
+                projects.createBox(named: naming.name, in: parent, frames: naming.frames) != nil
+            }) else { return }
             if let parent { sidebarFold.unfold(.box(parent)) }
-            if !naming.frames.isEmpty { holderChanged(.box(box.id)) }
         case .roll(let boxID):
-            guard let roll = projects.createRoll(named: naming.name, in: boxID, frames: naming.frames) else { return }
+            guard undoable("New Roll", { projects.createRoll(named: naming.name, in: boxID, frames: naming.frames) != nil }) else { return }
             sidebarFold.unfold(.box(boxID))
-            if !naming.frames.isEmpty { holderChanged(.roll(roll.id, box: boxID)) }
-        case .renameArchive(let id): projects.rename(id, to: naming.name)
-        case .renameBox(let id): projects.renameBox(id, to: naming.name)
-        case .renameRoll(let id, let boxID): projects.renameRoll(id, in: boxID, to: naming.name)
+        case .renameArchive(let id): undoable("Rename Archive") { projects.rename(id, to: naming.name); return true }
+        case .renameBox(let id): undoable("Rename Box") { projects.renameBox(id, to: naming.name); return true }
+        case .renameRoll(let id, let boxID): undoable("Rename Roll") { projects.renameRoll(id, in: boxID, to: naming.name); return true }
         }
     }
 

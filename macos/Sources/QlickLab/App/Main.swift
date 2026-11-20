@@ -305,10 +305,16 @@ struct EditorCanvas: View {
         }
         // Where the strip's frames report their places (`SheetFlight`).
         .coordinateSpace(.named(ThumbnailPlaces.space))
-        // A photograph or a folder dropped anywhere on the column opens.
+        // A photograph dropped anywhere on the column opens; a folder opens Import on it (`LabState.importFolders`).
         .dropDestination(for: URL.self) { urls, _ in
-            guard let url = urls.first, url.isFileURL else { return false }
-            model.open(url); return true
+            let files = urls.filter(\.isFileURL)
+            guard let url = files.first else { return false }
+            if files.contains(where: { (try? $0.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory == true }) {
+                model.lab.importFolders(files)
+            } else {
+                model.open(url)
+            }
+            return true
         } isTargeted: { dropTargeted = $0 }
         // Under the grid's sheet, hidden from VoiceOver too.
         .accessibilityHidden(grid)

@@ -66,6 +66,9 @@ import SwiftUI
         /// The pencil passes over frames: each takes `target`.
         case paint(target: PhotoSidecar.Flag?, visited: [URL], last: CGPoint)
         case band(start: CGPoint, base: Set<URL>)
+        /// The pointer (or the loupe) pressed on a frame: moved far enough, the photographs are dragged. A frame
+        /// already selected is clicked only at the release, so a drag takes the whole selection.
+        case lift(url: URL, start: CGPoint, clickOnRelease: Bool)
     }
     private var gesture = Gesture.none
     private var pending: [URL: PhotoSidecar.Flag?] = [:]
@@ -390,7 +393,9 @@ import SwiftUI
         press(at: convert(event.locationInWindow, from: nil), modifiers: event.modifierFlags, clicks: event.clickCount)
     }
     override func mouseDragged(with event: NSEvent) {
-        drag(to: convert(event.locationInWindow, from: nil))
+        let point = convert(event.locationInWindow, from: nil)
+        if let frames = photosToDrag(at: point) { return beginPhotoDrag(frames, event: event, at: point) }
+        drag(to: point)
         autoscroll(with: event)
     }
     override func mouseUp(with event: NSEvent) { release() }
@@ -418,8 +423,10 @@ import SwiftUI
             return
         }
         guard options.tool == .pencil else {
-            model.click(url)
+            let keep = model.selection.selected.contains(url) && model.selection.selected.count > 1
+            if !keep { model.click(url) }
             if options.tool == .loupe { hover(at: point) }
+            gesture = .lift(url: url, start: point, clickOnRelease: keep)
             return
         }
         // The pencil draws its mark (a ring, or a cross: the bar says which), or lifts it from a frame that has it;
@@ -436,7 +443,7 @@ import SwiftUI
 
     func drag(to point: CGPoint) {
         switch gesture {
-        case .none: break
+        case .none, .lift: break
         case .paint(let target, var visited, let last):
             // Every frame the stroke crossed, even between two mouse events of a fast one.
             let distance = hypot(point.x - last.x, point.y - last.y)
@@ -483,7 +490,47 @@ import SwiftUI
             if band == nil { model.deselectAll() }
             band = nil
             needsDisplay = true
+        case .lift(let url, _, let clickOnRelease):
+            if clickOnRelease { model.click(url) }
         }
+    }
+
+    // MARK: Dragging the photographs
+
+    /// The photographs a drag takes at `point`, when it's time to start one: the pointer moved past a few points from
+    /// a frame; or the pencil's stroke left the sheet sideways (towards the sidebar), its marks taken back, with the
+    /// selection if it started on a selected frame, else the frames it crossed.
+    private func photosToDrag(at point: CGPoint) -> [URL]? {
+        switch gesture {
+        case .lift(let url, let start, _):
+            guard hypot(point.x - start.x, point.y - start.y) > 4 else { return nil }
+            return model.contextTargets(url)
+        case .paint(_, let visited, _):
+            let visible = visibleRect
+            guard point.x < visible.minX - 2 || point.x > visible.maxX + 2, let first = visited.first else { return nil }
+            for url in visited { pending[url] = nil }
+            markAnimations = [:]
+            lastClick = nil
+            needsDisplay = true
+            return model.selection.selected.contains(first) ? model.contextTargets(first) : visited
+        default: return nil
+        }
+    }
+
+    private func beginPhotoDrag(_ frames: [URL], event: NSEvent, at point: CGPoint) {
+        gesture = .none
+        var seen: Set<URL> = []
+        let photos = frames.map(\.photoFile).filter { seen.insert($0).inserted }
+        guard !photos.isEmpty else { return }
+        lab.dragging = .photos(photos, from: lab.openHolder)
+        lab.sidebarDrop.dragStarted()
+        let item = NSPasteboardItem()
+        item.setData(Data("qlick-lab".utf8), forType: NSPasteboard.PasteboardType(LabDragItem.type.identifier))
+        let dragging = NSDraggingItem(pasteboardWriter: item)
+        let picture = PhotoDragPreview.image(frames.first.flatMap { images[$0] }, count: photos.count, scale: window?.backingScaleFactor ?? 2)
+        let size = picture.size
+        dragging.setDraggingFrame(CGRect(x: point.x - size.width / 2, y: point.y - size.height / 2, width: size.width, height: size.height), contents: picture)
+        beginDraggingSession(with: [dragging], event: event, source: self)
     }
 
     override func rightMouseDown(with event: NSEvent) {
@@ -664,6 +711,17 @@ import SwiftUI
         guard index >= 0, index < layout.count else { return nil }
         let picture = layout.picture(index)
         return CGPoint(x: picture.midX, y: picture.midY)
+    }
+}
+
+extension ContactSheetView: NSDraggingSource {
+    /// Inside the lab, copy or move (⌥ copies); outside it, nothing: no file ever leaves the lab by a drag.
+    func draggingSession(_ session: NSDraggingSession, sourceOperationMaskFor context: NSDraggingContext) -> NSDragOperation {
+        context == .withinApplication ? [.copy, .move] : []
+    }
+
+    func draggingSession(_ session: NSDraggingSession, endedAt screenPoint: NSPoint, operation: NSDragOperation) {
+        lab.sidebarDrop.end()
     }
 }
 

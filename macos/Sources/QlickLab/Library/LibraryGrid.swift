@@ -350,7 +350,8 @@ private struct SheetGrid: View {
                          waiting: model.sheetWaiting.contains(url),
                          selected: SheetLayout.drawnSelected(url, selection: selection),
                          current: url == selection.current, summary: library.summary(for: url),
-                         readOnly: library.readOnly, edited: model.editedThumbnail(for: url), names: model.lab.sheet.fileNames) { visible in
+                         readOnly: library.readOnly, edited: model.editedThumbnail(for: url), names: model.lab.sheet.fileNames,
+                         lab: model.lab, dragCount: selection.selected.contains(url) ? max(selection.selected.count, 1) : 1) { visible in
             model.thumbnailShown(file, visible)
         } loaded: { image in
             model.aspects.note(url, image: image)
@@ -631,6 +632,9 @@ private struct SheetCell: View {
     /// File Names. The grid packs its rows edge to edge, so the name lies along the picture's foot: faint on the edge,
     /// on a band under the frame.
     let names: SheetOptions.FileNames
+    /// Dragged, the photographs go to a Box or a Roll in the sidebar: the selection if it's in it.
+    let lab: LabState
+    let dragCount: Int
     /// On and off screen: what's shown is developed first.
     let shown: (Bool) -> Void
     let loaded: (CGImage) -> Void
@@ -672,6 +676,7 @@ private struct SheetCell: View {
         // A click selects at once; the second of a double-click opens.
         .onTapGesture(count: 2, perform: open)
         .simultaneousGesture(TapGesture().onEnded(click))
+        .photoDrag(lab, file.url, image: image, count: dragCount)
         .help(PhotoMarks.help(file.name, summary: summary, readOnly: readOnly))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(PhotoMarks.accessibilityLabel(file.name, summary: summary))

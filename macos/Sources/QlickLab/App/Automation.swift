@@ -68,6 +68,36 @@ import AppKit
         return box
     }
 
+    /// What `drop` drags: `sel`, `box:<path>`, `roll:<box path>|<roll>`, `archive:<name>`, `folder:<path>`, `finder`.
+    private func dragItem(_ text: String) -> LabDragItem? {
+        if text == "sel" { return .photos(lab.selectionTargets, from: lab.openHolder) }
+        if text == "finder" { return .finder }
+        switch sidebarTarget(text) {
+        case .box(let id)?: return .box(id)
+        case .roll(let id, let box)?: return .roll(id, box: box)
+        case .archive(let id)?: return .archive(id)
+        case .folder(let path, let archive)?: return .folder(path, archive: archive)
+        case nil: return nil
+        }
+    }
+
+    private func sidebarTarget(_ text: String) -> SidebarTarget? {
+        let parts = text.split(separator: ":", maxSplits: 1).map(String.init)
+        guard parts.count == 2 else { return nil }
+        let path = parts[1].split(separator: "|").map(String.init)
+        switch parts[0] {
+        case "box": return box(path).map { .box($0.id) }
+        case "roll":
+            guard path.count > 1, let box = box(Array(path.dropLast())), let roll = box.rolls.first(where: { $0.name == path.last! }) else { return nil }
+            return .roll(roll.id, box: box.id)
+        case "archive": return lab.projects.project(named: parts[1]).map { .archive($0.id) }
+        case "folder":
+            let folder = URL(fileURLWithPath: parts[1], isDirectory: true).standardizedFileURL.path
+            return lab.projects.place(of: folder).map { .folder(folder, archive: $0.archive.id) }
+        default: return nil
+        }
+    }
+
     private func run(_ line: String) {
         let parts = line.split(separator: " ", maxSplits: 1).map(String.init)
         let command = parts[0], rest = parts.count > 1 ? parts[1] : ""
@@ -145,6 +175,58 @@ import AppKit
             case "box": if let box = box(argument.split(separator: "|").map(String.init)) { lab.sidebarFold.unfold(.box(box.id)) }
             default: break
             }
+        // drop <what> ; <row> [; alt show at=0.2]: the drop the sidebar's delegate makes (`LabState.perform`), without
+        // the mouse. <what>: sel (the photographs selected, from the Box or Roll open), box:<path>, roll:<box path>|<roll>,
+        // archive:<name>, folder:<path>, finder. <row>: box:, roll:, archive:, folder:. `show` only shows the label and
+        // the row lit or the line, as the drag would (for a capture); `end` takes them away.
+        case "drop":
+            let fields = rest.split(separator: ";").map { $0.trimmingCharacters(in: .whitespaces) }
+            if fields.first == "end" { lab.sidebarDrop.end(); break }
+            guard fields.count >= 2, let item = dragItem(fields[0]), let target = sidebarTarget(fields[1]) else { note("drop: \(rest)"); break }
+            let options = fields.count > 2 ? fields[2].split(separator: " ").map(String.init) : []
+            let fraction = options.first { $0.hasPrefix("at=") }.flatMap { Double($0.dropFirst(3)) } ?? 0.5
+            let plan = lab.projects.plan(item, onto: target, at: fraction, copying: options.contains("alt"))
+            if options.contains("show") {
+                lab.dragging = item
+                if let row = lab.sidebarDrop.rows.first(where: { $0.target == target }) { lab.sidebarDrop.hover = .init(row: row, plan: plan) }
+            } else if let plan {
+                lab.perform(plan, finder: item == .finder ? options.filter { $0.hasPrefix("/") }.map { URL(fileURLWithPath: $0) } : [])
+            }
+        // editcopy / editpaste: Edit › Copy and Paste, through the responder chain as ⌘C and ⌘V go.
+        // (From the window's first responder up: the window is off screen, never key.)
+        case "editcopy": _ = (window?.firstResponder ?? window)?.tryToPerform(#selector(NSText.copy(_:)), with: nil)
+        case "editpaste": _ = (window?.firstResponder ?? window)?.tryToPerform(#selector(NSText.paste(_:)), with: nil)
+        // boxtree <file>: the Boxes and Rolls with their photographs' names, and the Archives in their order.
+        case "boxtree":
+            var lines = ["archives: " + lab.projects.projects.map(\.name).joined(separator: ", ")]
+            func walk(_ box: LabBox, _ indent: String) {
+                lines.append(indent + "[" + box.name + "] " + box.frames.map { ($0 as NSString).lastPathComponent }.joined(separator: " "))
+                for inner in box.boxes { walk(inner, indent + "  ") }
+                for roll in box.rolls { lines.append(indent + "  (" + roll.name + ") " + roll.frames.map { ($0 as NSString).lastPathComponent }.joined(separator: " ")) }
+            }
+            for box in lab.projects.boxes { walk(box, "") }
+            lines.append("undo=\(window?.undoManager?.undoActionName ?? "-") redo=\(window?.undoManager?.redoActionName ?? "-") open=\(lab.trail.joined(separator: " > "))")
+            try? lines.joined(separator: "\n").write(toFile: rest, atomically: true, encoding: .utf8)
+        // dragimage <file>: the picture a drag of the selection carries, as a PNG.
+        case "dragimage":
+            let targets = lab.selectionTargets
+            let image = targets.first.flatMap { sheet?.heldImage($0) }
+            let picture = PhotoDragPreview.image(image, count: targets.count, scale: 2)
+            if let tiff = picture.tiffRepresentation, let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) {
+                try? png.write(to: URL(fileURLWithPath: rest))
+            }
+        // sheetmenu <file>: the contact sheet's right-click menu on the current frame, written out.
+        case "sheetmenu":
+            guard let sheet, let current = model.selection.current else { break }
+            func lines(_ menu: NSMenu, _ indent: String) -> [String] {
+                menu.update()
+                return menu.items.flatMap { item -> [String] in
+                    if item.isSeparatorItem { return [indent + "—"] }
+                    let line = indent + String(repeating: "  ", count: item.indentationLevel) + item.title + (item.isEnabled ? "" : "  (off)")
+                    return [line] + (item.submenu.map { lines($0, indent + "    ") } ?? [])
+                }
+            }
+            try? lines(SheetMenu(sheet: sheet, item: current).menu, "").joined(separator: "\n").write(toFile: rest, atomically: true, encoding: .utf8)
         case "back": lab.goBack()
         case "forward": lab.goForward()
         // import <what> …: the import room without the mouse.

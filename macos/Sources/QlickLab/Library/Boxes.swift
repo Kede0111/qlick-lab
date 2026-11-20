@@ -40,31 +40,7 @@ extension LabState {
         naming = Naming(kind: .roll(in: box), name: "New Roll", frames: frames)
     }
 
-    func add(_ frames: [URL], to holder: Holder) {
-        guard !frames.isEmpty else { return }
-        projects.addFrames(frames, to: holder)
-        holderChanged(holder)
-    }
-
-    func removeFromOpenHolder(_ frames: [URL]) {
-        guard let holder = openHolder, !frames.isEmpty else { return }
-        projects.removeFrames(frames, from: holder)
-        if projects.frames(of: holder).isEmpty {
-            model.closeFolder()
-            show(.library)
-            return
-        }
-        holderChanged(holder)
-    }
-
-    /// A Box's or Roll's photographs changed: the Box or Roll on the sheet is listed again (it may hold `holder`).
-    func holderChanged(_ holder: Holder) {
-        guard let open = openView, open.holder != nil else { return }
-        let list = projects.viewFolder(for: open)
-        if model.library.directory?.standardizedFileURL.path == list.standardizedFileURL.path { model.library.refreshNow() }
-    }
-
-    /// Forgets a Box with what's inside it, once asked. The photographs aren't touched.
+    /// Forgets a Box with what's inside it, once asked. The photographs aren't touched. One undo step.
     func deleteBox(_ id: UUID) {
         guard let box = projects.box(id) else { return }
         let inside = box.all.count - 1 + box.all.reduce(0) { $0 + $1.rolls.count }
@@ -75,15 +51,7 @@ extension LabState {
                     + "The photographs stay where they are, on the disk, in their Archives and in other Boxes.",
                 buttons: [.init(title: "Cancel", role: .cancel), .init(title: "Delete", role: .destructive)]))
             guard answer.button == 1 else { return }
-            let showing = openView.map { view -> Bool in
-                switch view {
-                case .box(let open): return box.all.contains { $0.id == open }
-                case .roll(_, let open): return box.all.contains { $0.id == open }
-                default: return false
-                }
-            } ?? false
-            projects.deleteBox(id)
-            if showing { model.closeFolder(); show(.library) }
+            undoable("Delete Box") { projects.deleteBox(id); return true }
         }
     }
 
@@ -95,16 +63,11 @@ extension LabState {
                 detail: "The photographs stay where they are, on the disk, in their Archives and in other Boxes.",
                 buttons: [.init(title: "Cancel", role: .cancel), .init(title: "Delete", role: .destructive)]))
             guard answer.button == 1 else { return }
-            let showing = openView == .roll(id, box: boxID)
-            projects.deleteRoll(id, in: boxID)
-            if showing { model.closeFolder(); show(.library) }
+            undoable("Delete Roll") { projects.deleteRoll(id, in: boxID); return true }
         }
     }
 
-    /// Every Box and Roll photographs can go in, by the names they go by (“Spain › Madrid › Day 1”), the one open left out.
-    var holderChoices: [(holder: Holder, name: String, depth: Int)] { holderChoicesAll.filter { $0.holder != openHolder } }
-
-    /// Every Box and Roll, depth first, with the names they go by and how deep they are.
+    /// Every Box and Roll, depth first, with the names they go by (“Spain › Madrid › Day 1”) and how deep they are.
     var holderChoicesAll: [(holder: Holder, name: String, depth: Int)] {
         var choices: [(Holder, String, Int)] = []
         func walk(_ box: LabBox, path: [String]) {
@@ -117,24 +80,47 @@ extension LabState {
         return choices.map { (holder: $0.0, name: $0.1, depth: $0.2) }
     }
 
-    /// Add to Box, and Remove from the Box or Roll open: the frames' menus in the contact sheet and in Develop
-    /// (AppKit menus).
+    /// Add to Box's list: every Box and Roll as the sidebar nests them, the one open greyed (they're in it already).
+    func addToBoxMenu(for frames: [URL]) -> NSMenu {
+        let menu = NSMenu(title: "Add to Box")
+        menu.appearance = NSAppearance(named: .darkAqua)
+        let open = openHolder
+        for choice in holderChoicesAll {
+            let name = projects.shortName(choice.holder) ?? choice.name
+            let item = ClosureMenuItem(name) { [weak self] in self?.add(frames, to: choice.holder) }
+            item.indentationLevel = min(choice.depth, 15)
+            item.image = NSImage(systemSymbolName: { if case .roll = choice.holder { "film" } else { "shippingbox" } }(), accessibilityDescription: nil)
+            item.toolTip = choice.name
+            if choice.holder == open { item.action = nil }
+            menu.addItem(item)
+        }
+        if menu.items.isEmpty {
+            menu.addItem(NSMenuItem(title: "No Boxes Yet", action: nil, keyEquivalent: ""))
+        }
+        return menu
+    }
+
+    /// Add to Box, New Box from Selection and Remove from the Box or Roll open: the frames' menus in the contact sheet
+    /// and in Develop (AppKit menus), as the Photo menu has them.
     func boxItems(for frames: [URL]) -> [NSMenuItem] {
         let several = frames.count > 1 ? " (\(frames.count) photos)" : ""
-        let menu = NSMenu()
-        let choices = holderChoices
-        for choice in choices {
-            menu.addItem(ClosureMenuItem(choice.name) { [weak self] in self?.add(frames, to: choice.holder) })
-        }
-        if !choices.isEmpty { menu.addItem(.separator()) }
-        menu.addItem(ClosureMenuItem("New Box…") { [weak self] in self?.newBox(with: frames) })
         let add = NSMenuItem(title: "Add to Box" + several, action: nil, keyEquivalent: "")
-        add.submenu = menu
-        var items = [add]
-        if let open = openHolder, let name = projects.name(of: open) {
+        add.submenu = addToBoxMenu(for: frames)
+        var items = [add, ClosureMenuItem("New Box from Selection…") { [weak self] in self?.newBox(with: frames) }]
+        if let open = openHolder, let name = projects.shortName(open) {
             items.append(ClosureMenuItem("Remove from “\(name)”" + several) { [weak self] in self?.removeFromOpenHolder(frames) })
         }
         return items
+    }
+
+    /// ⇧⌘B: Add to Box's list at the pointer, for the photographs selected.
+    func chooseBox(in view: NSView?) {
+        let frames = selectionTargets
+        guard !frames.isEmpty, let view = view ?? NSApp.keyWindow?.contentView, let window = view.window else { return NSSound.beep() }
+        let menu = addToBoxMenu(for: frames)
+        let inside = window.mouseLocationOutsideOfEventStream
+        let point = view.bounds.contains(view.convert(inside, from: nil)) ? view.convert(inside, from: nil) : CGPoint(x: view.bounds.midX, y: view.bounds.midY)
+        menu.popUp(positioning: nil, at: point, in: view)
     }
 }
 
@@ -145,15 +131,24 @@ struct BoxMenuItems: View {
 
     var body: some View {
         let several = frames.count > 1 ? " (\(frames.count) photos)" : ""
-        let choices = lab.holderChoices
+        let choices = lab.holderChoicesAll
+        let open = lab.openHolder
         Menu("Add to Box" + several) {
             ForEach(Array(choices.enumerated()), id: \.offset) { _, choice in
-                Button(choice.name) { lab.add(frames, to: choice.holder) }
+                // Nested as in the sidebar: each level a step in.
+                let indent = String(repeating: "\u{2003}", count: min(choice.depth, 15))
+                Button {
+                    lab.add(frames, to: choice.holder)
+                } label: {
+                    if case .roll = choice.holder { Label(indent + (lab.projects.shortName(choice.holder) ?? ""), systemImage: "film") }
+                    else { Label(indent + (lab.projects.shortName(choice.holder) ?? ""), systemImage: "shippingbox") }
+                }
+                .disabled(choice.holder == open)
             }
-            if !choices.isEmpty { Divider() }
-            Button("New Box…") { lab.newBox(with: frames) }
+            if choices.isEmpty { Text("No Boxes Yet") }
         }
-        if let open = lab.openHolder, let name = lab.projects.name(of: open) {
+        Button("New Box from Selection…") { lab.newBox(with: frames) }
+        if let open, let name = lab.projects.shortName(open) {
             Button("Remove from “\(name)”" + several) { lab.removeFromOpenHolder(frames) }
         }
     }

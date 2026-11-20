@@ -90,6 +90,8 @@ struct LabProject: Codable, Identifiable, Hashable, Sendable {
     /// The Archive's Folders (the imported locations, and the folders under them that have a card).
     var rolls: [LabRoll] = []
     var archived = false
+    /// Its place among the Archives in the sidebar, once moved there by hand; before that, the order they were made in.
+    var order: Int? = nil
     /// Read from catalogues before 0.4 only, to convert them: Arrivals, or a selection.
     var kind: Kind? = nil
     /// A selection's frames, before 0.4.
@@ -216,7 +218,7 @@ struct RollStats: Equatable, Sendable {
             .compactMap { try? decoder.decode(LabProject.self, from: Data(contentsOf: $0)) }
             // A newer schema is left alone, never written over.
             .filter { $0.schema <= LabProject.schema }
-            .sorted { $0.createdAt < $1.createdAt }
+            .sorted { ($0.order ?? Int.max, $0.createdAt) < ($1.order ?? Int.max, $1.createdAt) }
         boxes = BoxesFile.read(inCatalog: directory) ?? []
         convert()
         followFolders()
@@ -252,7 +254,7 @@ struct RollStats: Equatable, Sendable {
     /// Writes every Archive again: File › Save Catalog. Each change is written as it's made, so this only makes sure.
     func saveAll() { for project in projects { save(project) }; saveBoxes() }
 
-    @discardableResult private func save(_ project: LabProject) -> Bool {
+    @discardableResult func save(_ project: LabProject) -> Bool {
         var project = project
         project.schema = LabProject.schema
         let encoder = JSONEncoder()
@@ -474,10 +476,56 @@ struct RollStats: Equatable, Sendable {
         saveBoxes()
     }
 
-    @discardableResult private func saveBoxes() -> Bool { BoxesFile.write(boxes, inCatalog: directory) }
+    @discardableResult func saveBoxes() -> Bool { BoxesFile.write(boxes, inCatalog: directory) }
+
+    /// Every Box in place of these, written at once (a drag in the sidebar, an undo).
+    func replaceBoxes(_ new: [LabBox]) {
+        guard new != boxes else { return }
+        boxes = new
+        saveBoxes()
+    }
+
+    /// The Archives in this order, each with its place written down (`LabProject.order`), so the sidebar keeps it.
+    func reorderArchives(_ ids: [UUID]) {
+        var ordered = ids.compactMap { id in projects.first { $0.id == id } }
+        ordered += projects.filter { !ids.contains($0.id) }
+        for index in ordered.indices where ordered[index].order != index {
+            ordered[index].order = index
+            save(ordered[index])
+        }
+        projects = ordered
+    }
+
+    // MARK: Undo
+
+    /// What the sidebar's gestures change: the Boxes, and the Archives (their order, their Folders).
+    struct Snapshot: Equatable {
+        var boxes: [LabBox]
+        var projects: [LabProject]
+    }
+
+    var snapshot: Snapshot { Snapshot(boxes: boxes, projects: projects) }
+
+    /// Puts the Boxes and the Archives back as they were. An Archive made or removed since is left as it is.
+    func restore(_ snapshot: Snapshot) {
+        replaceBoxes(snapshot.boxes)
+        var restored: [LabProject] = []
+        for old in snapshot.projects {
+            guard let now = projects.first(where: { $0.id == old.id }) else { continue }
+            if now != old { save(old) }
+            restored.append(old)
+        }
+        restored += projects.filter { project in !snapshot.projects.contains { $0.id == project.id } }
+        let foldersChanged = restored.map { $0.rolls.map(\.folder) } != projects.map { $0.rolls.map(\.folder) }
+        projects = restored
+        if foldersChanged {
+            followFolders()
+            for roll in projects.flatMap(\.rolls) where stats[roll.id] == nil { count(roll) }
+        }
+    }
 
     /// The photographs' own paths, once each: a version (`#variant=`) is its photograph.
-    private static func paths(_ frames: [URL]) -> [String] {
+    static func paths(_ frames: [URL]) -> [String] {
         var seen: Set<String> = []
         return frames.map { $0.photoFile.standardizedFileURL.path }.filter { seen.insert($0).inserted }
     }
@@ -582,6 +630,14 @@ struct RollStats: Equatable, Sendable {
 
     private func tree(_ root: URL) -> FolderNode? { folders.trees[root.standardizedFileURL.path] }
 
+    /// The folders holding photographs at `path` and under it: from the tree read, or from the disk now if it isn't
+    /// read yet (a Folder just added), so a folder whose photographs are all in folders under it still shows them.
+    func photoFolders(under path: String) -> [URL] {
+        let url = URL(fileURLWithPath: path, isDirectory: true)
+        guard let node = node(path) ?? FolderTrees.read(url) else { return [url] }
+        return node.all.filter { $0.photos > 0 }.map(\.url)
+    }
+
     /// The tree read under a folder, wherever it is in an Archive's trees.
     func node(_ path: String) -> FolderNode? {
         for tree in folders.trees.values {
@@ -592,7 +648,7 @@ struct RollStats: Equatable, Sendable {
     }
 
     /// The trees follow every Archive's Folders on top.
-    private func followFolders() {
+    func followFolders() {
         folders.follow(Set(projects.flatMap { roots(of: $0) }.map(\.standardizedFileURL)))
     }
 
@@ -667,8 +723,7 @@ struct RollStats: Equatable, Sendable {
             sources = archive(id).map(photoFolders(of:)) ?? []
         case .folder(let path, let id):
             folder = views.appendingPathComponent("folder/\(id.uuidString)", isDirectory: true).appendingPathComponent(String(path.dropFirst()), isDirectory: true)
-            if let node = node(path) { sources = node.all.filter { $0.photos > 0 }.map(\.url) }
-            else { sources = [URL(fileURLWithPath: path, isDirectory: true)] }
+            sources = photoFolders(under: path)
         case .box(let id):
             folder = views.appendingPathComponent("box/\(id.uuidString)", isDirectory: true)
             sources = frames(of: .box(id)).map { URL(fileURLWithPath: $0, isDirectory: false) }

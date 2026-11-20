@@ -228,7 +228,26 @@ Steps (one local commit each, tests, `scripts/drive.sh` screenshots checked, Dev
   Left: the tree's + on hover isn't drivable off screen (checked by code only); a folder in two Archives belongs, for
   crumbs, to the one with the deepest Folder; "Photos → an Archive row" (gesture list) to settle in R2; the README's
   screenshots still show projects.
-- [ ] R2 Drag and drop, move vs ⌥ copy with visible cursor, ⌘C/⌘V paste-adds, menus, reorder, spring-open.
+- [x] R2 Drag and drop, copy/paste, menus (HASH): one drop target for the sidebar's list (`App/SidebarDrop.swift`:
+  rows report their frames, `SidebarDropDelegate`, `SidebarDropOverlay` = the row lit in red, the insertion line, the
+  label "Move 12 photographs to “Rue”"; `.move`/`.copy`/`.forbidden` proposals give the cursor). What a drop does is
+  planned in `Library/BoxMoves.swift` (`ProjectStore.plan` → `DropPlan`, `apply(DropAction)`), done by
+  `LabState.perform` (`Library/BoxGestures.swift`), each gesture one ⌘Z (`undoable`: a snapshot of the Boxes and
+  Archives, `LibraryEditsUndoTarget`; redo too). Photos from a Box/Roll move, ⌥ copies, from an Archive always copy;
+  Archive/Folder rows refuse photos ("The disk is shown as it is…") — settles "Photos → an Archive row". Folder → Box
+  makes a Roll (with the folders under it), Folder → Roll adds, Folder → another Archive joins it; Boxes nest (no
+  cycles) and reorder, Rolls move/reorder, Archives reorder (`LabProject.order`). Spring-open 0.7 s, auto-scroll at
+  the edges. Drag sources: contact sheet (AppKit session, pointer/loupe drag; the pencil's stroke leaving the sheet
+  sideways becomes a drag, its marks taken back), Grid, film strip (`onDrag`), sidebar rows; the drag carries only a
+  private type (`be.jackfrom.qlicklab.drag`, own process, none outside the app: no file can be moved by a drag).
+  ⌘C keeps the selected photos (and copies edits as before); ⌘V in an open Box/Roll adds them when some aren't in it,
+  else pastes edits; Paste in Box/Roll context menus. Menus: Add to Box (nested), New Box from Selection…, Remove from
+  “…” in sheet/grid/strip/Develop menus and the Photo menu; ⇧⌘B pops the Box list at the pointer. A Finder folder on
+  the window opens Import. Fixed: opening a Folder whose top level has no photos (tree not read yet) never shows
+  "has no photographs" (it asks the disk); a list matches photos across /tmp vs /private/tmp spellings.
+  Automation: `drop <what> ; <row> [; alt show at=]`, `editcopy`, `editpaste`, `boxtree`, `sheetmenu`, `dragimage`.
+  Tests: 520 (`BoxMovesTests`). Not done: dragging from Compare's panes (they pan); real mouse drags can't be driven
+  off screen, so the cursor and the SwiftUI `onDrag` on the sidebar's buttons were checked by code only.
 - [ ] R3 Remove… / Remove Rejected Photos… dialog; Move to Trash removed.
 - [ ] R4 Colour labels, keywords panel, editable title/caption.
 - [ ] R5 All Photographs, Last Import, Picks, By Date, field search, Smart Rolls, New Rolls by Day, filters, sorts.
@@ -237,10 +256,10 @@ Steps (one local commit each, tests, `scripts/drive.sh` screenshots checked, Dev
 
 ## Current state
 
-- Phase: `feature/import-library` holds architecture waves 1–3, 0.1.5, 0.2, 0.3 and 0.4's R1 (local, nothing pushed,
-  `main` untouched). Swift tests: 510 (24 skipped), all pass; the Rust side wasn't changed. Qlick Lab Dev is built
+- Phase: `feature/import-library` holds architecture waves 1–3, 0.1.5, 0.2, 0.3 and 0.4's R1–R2 (local, nothing pushed,
+  `main` untouched). Swift tests: 520 (24 skipped), all pass; the Rust side wasn't changed. Qlick Lab Dev is built
   from it (`dist/qlick-lab-dev/Qlick Lab Dev.app`).
-- Next: the library redesign 0.4 above, R2 → R7, on `feature/import-library`. Merge into `main` and push only when
+- Next: the library redesign 0.4 above, R3 → R7, on `feature/import-library`. Merge into `main` and push only when
   he says so.
 
 ## Build and test

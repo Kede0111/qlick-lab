@@ -73,6 +73,16 @@
 	<array>
 		<dict>
 			<key>UTTypeIdentifier</key>
+			<string>be.jackfrom.qlicklab.drag</string>
+			<key>UTTypeDescription</key>
+			<string>Qlick Lab Photographs</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+		</dict>
+		<dict>
+			<key>UTTypeIdentifier</key>
 			<string>be.jackfrom.qlicklab.catalog</string>
 			<key>UTTypeDescription</key>
 			<string>Qlick Lab Catalog</string>

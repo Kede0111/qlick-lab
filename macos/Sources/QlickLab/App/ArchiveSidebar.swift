@@ -6,7 +6,6 @@ import SwiftUI
 /// counts, following the disk. Read only: a click opens a folder on the contact sheet, nothing here changes the disk.
 struct ArchivesSection: View {
     let model: EditorModel
-    @State private var dropping: UUID?
     /// The folder whose card is being edited, and its Archive.
     @State private var editing: (archive: UUID, roll: LabRoll)?
 
@@ -24,12 +23,11 @@ struct ArchivesSection: View {
             let open = lab.sidebarFold.isOpen(.archive(archive.id), leadsToOpen: current?.project.id == archive.id)
             let roots = lab.projects.roots(of: archive)
             SidebarRow(symbol: "archivebox", name: archive.name, depth: 0, count: count(archive, roots: roots), on: view == .archive(archive.id),
-                       strong: true, unfoldable: !roots.isEmpty, unfolded: open, dropping: dropping == archive.id,
+                       strong: true, unfoldable: !roots.isEmpty, unfolded: open,
                        toggle: { lab.sidebarFold.toggle(.archive(archive.id), leadsToOpen: current?.project.id == archive.id) },
                        action: { lab.open(.archive(archive.id)); if !open { lab.sidebarFold.unfold(.archive(archive.id)) } })
-                .onDrop(of: [.fileURL], isTargeted: Binding(get: { dropping == archive.id }, set: { dropping = $0 ? archive.id : (dropping == archive.id ? nil : dropping) })) { providers in
-                    LabDrop.load(providers) { lab.importFolders($0, into: archive.id) }
-                }
+                .sidebarDrop(lab, .archive(archive.id), depth: 0, folded: !open && !roots.isEmpty ? .archive(archive.id) : nil,
+                             drags: .archive(archive.id), symbol: "archivebox", name: archive.name)
                 .contextMenu {
                     Button("Show All Its Photographs") { lab.open(.archive(archive.id)) }
                     Button("Add a Folder…") { lab.importPanel(into: archive.id) }
@@ -46,8 +44,10 @@ struct ArchivesSection: View {
                         let missing = !FileManager.default.fileExists(atPath: root.path)
                         SidebarRow(symbol: missing ? "questionmark.folder" : "folder", name: entry.name, depth: 1,
                                    count: missing ? nil : lab.projects.stats[entry.id]?.total, on: current?.roll.folder == root.path,
-                                   action: { lab.open(entry, in: archive) })
+                                   action: { lab.open(.folder(root.path, archive: archive.id)) })
                             .help(missing ? "Folder not found: its disk may not be connected" : root.path)
+                            .sidebarDrop(lab, .folder(root.path, archive: archive.id), depth: 1, drags: .folder(root.path, archive: archive.id),
+                                         symbol: "folder", name: entry.name)
                             .contextMenu { folderMenu(root.path, archive: archive) }
                             .popover(isPresented: card(root.path), arrowEdge: .trailing) { cardEditor() }
                     }
@@ -89,6 +89,8 @@ struct ArchivesSection: View {
                            else if !node.children.isEmpty { lab.sidebarFold.toggle(row, leadsToOpen: leads) }
                        })
                 .help(node.total == 0 ? "No photographs in this folder" : entry.name == node.name ? node.id : "\(node.id)\n(“\(entry.name)” in the lab)")
+                .sidebarDrop(lab, .folder(node.id, archive: archive.id), depth: depth, folded: !unfolded && !node.children.isEmpty ? row : nil,
+                             drags: .folder(node.id, archive: archive.id), symbol: "folder", name: entry.name)
                 .contextMenu { folderMenu(node.id, archive: archive) }
                 .popover(isPresented: card(node.id), arrowEdge: .trailing) { cardEditor() }
             if unfolded {
@@ -121,7 +123,7 @@ struct BoxesSection: View {
     var body: some View {
         SidebarHeading(title: "Boxes", help: "New Box") { lab.newBox() }
         if lab.projects.boxes.isEmpty {
-            SidebarHint("Gather photographs from any Archive: right-click them on a contact sheet › Add to Box.")
+            SidebarHint("Gather photographs from any Archive: make a Box with +, then drag photographs onto it.")
         }
         ForEach(lab.projects.boxes) { box in rows(box, depth: 0, open: lab.openView) }
     }
@@ -146,8 +148,12 @@ struct BoxesSection: View {
                            Button("New Box Inside…") { lab.newBox(in: box.id) }
                            Button("New Roll…") { lab.newRoll(in: box.id) }
                        })
+                .sidebarDrop(lab, .box(box.id), depth: depth, folded: !unfolded && inside ? row : nil, drags: .box(box.id),
+                             symbol: "shippingbox", name: box.name)
                 .contextMenu {
                     Button("Open on the Contact Sheet") { lab.open(.box(box.id)) }
+                    PasteItem(lab: lab, holder: .box(box.id))
+                    Divider()
                     Button("New Box Inside…") { lab.newBox(in: box.id) }
                     Button("New Roll…") { lab.newRoll(in: box.id) }
                     Button("Rename…") { lab.naming = .init(kind: .renameBox(box.id), name: box.name) }
@@ -159,8 +165,11 @@ struct BoxesSection: View {
                 ForEach(box.rolls) { roll in
                     SidebarRow(symbol: "film", name: roll.name, depth: depth + 1, count: roll.frames.count, on: view == .roll(roll.id, box: box.id),
                                action: { lab.open(.roll(roll.id, box: box.id)) })
+                        .sidebarDrop(lab, .roll(roll.id, box: box.id), depth: depth + 1, drags: .roll(roll.id, box: box.id),
+                                     symbol: "film", name: roll.name)
                         .contextMenu {
                             Button("Open on the Contact Sheet") { lab.open(.roll(roll.id, box: box.id)) }
+                            PasteItem(lab: lab, holder: .roll(roll.id, box: box.id))
                             Button("Rename…") { lab.naming = .init(kind: .renameRoll(roll.id, box: box.id), name: roll.name) }
                             Divider()
                             Button("Delete the Roll…") { lab.deleteRoll(roll.id, in: box.id) }
@@ -168,6 +177,17 @@ struct BoxesSection: View {
                 }
             }
         })
+    }
+}
+
+/// Paste in a Box's or Roll's menu: the photographs copied (⌘C) are added to it.
+private struct PasteItem: View {
+    let lab: LabState
+    let holder: Holder
+    var body: some View {
+        let count = lab.copiedPhotos.count
+        Button(count > 1 ? "Paste \(count) Photographs" : "Paste the Photograph") { lab.pastePhotos(into: holder) }
+            .disabled(count == 0)
     }
 }
 
@@ -264,7 +284,7 @@ struct SidebarRow<Adding: View>: View {
             }
         }
         // A deep tree stays readable in a narrow sidebar: each level steps in a little less than the one above.
-        .padding(.leading, CGFloat(min(depth, 3)) * 10 + CGFloat(max(depth - 3, 0)) * 6)
+        .padding(.leading, SidebarRowIndent.of(depth))
         .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(Color.white.opacity(dropping ? 0.12 : on ? 0.08 : hovered ? 0.05 : 0)))
         .onHover { hovered = $0 }
         .accessibilityAddTraits(on ? .isSelected : [])

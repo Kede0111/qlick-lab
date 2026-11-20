@@ -13,6 +13,8 @@ import SwiftUI
     // Qlick Lab
     private lazy var labMenu = LabMenu(model: model)
     private var flagItems: [NSMenuItem] = []
+    /// Photo › Add to Box: the Boxes and Rolls, listed as the menu opens.
+    private let boxes = NSMenu(title: "Add to Box")
     /// The pencil's keys are the photographer's (Réglages › Raccourcis).
     private func applyShortcuts() {
         let keys = model.lab.keys
@@ -136,6 +138,15 @@ import SwiftUI
         command(photo, "Copy Edits…", #selector(copyEditsChoosing), "c", [.command, .shift, .option])
         command(photo, "Paste Edits", #selector(pasteEdits), "v", [.command, .shift])
         command(photo, "Paste from Previous", #selector(pasteFromPrevious), "v", [.command, .shift, .option])
+        photo.addItem(.separator())
+        // Qlick Lab: the Boxes. ⇧⌘B lists them at the pointer; the key comes before the submenu so it's the one found.
+        hidden(photo, #selector(chooseBox), "b", [.command, .shift])
+        let boxesItem = photo.addItem(withTitle: "Add to Box", action: #selector(showBoxes), keyEquivalent: "")
+        boxesItem.target = self
+        boxesItem.submenu = boxes
+        boxes.delegate = self
+        command(photo, "New Box from Selection…", #selector(newBoxFromSelection), "")
+        command(photo, "Remove from Box", #selector(removeFromBox), "")
         photo.addItem(.separator())
         command(photo, "Duplicate", #selector(duplicate), "d")
         command(photo, "Reset Edits", #selector(resetEdits), "r", [.command, .shift])
@@ -266,6 +277,10 @@ import SwiftUI
     @objc private func clearFilter() { model.library.filter = LibraryFilter() }
     @objc private func editPhotograph() { model.editCurrent() }
     @objc private func copyEdits() { model.copyEdits() }
+    @objc private func showBoxes() {}
+    @objc private func chooseBox() { model.lab.chooseBox(in: NSApp.keyWindow?.contentView) }
+    @objc private func newBoxFromSelection() { model.lab.newBox(with: model.lab.selectionTargets) }
+    @objc private func removeFromBox() { model.lab.removeFromOpenHolder(model.lab.selectionTargets) }
     @objc private func pasteEdits() { model.pasteEdits() }
     @objc private func pasteFromPrevious() { model.pasteFromPrevious() }
     @objc private func duplicate() { model.duplicate() }
@@ -360,6 +375,13 @@ import SwiftUI
             return model.canCopyEdits && Self.takesRatingKeys(NSApp.keyWindow)
         case #selector(pasteEdits):
             return model.canPasteEdits && Self.takesRatingKeys(NSApp.keyWindow)
+        case #selector(showBoxes), #selector(chooseBox), #selector(newBoxFromSelection):
+            return !model.lab.selectionTargets.isEmpty && Self.takesRatingKeys(NSApp.keyWindow)
+        case #selector(removeFromBox):
+            let open = model.lab.openHolder.flatMap { model.lab.projects.shortName($0) }
+            let count = model.lab.selectionTargets.count
+            item.title = open.map { "Remove " + (count > 1 ? "\(count) Photographs " : "") + "from “\($0)”" } ?? "Remove from Box"
+            return open != nil && count > 0 && Self.takesRatingKeys(NSApp.keyWindow)
         case #selector(pasteFromPrevious):
             return model.previousEdits != nil && model.canChangeEdits && !model.editTargets.isEmpty && Self.takesRatingKeys(NSApp.keyWindow)
         case #selector(duplicate), #selector(resetEdits):
@@ -384,6 +406,11 @@ import SwiftUI
 
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
+        if menu === boxes {
+            let built = model.lab.addToBoxMenu(for: model.lab.selectionTargets)
+            for item in built.items { built.removeItem(item); menu.addItem(item) }
+            return
+        }
         for url in model.recentFiles {
             let item = menu.addItem(withTitle: url.lastPathComponent, action: #selector(openRecent), keyEquivalent: "")
             item.target = self; item.representedObject = url; item.toolTip = url.path
