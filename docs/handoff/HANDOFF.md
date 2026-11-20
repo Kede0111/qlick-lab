@@ -380,13 +380,43 @@ Steps (one local commit each, tests, `scripts/drive.sh` screenshots checked, Dev
   (off screen); the Develop film strip and Compare show a Box's own photographs only, with no shelf; the shelf isn't
   printed (Print… prints the photographs).
 
+### Lab structure (branch `feature/lab-structure`, from `feature/import-library`)
+
+Source: `docs/audit-philosophie.md` (sections 2 to 6, decisions in section 7). Quentin validated the six
+recommendations on 2026-11-20, with these limits:
+- Decision 4 (one recipe format shared with QLab): **postponed to the very end**, to discuss again. Don't start it;
+  don't touch the QLab repository.
+- Lot H (speed): **excluded**. Don't touch the render engine, the preview pipeline, the caches or the Rust engine.
+  RedLamp's ideas come later, in a separate test branch.
+- The red dot of the logo is kept (not a deviation).
+- Decision 5: the shared red is QLab's, Display P3 (0.89, 0.11, 0.14), with its sRGB equivalent for AppKit.
+
+Rules: local commits only, nothing pushed, `main` untouched; test with `scripts/build_app.sh --dev` only (never
+`scripts/install.sh`); photographs on disk never moved or deleted; one commit per lot, tests green before each; what
+is added in one view goes in every view that shows the same thing. After each lot: update this file and send Quentin a
+short note; ask him first when a choice drifts from the philosophy.
+
+Lots, in order:
+- [ ] A Housekeeping: the cache commands out of the Lab menu, one Catalogue menu (File), Speed and Upkeep as one
+  section, "Extend to 3:4 portrait", code comments that cite other apps.
+- [ ] B Tokens: a tokens file in this repository only, `Theme` generated from it, QLab's red, `CapsLabel`.
+- [ ] C Central selector Library · Lab · Print in `TitleBand`; the sidebar follows it (the part's rooms on top,
+  Archives and Boxes always below); switch on mouseDown, no animation; ⌘1/2/3; one key for Lab ↔ contact sheet.
+- [ ] D The Lab's shelf: show/hide per recipe and per stock, favourites by identifier in one system, sort and search.
+- [ ] E Export and import of recipes in a bundle (no shared QLab format).
+- [ ] F The Print room.
+- [ ] G Simplifications: Effects folded into Emulsion; one door per function; keywords and caption in the info
+  card; Smart Rolls on one level; a sort bar at the foot of the sheet (All, Picks, Rejects, Unmarked, stars, Sort;
+  audit 4.4).
+- [ ] I Fine-line glyphs in `LabGlyph`, a word with each; for Rolls a provisional cartridge until Quentin's SVG.
+
 ## Current state
 
 - Phase: **0.4 is done** (R1–R8; R8 from Quentin's first try of Dev). `feature/import-library` holds architecture waves 1–3, 0.1.5, 0.2, 0.3 and 0.4
   (local, nothing pushed, `main` untouched). Swift tests: 555 (24 skipped), all pass (561 after R8); the Rust side wasn't changed.
   Qlick Lab Dev is built from it (`dist/qlick-lab-dev/Qlick Lab Dev.app`).
-- Next: **waiting for Quentin to try Qlick Lab Dev** and say what to change. Merge into `main` and push only when he
-  says so.
+- Phase: **lab structure** on `feature/lab-structure` (from `feature/import-library`, local). Decisions recorded;
+  next is lot A.
 
 ## Build and test
 

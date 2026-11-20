@@ -210,8 +210,11 @@ Deux maquettes générées, à ne pas recopier. Ce qu'on reprend, parce que c'es
 - l'état vide dessiné en trait fin.
 
 Ce qu'on laisse ou vérifie : les boîtes des deux images (Quentin ne les aime pas ; les visuels boîte à archives de R8
-restent) ; le logo cercle et point rouge, trop proche du point rouge Leica ; les emballages de marques de films
+restent) ; les emballages de marques de films
 (citer le nom du film, ne pas copier l'habillage) ; une barre latérale qui répète les trois parties.
+
+Le logo de Qlick Lab, cercle et point rouge, **est gardé** (Quentin, 20 novembre) : c'est la marque de l'app, pas un
+écart.
 
 ---
 
@@ -224,8 +227,8 @@ tuiles sont passées de 12 à 8, les lignes de page de 6 à 5, les boutons de 5 
 toujours affiché, un centre de contrôle où l'on choisit ce qui paraît. Un lecteur reproche des symboles difficiles à
 lire : d'où notre règle « un mot avec chaque icône ».
 
-**À ne pas reprendre** : la police maison (LG1050 et ses variantes), les icônes Leica, le point rouge, les noms
-Leica, FOTOS, LUX, la grammaire gravée exacte.
+**À ne pas reprendre** : la police maison (LG1050 et ses variantes), les icônes Leica, le logo Leica, les noms
+Leica, FOTOS, LUX, la grammaire gravée exacte. Le point rouge du logo de Qlick Lab, lui, reste : c'est sa marque.
 
 Huit règles pour Qlick Lab :
 
@@ -323,3 +326,22 @@ Chaque lot est un commit (ou quelques-uns), testé dans Qlick Lab Dev, sur une b
 5. **Le rouge commun** : partir de celui de QLab (P3, écrit aussi en sRGB pour macOS ; ma recommandation) ou de
    celui de Qlick Lab (`#e5222b`) ?
 6. **L'ordre des lots** : A, B, C, D, E d'abord (ma recommandation), puis F, G, H, I.
+
+### Décisions de Quentin (20 novembre 2026)
+
+Les six recommandations sont validées, avec ces réserves :
+
+1. **Sélecteur** : trois segments Library · Lab · Print. La barre latérale suit le sélecteur : les pièces de la
+   partie choisie en haut, Archives et Boxes toujours en dessous. Bascule au `mouseDown`, sans animation ; ⌘1/2/3 et
+   la touche unique Lab ↔ planche.
+2. **Mots-clés, légende, Smart Rolls, langage de requête** : gardés et rangés comme en 2.3 (mots-clés et légende
+   dans la fiche d'info, Smart Rolls à un niveau, barre de tri en bas de la planche).
+3. **Effects** : fondu dans Emulsion.
+4. **Format de recette commun avec QLab** : **reporté tout à la fin**, à rediscuter. Le lot E fait l'export et
+   l'import groupés en paquet sans format commun ; le dépôt QLab n'est pas touché.
+5. **Le rouge commun** : celui de QLab, Display P3 (0,89 ; 0,11 ; 0,14), avec son équivalent sRGB pour AppKit. Le
+   fichier de jetons vit dans ce dépôt seulement, d'où le `Theme` est généré.
+6. **Ordre** : A, B, C, D, E, F, G, I. **Le lot H (vitesse) est exclu** : ni le moteur de rendu, ni le pipeline
+   d'aperçu, ni les caches, ni le moteur Rust. Les idées RedLamp viendront plus tard, dans une branche de test séparée.
+
+Le point rouge du logo est gardé (sections 4.4 et 5.1 corrigées).
