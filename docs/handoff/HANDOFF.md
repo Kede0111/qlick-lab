@@ -350,10 +350,40 @@ Steps (one local commit each, tests, `scripts/drive.sh` screenshots checked, Dev
   automation; the film strip doesn't take reorder drops (sheet and grid do); rating a closed stack marks its top only;
   a stack's photographs removed or moved outside the lab stay listed in stacks.json (harmless).
 
+- [x] R8 Box view, sidebar, the lab's icons (Quentin, 2026-11-20, after trying Dev: "a sub-Box and a Roll side by side on
+  a strip like two photographs doesn't work at all"). **An open Box lists its own photographs only**; its Boxes and
+  Rolls are on a **shelf** above them (`Library/BoxShelf.swift`: `BoxShelfItem`, `BoxShelfLayout` on the frames'
+  columns, a Box one object wide (≥ 118 pt, several columns when frames are small), a Roll two; `LabState.openShelf`;
+  `ContactSheet/BoxShelfView.swift`): a sub-Box is a pen-drawn **archive box** (hatched sides, hand hole) with a paper
+  **label** bearing its name by hand (Noteworthy) and a red rule; a Roll is a **35 mm canister** (count printed as
+  "N EXP", red band; a Smart Roll's red spark) with its first two photographs on the leader, cut to its tongue (none if
+  empty). Names and counts under each. A click opens it; drag one out like a sidebar row; photographs, Boxes, Rolls
+  dropped on one are planned and done as on its sidebar row (`ProjectStore.plan` + `perform`, label under it); context
+  menu Open / New Box Inside / New Roll / Rename / Delete (Edit Rules for a Smart Roll). Contact sheet (all three
+  strip styles and the light table: an NSHostingView in the heading's space, scrolls with the sheet) and Grid
+  (`SheetLayout(header:)`). A Box with no photographs of its own says so under the shelf; an empty Box opens on an
+  empty state (large archive box, New Box Inside… / New Roll…) instead of an error (`EditorModel.openList(allowEmpty:)`).
+  Consequences: `ProjectStore.ownFrames(of:)` (the list shown, Custom Order, paste/add "already in" checks), Remove
+  from a Box and a move out of a Box take the photographs out of the Box itself only (its Rolls keep theirs); the
+  sidebar's count is still everything in the Box. **Sidebar**: Library is the first row of the list (opens the room;
+  its arrow folds All Photographs, Last Import, Picks, By Date under it, `SidebarFold.Row.library`, open by default),
+  then Archives and Boxes; the rooms above are Import, Contact Sheet, Develop, Compare, Recipes, Stocks. **Icons**: the
+  lab's own glyphs drawn in code (`Design/LabGlyphs.swift`: `LabGlyph`, `LabGlyphView`, `LabSymbol` draws `lab.<name>`,
+  else an SF Symbol): card (Import, Import's card sources), card with arrow (Last Import), prints (Library), print (All
+  Photographs), torn film strip (Contact Sheet), aperture (Develop), eye with iris (Compare), flask (Recipes), canister
+  and film (Stocks), canister (Roll), canister with red spark (Smart Roll), archive box (Archives), three-quarter box
+  (Box), calendar (By Date), pencil ring (Picks). Original drawings in the spirit of Quentin's references (not traced;
+  the references are not in the repo). Tests: 561 (`BoxShelfTests`: layout, own photographs vs shelf, glyphs inside
+  their square; `QLICK_GLYPH_SHEET=<png>` renders every glyph at 14/16/20/48 pt). `ArchiveBoxTests` updated to the new
+  rule (own photographs listed, removal from the Box itself).
+  Left / risky: drops on the shelf and its hover were checked by code (same plan as the sidebar), not with a real mouse
+  (off screen); the Develop film strip and Compare show a Box's own photographs only, with no shelf; the shelf isn't
+  printed (Print… prints the photographs).
+
 ## Current state
 
-- Phase: **0.4 is done** (R1–R7). `feature/import-library` holds architecture waves 1–3, 0.1.5, 0.2, 0.3 and 0.4
-  (local, nothing pushed, `main` untouched). Swift tests: 555 (24 skipped), all pass; the Rust side wasn't changed.
+- Phase: **0.4 is done** (R1–R8; R8 from Quentin's first try of Dev). `feature/import-library` holds architecture waves 1–3, 0.1.5, 0.2, 0.3 and 0.4
+  (local, nothing pushed, `main` untouched). Swift tests: 555 (24 skipped), all pass (561 after R8); the Rust side wasn't changed.
   Qlick Lab Dev is built from it (`dist/qlick-lab-dev/Qlick Lab Dev.app`).
 - Next: **waiting for Quentin to try Qlick Lab Dev** and say what to change. Merge into `main` and push only when he
   says so.
