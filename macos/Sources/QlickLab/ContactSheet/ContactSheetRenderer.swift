@@ -230,7 +230,7 @@ struct ContactSheetRenderer {
     /// The colour label: a round sticker laid on the picture's top left corner, as on a print, with a dark rim so it
     /// reads on a bright sky. In every style, and printed.
     func drawLabel(_ context: CGContext, _ content: SheetFrameContent, picture: CGRect) {
-        guard let label = content.label else { return }
+        guard ColorLabel.inInterface, let label = content.label else { return }
         let diameter = min(max(layout.frame.width * 0.065, 7), 15)
         let inset = max(diameter * 0.45, 3)
         let dot = CGRect(x: picture.minX + inset, y: picture.minY + inset, width: diameter, height: diameter)

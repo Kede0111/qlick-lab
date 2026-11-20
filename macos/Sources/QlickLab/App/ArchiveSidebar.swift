@@ -228,7 +228,7 @@ struct SidebarHeading: View {
             .help(help)
         }
         .padding(.leading, 10).padding(.trailing, 2)
-        .padding(.top, 18).padding(.bottom, 4)
+        .padding(.top, 10).padding(.bottom, 4)
     }
 }
 
@@ -250,7 +250,7 @@ struct SidebarMenuHeading<Items: View>: View {
             .help(help)
         }
         .padding(.leading, 10).padding(.trailing, 2)
-        .padding(.top, 18).padding(.bottom, 4)
+        .padding(.top, 10).padding(.bottom, 4)
     }
 }
 

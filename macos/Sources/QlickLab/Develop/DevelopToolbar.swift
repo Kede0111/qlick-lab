@@ -26,6 +26,8 @@ struct DevelopToolbar: View {
     var body: some View {
         let photo = model.source != nil && !model.renderFailed
         HStack(spacing: 2) {
+            // Qlick Lab: the Lab's two views of the same photographs, one click (or G) apart.
+            LabSheetToggle(lab: lab).padding(.trailing, 6)
             group {
                 tool("arrow.uturn.backward", "Undo (⌘Z)") { NSApp.sendAction(Selector(("undo:")), to: nil, from: nil) }
                 tool("arrow.uturn.forward", "Redo (⇧⌘Z)") { NSApp.sendAction(Selector(("redo:")), to: nil, from: nil) }

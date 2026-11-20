@@ -452,7 +452,7 @@ private struct PaneLabel: View {
                 if kind == .photographs || kind == .versions {
                     if let flag = summary.flag { MarkGlyph(flag: flag).frame(width: 17, height: 13) }
                     if summary.rating > 0 { Text(String(repeating: "★", count: summary.rating)).font(.system(size: 10)).foregroundStyle(Theme.paper) }
-                    if let label = summary.label { LabelDot(label: label, size: 9).help(LabelNames.name(label)) }
+                    if ColorLabel.inInterface, let label = summary.label { LabelDot(label: label, size: 9).help(LabelNames.name(label)) }
                 }
             }
             .padding(.horizontal, 10).frame(height: 28)

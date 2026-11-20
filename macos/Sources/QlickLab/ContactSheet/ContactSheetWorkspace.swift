@@ -60,6 +60,8 @@ struct SheetToolbar: View {
     var body: some View {
         @Bindable var lab = model.lab
         HStack(spacing: 10) {
+            // Qlick Lab: in the Lab, back to Develop in one click (or G).
+            if lab.part == .lab { LabSheetToggle(lab: lab) }
             // The pointer selects, the pencil marks at a click, the loupe looks closer.
             QSegmented(options: [(SheetOptions.Tool.pointer, "Pointer", "Click selects; the keys mark (\(ShortcutStore.display(lab.keys.key(.pencil))) switches to the pencil)"),
                                  (SheetOptions.Tool.pencil, "Pencil", "Click draws the mark chosen beside it, ⌥-click the other one; drag across frames to mark a run"),
@@ -161,11 +163,12 @@ private struct SheetEmpty: View {
     let model: EditorModel
     var body: some View {
         VStack(spacing: 16) {
-            QMark(size: 54)
-            Text("No contact sheet open").font(Theme.title(19)).foregroundStyle(Theme.paper)
-            Text("Drop a folder of photographs on the window,\nor open a folder of an Archive.")
+            // The 135 cartridge and its leader, in a grey hairline (provisional, until Quentin's drawing).
+            LabGlyphView(glyph: .canister, size: 112, color: Theme.faint)
+            Text("Select a box to view its photographs").font(Theme.title(19)).foregroundStyle(Theme.paper)
+            Text("Or an Archive's folder, or drop a folder of photographs on the window.")
                 .font(.system(size: 13)).foregroundStyle(Theme.dim).multilineTextAlignment(.center)
-            Button("Import a Folder…") { model.lab.importPanel() }.buttonStyle(QPrimaryButtonStyle())
+            Button("Import a Folder…") { model.lab.importPanel() }.buttonStyle(QPillButtonStyle())
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -195,7 +198,7 @@ struct FrameInfoPanel: View {
             row("Film", summary.edited ? filmName : "\(model.films.first { $0.id == model.newPhotoFilm }?.name ?? model.newPhotoFilm) (default)")
             if summary.rating > 0 { row("Rating", String(repeating: "★", count: summary.rating)) }
             if card {
-                if let label = summary.label { row("Label", LabelNames.name(label)) }
+                if ColorLabel.inInterface, let label = summary.label { row("Label", LabelNames.name(label)) }
                 if !summary.words.title.isEmpty { row("Title", summary.words.title) }
                 if !summary.words.keywords.isEmpty { row("Keywords", summary.words.keywords.joined(separator: ", ")) }
             }

@@ -580,8 +580,8 @@ struct CanvasArea: View {
     }
 }
 
-/// Qlick Lab: the adjustments as a pane of Liquid Glass over the canvas, as Pixelmator Pro's, so a zoomed photograph
-/// runs on under it. The canvas fits the photograph in the space the pane leaves (`CanvasScale.trailingObstruction`).
+/// Qlick Lab: the adjustments as a pane of Liquid Glass over the canvas, so a zoomed photograph runs on under it. It
+/// stops short of the strip's leader (the small arrow at the bottom right that shows and hides the film strip). The canvas fits the photograph in the space the pane leaves (`CanvasScale.trailingObstruction`).
 struct FloatingInspector: View {
     let model: EditorModel
     let grid: Bool
@@ -596,7 +596,8 @@ struct FloatingInspector: View {
                     .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.floating, style: .continuous))
                     .glass(RoundedRectangle(cornerRadius: Theme.Radius.floating, style: .continuous))
                     .shadow(color: .black.opacity(0.35), radius: 18, y: 6)
-                    .padding(Self.margin)
+                    .padding([.top, .leading, .trailing], Self.margin)
+                    .padding(.bottom, Self.margin + StripLeader.raised + 6)
                     .transition(.move(edge: .trailing).combined(with: .opacity))
             }
         }

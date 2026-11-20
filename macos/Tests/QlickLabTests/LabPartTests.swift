@@ -84,4 +84,36 @@ import XCTest
         XCTAssertTrue(band.hitTest(middle) is PartSegment)
         XCTAssertNil(band.hitTest(NSPoint(x: 880, y: 19)))
     }
+
+    /// Compare opened from its sidebar row (not the sheet's Compare) lays the photographs selected side by side.
+    func testCompareFromAnywhereTakesTheSelection() async throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("qlick-compare-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        var photos: [URL] = []
+        for name in ["a.png", "b.png", "c.png"] {
+            let bitmap = try XCTUnwrap(NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: 24, pixelsHigh: 16, bitsPerSample: 8, samplesPerPixel: 3,
+                                                        hasAlpha: false, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 72, bitsPerPixel: 24))
+            let url = folder.appendingPathComponent(name)
+            try XCTUnwrap(bitmap.representation(using: .png, properties: [:])).write(to: url)
+            photos.append(url)
+        }
+        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let paths = EnginePaths(helper: root.appendingPathComponent("target/release/spektrafilm-native"),
+                                exporter: root.appendingPathComponent("target/release/spektrafilm-f64"), data: root.appendingPathComponent("data"))
+        guard FileManager.default.isExecutableFile(atPath: paths.helper.path) else { throw XCTSkip("Build the release helper first") }
+        let model = EditorModel(sidecars: nil)
+        defer { model.shutdown() }
+        await model.start(paths: paths)
+        model.open(photos[0])
+        let watching = Task { await model.library.watch(folder) }
+        defer { watching.cancel() }
+        for _ in 0..<500 where model.shownPhotos.count < 3 { try await Task.sleep(for: .milliseconds(10)) }
+        XCTAssertEqual(model.shownPhotos.count, 3)
+        model.selectAll()
+        let lab = model.lab
+        lab.compare = CompareSetup()
+        lab.show(.compare)
+        XCTAssertEqual(Set(lab.compare.items.map(\.standardizedFileURL)), Set(photos.map(\.standardizedFileURL)))
+    }
 }

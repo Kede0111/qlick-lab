@@ -141,8 +141,8 @@ import SwiftUI
         flagItems = Array(flag.items.suffix(3))
         // Qlick Lab: colour labels (6 to 9 by default, purple in the menu only) and keywords.
         let labels = NSMenu(title: "Colour Label")
-        photo.addItem(withTitle: "Colour Label", action: nil, keyEquivalent: "").submenu = labels
-        for (index, label) in ColorLabel.allCases.enumerated() {
+        if ColorLabel.inInterface { photo.addItem(withTitle: "Colour Label", action: nil, keyEquivalent: "").submenu = labels }
+        for (index, label) in ColorLabel.allCases.enumerated() where ColorLabel.inInterface {
             let item = labels.addItem(withTitle: label.standardName, action: #selector(colorLabel(_:)), keyEquivalent: "")
             item.keyEquivalentModifierMask = []; item.tag = index + 1; item.target = self
             item.image = Self.dot(label)

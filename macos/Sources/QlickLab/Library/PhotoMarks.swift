@@ -39,7 +39,7 @@ struct PhotoMarks: View {
         .shadow(color: .black.opacity(0.45), radius: 2)
         .overlay(alignment: .topLeading) {
             // Qlick Lab: the colour label, a round sticker at the top left.
-            if let label = summary.label { LabelDot(label: label, size: 10).padding([.top, .leading], 9) }
+            if ColorLabel.inInterface, let label = summary.label { LabelDot(label: label, size: 10).padding([.top, .leading], 9) }
         }
         .overlay(alignment: .topTrailing) {
             // The same dot that marks edits in the panel; no halo.

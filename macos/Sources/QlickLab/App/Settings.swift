@@ -168,10 +168,10 @@ struct SettingsView: View {
                          : "In a .qlick file beside the DNG, like every other photograph.")
             }
         }
-        InkSection(title: "Colour labels") {
+        if ColorLabel.inInterface { InkSection(title: "Colour labels") {
             ForEach(ColorLabel.allCases) { label in LabelNameRow(label: label) }
             HintText("Your own name for each colour (“To print”, “For the client”). Empty, the colour’s name. Photographs keep the colour, not the name.")
-        }
+        } }
         InkSection(title: "Viewer") {
             ChoiceRow(title: "Sheet", items: ViewerSheet.allCases.map { .option($0.title, tag: $0.rawValue) },
                       selection: sheet.rawValue) { sheet = ViewerSheet(rawValue: $0) ?? .darkroom }
