@@ -29,7 +29,6 @@ import AppKit
         menu.addItem(.separator())
         add("Print Contact Sheet…", #selector(printSheet), "p")
         add("Compare Selection", #selector(compare), "")
-        add("Before / After", #selector(beforeAfter), "b", [.command, .option])
         add("See Larger", #selector(loupe), "")
         menu.addItem(.separator())
         add("Red Pencil", #selector(togglePencil), "")
@@ -115,11 +114,6 @@ import AppKit
     }
     @objc private func printSheet() { if lab.workspace != .contactSheet { lab.show(.contactSheet) }; lab.printing = true }
     @objc private func compare() { lab.compareSelection() }
-    @objc private func beforeAfter() {
-        guard let item = model.selection.current ?? model.sourceItem else { return }
-        lab.compare.items = [item]
-        lab.show(.compare); lab.compareModel.setKind(.beforeAfter)
-    }
     @objc private func loupe() { if let current = model.selection.current { lab.loupe = lab.loupe == nil ? current : nil } }
     @objc private func togglePencil() { lab.sheet.tool = lab.sheet.tool == .pencil ? .pointer : .pencil }
     @objc private func toggleLightTable() { lab.sheet.lightTable.toggle() }
@@ -140,7 +134,7 @@ import AppKit
         case #selector(goBack): return lab.canGoBack && !model.cropping
         case #selector(goForward): return lab.canGoForward && !model.cropping
         case #selector(printSheet): return photo && !model.library.files.isEmpty
-        case #selector(compare), #selector(beforeAfter): return photo && !model.cropping
+        case #selector(compare): return photo && !model.cropping
         case #selector(loupe): return sheet && model.selection.current != nil
         case #selector(togglePencil): item.state = lab.sheet.tool == .pencil ? .on : .off; return sheet
         case #selector(toggleLightTable): item.state = lab.sheet.lightTable ? .on : .off; return sheet

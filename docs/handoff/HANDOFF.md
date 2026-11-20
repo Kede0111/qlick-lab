@@ -467,9 +467,23 @@ Lots, in order:
   Develop · Emulsion · Effects (`InspectorTab.inDevelop`; a stored Output tab opens Develop). The provisional
   PrintWorkspace is gone. Esc/G from Print go to the Library's contact sheet. Tests: 577 (`PrintFormatTests`).
   Left for G (one door per function): Develop's toolbar still has its Export button and File › Export ⇧⌘E stays.
-- [ ] G Simplifications: Effects folded into Emulsion; one door per function; keywords and caption in the info
-  card; Smart Rolls on one level; a sort bar at the foot of the sheet (All, Picks, Rejects, Unmarked, stars, Sort;
-  audit 4.4).
+- [~] G Simplifications (done but the recipes' door, asked to Quentin):
+  - Effects folded into Emulsion: the chromatic aberration section (`EffectsTab`) sits after Camera in the Emulsion
+    tab, its edits counted there; Develop's tabs are Develop · Emulsion (`InspectorTab.inDevelop`; a stored Effects
+    or Output tab opens Emulsion or Develop).
+  - One door per function: before / after is Y (and the status line's word), side by side is Compare's (Develop's bar
+    keeps its Compare tools); gone: the toolbar's two buttons and Lab › Before / After ⌥⌘B. Export is Print's and
+    File › Export ⇧⌘E; the toolbar's red Export button is gone. The 1:1 help says ⇧⌘1.
+  - The words with the facts: on the sheet, one Information card (ⓘ, ⌘K, ⌃⌘I): `PhotoWordsEditor` (label, title,
+    caption, keywords) over `FrameInfoPanel(card: false)`; the tag button and the separate frame card are gone
+    (`wordsVisible` is now `sheet.showInfo`). Develop's information (⌘I) already had them. Keyword sets ⌥1–⌥9 kept
+    (the audit said "no key sets"; asked Quentin).
+  - Smart Rolls on one level: no "Add a Group"; groups from before are still shown and removable.
+  - The sort bar at the sheet's (and grid's) foot: All, Picks, Rejects (⊖), Unmarked, stars, Sort; Developed, colour
+    labels and Keyword moved to the find bar over it (search 240 pt).
+  - Left: the recipes' doors (Develop's ⌥⌘P panel and the film card's "Browse", or the Recipes room); the lab words
+    for Scanner / Color Management (audit 2.3, "one by one with Quentin"); the sidebar's Picks entry stays (a
+    catalogue-wide place, not the sheet's filter).
 - [ ] I Fine-line glyphs in `LabGlyph`, a word with each; for Rolls a provisional cartridge until Quentin's SVG.
 
 ## Current state
@@ -477,7 +491,7 @@ Lots, in order:
 - Phase: **0.4 is done** (R1–R8; R8 from Quentin's first try of Dev). `feature/import-library` holds architecture waves 1–3, 0.1.5, 0.2, 0.3 and 0.4
   (local, nothing pushed, `main` untouched). Swift tests: 555 (24 skipped), all pass (561 after R8); the Rust side wasn't changed.
   Qlick Lab Dev is built from it (`dist/qlick-lab-dev/Qlick Lab Dev.app`).
-- Phase: **lab structure** on `feature/lab-structure` (from `feature/import-library`, local). Lots A to F done; next is lot G.
+- Phase: **lab structure** on `feature/lab-structure` (from `feature/import-library`, local). Lots A to F done, G done but the recipes' door (question to Quentin); next is lot I.
 
 ## Build and test
 

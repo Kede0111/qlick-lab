@@ -251,8 +251,11 @@ struct SheetOptions: Codable, Equatable, Sendable {
     var loupe: URL?
     /// Qlick Lab: the Keywords panel over the contact sheet (label, title, caption, keywords); in Develop it's part of
     /// the photograph's information (⌘I).
-    var wordsVisible = UserDefaults.standard.bool(forKey: "qlick.keywordsPanel") {
-        didSet { UserDefaults.standard.set(wordsVisible, forKey: "qlick.keywordsPanel") }
+    /// Qlick Lab: one card of information on the sheet (`KeywordsPanel`: label, title, caption, keywords, the frame's
+    /// facts), as Develop's (⌘I): the words are kept with the facts, not in a panel of their own.
+    var wordsVisible: Bool {
+        get { sheet.showInfo }
+        set { sheet.showInfo = newValue }
     }
     /// Moves when ⌘K asks for the Add Keyword field, which then takes the keys (`keywordFocusPending` until it has).
     var keywordFocus = 0

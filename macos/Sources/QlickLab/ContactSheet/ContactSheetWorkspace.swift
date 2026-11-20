@@ -30,12 +30,6 @@ struct ContactSheetWorkspace: View {
                 }
                 .padding(.bottom, 14)
             }
-            if lab.sheet.showInfo, lab.loupe == nil, let current = model.selection.current {
-                FrameInfoPanel(model: model, item: current)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
-                    .padding(.top, 58).padding(.trailing, 16 + (lab.wordsVisible ? KeywordsPanel.width + 12 : 0))
-                    .allowsHitTesting(false)
-            }
             if lab.wordsVisible, lab.loupe == nil, library.directory != nil {
                 KeywordsPanel(model: model)
                     .fixedSize(horizontal: true, vertical: false)
@@ -97,8 +91,7 @@ struct SheetToolbar: View {
             QIconButton(symbol: lab.sheet.lightTable ? "lightbulb.fill" : "lightbulb", help: "Light table", active: lab.sheet.lightTable) { lab.sheet.lightTable.toggle() }
             QIconButton(symbol: "rectangle.portrait.rotate", help: "Upright frames on their side, as on the film", active: lab.sheet.sidewaysVerticals) { lab.sheet.sidewaysVerticals.toggle() }
             FileNamesMenu(lab: lab)
-            QIconButton(symbol: "info.circle", help: "Frame information", active: lab.sheet.showInfo) { lab.sheet.showInfo.toggle() }
-            QIconButton(symbol: "tag", help: "Keywords, colour label, title and caption (⌘K)", active: lab.wordsVisible) { lab.wordsVisible.toggle() }
+            QIconButton(symbol: "info.circle", help: "Information: colour label, title, caption, keywords and the frame's facts (⌘K)", active: lab.sheet.showInfo) { lab.sheet.showInfo.toggle() }
             QIconButton(symbol: "line.3.horizontal.decrease.circle", help: "Filters and sorting (\\)", active: lab.filterBarVisible) { lab.filterBarVisible.toggle() }
             Divider().frame(height: 16).overlay(Color.white.opacity(0.12))
             QIconButton(symbol: "rectangle.split.2x1", help: "Compare the selection (\(ShortcutStore.display(lab.keys.key(.compare))))") { lab.compareSelection() }
@@ -184,6 +177,8 @@ private struct SheetEmpty: View {
 struct FrameInfoPanel: View {
     let model: EditorModel
     let item: URL
+    /// Its own glass card; false inside the information card, where the words are edited above it.
+    var card = true
 
     var body: some View {
         let facts = model.lab.facts.get(item)
@@ -199,14 +194,16 @@ struct FrameInfoPanel: View {
             }
             row("Film", summary.edited ? filmName : "\(model.films.first { $0.id == model.newPhotoFilm }?.name ?? model.newPhotoFilm) (default)")
             if summary.rating > 0 { row("Rating", String(repeating: "★", count: summary.rating)) }
-            if let label = summary.label { row("Label", LabelNames.name(label)) }
-            if !summary.words.title.isEmpty { row("Title", summary.words.title) }
-            if !summary.words.keywords.isEmpty { row("Keywords", summary.words.keywords.joined(separator: ", ")) }
+            if card {
+                if let label = summary.label { row("Label", LabelNames.name(label)) }
+                if !summary.words.title.isEmpty { row("Title", summary.words.title) }
+                if !summary.words.keywords.isEmpty { row("Keywords", summary.words.keywords.joined(separator: ", ")) }
+            }
             if let problem = summary.problem { Text(problem).font(.system(size: 11)).foregroundStyle(Theme.warn).fixedSize(horizontal: false, vertical: true) }
         }
-        .padding(14)
-        .frame(width: 270, alignment: .leading)
-        .glass(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .padding(card ? 14 : 0)
+        .frame(width: card ? 270 : nil, alignment: .leading)
+        .background { if card { Color.clear.glass(RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)) } }
     }
 
     /// The film an edited frame was developed on, from its sidecar.

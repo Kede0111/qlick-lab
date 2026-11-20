@@ -104,8 +104,9 @@ extension LabState {
     }
 }
 
-/// The filters and the order, in one bar: the marks with their counts, the stars (at least, at most or exactly),
-/// developed or not, and the sort. Under the grid and floating over the contact sheet; `\` shows and hides it.
+/// The sort bar at the foot of the sheet: the marks with their counts (All, Picks, Rejects, Unmarked), the stars (at
+/// least, at most or exactly) and the sort. Under the grid and floating over the contact sheet; `\` shows and hides
+/// it. The finer filters (developed, colour labels, keywords) are in the find bar over it (`LibraryFindBar`).
 struct LibraryFilterBar: View {
     let model: EditorModel
     /// Without its own pane of glass: in the grid's foot.
@@ -134,18 +135,6 @@ struct LibraryFilterBar: View {
             chip("Unmarked", count: counts.unmarked, on: library.filter.flags == [.unflagged], mark: nil) { only(.unflagged) }
             separator
             StarFilter(model: model)
-            separator
-            Button { model.library.filter.editedOnly.toggle() } label: {
-                Text("Developed").font(Theme.caps(12, weight: library.filter.editedOnly ? .semibold : .regular))
-                    .foregroundStyle(library.filter.editedOnly ? Theme.film : Theme.paper)
-                    .padding(.horizontal, 10).frame(height: 24)
-                    .background(Capsule().fill(library.filter.editedOnly ? Theme.paper : Color.white.opacity(0.001)))
-                    .contentShape(Capsule())
-            }
-            .buttonStyle(.plain).help("Only the photographs with a development of their own")
-            separator
-            LabelFilter(model: model)
-            KeywordFilter(model: model)
             if library.filter.active {
                 Button { model.library.filter = LibraryFilter() } label: {
                     Image(systemName: "xmark.circle.fill").font(.system(size: 12)).foregroundStyle(Theme.dim)
@@ -369,8 +358,9 @@ private struct KeywordFilter: View {
     }
 }
 
-/// Over the filter bar: the search, which understands fields (`PhotoQuery`: `rating:>=3 film:portra iso:>800
-/// date:2026-09`…), the period, film, camera and lens of what's listed, and Save as Smart Roll… for the whole filter.
+/// Over the sort bar: the search, which understands fields (`PhotoQuery`: `rating:>=3 film:portra iso:>800
+/// date:2026-09`…), the period, film, camera and lens of what's listed, developed or not, colour labels, keywords,
+/// and Save as Smart Roll… for the whole filter.
 struct LibraryFindBar: View {
     let model: EditorModel
     /// Without its own pane of glass: over the grid's foot.
@@ -392,7 +382,7 @@ struct LibraryFindBar: View {
                         .buttonStyle(.plain).help("Clear the search")
                 }
             }
-            .padding(.horizontal, 10).frame(width: 300, height: 24)
+            .padding(.horizontal, 10).frame(width: 240, height: 24)
             .background(Capsule().fill(Color.white.opacity(0.07)))
             .help(LibraryFindBar.searchHelp)
             separator
@@ -425,6 +415,18 @@ struct LibraryFindBar: View {
             FacetMenu(title: "Lens", symbol: "camera.aperture", chosen: filter.lens, help: "Only the photographs of a lens") {
                 values(facets.lenses, chosen: filter.lens) { model.library.filter.lens = $0 }
             }
+            // Qlick Lab: the finer filters, out of the sort bar under it.
+            separator
+            Button { model.library.filter.editedOnly.toggle() } label: {
+                Text("Developed").font(Theme.caps(12, weight: filter.editedOnly ? .semibold : .regular))
+                    .foregroundStyle(filter.editedOnly ? Theme.film : Theme.paper)
+                    .padding(.horizontal, 10).frame(height: 24)
+                    .background(Capsule().fill(filter.editedOnly ? Theme.paper : Color.white.opacity(0.001)))
+                    .contentShape(Capsule())
+            }
+            .buttonStyle(.plain).help("Only the photographs with a development of their own")
+            LabelFilter(model: model)
+            KeywordFilter(model: model)
             separator
             Button { lab.saveFilterAsSmartRoll() } label: {
                 Label("Save as Smart Roll…", systemImage: SmartRollEditor.symbol).font(Theme.caps(12))

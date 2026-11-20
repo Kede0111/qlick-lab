@@ -302,7 +302,8 @@ struct FlowLayout: Layout {
     }
 }
 
-/// The Keywords panel over the contact sheet (the sheet's tag button, ⌘K): `PhotoWordsEditor` on glass.
+/// The information card over the contact sheet (the sheet's ⓘ, ⌘K, ⌃⌘I): the photograph's words (`PhotoWordsEditor`:
+/// label, title, caption, keywords) over its facts (`FrameInfoPanel`), on glass, as Develop's information (⌘I).
 struct KeywordsPanel: View {
     let model: EditorModel
     static let width: CGFloat = 300
@@ -310,16 +311,22 @@ struct KeywordsPanel: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 6) {
-                CapsLabel("Keywords and Label", size: 10.5, color: Theme.paper)
+                CapsLabel("Information", size: 10.5, color: Theme.paper)
                 Spacer(minLength: 8)
                 QIconButton(symbol: "xmark", help: "Close") { model.lab.wordsVisible = false }
             }
             .padding(.leading, 16).padding(.trailing, 8).frame(height: 38)
             Rectangle().fill(Color.white.opacity(0.08)).frame(height: 1)
             FittingScroll {
-                PhotoWordsEditor(model: model)
-                    .padding(.horizontal, 16).padding(.vertical, 14)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                VStack(alignment: .leading, spacing: 14) {
+                    PhotoWordsEditor(model: model)
+                    if let current = model.selection.current {
+                        Rectangle().fill(Color.white.opacity(0.08)).frame(height: 1)
+                        FrameInfoPanel(model: model, item: current, card: false)
+                    }
+                }
+                .padding(.horizontal, 16).padding(.vertical, 14)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
         .frame(width: Self.width)

@@ -31,7 +31,7 @@ struct TabEdit: Identifiable, Equatable {
     static func edits(_ tab: InspectorTab, _ model: EditorModel) -> [TabEdit] {
         switch tab {
         case .prep: prepEdits(model)
-        case .lab: InspectorSection.allCases.flatMap { labEdits($0, model) }
+        case .lab: InspectorSection.allCases.flatMap { labEdits($0, model) } + EffectsTab.edits(model)
         case .effects: EffectsTab.edits(model)
         case .output: outputEdits(model)
         }

@@ -50,17 +50,12 @@ struct DevelopToolbar: View {
                     lab.developLoupe.toggle()
                 }.disabled(!photo)
                 word("Fit", "Fit Photograph (⌘0)", on: model.fitImage) { model.zoom(fit: true) }.disabled(!photo || model.cropping)
-                word("1:1", "Actual Size: one pixel of the photograph for one of the screen (⌘1)", on: !model.fitImage && abs(model.zoomShown - 1) < 0.01) {
+                word("1:1", "Actual Size: one pixel of the photograph for one of the screen (⇧⌘1)", on: !model.fitImage && abs(model.zoomShown - 1) < 0.01) {
                     model.canvasScale.zoom(to: 1)
                 }.disabled(!photo || model.cropping)
                 ZoomSlider(model: model).disabled(!photo || model.cropping)
             }
-            group {
-                tool("square.lefthalf.filled", "Before / After (Y)", on: model.holdingOriginal) { model.holdOriginal(!model.holdingOriginal) }.disabled(!model.canShowOriginal)
-                tool("rectangle.split.2x1", "Compare side by side") {
-                    if let item = model.sourceItem { lab.compare.items = [item]; lab.show(.compare); lab.compareModel.setKind(.beforeAfter) }
-                }.disabled(!photo)
-            }
+            // Qlick Lab: before and after are Y (and the status line's word), side by side is Compare's.
             group {
                 tool("doc.on.doc", "Copy Edits (⇧⌘C)") { model.copyEdits() }.disabled(!model.canCopyEdits)
                 tool("doc.on.clipboard", "Paste Edits (⇧⌘V)") { model.pasteEdits() }.disabled(!model.canPasteEdits)
@@ -71,18 +66,7 @@ struct DevelopToolbar: View {
             }
             Spacer(minLength: 8)
             BackgroundActivity(model: model).padding(.trailing, 8)
-            Button { model.exportPanel() } label: {
-                Label(model.exportTitle.replacingOccurrences(of: "…", with: ""), systemImage: "square.and.arrow.up")
-                    .font(.system(size: 11.5, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 12).frame(height: 24)
-                    .background(Capsule().fill(Theme.accent.opacity(model.canExport ? 0.9 : 0.35)))
-                    .contentShape(Capsule())
-            }
-            .buttonStyle(.plain)
-            .disabled(!model.canExport || model.cropping)
-            .help("Export the photograph, with Output's settings (⇧⌘E)")
-            .padding(.trailing, 8)
+            // Qlick Lab: exporting is Print's (⌘3), and File › Export (⇧⌘E).
             group {
                 tool("sidebar.left", "Sidebar (Tab)", on: lab.sidebarVisible) { lab.sidebarVisible.toggle() }
                 tool("film", "Film Strip (⌥⌘F)", on: model.filmstripVisible) { model.toggleFilmstrip() }

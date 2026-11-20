@@ -31,7 +31,8 @@ enum InspectorSection: String, CaseIterable {
 enum InspectorTab: String, CaseIterable {
     case prep = "Prep", lab = "Lab", effects = "Effects", output = "Output"
     /// Qlick Lab: the tabs Develop shows. Output's settings (size, border, the file) are Print's (`PrintPanel`).
-    static let inDevelop: [InspectorTab] = [.prep, .lab, .effects]
+    /// Effects (the chromatic aberration) is part of Emulsion, beside the camera's lens.
+    static let inDevelop: [InspectorTab] = [.prep, .lab]
     /// Qlick Lab: as the tabs read. Develop is the light and the colour before the film; Emulsion is the film,
     /// its print and its scan; Effects what is added on top (as QLab's); Output is the file.
     var title: String {
@@ -681,7 +682,7 @@ extension AdjustmentInspector {
         return count
     }
     static func labCount(_ model: EditorModel) -> Int {
-        InspectorSection.allCases.map { count($0, model) }.reduce(0, +)
+        InspectorSection.allCases.map { count($0, model) }.reduce(0, +) + EffectsTab.count(model)
     }
     static func outputTabCount(_ model: EditorModel) -> Int {
         (model.isModified(ImageSize.targetPath) ? 1 : 0) + (model.border.enabled ? 1 : 0)
@@ -715,7 +716,8 @@ struct PaneHeader: View {
                 WordButton(title: "Import…", help: "Import recipes (⇧⌘O)", action: model.importPresetsPanel)
                     .disabled(!model.canChangePresets)
             } else if model.source != nil {
-                let edits = InspectorTab.allCases.map { InspectorEdits.count($0, model) }.reduce(0, +)
+                // Emulsion counts the aberration (Effects) already.
+                let edits = [InspectorTab.prep, .lab, .output].map { InspectorEdits.count($0, model) }.reduce(0, +)
                 if edits > 0 {
                     (Text("\(edits)").font(Theme.serif(14, weight: 700, italic: true)).foregroundColor(Theme.paper)
                         + Text(edits == 1 ? " edit" : " edits").font(Theme.serif(14, italic: true)).foregroundColor(Theme.dim))
@@ -891,14 +893,14 @@ struct AdjustmentInspector: View {
                 .padding(.bottom, 10)
             InspectorTabs(model: model, tab: $tab)
                 // Output's settings are in Print now.
-                .onAppear { if tab == .output { tab = .prep } }
+                .onAppear { if tab == .output { tab = .prep } else if tab == .effects { tab = .lab } }
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     StockPicker(model: model).padding(.top, 10)
                     switch tab {
                     case .prep: prep
                     case .lab: lab
-                    case .effects: EffectsTab(model: model)
+                    case .effects: lab
                     case .output: prep
                     }
                 }
@@ -1000,6 +1002,8 @@ struct AdjustmentInspector: View {
             modules(.camera, ruledFirst: true)
             moreLine(.camera, loose: model.isModified("camera.lens_blur_um") ? [] : ["Lens blur"])
         }
+        // Qlick Lab: the lens's chromatic aberration, with the camera (it was the Effects tab).
+        EffectsTab(model: model)
         let filmStock = model.films.first { $0.id == model.film }
         InkSection(title: "Film", edited: InspectorEdits.count(.film, model) > 0) {
             developmentTime(stock: filmStock, path: InspectorEdits.filmDevelopmentPath, label: "Development",

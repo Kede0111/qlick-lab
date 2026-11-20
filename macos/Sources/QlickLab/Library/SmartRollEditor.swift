@@ -2,7 +2,8 @@
 import SwiftUI
 
 /// The rule editor of a Smart Roll: its name, then its rules, one row each (field, comparison, value), taken all
-/// together, any of them or none of them; a group of rules nests with its own choice. The count of photographs that
+/// together, any of them or none of them: one level, a simple form. (A Smart Roll from before with groups inside keeps
+/// them, shown and removable, but none is added.) The count of photographs that
 /// meet them follows as they're written. Nothing on disk changes: a Smart Roll only lists.
 struct SmartRollEditor: View {
     /// The sidebar's mark of a Smart Roll.
@@ -69,7 +70,7 @@ struct SmartRollEditor: View {
     }
 }
 
-/// One group of rules: whether all, any or none must be met, its rows, the groups inside it, and the + that adds.
+/// The rules: whether all, any or none must be met, their rows (and groups inside, from before), and the + that adds.
 struct RuleGroupEditor: View {
     @Binding var group: RuleGroup
     let depth: Int
@@ -102,19 +103,11 @@ struct RuleGroupEditor: View {
                     .padding(.leading, 12).padding(.vertical, 6)
                     .overlay(alignment: .leading) { Rectangle().fill(Theme.accent.opacity(0.5)).frame(width: 2) }
             }
-            HStack(spacing: 14) {
-                Button { group.rules.append(PhotoField.rating.startingRule) } label: {
-                    Label("Add a Rule", systemImage: "plus").font(.system(size: 12))
-                }
-                .buttonStyle(.plain).foregroundStyle(Theme.label)
-                if depth < 3 {
-                    Button { group.groups.append(RuleGroup(match: .any, rules: [PhotoField.label.startingRule])) } label: {
-                        Label("Add a Group", systemImage: "plus.square.on.square").font(.system(size: 12))
-                    }
-                    .buttonStyle(.plain).foregroundStyle(Theme.label)
-                    .help("Rules taken together, with their own all, any or none")
-                }
+            // Qlick Lab: rules on one level; no group is added inside another.
+            Button { group.rules.append(PhotoField.rating.startingRule) } label: {
+                Label("Add a Rule", systemImage: "plus").font(.system(size: 12))
             }
+            .buttonStyle(.plain).foregroundStyle(Theme.label)
             .padding(.top, 2)
         }
     }
