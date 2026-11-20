@@ -5,6 +5,8 @@ import Observation
 /// The sorting keys, which the photographer can change (Réglages › Touches). Plain keys, without ⌘, so one hand
 /// sorts while the other moves through the roll. The Photo menu's Pick, Reject and Unflagged follow them.
 enum SheetAction: String, CaseIterable, Codable, Identifiable, Sendable {
+    /// The actions the lab offers: the colour labels' only while they're in the interface (`ColorLabel.inInterface`).
+    static var shown: [SheetAction] { allCases.filter { ColorLabel.inInterface || $0.label == nil } }
     case pick, reject, unmark, loupe, develop, compare, pencil, nextUnmarked, loupeTool
     /// Qlick Lab: the colour labels with a key (purple is in the menus only).
     case labelRed, labelYellow, labelGreen, labelBlue
@@ -80,7 +82,7 @@ enum SheetAction: String, CaseIterable, Codable, Identifiable, Sendable {
         guard event.modifierFlags.isDisjoint(with: [.command, .control, .option]),
               let typed = event.charactersIgnoringModifiers?.lowercased(), !typed.isEmpty else { return nil }
         let key = typed == "\u{3}" ? "\r" : typed
-        return SheetAction.allCases.first { self.key($0) == key }
+        return SheetAction.shown.first { self.key($0) == key }
     }
 
     /// Why `key` can't be `action`'s, or nil if it can.

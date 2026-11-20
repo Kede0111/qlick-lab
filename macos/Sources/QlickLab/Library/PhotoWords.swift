@@ -11,6 +11,11 @@ enum ColorLabel: String, CaseIterable, Codable, Identifiable, Sendable {
 
     var id: String { rawValue }
 
+    /// Qlick Lab (Quentin, 2026-11-21): the lab sorts with the pencil and the stars, not with colours. The labels
+    /// already written in sidecars and XMP are kept and still read (and found by `label:` in the search), but no view,
+    /// menu, key or sort shows or changes them.
+    static let inInterface = false
+
     /// The colour's own name, and `xmp:Label`'s.
     var standardName: String {
         switch self {

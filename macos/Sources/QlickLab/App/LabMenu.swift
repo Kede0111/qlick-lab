@@ -185,7 +185,7 @@ extension LabState {
         if typed == keys.key(.pick) { act = { self.menuMark(.pick) } }
         else if typed == keys.key(.reject) { act = { self.menuMark(.reject) } }
         else if typed == keys.key(.unmark) { act = { self.menuMark(nil) } }
-        else if let label = ColorLabel.allCases.first(where: { $0.action.map { self.keys.key($0) } == typed }) { act = { self.menuLabel(label) } }
+        else if ColorLabel.inInterface, let label = ColorLabel.allCases.first(where: { $0.action.map { self.keys.key($0) } == typed }) { act = { self.menuLabel(label) } }
         else if let stars = Int(typed), (0...5).contains(stars) { act = { self.menuRate(stars) } }
         else { act = nil }
         guard let act else { return false }

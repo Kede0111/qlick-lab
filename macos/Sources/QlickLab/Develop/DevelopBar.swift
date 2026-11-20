@@ -49,7 +49,7 @@ struct DevelopBar: View {
                 .buttonStyle(.plain).help("Reject (\(ShortcutStore.display(lab.keys.key(.reject))))")
                 StarsControl(rating: summary.rating) { model.setRating($0, targets: [item]) }
                     .padding(.horizontal, 4)
-                LabelMenu(model: model, item: item, label: summary.label)
+                if ColorLabel.inInterface { LabelMenu(model: model, item: item, label: summary.label) }
                 divider
                 tool(lab.developLoupe ? "plus.magnifyingglass" : "magnifyingglass", "Loupe: click the photograph to see its pixels there, click again to fit (Z)", on: lab.developLoupe) {
                     lab.developLoupe.toggle()

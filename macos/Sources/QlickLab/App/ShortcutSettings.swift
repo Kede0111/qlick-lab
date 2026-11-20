@@ -13,7 +13,7 @@ struct ShortcutSettings: View {
             Text("Click a key, then press the new one.")
                 .font(.system(size: 11.5)).foregroundStyle(Theme.dim).fixedSize(horizontal: false, vertical: true)
                 .padding(.bottom, 12)
-            ForEach(SheetAction.allCases) { action in
+            ForEach(SheetAction.shown) { action in
                 HStack {
                     Text(action.title).font(Theme.ui(12.5)).foregroundStyle(Theme.label)
                     Spacer()

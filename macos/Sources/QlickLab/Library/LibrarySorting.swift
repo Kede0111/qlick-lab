@@ -27,7 +27,9 @@ struct LibrarySort: Codable, Equatable, Sendable {
         }
 
         /// The orders a list offers: Custom Order only in a Box or a Roll, where photographs are put in order by hand.
-        static func offered(manual: Bool) -> [Key] { manual ? allCases : allCases.filter { $0 != .custom } }
+        static func offered(manual: Bool) -> [Key] {
+            allCases.filter { (manual || $0 != .custom) && (ColorLabel.inInterface || $0 != .label) }
+        }
     }
 
     var key = Key.fileName
@@ -289,38 +291,6 @@ struct SortPicker: View {
 }
 
 /// The colour labels in the filter bar: a click shows only that label's photographs, more clicks add others; the
-/// menu at the end adds those without a label.
-private struct LabelFilter: View {
-    let model: EditorModel
-
-    var body: some View {
-        let filter = model.library.filter
-        let counts = Dictionary(grouping: model.library.items.compactMap { model.library.summary(for: $0.url).label }, by: { $0 }).mapValues(\.count)
-        HStack(spacing: 1) {
-            ForEach(ColorLabel.allCases) { label in
-                let on = filter.labels.contains(label)
-                Button {
-                    if on { model.library.filter.labels.remove(label) } else { model.library.filter.labels.insert(label) }
-                } label: {
-                    LabelDot(label: label, size: 10)
-                        .opacity(on || (filter.labels.isEmpty && !filter.unlabelled) ? 1 : 0.35)
-                        .padding(3)
-                        .overlay(Circle().strokeBorder(Theme.paper.opacity(on ? 0.9 : 0), lineWidth: 1.2))
-                        .frame(width: 20, height: 24).contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .help("\(LabelNames.name(label)) label: \(counts[label] ?? 0)")
-            }
-            Button { model.library.filter.unlabelled.toggle() } label: {
-                Image(systemName: "circle.dashed").font(.system(size: 10.5))
-                    .foregroundStyle(filter.unlabelled ? Theme.paper : Theme.dim)
-                    .frame(width: 20, height: 24).contentShape(Rectangle())
-            }
-            .buttonStyle(.plain).help("Without a label")
-        }
-        .padding(.horizontal, 2)
-    }
-}
 
 /// Keyword ▾ in the filter bar: the keywords of what's listed, with their counts; one chosen shows only its photographs.
 private struct KeywordFilter: View {

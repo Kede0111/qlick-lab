@@ -827,7 +827,7 @@ extension ContactSheetView: NSDraggingSource {
             entry.keyEquivalentModifierMask = []; entry.tag = stars; entry.target = self
         }
         menu.addItem(withTitle: "Rating", action: nil, keyEquivalent: "").submenu = rating
-        menu.addItem(sheet.lab.labelMenuItem(for: model.ratingTargets))
+        if ColorLabel.inInterface { menu.addItem(sheet.lab.labelMenuItem(for: model.ratingTargets)) }
         menu.addItem(.separator())
         add("Open in Develop", #selector(develop), key: keys.key(.develop))
         add("See Larger", #selector(loupe), key: keys.key(.loupe))

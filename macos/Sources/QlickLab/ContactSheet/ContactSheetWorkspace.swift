@@ -198,7 +198,7 @@ struct FrameInfoPanel: View {
             row("Film", summary.edited ? filmName : "\(model.films.first { $0.id == model.newPhotoFilm }?.name ?? model.newPhotoFilm) (default)")
             if summary.rating > 0 { row("Rating", String(repeating: "★", count: summary.rating)) }
             if card {
-                if let label = summary.label { row("Label", LabelNames.name(label)) }
+                if ColorLabel.inInterface, let label = summary.label { row("Label", LabelNames.name(label)) }
                 if !summary.words.title.isEmpty { row("Title", summary.words.title) }
                 if !summary.words.keywords.isEmpty { row("Keywords", summary.words.keywords.joined(separator: ", ")) }
             }

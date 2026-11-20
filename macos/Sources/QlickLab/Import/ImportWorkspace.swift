@@ -394,7 +394,7 @@ enum ImportKeys {
         if character == keys.key(.reject) { session.toggle(flag: "reject"); return true }
         if character == keys.key(.unmark) { session.unmark(); return true }
         // The colour labels, by the keys the lab gives them everywhere (6–9 unless changed).
-        for label in ColorLabel.allCases {
+        for label in ColorLabel.allCases where ColorLabel.inInterface {
             if let action = label.action, character == keys.key(action) { session.toggle(label: label); return true }
         }
         switch character {
@@ -460,7 +460,7 @@ struct ImportCell: View {
             }
             .overlay(alignment: .bottomLeading) {
                 HStack(spacing: 5) {
-                    if let label = marks.label.flatMap(ColorLabel.init(word:)) { LabelDot(label: label, size: 10) }
+                    if ColorLabel.inInterface, let label = marks.label.flatMap(ColorLabel.init(word:)) { LabelDot(label: label, size: 10) }
                     if marks.rating > 0 {
                         Text(String(repeating: "★", count: marks.rating)).font(.system(size: 10)).foregroundStyle(Theme.paper)
                             .shadow(color: .black, radius: 1.5)

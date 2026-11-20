@@ -162,7 +162,7 @@ struct CaptionOptions: Codable, Equatable, Sendable {
             entry.tag = stars
         }
         menu.addItem(withTitle: "Rating", action: nil, keyEquivalent: "").submenu = rating
-        menu.addItem(lab.labelMenuItem(for: [item]))
+        if ColorLabel.inInterface { menu.addItem(lab.labelMenuItem(for: [item])) }
         menu.addItem(.separator())
 
         add(menu, "Rotate Left", #selector(rotateLeft), key: "r", modifiers: [.command, .option], enabled: developed)

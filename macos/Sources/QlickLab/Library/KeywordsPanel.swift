@@ -23,7 +23,7 @@ struct PhotoWordsEditor: View {
             if targets.isEmpty {
                 Text("Select a photograph.").font(Theme.caps(12)).foregroundStyle(Theme.dim)
             } else {
-                labels(targets)
+                if ColorLabel.inInterface { labels(targets) }
                 if targets.count == 1 { words } else {
                     Text("\(targets.count) photographs: a title and a caption are written for one at a time.")
                         .font(.system(size: 11.5)).foregroundStyle(Theme.dim).fixedSize(horizontal: false, vertical: true)

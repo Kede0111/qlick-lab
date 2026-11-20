@@ -102,7 +102,9 @@ enum PhotoField: String, Codable, CaseIterable, Identifiable, Sendable {
     }
 
     /// The fields a Smart Roll's rules offer, in the editor's order.
-    static let editable: [PhotoField] = [.rating, .flag, .label, .keyword, .filmLoaded, .filmDeveloped, .recipe, .developed,
+    /// The fields a Smart Roll's rules offer (the colour label only while it's in the interface).
+    static var editable: [PhotoField] { (ColorLabel.inInterface ? [.rating, .flag, .label] : [.rating, .flag]) + editableRest }
+    private static let editableRest: [PhotoField] = [.keyword, .filmLoaded, .filmDeveloped, .recipe, .developed,
                                          .camera, .lens, .focalLength, .aperture, .shutter, .iso,
                                          .captureDate, .importDate, .editDate,
                                          .fileName, .fileType, .orientation, .title, .caption, .archive, .folder, .text]

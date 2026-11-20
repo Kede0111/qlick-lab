@@ -781,7 +781,7 @@ struct LibraryContextMenu: View {
                     .keyboardShortcut(KeyEquivalent(Character("\(stars)")), modifiers: [])
             }
         }
-        LabelMenuItems(model: model, targets: targets)
+        if ColorLabel.inInterface { LabelMenuItems(model: model, targets: targets) }
         Divider()
         Button("Open in Develop") { model.click(item); lab.show(.develop); if model.mode == .grid { model.editCurrent() } }
         Button("See Larger") { model.click(item); lab.loupe = item }

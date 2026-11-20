@@ -108,7 +108,7 @@ private struct LoupeCaption: View {
             if let facts, !facts.exposureLine.isEmpty { Text(facts.exposureLine).font(Theme.value(11.5)).foregroundStyle(Color(white: 0.75)) }
             if let flag = summary.flag { MarkGlyph(flag: flag).frame(width: 17, height: 13) }
             if summary.rating > 0 { Text(String(repeating: "★", count: summary.rating)).font(.system(size: 11)).foregroundStyle(Theme.paper) }
-            if let label = summary.label { LabelDot(label: label, size: 10).help(LabelNames.name(label)) }
+            if ColorLabel.inInterface, let label = summary.label { LabelDot(label: label, size: 10).help(LabelNames.name(label)) }
             if busy { ProgressView().controlSize(.mini) }
             Divider().frame(height: 14).overlay(Color.white.opacity(0.15))
             HStack(spacing: 5) {
