@@ -186,11 +186,11 @@ extension EditorModel {
         guard canChangePresets else { return }
         let panel = NSOpenPanel()
         panel.title = "Import Recipes"
-        panel.message = "Choose recipes saved by Qlick Lab or by spektrafilm (its interface’s state files)."
+        panel.message = "Choose recipes saved by Qlick Lab (one recipe, or a bundle of them) or by spektrafilm (its interface’s state files)."
         panel.prompt = "Import"
         panel.allowsMultipleSelection = true
         panel.canChooseDirectories = false
-        panel.allowedContentTypes = [.json, .plainText]
+        panel.allowedContentTypes = [.json, .plainText, RecipeBundle.contentType]
         panel.begin { [weak self] response in
             guard response == .OK, let self else { return }
             MainActor.assumeIsolated { self.importPresets(panel.urls) }
@@ -204,8 +204,33 @@ extension EditorModel {
         guard canChangePresets, let engine, !urls.isEmpty else { return }
         showPane(.presets)
         Task {
-            var failures: [String] = [], added: [URL] = []
+            var failures: [String] = [], added: [URL] = [], starred: [String] = []
+            // Identifiers already on the shelf: a bundle brought in twice gives its copies new ones.
+            var ids = Set(presets.map(\.shelfID))
             for url in urls {
+                // Qlick Lab: a bundle of recipes (`RecipeBundle`) brings each, with its identifier and its star.
+                if url.pathExtension.lowercased() == RecipeBundle.fileExtension {
+                    do {
+                        let recipes = try await Task.detached(priority: .userInitiated) { try RecipeBundle.read(url) }.value
+                        for recipe in recipes {
+                            do {
+                                _ = try await engine.request(["command": EngineCommand.presetImport.json, "text": .string(try Self.presetText(recipe.data))])
+                                let file = try await presetLibrary.add(recipe.data, name: PresetName.from(fileName: recipe.name))
+                                added.append(file.url)
+                                if !recipe.id.isEmpty, !ids.contains(recipe.id) {
+                                    try await presetLibrary.setID(recipe.id, for: file.name)
+                                    ids.insert(recipe.id)
+                                    if recipe.favourite { starred.append(recipe.id) }
+                                }
+                            } catch {
+                                failures.append("\(recipe.name): \(error.localizedDescription)")
+                            }
+                        }
+                    } catch {
+                        failures.append("\(url.lastPathComponent): \(error.localizedDescription)")
+                    }
+                    continue
+                }
                 do {
                     let data = try await Task.detached(priority: .userInitiated) { try PresetLibrary.read(url) }.value
                     _ = try await engine.request(["command": EngineCommand.presetImport.json, "text": .string(try Self.presetText(data))])
@@ -214,6 +239,7 @@ extension EditorModel {
                     failures.append("\(url.lastPathComponent): \(error.localizedDescription)")
                 }
             }
+            for id in starred where !shelf.isFavourite(.recipe, id) { shelf.toggleFavourite(.recipe, id) }
             let imported = added.count
             if let position, imported > 0, let listed = try? await presetLibrary.list() {
                 let moved = listed.filter { added.contains($0.url) }
@@ -302,6 +328,37 @@ extension EditorModel {
             } catch { report(error) }
             await refreshPresets()
         }
+    }
+
+    /// Qlick Lab: several recipes as one bundle (`RecipeBundle`), with their identifiers and stars, wherever the
+    /// user picks. One recipe alone is exported in its own format (`exportPresetPanel`).
+    func exportRecipesPanel(_ recipes: [PresetFile]) {
+        guard !recipes.isEmpty else { return }
+        if recipes.count == 1 { return exportPresetPanel(recipes[0]) }
+        let panel = NSSavePanel()
+        panel.title = "Export \(recipes.count) Recipes"
+        panel.canCreateDirectories = true
+        panel.allowedContentTypes = [RecipeBundle.contentType]
+        panel.nameFieldStringValue = "\(RecipeBundle.suggestedName(recipes.map(\.name))).\(RecipeBundle.fileExtension)"
+        panel.message = "One file holding the \(recipes.count) recipes, to import into Qlick Lab elsewhere."
+        panel.begin { [weak self] response in
+            guard response == .OK, let url = panel.url, let self else { return }
+            MainActor.assumeIsolated { Task { await self.exportRecipes(recipes, to: url) } }
+        }
+    }
+
+    /// Writes `recipes` as one bundle at `url`.
+    func exportRecipes(_ recipes: [PresetFile], to url: URL) async {
+        do {
+            var bundle: [RecipeBundle.Recipe] = []
+            for recipe in recipes {
+                bundle.append(RecipeBundle.Recipe(name: recipe.name, id: recipe.shelfID, favourite: shelf.isFavourite(.recipe, recipe.shelfID),
+                                                  data: try await presetLibrary.read(recipe)))
+            }
+            let made = bundle
+            try await Task.detached(priority: .userInitiated) { try RecipeBundle.write(made, to: url) }.value
+            status = "Exported \(recipes.count) recipes"
+        } catch { report(error); await refreshPresets() }
     }
 
     /// Writes a copy wherever the user picks, byte for byte.

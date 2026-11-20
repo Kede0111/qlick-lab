@@ -675,6 +675,13 @@ import AppKit
             let hide = command == "hide"
             if rest.hasPrefix("recipe "), let preset = model.presets.first(where: { $0.name == String(rest.dropFirst(7)) }) { lab.setHidden(recipe: preset, hide) }
             else if !rest.isEmpty { lab.setHidden(stock: rest, hide) }
+        // exportrecipes <path>: every recipe as one bundle; importrecipes <path>: a bundle or a recipe file.
+        case "exportrecipes": Task { await model.exportRecipes(model.presets, to: URL(fileURLWithPath: rest)) }
+        case "importrecipes": model.importPresets([URL(fileURLWithPath: rest)])
+        case "deleterecipe":
+            if let preset = model.presets.first(where: { $0.name == rest }) {
+                Task { try? await model.presetLibrary.delete(preset); model.shelf.forget(recipe: preset.shelfID); await model.refreshPresets() }
+            }
         case "favouriterecipe": if let preset = model.presets.first(where: { $0.name == rest }) { lab.toggleFavourite(recipe: preset) }
         case "print":
             // print <pdf path> [columns] [white]

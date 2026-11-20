@@ -1,4 +1,5 @@
 // Qlick Lab — GPL-3.0-only.
+import AppKit
 import SwiftUI
 
 /// The recipes: presets in spektrafilm's own format (so they open in spektrafilm too), shown as
@@ -11,6 +12,9 @@ struct RecipesWorkspace: View {
     @State private var query = ""
     @AppStorage(RecipeSort.key) private var sort = RecipeSort.custom
     @State private var renaming: URL?
+    /// The recipes chosen with ⌘-click, to export together.
+    @State private var chosen: Set<URL> = []
+    @State private var dropping = false
     @State private var name = ""
 
     private var lab: LabState { model.lab }
@@ -37,6 +41,11 @@ struct RecipesWorkspace: View {
                     Text("Previews developed on \(model.library.name(of: item))").font(.system(size: 11.5)).foregroundStyle(Theme.dim)
                 }
                 Button { model.importPresetsPanel() } label: { Label("Import…", systemImage: "square.and.arrow.down") }.buttonStyle(QPillButtonStyle())
+                    .help("Recipes from Qlick Lab (one, or a bundle of them) or from spektrafilm; or drop them here")
+                let exporting = chosen.count > 1 ? presets.filter { chosen.contains($0.url) } : presets
+                Button { model.exportRecipesPanel(exporting) } label: { Label(exporting.count > 1 ? "Export \(exporting.count)…" : "Export…", systemImage: "square.and.arrow.up") }
+                    .buttonStyle(QPillButtonStyle()).disabled(exporting.isEmpty)
+                    .help(chosen.count > 1 ? "The recipes chosen (⌘-click), as one bundle" : "The recipes shown, as one bundle. ⌘-click recipes to choose some")
                     .help("Recipes from Qlick Lab or spektrafilm (its interface's state files)")
                 Button { model.newPreset() } label: { Label("Save the Development", systemImage: "plus") }
                     .buttonStyle(QPrimaryButtonStyle()).disabled(model.source == nil || !model.canChangePresets)
@@ -59,8 +68,13 @@ struct RecipesWorkspace: View {
                     ScrollView(.vertical) {
                         LazyVGrid(columns: [GridItem(.adaptive(minimum: 190, maximum: 260), spacing: 14, alignment: .top)], alignment: .leading, spacing: 18) {
                             ForEach(presets) { preset in
-                                RecipeCard(model: model, preset: preset, selected: current?.url == preset.url, applied: model.appliedPreset == preset.url,
+                                RecipeCard(model: model, preset: preset, selected: chosen.count > 1 ? chosen.contains(preset.url) : current?.url == preset.url, applied: model.appliedPreset == preset.url,
                                            renaming: renaming == preset.url, name: $name) {
+                                    // ⌘-click adds to the recipes chosen, or takes it off.
+                                    if NSEvent.modifierFlags.contains(.command) {
+                                        if chosen.isEmpty, let current { chosen = [current.url] }
+                                        if chosen.contains(preset.url) { chosen.remove(preset.url) } else { chosen.insert(preset.url) }
+                                    } else { chosen = [] }
                                     selected = preset.url
                                 } rename: {
                                     model.renamePreset(preset, to: name); renaming = nil
@@ -84,6 +98,13 @@ struct RecipesWorkspace: View {
             }
         }
         .background(Theme.bg)
+        // Recipe files and bundles dropped anywhere in the room are imported.
+        .overlay {
+            if dropping { RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous).strokeBorder(Theme.accent, lineWidth: 2).padding(8).allowsHitTesting(false) }
+        }
+        .onDrop(of: [.fileURL], isTargeted: $dropping) { providers in
+            LabDrop.load(providers) { model.importPresets($0) }
+        }
         .environment(\.colorScheme, .dark)
         .task { await model.refreshPresets() }
     }
@@ -96,6 +117,9 @@ struct RecipesWorkspace: View {
         Button(lab.isHidden(recipe: preset) ? "Show in the Lists" : "Hide from the Lists") { lab.setHidden(recipe: preset, !lab.isHidden(recipe: preset)) }
         Divider()
         Button("Export…") { model.exportPresetPanel(preset) }
+        if chosen.count > 1, chosen.contains(preset.url) {
+            Button("Export the \(chosen.count) Chosen as a Bundle…") { model.exportRecipesPanel(model.presets.filter { chosen.contains($0.url) }) }
+        }
         Button("Show the Recipes Folder") { model.showPresetsFolder() }
         Divider()
         Button("Delete…") { model.deletePreset(preset) }

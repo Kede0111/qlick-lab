@@ -443,7 +443,18 @@ Lots, in order:
   has `shelf=<favourites>/<hidden>`. Tests: 572 (`LabShelfTests`).
   Not done (lot G): Recipes and Stocks are still rooms of the Lab, not a drawer; the Develop recipes panel (⌥⌘P)
   stays until G decides the doors.
-- [ ] E Export and import of recipes in a bundle (no shared QLab format).
+- [x] E Recipe bundles (`Recipes/RecipeBundle.swift`): a `.qlickrecipes` file is a zip (written with /usr/bin/zip,
+  read with ditto into a temporary folder) holding `manifest.json` (key `qlick`, `kind: recipes`, each entry's file,
+  name, shelf id, star) and `Recipes/<name>.json` in spektrafilm's format. Only the manifest's files inside `Recipes/`
+  are read, each within a recipe's size; a newer `qlick` is refused. Recipes room: Export… (the recipes shown, or those
+  chosen with ⌘-click: "Export 3…"), "Export the N Chosen as a Bundle…" in the card menu; one recipe alone is still
+  exported as its own .json. Import… and drops (anywhere in the Recipes room, and Develop's recipes panel) take
+  bundles: each recipe checked by the engine, added (a name taken gets "2"), given back its identifier unless one on
+  the shelf already has it (a second import makes copies with new ones), its star kept. Hidden isn't carried (a
+  personal choice). No format shared with QLab (decision 4, later). Automation: `exportrecipes <path>`,
+  `importrecipes <path>`, `deleterecipe <name>`. Tests: 575 (`RecipeBundleTests`). Checked in the app off screen:
+  three recipes out, deleted, back in with their ids and star.
+  Not done: double-clicking a .qlickrecipes in the Finder (needs a document type in Info.plist).
 - [ ] F The Print room.
 - [ ] G Simplifications: Effects folded into Emulsion; one door per function; keywords and caption in the info
   card; Smart Rolls on one level; a sort bar at the foot of the sheet (All, Picks, Rejects, Unmarked, stars, Sort;
@@ -455,7 +466,7 @@ Lots, in order:
 - Phase: **0.4 is done** (R1–R8; R8 from Quentin's first try of Dev). `feature/import-library` holds architecture waves 1–3, 0.1.5, 0.2, 0.3 and 0.4
   (local, nothing pushed, `main` untouched). Swift tests: 555 (24 skipped), all pass (561 after R8); the Rust side wasn't changed.
   Qlick Lab Dev is built from it (`dist/qlick-lab-dev/Qlick Lab Dev.app`).
-- Phase: **lab structure** on `feature/lab-structure` (from `feature/import-library`, local). Lots A to D done; next is lot E.
+- Phase: **lab structure** on `feature/lab-structure` (from `feature/import-library`, local). Lots A to E done; next is lot F.
 
 ## Build and test
 
