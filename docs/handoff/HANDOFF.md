@@ -216,8 +216,18 @@ Date_0001, Job_001, Date-Name, Date_Time, Custom with the same buttons; an examp
 (`L1004394.DNG → Photos/2026/2026-09-19/20260919_0001.DNG`); flag duplicates inside the source and unreadable files.
 
 Steps (one local commit each, tests, `scripts/drive.sh` screenshots checked, Dev rebuilt, this file updated):
-- [ ] R1 Structure: Archive › Folders (read-only deep tree) + Boxes › Rolls in the catalogue, conversion, new sidebar,
-  title crumbs, Binder/Arrivals/Selections removed.
+- [x] R1 Structure (0a245de): Archives › Folders (read-only tree at every depth, `FolderTrees`, FSEvents, counts) and
+  Boxes as their own section (`boxes.json`, `BoxesFile`; Boxes nest to any depth, each holding photos and Rolls),
+  conversion at load, new sidebar (`App/ArchiveSidebar.swift`, `SidebarFold`), naming sheet (`NamingSheet`), Add to
+  Box / Remove in every frame menu (`Library/Boxes.swift`), crumbs Archive › Folder › file and Box › … › Roll › file,
+  Import's source column lists the recent Archives' folders. Code types kept: `LabProject` = Archive, `LabRoll` = a
+  Folder entry (an imported location, or a folder under one once its card is written), `ProjectStore`. Lists:
+  `LabView` (archive / folder / box / roll) named under `<catalogue>/Views/…`. A folder added is added whole (no more
+  split into one roll per folder of photographs). Archive files are schema 2 (an older app leaves them alone).
+  Automation: `archive`, `box`, `boxroll`, `folder`, `unfold`. Tests: 510.
+  Left: the tree's + on hover isn't drivable off screen (checked by code only); a folder in two Archives belongs, for
+  crumbs, to the one with the deepest Folder; "Photos → an Archive row" (gesture list) to settle in R2; the README's
+  screenshots still show projects.
 - [ ] R2 Drag and drop, move vs ⌥ copy with visible cursor, ⌘C/⌘V paste-adds, menus, reorder, spring-open.
 - [ ] R3 Remove… / Remove Rejected Photos… dialog; Move to Trash removed.
 - [ ] R4 Colour labels, keywords panel, editable title/caption.
@@ -227,10 +237,10 @@ Steps (one local commit each, tests, `scripts/drive.sh` screenshots checked, Dev
 
 ## Current state
 
-- Phase: `feature/import-library` holds architecture waves 1–3, 0.1.5, 0.2 and 0.3 (local, nothing pushed, `main`
-  untouched). Swift tests: 505 (24 skipped), all pass; the Rust side wasn't changed in 0.3. Qlick Lab Dev is built
+- Phase: `feature/import-library` holds architecture waves 1–3, 0.1.5, 0.2, 0.3 and 0.4's R1 (local, nothing pushed,
+  `main` untouched). Swift tests: 510 (24 skipped), all pass; the Rust side wasn't changed. Qlick Lab Dev is built
   from it (`dist/qlick-lab-dev/Qlick Lab Dev.app`).
-- Next: the library redesign 0.4 above, R1 → R7, on `feature/import-library`. Merge into `main` and push only when
+- Next: the library redesign 0.4 above, R2 → R7, on `feature/import-library`. Merge into `main` and push only when
   he says so.
 
 ## Build and test
