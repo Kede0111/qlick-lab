@@ -23,7 +23,7 @@ Ce document ne change rien au code. Chaque proposition attend l'accord de Quenti
 5. **Charte** : un seul fichier de jetons partagé avec QLab (noirs, gris, un rouge), la police système, des capitales
    espacées, des chiffres à chasse fixe, des pictos maison en trait fin. Rien de propriétaire à Leica.
 
-Décisions à prendre par Quentin : voir la section 7.
+Décisions à prendre par Quentin : voir la section 7. Version visuelle : `Qlick-Lab-Audit.pptx` (dossier du projet).
 
 ---
 
@@ -303,6 +303,8 @@ Chaque lot est un commit (ou quelques-uns), testé dans Qlick Lab Dev, sur une b
 2. **Mots-clés, légende, Smart Rolls, langage de requête** (ajoutés en R4/R5) : les garder en les rangeant comme en
    2.3 (ma recommandation), ou les retirer ?
 3. **Effects** : fondre l'aberration chromatique dans Emulsion ?
-4. **Format de recette commun avec QLab** : un schéma unique dès maintenant, ou une conversion à l'import plus tard ?
-5. **Le rouge commun** : partir de celui de QLab (P3) ou de celui de Qlick Lab (`#e5222b`) ?
+4. **Format de recette commun avec QLab** : un schéma unique dès maintenant, avant que les deux divergent (ma
+   recommandation), ou une conversion à l'import plus tard ?
+5. **Le rouge commun** : partir de celui de QLab (P3, écrit aussi en sRGB pour macOS ; ma recommandation) ou de
+   celui de Qlick Lab (`#e5222b`) ?
 6. **L'ordre des lots** : A, B, C, D, E d'abord (ma recommandation), puis F, G, H, I.
