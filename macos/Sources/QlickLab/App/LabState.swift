@@ -343,6 +343,9 @@ struct SheetOptions: Codable, Equatable, Sendable {
             if model.source != nil, model.mode != .grid { model.showGrid() }
         case .develop, .print:
             if model.mode == .grid { model.editCurrent() }
+            // Qlick Lab: Print with nothing open opens the frame in hand on the contact sheet (or the first), so it
+            // always shows a photograph to print.
+            else if next == .print, model.source == nil, let frame = model.selection.current ?? model.shownPhotos.first?.url { model.open(frame) }
         default: break
         }
         seenMode = model.mode

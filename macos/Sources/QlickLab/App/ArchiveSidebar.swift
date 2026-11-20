@@ -11,10 +11,21 @@ struct ArchivesSection: View {
 
     private var lab: LabState { model.lab }
 
+    /// The Archives' list shown under their entry.
+    @AppStorage("qlick.sidebar.archivesOpen") private var listOpen = true
+
     var body: some View {
-        SidebarHeading(title: "Archives", help: "New Archive") { lab.newArchive() }
-            // A folder dropped here (from an Archive or the Finder) becomes an Archive of its own.
-            .sidebarDrop(lab, .archives, depth: 0)
+        // Qlick Lab: a large entry over the list; a click folds or unfolds it, + makes a new Archive.
+        SidebarBigRow(symbol: LabGlyph.archive.symbol, title: "Archives", action: { withAnimation(Theme.quick) { listOpen.toggle() } }) {
+            SidebarAddButton(help: "New Archive") { lab.newArchive() }
+        }
+        // A folder dropped here (from an Archive or the Finder) becomes an Archive of its own.
+        .sidebarDrop(lab, .archives, depth: 0)
+        .help(listOpen ? "Fold the Archives" : "Show the Archives")
+        if listOpen { list }
+    }
+
+    @ViewBuilder private var list: some View {
         let archives = lab.projects.projects
         if archives.isEmpty {
             SidebarHint("Drop a folder of photographs here to make an Archive.")
@@ -130,11 +141,26 @@ struct BoxesSection: View {
     private var lab: LabState { model.lab }
 
     var body: some View {
-        SidebarMenuHeading(title: "Boxes", help: "New Box or Smart Roll") {
-            Button("New Box…") { lab.newBox() }
-            Button("New Smart Roll…") { lab.newSmartRoll() }
+        SidebarBigRow(symbol: LabGlyph.box.symbol, title: "Boxes", action: { withAnimation(Theme.quick) { listOpen.toggle() } }) {
+            Menu {
+                Button("New Box…") { lab.newBox() }
+                Button("New Smart Roll…") { lab.newSmartRoll() }
+            } label: {
+                Image(systemName: "plus").font(.system(size: 12, weight: .semibold)).foregroundStyle(Theme.dim)
+            }
+            .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
+            .frame(width: 26, height: 26)
+            .help("New Box or Smart Roll")
         }
         .sidebarDrop(lab, .boxes, depth: 0)
+        .help(listOpen ? "Fold the Boxes" : "Show the Boxes")
+        if listOpen { list }
+    }
+
+    /// The Boxes' list shown under their entry.
+    @AppStorage("qlick.sidebar.boxesOpen") private var listOpen = true
+
+    @ViewBuilder private var list: some View {
         if lab.projects.boxes.isEmpty {
             SidebarHint("Gather photographs from any Archive: make a Box with +, then drag photographs onto it.")
         }
@@ -236,6 +262,18 @@ struct SidebarHeading: View {
         }
         .padding(.leading, 10).padding(.trailing, 2)
         .padding(.top, 10).padding(.bottom, 4)
+    }
+}
+
+/// The + beside a large entry of the sidebar.
+struct SidebarAddButton: View {
+    let help: String
+    let action: () -> Void
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "plus").font(.system(size: 12, weight: .semibold)).foregroundStyle(Theme.dim).frame(width: 26, height: 26).contentShape(Rectangle())
+        }
+        .buttonStyle(.plain).help(help)
     }
 }
 

@@ -47,7 +47,7 @@ struct WorkspaceOverlay: View {
     private let sidebarItem: NSSplitViewItem
     private let overlay: NSHostingView<WorkspaceOverlay>
     private var collapsing: NSKeyValueObservation?
-    static let sidebarWidth: CGFloat = 216
+    static let sidebarWidth: CGFloat = 248
 
     /// `editorContent` is the editor's columns, under its title band: the rooms cover them and leave the band.
     init(model: EditorModel, editor: NSViewController, editorContent: NSView) {
@@ -56,7 +56,7 @@ struct WorkspaceOverlay: View {
         let sidebar = NSHostingController(rootView: LabSidebar(model: model))
         sidebar.sizingOptions = []
         sidebarItem = NSSplitViewItem(sidebarWithViewController: sidebar)
-        sidebarItem.minimumThickness = 190
+        sidebarItem.minimumThickness = 220
         sidebarItem.maximumThickness = 300
         sidebarItem.canCollapse = true
         sidebarItem.isCollapsed = !model.lab.sidebarVisible
