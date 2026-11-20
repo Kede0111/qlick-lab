@@ -663,7 +663,8 @@ private struct PresetRow: View {
                 .frame(height: 36)
                 .contentShape(Rectangle())
             }
-            .menuStyle(.borderlessButton).menuIndicator(.hidden)
+            // As a plain button, so the whole row (the name and its chevron) is its label.
+            .menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden)
             .disabled(model.source == nil || !model.canChangePresets)
             .help("Apply a recipe to this photograph: its film, paper and settings")
             Button { model.newPreset() } label: {

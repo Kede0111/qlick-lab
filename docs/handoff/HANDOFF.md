@@ -525,6 +525,33 @@ Lots, in order:
     (`GamutTests`; `QLICK_GAMUT_SHEET=<png>` renders the diagram). Checked off screen on the M11 photograph in sRGB:
     0.05 % out, marked.
 
+### Quentin's UX pass on Dev (2026-11-21, worktree `.worktrees/lab-structure`; the main folder is on feature/speed-redlamp)
+
+- 1 Develop's film strip: it was there, but its leader (the arrow that shows and hides it) sat half under the floating
+  panel; the panel now stops above it (`FloatingInspector`). Off-screen runs share the unbundled "QlickLab" defaults
+  domain despite their own home: a test's `strip off` stays (put back to true).
+- 2 `LabSheetToggle` (Develop | Contact Sheet, G) at the head of Develop's bar, and on the sheet's bar in the Lab.
+- 3 Compare was empty when opened from its sidebar row or the menu (only the sheet's Compare passed the selection):
+  `show(.compare)` now takes the photographs selected (`comparedSelection`). Test `testCompareFromAnywhereTakesTheSelection`.
+- 4/11 Sidebar by part: the part's heading (LIBRARY / LAB / PRINT), its entries (the Library starts with All
+  Photographs, then Last Import, Picks, By Date, Import, Contact Sheet), hairlines; Archives only in the Library, Boxes
+  in every part. One row size (26 pt, rounded highlight) for rooms and places.
+- 5/9 Search: "Search" alone; the funnel beside it opens `LibraryFilters` (period, film, camera, lens, keyword,
+  developed, Clear, Save as Smart Roll…), a red dot while one is on.
+- 6 Colour labels out of the interface (`ColorLabel.inInterface = false`): no menus, keys (6–9), stickers, sort, card
+  row, Settings section, Smart Roll field; stored labels kept and still searchable (`label:`).
+- 7 The film card's recipe row is a chooser again (favourites first, hidden ones aside, Save…, Show the Recipes).
+- 8 Print: the print formats are gone (the save panel holds format, quality, size). Reading taken: "the export panel"
+  = Print's panel, which keeps the one door for the output space, Proof and out-of-gamut; the save panel shows the
+  space, disabled. To confirm with Quentin.
+- 10 The empty sheet: the hairline cartridge (`LabGlyph.canister`, 112 pt), "Select a box to view its photographs".
+- 12 Selector: 32 pt, Liquid Glass (`NSGlassEffectView`, a material before macOS 26), pictogram + word per part.
+- 13 Drops: a folder (sidebar or Finder) on the Archives' heading → a new Archive of it, in place; photographs, a
+  folder or a Roll on the Boxes' heading or the space under them → a new Box named after it (`SidebarTarget.archives`
+  / `.boxes`, `DropAction.newArchive/newBox/newBoxForRoll`). Catalogue only. Test in `BoxMovesTests`.
+- Not done: merging feature/speed-redlamp into this branch (the coordinator asked; the permission check stopped the
+  merge, it needs Quentin's own go).
+
 ## Current state
 
 - Phase: **0.4 is done** (R1–R8; R8 from Quentin's first try of Dev). `feature/import-library` holds architecture waves 1–3, 0.1.5, 0.2, 0.3 and 0.4
