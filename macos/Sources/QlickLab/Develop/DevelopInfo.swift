@@ -388,7 +388,8 @@ struct PhotoInfoPanel: View {
     var body: some View {
         let lab = model.lab
         let file = model.sourceItem?.photoFile
-        let shown = lab.infoVisible && !grid && !model.imageOnly && !model.cropping && file != nil
+        // Develop's own: Print shows the print's panel only.
+        let shown = lab.infoVisible && !grid && !model.imageOnly && !model.cropping && file != nil && lab.workspace != .print
         ZStack(alignment: .topLeading) {
             if shown {
                 VStack(alignment: .leading, spacing: 0) {

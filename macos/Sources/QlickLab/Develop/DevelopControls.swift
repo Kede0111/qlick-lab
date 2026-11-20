@@ -594,7 +594,7 @@ struct TabPills: View {
 
     var body: some View {
         HStack(spacing: 2) {
-            ForEach(InspectorTab.allCases, id: \.self) { item in
+            ForEach(InspectorTab.inDevelop, id: \.self) { item in
                 let on = tab == item
                 Button { tab = item } label: {
                     HStack(spacing: 4) {

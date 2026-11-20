@@ -30,6 +30,8 @@ enum InspectorSection: String, CaseIterable {
 /// Prepare the photograph, develop the film, then finish the scan.
 enum InspectorTab: String, CaseIterable {
     case prep = "Prep", lab = "Lab", effects = "Effects", output = "Output"
+    /// Qlick Lab: the tabs Develop shows. Output's settings (size, border, the file) are Print's (`PrintPanel`).
+    static let inDevelop: [InspectorTab] = [.prep, .lab, .effects]
     /// Qlick Lab: as the tabs read. Develop is the light and the colour before the film; Emulsion is the film,
     /// its print and its scan; Effects what is added on top (as QLab's); Output is the file.
     var title: String {
@@ -750,7 +752,7 @@ struct InspectorTabs: View {
 
     var body: some View {
         // Qlick Lab: the tabs as one pill, the chosen one lit, as in QLab.
-        TabPills(counts: Dictionary(uniqueKeysWithValues: InspectorTab.allCases.map { ($0, InspectorEdits.count($0, model)) }), tab: $tab)
+        TabPills(counts: Dictionary(uniqueKeysWithValues: InspectorTab.inDevelop.map { ($0, InspectorEdits.count($0, model)) }), tab: $tab)
     }
 }
 
@@ -767,7 +769,7 @@ struct TabRow: View {
         // Top-aligned: every title starts at its word's top and nothing in
         // a word reaches above it, so the titles share one baseline.
         HStack(alignment: .top, spacing: TabWord.gap) {
-            ForEach(InspectorTab.allCases, id: \.self) { item in
+            ForEach(InspectorTab.inDevelop, id: \.self) { item in
                 TabWord(title: item.title, chosen: tab == item, count: counts[item] ?? 0, edits: edits.map { make in { dismiss in make(item, dismiss) } }) { tab = item }
             }
             Spacer(minLength: 0)
@@ -888,6 +890,8 @@ struct AdjustmentInspector: View {
                 .padding(.top, 14)
                 .padding(.bottom, 10)
             InspectorTabs(model: model, tab: $tab)
+                // Output's settings are in Print now.
+                .onAppear { if tab == .output { tab = .prep } }
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     StockPicker(model: model).padding(.top, 10)
@@ -895,13 +899,12 @@ struct AdjustmentInspector: View {
                     case .prep: prep
                     case .lab: lab
                     case .effects: EffectsTab(model: model)
-                    case .output: output
+                    case .output: prep
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
             .scrollIndicators(.automatic)
-            if tab == .output { ExportFoot(model: model) }
         }
         .disabled(!model.hasCatalog)
     }
@@ -1171,68 +1174,7 @@ struct AdjustmentInspector: View {
         }
     }
 
-    // MARK: Output
-
-    /// The size and frame of the finished photograph. Tone and colour edits
-    /// live in Prep, before the film, where nothing has clipped yet.
-    @ViewBuilder private var output: some View {
-        ImageSizeSection(model: model)
-        InkSection(title: "Border", edited: model.border.enabled) {
-            TickRow(title: "Add border", isOn: model.border(\.enabled), changed: model.border.enabled,
-                    help: "Frames the photograph in a mat or a film frame. The preview always shows it; Include in export decides whether files get it.")
-            Group {
-                let photo = model.photoSize == .zero ? nil : model.photoSize
-                BorderStylePicker(selection: model.border(\.style), photo: photo, colors: (model.border.color, model.border.lineColor))
-                    .padding(.horizontal, Theme.Size.gutter).padding(.vertical, 6)
-                if let photo, !BorderStyle.film35.fits(photo) {
-                    HintText("35mm needs a 3:2 or 3:4 photograph. This one is \(Self.ratio(photo)); crop it to 3:2 or 4:3 to use it.")
-                }
-                borderControls
-                TickRow(title: "Extend to 3:4 portrait", isOn: model.border(\.instagram), changed: model.border.instagram != BorderSettings().instagram,
-                        help: "Adds white above and below, or at the sides, so the whole photograph fits a 3:4 portrait frame.")
-                TickRow(title: "Include in export", isOn: model.border(\.export), changed: model.border.export != BorderSettings().export,
-                        help: "Adds the border to exported photographs and saved previews.")
-            }
-            .inkDisabled(!model.border.enabled)
-        }
-    }
-
-    /// The chosen style's width and colours. Solid and Keyline share the
-    /// mat; the film frame's width adds black around it.
-    @ViewBuilder private var borderControls: some View {
-        switch model.border.style {
-        case .solid, .keyline:
-            let keyline = model.border.style == .keyline
-            borderSlider("Width", \.width, 0...15, step: 0.1, help: "The mat’s width, in percent of the photograph’s long edge.")
-            if keyline { borderSlider("Line width", \.line, 0.05...2, step: 0.05, help: "The line’s width, in percent of the photograph’s long edge.") }
-            ColourWellRow(title: "Color", color: model.borderColor(\.color), help: "The mat’s colour.")
-            if keyline { ColourWellRow(title: "Line color", color: model.borderColor(\.lineColor), help: "The line’s colour.") }
-        case .film:
-            borderSlider("Width", \.filmWidth, 0...15, step: 0.1, help: "Adds black around the film frame, in percent of the photograph’s long edge.")
-        case .film35:
-            EmptyView()
-        }
-    }
-
-    /// A border width in percent of the photograph's long edge.
-    private func borderSlider(_ title: String, _ setting: WritableKeyPath<BorderSettings, Double>, _ range: ClosedRange<Double>, step: Double,
-                              help: String) -> some View {
-        let initial = BorderSettings()[keyPath: setting]
-        return LabeledSlider(title: title, value: model.borderPercent(setting, range: range, step: step), range: range, step: step, unit: "%",
-                             defaultValue: initial * 100, modified: abs(model.border[keyPath: setting] - initial) > 1e-9,
-                             reset: { model.border(setting).wrappedValue = initial },
-                             editing: { $0 ? model.beginInteraction() : model.endInteraction(action: "Change Border") },
-                             help: help)
-    }
-
     private func control(_ adjustment: Adjustment) -> some View { AdjustmentControl(model: model, adjustment: adjustment) }
-    /// A photograph's aspect ratio as people name it, such as 16:9.
-    static func ratio(_ size: CGSize) -> String {
-        let ratio = max(size.width, size.height) / min(size.width, size.height)
-        let named = [(1.0, "1:1"), (5.0 / 4, "5:4"), (7.0 / 5, "7:5"), (16.0 / 9, "16:9"), (2.0, "2:1"), (21.0 / 9, "21:9")]
-        if let (_, name) = named.first(where: { abs(ratio / $0.0 - 1) <= 0.01 }) { return name }
-        return String(format: "%.2f:1", Double(ratio))
-    }
 }
 
 /// Export, pinned to the foot of the Output tab: what an export makes, over

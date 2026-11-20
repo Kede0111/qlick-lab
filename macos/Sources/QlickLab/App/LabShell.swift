@@ -2,7 +2,7 @@
 import AppKit
 import SwiftUI
 
-/// The rooms laid over the editor. Develop is the editor itself, so nothing is drawn for it.
+/// The rooms laid over the editor. Develop and Print are the editor itself, so nothing is drawn for them.
 struct WorkspaceOverlay: View {
     let model: EditorModel
 
@@ -18,7 +18,8 @@ struct WorkspaceOverlay: View {
             case .films: StockLibrary(model: model, papers: false)
             case .papers: StockLibrary(model: model, papers: true)
             case .importer: ImportWorkspace(model: model)
-            case .print: PrintWorkspace(model: model)
+            // Print is the photograph as it will be printed, with the print's panel beside it (`PrintPanel`).
+            case .print: EmptyView()
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -91,7 +92,7 @@ struct WorkspaceOverlay: View {
         let lab = model.lab
         if sidebarItem.isCollapsed == lab.sidebarVisible { sidebarItem.animator().isCollapsed = !lab.sidebarVisible }
         // The contact sheet's Grid is the editor's own sheet, under the room: nothing covers it.
-        let covered = lab.workspace != .develop && !(lab.workspace == .contactSheet && lab.sheet.style == .grid && model.source != nil)
+        let covered = lab.workspace != .develop && lab.workspace != .print && !(lab.workspace == .contactSheet && lab.sheet.style == .grid && model.source != nil)
         model.canvasScale.covered = covered
         if overlay.isHidden == covered {
             overlay.isHidden = !covered

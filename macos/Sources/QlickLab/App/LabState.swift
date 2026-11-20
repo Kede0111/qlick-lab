@@ -325,7 +325,7 @@ struct SheetOptions: Codable, Equatable, Sendable {
         switch next {
         case .contactSheet:
             if model.source != nil, model.mode != .grid { model.showGrid() }
-        case .develop:
+        case .develop, .print:
             if model.mode == .grid { model.editCurrent() }
         default: break
         }
@@ -366,6 +366,8 @@ struct SheetOptions: Codable, Equatable, Sendable {
         guard mode != seenMode else { return }
         seenMode = mode
         if mode == .grid, workspace == .develop { workspace = .contactSheet; lastRoom[part] = .contactSheet }
+        // From Print, the contact sheet is the Library's.
+        if mode == .grid, workspace == .print { workspace = .contactSheet; part = .library; lastRoom[.library] = .contactSheet }
         if mode == .photo, workspace == .contactSheet {
             workspace = .develop
             if part != .lab { part = .lab }

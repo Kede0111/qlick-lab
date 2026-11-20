@@ -267,7 +267,7 @@ struct EditorCanvas: View {
         let grid = model.mode == .grid
         VStack(spacing: 0) {
             // Qlick Lab: Develop's tools (View › Show Toolbar).
-            if model.lab.toolbarVisible, !grid, !model.imageOnly { DevelopToolbar(model: model) }
+            if model.lab.toolbarVisible, !grid, !model.imageOnly, model.lab.workspace != .print { DevelopToolbar(model: model) }
             // The grid's sheet covers it (`GridSheet`), so coming back to
             // the same photograph is instant and keeps its zoom.
             CanvasArea(model: model, dropping: dropTargeted)
@@ -341,6 +341,8 @@ struct InspectorPanel: View {
             if floating { Color.black.opacity(0.28) } else { Theme.panel }
             if !built { Color.clear }
             else if let session = model.cropSession { CropInspector(model: model, session: session) }
+            // Qlick Lab: in Print, the print's own panel.
+            else if model.lab.workspace == .print { PrintPanel(model: model) }
             else {
                 VStack(spacing: 0) {
                     // Qlick Lab: no Adjustments · Presets header: the presets open from the film card, and come
@@ -563,7 +565,7 @@ struct FloatingInspector: View {
     static let width: CGFloat = 352, margin: CGFloat = 10
 
     var body: some View {
-        let shown = model.lab.floatingPanel && model.inspectorShown && !grid
+        let shown = model.lab.floatingPanel && (model.inspectorShown || (model.lab.workspace == .print && !model.imageOnly)) && !grid
         ZStack {
             if shown {
                 InspectorPanel(model: model, floating: true)

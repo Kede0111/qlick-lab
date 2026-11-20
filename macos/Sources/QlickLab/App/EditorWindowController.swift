@@ -533,7 +533,8 @@ final class EdgeSplitView: NSSplitView {
         // The grid's sheet covers the inspector, which stays as it was under
         // it; Image Only hides it.
         // Qlick Lab: a floating panel leaves the column collapsed (`FloatingInspector`).
-        let inspectorShown = model.inspectorShown && !lab.floatingPanel
+        // Qlick Lab: Print always shows its panel.
+        let inspectorShown = (model.inspectorShown || (lab.workspace == .print && !model.imageOnly)) && !lab.floatingPanel
         if inspector.isCollapsed == inspectorShown {
             // Make room before the inspector slides in, so neither column is
             // squeezed below its minimum.

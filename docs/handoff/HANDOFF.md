@@ -455,7 +455,18 @@ Lots, in order:
   `importrecipes <path>`, `deleterecipe <name>`. Tests: 575 (`RecipeBundleTests`). Checked in the app off screen:
   three recipes out, deleted, back in with their ids and star.
   Not done: double-clicking a .qlickrecipes in the Finder (needs a document type in Info.plist).
-- [ ] F The Print room.
+- [x] F Print (`Print/PrintPanel.swift`): Print is the editor's own canvas (the photograph as it will be printed, its
+  border drawn), not a room laid over it: `LabShellController.update` leaves it uncovered, `show(.print)` opens the
+  photograph like Develop, Develop's toolbar and its information panel stay out, and the inspector (column or floating)
+  shows `PrintPanel` whether or not Develop's adjustments are shown. The panel: Print format (`PrintFormat`: name, file
+  format, quality, colour space, bit depth, size; "Web", "Full Size JPEG", "Archive TIFF" to start, `qlick.printFormats`;
+  a click applies it to what the export offers first (`OutputFormat.last`, `SaveSettings`, `ExportSize.last`), the one
+  matching is marked red, "Keep as a Format…" names the current settings, the menu removes one); Image Size and Border
+  (with "Extend to 3:4 portrait" and "Include in export"), moved out of Develop; Print Contact Sheet… and Export LUT…;
+  the exports under way (`BatchProgressView`); the export button at the foot (`ExportFoot`). Develop's tabs are
+  Develop · Emulsion · Effects (`InspectorTab.inDevelop`; a stored Output tab opens Develop). The provisional
+  PrintWorkspace is gone. Esc/G from Print go to the Library's contact sheet. Tests: 577 (`PrintFormatTests`).
+  Left for G (one door per function): Develop's toolbar still has its Export button and File › Export ⇧⌘E stays.
 - [ ] G Simplifications: Effects folded into Emulsion; one door per function; keywords and caption in the info
   card; Smart Rolls on one level; a sort bar at the foot of the sheet (All, Picks, Rejects, Unmarked, stars, Sort;
   audit 4.4).
@@ -466,7 +477,7 @@ Lots, in order:
 - Phase: **0.4 is done** (R1–R8; R8 from Quentin's first try of Dev). `feature/import-library` holds architecture waves 1–3, 0.1.5, 0.2, 0.3 and 0.4
   (local, nothing pushed, `main` untouched). Swift tests: 555 (24 skipped), all pass (561 after R8); the Rust side wasn't changed.
   Qlick Lab Dev is built from it (`dist/qlick-lab-dev/Qlick Lab Dev.app`).
-- Phase: **lab structure** on `feature/lab-structure` (from `feature/import-library`, local). Lots A to E done; next is lot F.
+- Phase: **lab structure** on `feature/lab-structure` (from `feature/import-library`, local). Lots A to F done; next is lot G.
 
 ## Build and test
 
