@@ -48,6 +48,9 @@ struct LabBox: Codable, Identifiable, Hashable, Sendable {
     var boxes: [LabBox] = []
     var rolls: [BoxRoll] = []
     var createdAt = Date()
+    /// Qlick Lab: the order its photographs were put in by hand (Custom Order), everything it shows included; nil until
+    /// they are. Those not in it follow, as they come.
+    var order: [String]? = nil
 
     /// What the Box shows: its own photographs, then those of the Boxes inside it, then its Rolls', each once.
     var allFrames: [String] {
@@ -226,6 +229,7 @@ struct RollStats: Equatable, Sendable {
         counting.values.forEach { $0.cancel() }
         boxes = []
         removed = []
+        stacks = []
         counting = [:]
         stats = [:]
         self.directory = directory
@@ -238,13 +242,14 @@ struct RollStats: Equatable, Sendable {
         decoder.dateDecodingStrategy = .iso8601
         // The folders of links whole projects were shown through before 0.3: lists need none now. Only the links go.
         try? FileManager.default.removeItem(at: directory.appendingPathComponent("Views", isDirectory: true))
-        projects = files.filter { $0.pathExtension == "json" && ![SavedImportSettings.fileName, BoxesFile.fileName, RemovedFile.fileName, LastImportFile.fileName].contains($0.lastPathComponent) }
+        projects = files.filter { $0.pathExtension == "json" && ![SavedImportSettings.fileName, BoxesFile.fileName, RemovedFile.fileName, LastImportFile.fileName, StacksFile.fileName].contains($0.lastPathComponent) }
             .compactMap { try? decoder.decode(LabProject.self, from: Data(contentsOf: $0)) }
             // A newer schema is left alone, never written over.
             .filter { $0.schema <= LabProject.schema }
             .sorted { ($0.order ?? Int.max, $0.createdAt) < ($1.order ?? Int.max, $1.createdAt) }
         boxes = BoxesFile.read(inCatalog: directory) ?? []
         removed = RemovedFile.read(inCatalog: directory) ?? []
+        stacks = StacksFile.read(inCatalog: directory) ?? []
         convert()
         followFolders()
     }
@@ -372,6 +377,22 @@ struct RollStats: Equatable, Sendable {
             removedChanged?(removed.symmetricDifference(oldValue))
         }
     }
+    /// Qlick Lab: the catalogue's stacks (`PhotoStack`, `stacks.json`), and where each photograph is in them.
+    private(set) var stacks: [PhotoStack] = [] {
+        didSet {
+            var index: [String: Int] = [:]
+            for (at, stack) in stacks.enumerated() { for path in stack.frames { index[ManualOrder.canonical(path)] = at } }
+            stackIndex = index
+        }
+    }
+    @ObservationIgnored private(set) var stackIndex: [String: Int] = [:]
+
+    /// The stacks in place of these, written at once (a command, its undo).
+    func replaceStacks(_ new: [PhotoStack]) {
+        guard new != stacks, StacksFile.write(new, inCatalog: directory) else { return }
+        stacks = new
+    }
+
     /// Told when `removed` changes, with the photographs that came or went, so what's listed follows (`LabState`).
     @ObservationIgnored var removedChanged: ((Set<String>) -> Void)?
 
@@ -416,9 +437,9 @@ struct RollStats: Equatable, Sendable {
         case .box(let id):
             guard let box = box(id) else { return [] }
             let smart = box.all.flatMap(\.rolls).compactMap(\.rules)
-            guard !smart.isEmpty, let smartFrames else { return box.allFrames }
+            guard !smart.isEmpty, let smartFrames else { return ManualOrder.ordered(box.allFrames, by: box.order) }
             var seen: Set<String> = []
-            return (box.allFrames + smart.flatMap { smartFrames($0) }).filter { seen.insert($0).inserted }
+            return ManualOrder.ordered((box.allFrames + smart.flatMap { smartFrames($0) }).filter { seen.insert($0).inserted }, by: box.order)
         case .roll(let id, let boxID):
             guard let roll = boxRoll(id, in: boxID)?.roll else { return [] }
             if let rules = roll.rules { return smartFrames?(rules) ?? [] }
@@ -532,6 +553,21 @@ struct RollStats: Equatable, Sendable {
         }
     }
 
+    /// The photographs of a Box or a Roll in this order, by hand (Custom Order): a Roll's own list, a Box's `order`.
+    func setOrder(_ order: [String], of holder: Holder) {
+        switch holder {
+        case .box(let id):
+            changeBox(id) { $0.order = order }
+        case .roll(let id, let boxID):
+            changeBox(boxID) { box in
+                guard let index = box.rolls.firstIndex(where: { $0.id == id }), !box.rolls[index].isSmart else { return }
+                let known = Set(box.rolls[index].frames)
+                let kept = order.filter(known.contains)
+                box.rolls[index].frames = kept + box.rolls[index].frames.filter { !Set(kept).contains($0) }
+            }
+        }
+    }
+
     /// Takes photographs out of a Box (from it and everything inside it, as it shows them all) or a Roll. The
     /// photographs aren't touched.
     func removeFrames(_ frames: [URL], from holder: Holder) {
@@ -585,14 +621,16 @@ struct RollStats: Equatable, Sendable {
         var boxes: [LabBox]
         var projects: [LabProject]
         var removed: Set<String> = []
+        var stacks: [PhotoStack] = []
     }
 
-    var snapshot: Snapshot { Snapshot(boxes: boxes, projects: projects, removed: removed) }
+    var snapshot: Snapshot { Snapshot(boxes: boxes, projects: projects, removed: removed, stacks: stacks) }
 
     /// Puts the Boxes and the Archives back as they were. An Archive made or removed since is left as it is.
     func restore(_ snapshot: Snapshot) {
         replaceBoxes(snapshot.boxes)
         replaceRemoved(snapshot.removed)
+        replaceStacks(snapshot.stacks)
         var restored: [LabProject] = []
         for old in snapshot.projects {
             guard let now = projects.first(where: { $0.id == old.id }) else { continue }

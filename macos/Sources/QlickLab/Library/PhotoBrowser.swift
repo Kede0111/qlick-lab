@@ -596,7 +596,7 @@ private struct StripFrame: View {
         Button(action: open) {
             VStack(spacing: 0) {
                 StripPicture(image: image, width: width, current: current, selected: selected, rejected: summary.flag == .reject)
-                    .overlay { PhotoMarks(summary: summary, name: file.name) }
+                    .overlay { PhotoMarks(summary: summary, name: file.name, stack: lab.projects.stackBadge(file.url)) }
                     .modifier(PlaceReport(image: image, placed: placed))
                 ZStack(alignment: .top) {
                     if current {

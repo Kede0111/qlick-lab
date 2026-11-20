@@ -127,6 +127,14 @@ extension LabState {
         if let open = openHolder, let name = projects.shortName(open) {
             items.append(ClosureMenuItem("Remove from “\(name)”" + several) { [weak self] in self?.removeFromOpenHolder(frames) })
         }
+        // Qlick Lab: the stacks, on the photographs selected.
+        items.append(.separator())
+        if frames.count > 1 { items.append(ClosureMenuItem("Stack" + several) { [weak self] in self?.stackSelection() }) }
+        if let stack = selectionStack {
+            items.append(ClosureMenuItem(stack.open ? "Close Stack" : "Open Stack") { [weak self] in self?.toggleStackOpen() })
+            items.append(ClosureMenuItem("Unstack") { [weak self] in self?.unstackSelection() })
+        }
+        if items.last?.isSeparatorItem == true { items.removeLast() }
         return items
     }
 
@@ -167,6 +175,14 @@ struct BoxMenuItems: View {
         Button("New Box from Selection…") { lab.newBox(with: frames) }
         if let open, let name = lab.projects.shortName(open) {
             Button("Remove from “\(name)”" + several) { lab.removeFromOpenHolder(frames) }
+        }
+        // Qlick Lab: the stacks, on the photographs selected.
+        let stack = lab.selectionStack
+        if frames.count > 1 || stack != nil { Divider() }
+        if frames.count > 1 { Button("Stack" + several) { lab.stackSelection() } }
+        if let stack {
+            Button(stack.open ? "Close Stack" : "Open Stack") { lab.toggleStackOpen() }
+            Button("Unstack") { lab.unstackSelection() }
         }
     }
 }

@@ -199,6 +199,11 @@ extension ImportSession {
         return holder
     }
 
+    /// The bursts among the photographs imported, each made a stack under its first frame (`Stacking.bursts`).
+    private func stackImported(_ photos: [(photo: URL, captured: CaptureTime?, camera: String?)]) {
+        model.lab.projects.stackBursts(photos.map { ($0.photo.standardizedFileURL.path, $0.captured?.seconds, $0.camera) })
+    }
+
     /// Puts the imported photographs in the Box or Roll chosen, if any, after those it holds.
     private func fileInHolder(_ photos: [URL], options: ImportOptions) {
         guard !photos.isEmpty, let holder = options.holder, model.lab.projects.exists(holder), !model.lab.projects.isSmart(holder) else { return }
@@ -394,6 +399,9 @@ extension ImportSession {
         // Qlick Lab: their proxies straight away, so their thumbnails develop in milliseconds.
         let arrived = journal.items.filter(\.done)
         fileInHolder(arrived.compactMap(\.photo), options: journal.options)
+        if journal.options.stackBursts == true {
+            stackImported(arrived.compactMap { item in item.photo.map { ($0, item.captured, frame(item.id)?.camera) } })
+        }
         model.lab.noteImported(arrived.compactMap(\.photo))
         model.lab.proxyMaker.make(arrived.compactMap(\.photo), first: true)
         // Then each one's own white balance, from its proxy as it's made.
@@ -478,6 +486,7 @@ extension ImportSession {
             // Qlick Lab: their proxies straight away, so their thumbnails develop in milliseconds.
             let added = run.order.filter { run.state(of: $0) == .verified }
             fileInHolder(added, options: options)
+            if options.stackBursts == true { stackImported(added.compactMap { id in self.frame(id).map { (id, $0.captured, $0.camera) } }) }
             model.lab.noteImported(added)
             model.lab.proxyMaker.make(added, first: true)
             if options.balanceEach { model.labBalanceImported(added.filter { marks[$0]?.recipe != nil }) }

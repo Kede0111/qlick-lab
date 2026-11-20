@@ -85,6 +85,36 @@ import SwiftUI
         wantsLayer = true
         layerContentsRedrawPolicy = .onSetNeedsDisplay
         setAccessibilityLabel("Contact sheet")
+        // Photographs of the Box or Roll open, dragged on its own sheet, are put in order there (`ManualOrder`).
+        registerForDraggedTypes([NSPasteboard.PasteboardType(LabDragItem.type.identifier)])
+    }
+
+    /// Where photographs dragged over the sheet would be put in order, while they are.
+    private var dropSlot: Int? {
+        didSet {
+            guard dropSlot != oldValue else { return }
+            for slot in [oldValue, dropSlot].compactMap({ $0 }) { if let bar = dropBar(slot) { setNeedsDisplay(bar.insetBy(dx: -4, dy: -4)) } }
+        }
+    }
+
+    private var pictures: [CGRect] { (0..<min(files.count, layout.count)).map(layout.picture) }
+
+    private func dropBar(_ slot: Int) -> CGRect? { ManualOrder.bar(pictures, slot: slot, gap: layout.pitch - layout.frame.width) }
+
+    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation { draggingUpdated(sender) }
+
+    override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
+        guard lab.canReorder(lab.dragging) else { dropSlot = nil; return [] }
+        dropSlot = ManualOrder.slot(pictures, at: convert(sender.draggingLocation, from: nil))
+        return .move
+    }
+
+    override func draggingExited(_ sender: NSDraggingInfo?) { dropSlot = nil }
+
+    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        defer { dropSlot = nil }
+        guard let slot = dropSlot, case .photos(let photos, _)? = lab.dragging, lab.canReorder(lab.dragging) else { return false }
+        return lab.reorderOpen(photos, slot: slot, shown: files.map(\.url))
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
@@ -327,6 +357,7 @@ import SwiftUI
                                         edited: summary.edited, selected: selection.selected.contains(url) && selection.selected.count > 1,
                                         current: selection.current == url)
         content.label = summary.label
+        content.stack = lab.projects.stackBadge(url)
         if options.style == .detail { content.caption = lab.facts.get(url)?.caption }
         if let start = markAnimations[url] {
             let t = min(max((CACurrentMediaTime() - start) / Self.markDuration, 0), 1)
@@ -356,6 +387,11 @@ import SwiftUI
         }
         for (index, content) in contents { renderer.drawSelection(context, index: index, content) }
         for (index, content) in contents { renderer.drawMark(context, index: index, content) }
+        if let dropSlot, let bar = dropBar(dropSlot) {
+            context.setFillColor(Theme.NS.accent.cgColor)
+            context.addPath(CGPath(roundedRect: bar, cornerWidth: 1.5, cornerHeight: 1.5, transform: nil))
+            context.fillPath()
+        }
         if let band {
             context.setFillColor(CGColor(gray: 1, alpha: 0.07))
             context.fill(band)

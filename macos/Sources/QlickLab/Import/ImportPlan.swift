@@ -198,6 +198,8 @@ struct ImportOptions: Codable, Equatable, Sendable {
     var film: String? = nil
     var camera: String? = nil
     var notes: String? = nil
+    /// Qlick Lab: each burst (frames under 2 s apart, same camera) is stacked once imported, under its first frame.
+    var stackBursts: Bool? = nil
 
     /// The Box or Roll chosen, if any.
     var holder: Holder? {

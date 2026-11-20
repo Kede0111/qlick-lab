@@ -148,7 +148,9 @@ extension EditorModel {
             }
             selection.prune(to: Set(shownPhotos.map(\.url)))
         }
-        guard advanceAfterRating, advancing else { return }
+        let once = advanceOnce
+        advanceOnce = false
+        guard advanceAfterRating || once, advancing else { return }
         if mode == .photo { step(by: 1) } else if targets.count == 1 { move(by: 1, extending: false) }
     }
 

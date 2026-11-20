@@ -13,6 +13,8 @@ struct PhotoMarks: View {
     /// The file's name: it seeds the reject's cross and the stars, so
     /// each is drawn a little differently, and the same way every time.
     let name: String
+    /// Qlick Lab: the stack it stands for or tops (`ProjectStore.stackBadge`): how many, and whether it's open.
+    var stack: (count: Int, open: Bool)? = nil
 
     var body: some View {
         ZStack {
@@ -45,6 +47,9 @@ struct PhotoMarks: View {
                 Circle().fill(Theme.accent).frame(width: 7, height: 7).padding([.top, .trailing], 11)
             }
         }
+        .overlay(alignment: .bottomTrailing) {
+            if let stack { StackBadge(count: stack.count, open: stack.open).padding([.bottom, .trailing], 7) }
+        }
         .accessibilityHidden(true)
         .allowsHitTesting(false)
     }
@@ -72,5 +77,24 @@ struct PhotoMarks: View {
         if !summary.words.keywords.isEmpty { parts.append("Keywords: " + summary.words.keywords.joined(separator: ", ")) }
         if summary.edited { parts.append("Edited") }
         return parts.joined(separator: ", ")
+    }
+}
+
+/// A stack's badge on the photograph standing for it, in every view of the photographs: two cards and how many.
+/// Filled while the stack is closed, outlined once it's open.
+struct StackBadge: View {
+    let count: Int
+    let open: Bool
+
+    var body: some View {
+        HStack(spacing: 3) {
+            Image(systemName: "square.stack").font(.system(size: 8.5, weight: .semibold))
+            Text("\(count)").font(.system(size: 10, weight: .bold, design: .rounded)).monospacedDigit()
+        }
+        .foregroundStyle(open ? Theme.paper : Color.black)
+        .padding(.horizontal, 5).frame(height: 16)
+        .background(Capsule().fill(open ? Color.black.opacity(0.6) : Theme.paper))
+        .overlay(Capsule().strokeBorder(open ? Theme.paper.opacity(0.7) : Color.black.opacity(0.35), lineWidth: 1))
+        .help(open ? "A stack of \(count), open" : "A stack of \(count) photographs")
     }
 }

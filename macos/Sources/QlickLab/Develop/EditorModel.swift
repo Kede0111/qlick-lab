@@ -192,11 +192,12 @@ import UserNotifications
     /// judge its composition alone, as Cartier-Bresson read his contact
     /// sheets. Display only: nothing renders, saves or exports differently.
     var upsideDown = false
-    /// Photo › Advance After Rating: a rating or flag key moves on to the
-    /// next photograph, as in Lightroom. Off until chosen.
+    /// Photo › Auto Advance: a rating, flag or label key moves on to the next photograph. Off until chosen.
     var advanceAfterRating = UserDefaults.standard.bool(forKey: "advanceAfterRating") {
         didSet { UserDefaults.standard.set(advanceAfterRating, forKey: "advanceAfterRating") }
     }
+    /// Qlick Lab: the next mark moves on once, Auto Advance or not: ⇧ with a mark key.
+    @ObservationIgnored var advanceOnce = false
     /// The brief note over the canvas after a rating or flag key.
     var libraryNote: LibraryNote?
     /// The edit view or the grid. Every launch starts in the edit view.

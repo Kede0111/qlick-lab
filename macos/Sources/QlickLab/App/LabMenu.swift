@@ -190,7 +190,7 @@ extension LabState {
     /// A colour label key or menu item: on the selection (Compare: the frame in focus); nil takes it off. Import
     /// sorts with its own marks only.
     func menuLabel(_ label: ColorLabel?) {
-        if workspace == .importer { return NSSound.beep() }
+        if workspace == .importer { return importer.toggle(label: label) }
         var targets: [URL]?
         if workspace == .compare, compareModel.panes.indices.contains(compareModel.focused) { targets = [compareModel.panes[compareModel.focused].item] }
         if let label { model.toggleLabel(label, targets: targets) } else { model.setLabel(nil, targets: targets) }
@@ -204,6 +204,23 @@ extension LabState {
         var targets: [URL]?
         if workspace == .compare, compareModel.panes.indices.contains(compareModel.focused) { targets = [compareModel.panes[compareModel.focused].item] }
         model.toggleKeyword(words[slot], targets: targets)
+    }
+
+    /// ⇧ with a mark key: the mark (pick, reject, unmark, stars 0–5, a colour label), then the next photograph,
+    /// Auto Advance or not. False for a key that isn't a mark's.
+    @discardableResult func markAndAdvance(_ typed: String) -> Bool {
+        let act: (() -> Void)?
+        if typed == keys.key(.pick) { act = { self.menuMark(.pick) } }
+        else if typed == keys.key(.reject) { act = { self.menuMark(.reject) } }
+        else if typed == keys.key(.unmark) { act = { self.menuMark(nil) } }
+        else if let label = ColorLabel.allCases.first(where: { $0.action.map { self.keys.key($0) } == typed }) { act = { self.menuLabel(label) } }
+        else if let stars = Int(typed), (0...5).contains(stars) { act = { self.menuRate(stars) } }
+        else { act = nil }
+        guard let act else { return false }
+        model.advanceOnce = true
+        act()
+        model.advanceOnce = false
+        return true
     }
 
     func menuRate(_ stars: Int) {

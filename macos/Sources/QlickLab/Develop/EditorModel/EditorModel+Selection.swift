@@ -16,7 +16,7 @@ extension EditorModel {
     /// The photographs the strip and grid show: those the filter lets
     /// through, and the current one.
     /// Qlick Lab: in the lab's order (`LibrarySort`).
-    var shownPhotos: [PhotoFile] { lab.sorted(library.shown(current: selection.current)) }
+    var shownPhotos: [PhotoFile] { lab.stacked(lab.sorted(library.shown(current: selection.current))) }
 
     /// A click on a photograph in the strip or the grid. ⌘ adds or removes
     /// it and ⇧ selects a range, changing only the selection; a plain click

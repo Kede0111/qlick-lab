@@ -6,7 +6,7 @@ import SwiftUI
 /// rating, mark, whether they're developed or their shape; either way round. The folder's own order is by name.
 struct LibrarySort: Codable, Equatable, Sendable {
     enum Key: String, Codable, CaseIterable, Sendable {
-        case captureTime, fileName, fileType, fileSize, modified, rating, pick, label, edited, aspect, importDate, editDate
+        case captureTime, fileName, fileType, fileSize, modified, rating, pick, label, edited, aspect, importDate, editDate, custom
 
         var title: String {
             switch self {
@@ -22,8 +22,12 @@ struct LibrarySort: Codable, Equatable, Sendable {
             case .aspect: "Aspect Ratio"
             case .importDate: "Import Date"
             case .editDate: "Edit Date"
+            case .custom: "Custom Order"
             }
         }
+
+        /// The orders a list offers: Custom Order only in a Box or a Roll, where photographs are put in order by hand.
+        static func offered(manual: Bool) -> [Key] { manual ? allCases : allCases.filter { $0 != .custom } }
     }
 
     var key = Key.fileName
@@ -33,11 +37,13 @@ struct LibrarySort: Codable, Equatable, Sendable {
     var natural: Bool { key == .fileName && ascending }
 
     private static let defaultsKey = "qlick.librarySort"
-    static func load(_ defaults: UserDefaults = .standard) -> LibrarySort {
-        defaults.data(forKey: defaultsKey).flatMap { try? JSONDecoder().decode(LibrarySort.self, from: $0) } ?? LibrarySort()
+    /// Qlick Lab: the order of Boxes and Rolls, kept apart: Custom Order unless another is chosen there.
+    static let boxKey = "qlick.boxSort"
+    static func load(_ defaults: UserDefaults = .standard, key: String = defaultsKey, fallback: LibrarySort = LibrarySort()) -> LibrarySort {
+        defaults.data(forKey: key).flatMap { try? JSONDecoder().decode(LibrarySort.self, from: $0) } ?? fallback
     }
-    func save(_ defaults: UserDefaults = .standard) {
-        if let data = try? JSONEncoder().encode(self) { defaults.set(data, forKey: Self.defaultsKey) }
+    func save(_ defaults: UserDefaults = .standard, key: String = defaultsKey) {
+        if let data = try? JSONEncoder().encode(self) { defaults.set(data, forKey: key) }
     }
 }
 
@@ -45,7 +51,10 @@ extension LabState {
     /// `items` in the sort's order. Ties keep the folder's order, so the order never shuffles.
     func sorted(_ items: [PhotoFile]) -> [PhotoFile] {
         let sort = self.sort
-        guard !sort.natural, items.count > 1 else { return items }
+        // Custom Order is the Box's or Roll's own: the list is listed in it already.
+        if sort.key == .custom { return openView?.holder != nil && !sort.ascending ? items.reversed() : items }
+        // A folder is listed by name already; a Box or a Roll in its own order, so File Name sorts it.
+        guard !sort.natural || openView?.holder != nil, items.count > 1 else { return items }
         let library = model.library
         // Qlick Lab: the import and edit dates come from each photograph's record (the index), worked out once.
         var dates: [URL: Date] = [:]
@@ -77,6 +86,7 @@ extension LabState {
                 return order(ratios[a.url] ?? PhotoAspects.fallback, ratios[b.url] ?? PhotoAspects.fallback)
             case .importDate, .editDate:
                 return order(dates[a.url] ?? .distantPast, dates[b.url] ?? .distantPast)
+            case .custom: return .orderedSame
             }
         }
         if sort.key == .captureTime { readDates(items) }
@@ -263,7 +273,7 @@ struct SortPicker: View {
         let sort = lab.sort
         HStack(spacing: 2) {
             Menu {
-                ForEach(LibrarySort.Key.allCases, id: \.self) { key in
+                ForEach(LibrarySort.Key.offered(manual: lab.openView?.holder != nil), id: \.self) { key in
                     Button { lab.sort.key = key } label: {
                         Label(key.title, systemImage: key == sort.key ? "checkmark" : "")
                     }

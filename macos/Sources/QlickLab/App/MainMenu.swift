@@ -175,6 +175,12 @@ import SwiftUI
         command(photo, "New Box from Selection…", #selector(newBoxFromSelection), "")
         command(photo, "Remove from Box", #selector(removeFromBox), "")
         photo.addItem(.separator())
+        // Qlick Lab: stacks (a burst under its first frame).
+        command(photo, "Stack", #selector(stackPhotos), "g")
+        command(photo, "Unstack", #selector(unstackPhotos), "g", [.command, .shift])
+        command(photo, "Open Stack", #selector(toggleStack), "")
+        command(photo, "Stack Bursts", #selector(stackBursts), "")
+        photo.addItem(.separator())
         command(photo, "Duplicate", #selector(duplicate), "d")
         command(photo, "Reset Edits", #selector(resetEdits), "r", [.command, .shift])
         photo.addItem(.separator())
@@ -182,7 +188,8 @@ import SwiftUI
         command(photo, "Remove…", #selector(removePhotos), "\u{8}", [])
         command(photo, "Remove Rejected Photos…", #selector(removeRejected), "")
         photo.addItem(.separator())
-        command(photo, "Advance After Rating", #selector(toggleAdvance), "")
+        // Qlick Lab: Auto Advance; ⇧ with a mark key does the same once (`EditorWindowController.markAndAdvance`).
+        command(photo, "Auto Advance", #selector(toggleAdvance), "")
         photo.addItem(.separator())
         command(photo, "Clear Filter", #selector(clearFilter), "l", [.command, .option])
 
@@ -312,6 +319,10 @@ import SwiftUI
     @objc private func chooseBox() { model.lab.chooseBox(in: NSApp.keyWindow?.contentView) }
     @objc private func newBoxFromSelection() { model.lab.newBox(with: model.lab.selectionTargets) }
     @objc private func removeFromBox() { model.lab.removeFromOpenHolder(model.lab.selectionTargets) }
+    @objc private func stackPhotos() { model.lab.stackSelection() }
+    @objc private func unstackPhotos() { model.lab.unstackSelection() }
+    @objc private func toggleStack() { model.lab.toggleStackOpen() }
+    @objc private func stackBursts() { model.lab.stackBursts() }
     @objc private func pasteEdits() { model.pasteEdits() }
     @objc private func pasteFromPrevious() { model.pasteFromPrevious() }
     @objc private func duplicate() { model.duplicate() }
@@ -413,6 +424,18 @@ import SwiftUI
             let count = model.lab.selectionTargets.count
             item.title = open.map { "Remove " + (count > 1 ? "\(count) Photographs " : "") + "from “\($0)”" } ?? "Remove from Box"
             return open != nil && count > 0 && Self.takesRatingKeys(NSApp.keyWindow)
+        case #selector(stackPhotos):
+            let count = model.lab.selectionTargets.count
+            item.title = count > 1 ? "Stack \(count) Photographs" : "Stack"
+            return count > 1 && model.lab.workspace != .importer && Self.takesRatingKeys(NSApp.keyWindow)
+        case #selector(unstackPhotos):
+            return model.lab.selectionStack != nil && model.lab.workspace != .importer && Self.takesRatingKeys(NSApp.keyWindow)
+        case #selector(toggleStack):
+            let stack = model.lab.selectionStack
+            item.title = stack?.open == true ? "Close Stack" : "Open Stack"
+            return stack != nil && model.lab.workspace != .importer && Self.takesRatingKeys(NSApp.keyWindow)
+        case #selector(stackBursts):
+            return !model.library.items.isEmpty && model.lab.workspace != .importer && NSApp.keyWindow is EditorWindow
         case #selector(pasteFromPrevious):
             return model.previousEdits != nil && model.canChangeEdits && !model.editTargets.isEmpty && Self.takesRatingKeys(NSApp.keyWindow)
         case #selector(duplicate), #selector(resetEdits):

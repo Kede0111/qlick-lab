@@ -327,15 +327,36 @@ Steps (one local commit each, tests, `scripts/drive.sh` screenshots checked, Dev
   holder, twins, unreadable, example. Tests: 548 (`ImportOptionsTests`).
   Left: an unreadable file is still imported if left checked (on purpose: a damaged file from a card is better copied);
   the template field's cursor is kept from the last edit, a click elsewhere in it without typing isn't noted.
-- [ ] R7 Manual order polish, burst stacks, `[` `]`, auto advance.
+- [x] R7 Finishing (HASH7): **Custom Order** (`LibrarySort.Key.custom`, offered only while a Box or Roll is open,
+  `Key.offered(manual:)`): Boxes and Rolls have their own sort (`LabState.boxSort`, key `qlick.boxSort`, Custom Order by
+  default; `sort` reads/writes it while a Box/Roll is open, `listSort` elsewhere; File Name now really sorts a Box).
+  Dragging photographs of the open Box/Roll on its contact sheet (`ContactSheetView` is a dragging destination) or its
+  grid (`GridReorderDrop`) shows a red line where they'd go and puts them there (`ManualOrder.slot/bar/reordered`,
+  `LabState.reorderOpen`, one ⌘Z; another sort switches to Custom Order): a Roll's own list is reordered, a Box keeps
+  `LabBox.order` (everything it shows) in boxes.json. Paths are matched across `/private/tmp` vs `/tmp`
+  (`ManualOrder.canonical`). **Stacks** (`Library/PhotoStacks.swift`): `PhotoStack` in `stacks.json` (catalogue,
+  `StacksFile`; part of the undo snapshot), Photo › Stack ⌘G / Unstack ⇧⌘G / Open Stack–Close Stack / Stack Bursts
+  (capture time < 2 s, same camera: `Stacking.bursts`), the same in every frame menu (`boxItems`, `BoxMenuItems`);
+  Import's Safety has "Stack the bursts" (`ImportOptions.stackBursts`). `shownPhotos` collapses closed stacks
+  (`LabState.stacked`, `Stacking.collapsed`) so sheet, grid, strip and Develop show the top with a badge (`StackBadge`,
+  `ContactSheetRenderer.drawStack`: filled closed, outlined open). **`[` `]`** were already there (Photo › Rating ›
+  Raise/Lower, one undo step; checked). **Auto Advance**: "Advance After Rating" renamed Photo › Auto Advance; ⇧ + a
+  mark key (pick, reject, unmark, 0–5, label keys) marks then moves on once (`EditorWindowController.markAndAdvance` →
+  `LabState.markAndAdvance`, `EditorModel.advanceOnce`) on the sheet, grid, strip and Develop. Import takes colour labels
+  by key and menu now. Automation: `stack`, `unstack`, `stackopen`, `stackbursts`, `reorder <i,j> <slot>`,
+  `markadvance <key>`, `raise`, `lower`, `autoadvance on|off`; `state` has order, sort, stacks, advance.
+  Tests: 555 (`ManualOrderTests`).
+  Left / risky: real mouse drags can't be driven off screen, so the drop line was checked by code and the reorder by
+  automation; the film strip doesn't take reorder drops (sheet and grid do); rating a closed stack marks its top only;
+  a stack's photographs removed or moved outside the lab stay listed in stacks.json (harmless).
 
 ## Current state
 
-- Phase: `feature/import-library` holds architecture waves 1–3, 0.1.5, 0.2, 0.3 and 0.4's R1–R5 (local, nothing pushed,
-  `main` untouched). Swift tests: 540 (24 skipped), all pass; the Rust side wasn't changed. Qlick Lab Dev is built
-  from it (`dist/qlick-lab-dev/Qlick Lab Dev.app`).
-- Next: the library redesign 0.4 above, R6 → R7, on `feature/import-library`. Merge into `main` and push only when
-  he says so.
+- Phase: **0.4 is done** (R1–R7). `feature/import-library` holds architecture waves 1–3, 0.1.5, 0.2, 0.3 and 0.4
+  (local, nothing pushed, `main` untouched). Swift tests: 555 (24 skipped), all pass; the Rust side wasn't changed.
+  Qlick Lab Dev is built from it (`dist/qlick-lab-dev/Qlick Lab Dev.app`).
+- Next: **waiting for Quentin to try Qlick Lab Dev** and say what to change. Merge into `main` and push only when he
+  says so.
 
 ## Build and test
 

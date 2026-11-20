@@ -228,6 +228,8 @@ private struct SheetGrid: View {
     /// The rubber band, in the grid's coordinates, and the selection it adds to.
     @State private var band: CGRect?
     @State private var bandBase: Set<URL> = []
+    /// Where photographs dragged over the grid of a Box or a Roll would be put in order (`ManualOrder`).
+    @State private var dropSlot: Int?
     @State private var scroller = SheetScroller()
     @FocusState private var focused: Bool
     @Environment(\.displayScale) private var displayScale
@@ -314,6 +316,12 @@ private struct SheetGrid: View {
                 ForEach(cells, id: \.file.url) { cell in
                     box(cell.file, frame: layout.frames[cell.index], selection: true)
                 }
+                if let dropSlot, let bar = ManualOrder.bar(layout.frames, slot: dropSlot, gap: SheetLayout.gap) {
+                    RoundedRectangle(cornerRadius: 1.5).fill(Theme.accent)
+                        .frame(width: bar.width, height: bar.height)
+                        .offset(x: bar.minX, y: bar.minY)
+                        .allowsHitTesting(false)
+                }
                 if let band {
                     Rectangle()
                         .fill(Theme.paper.opacity(0.06))
@@ -323,6 +331,7 @@ private struct SheetGrid: View {
                         .allowsHitTesting(false)
                 }
             }
+            .onDrop(of: [LabDragItem.type], delegate: GridReorderDrop(lab: model.lab, frames: layout.frames, shown: shown.map(\.url), slot: $dropSlot))
         }
         .scrollIndicators(.automatic)
         .onAppear {
@@ -676,7 +685,7 @@ private struct SheetCell: View {
                     .allowsHitTesting(false)
             }
         }
-        .overlay { PhotoMarks(summary: summary, name: file.name) }
+        .overlay { PhotoMarks(summary: summary, name: file.name, stack: lab.projects.stackBadge(file.url)) }
         .modifier(PlaceReport(image: image, placed: placed))
         .opacity(waiting ? 0 : 1)
         .offset(y: waiting ? 14 : 0)
@@ -778,5 +787,29 @@ private struct SheetHandle: View {
         .padding(.top, 7)
         .help("Edit Photograph (E)")
         .accessibilityLabel("Edit Photograph")
+    }
+}
+
+/// Photographs of the Box or Roll open, dragged on its grid: a red line shows where they'd go, the drop puts them there.
+private struct GridReorderDrop: DropDelegate {
+    let lab: LabState
+    let frames: [CGRect]
+    let shown: [URL]
+    @Binding var slot: Int?
+
+    func validateDrop(info: DropInfo) -> Bool { lab.canReorder(lab.dragging) }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        guard lab.canReorder(lab.dragging) else { slot = nil; return DropProposal(operation: .forbidden) }
+        slot = ManualOrder.slot(frames, at: info.location)
+        return DropProposal(operation: .move)
+    }
+
+    func dropExited(info: DropInfo) { slot = nil }
+
+    func performDrop(info: DropInfo) -> Bool {
+        defer { slot = nil }
+        guard case .photos(let photos, _)? = lab.dragging, lab.canReorder(lab.dragging) else { return false }
+        return lab.reorderOpen(photos, slot: ManualOrder.slot(frames, at: info.location), shown: shown)
     }
 }

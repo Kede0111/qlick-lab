@@ -16,6 +16,8 @@ struct SheetFrameContent {
     var edited = false
     /// Qlick Lab: the colour label, a round sticker on the frame's top left corner.
     var label: ColorLabel?
+    /// Qlick Lab: the stack it stands for or tops: how many, and whether it's open.
+    var stack: (count: Int, open: Bool)?
     var selected = false
     var current = false
     /// A second line for the detailed view: date and exposure.
@@ -186,6 +188,43 @@ struct ContactSheetRenderer {
         }
         drawEdgePrint(context, index: index, content, window: window)
         drawLabel(context, content, picture: content.image == nil ? window : pictureRect(index, content))
+        drawStack(context, content, picture: content.image == nil ? window : pictureRect(index, content))
+    }
+
+    /// A stack's badge at the picture's bottom right: two cards and how many, filled while it's closed.
+    func drawStack(_ context: CGContext, _ content: SheetFrameContent, picture: CGRect) {
+        guard let stack = content.stack else { return }
+        let height = min(max(layout.frame.width * 0.085, 12), 18)
+        let font = CTFontCreateUIFontForLanguage(.system, height * 0.62, nil) ?? CTFontCreateWithName("Helvetica-Bold" as CFString, height * 0.62, nil)
+        let bold = CTFontCreateCopyWithSymbolicTraits(font, 0, nil, .boldTrait, .boldTrait) ?? font
+        let ink = stack.open ? CGColor(gray: 0.94, alpha: 1) : CGColor(gray: 0, alpha: 1)
+        let text = NSAttributedString(string: "\(stack.count)", attributes: [.font: bold, .foregroundColor: ink])
+        let line = CTLineCreateWithAttributedString(text)
+        let textWidth = CGFloat(CTLineGetTypographicBounds(line, nil, nil, nil))
+        let glyph = height * 0.5
+        let width = height * 0.45 + glyph + height * 0.2 + textWidth + height * 0.4
+        let inset = max(height * 0.35, 4)
+        let badge = CGRect(x: picture.maxX - inset - width, y: picture.maxY - inset - height, width: width, height: height)
+        context.saveGState()
+        let capsule = CGPath(roundedRect: badge, cornerWidth: height / 2, cornerHeight: height / 2, transform: nil)
+        context.setFillColor(stack.open ? CGColor(gray: 0, alpha: 0.6) : CGColor(gray: 0.94, alpha: 1))
+        context.addPath(capsule); context.fillPath()
+        context.setStrokeColor(stack.open ? CGColor(gray: 0.94, alpha: 0.7) : CGColor(gray: 0, alpha: 0.35))
+        context.setLineWidth(1)
+        context.addPath(capsule); context.strokePath()
+        // Two cards, one behind the other.
+        let card = CGRect(x: badge.minX + height * 0.45, y: badge.midY - glyph * 0.35, width: glyph * 0.72, height: glyph * 0.72)
+        context.setStrokeColor(ink)
+        context.setLineWidth(max(height * 0.08, 1))
+        context.stroke(card.offsetBy(dx: glyph * 0.22, dy: -glyph * 0.22))
+        context.setFillColor(stack.open ? CGColor(gray: 0, alpha: 1) : CGColor(gray: 0.94, alpha: 1))
+        context.fill(card); context.stroke(card)
+        // The count (the context is flipped: text is drawn upright).
+        context.textMatrix = CGAffineTransform(scaleX: 1, y: -1)
+        let ascent = CTFontGetAscent(bold), descent = CTFontGetDescent(bold)
+        context.textPosition = CGPoint(x: badge.minX + height * 0.45 + glyph + height * 0.2, y: badge.midY + (ascent - descent) / 2)
+        CTLineDraw(line, context)
+        context.restoreGState()
     }
 
     /// The colour label: a round sticker laid on the picture's top left corner, as on a print, with a dark rim so it

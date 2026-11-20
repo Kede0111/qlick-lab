@@ -165,8 +165,16 @@ struct SheetOptions: Codable, Equatable, Sendable {
     var developLoupe = false { didSet { model.canvasScale.loupe = developLoupe; if developLoupe { pickingWhite = false } } }
     /// The white balance eyedropper is out (W): a click on the photograph balances it there.
     var pickingWhite = false { didSet { model.canvasScale.picking = pickingWhite; if pickingWhite { developLoupe = false } } }
-    /// The photographs' order (`LibrarySort`).
-    var sort = LibrarySort.load() { didSet { if sort != oldValue { sort.save() } } }
+    /// The photographs' order (`LibrarySort`): a folder's and a list's, and apart from it a Box's or a Roll's, which
+    /// is Custom Order (`ManualOrder`) unless another is chosen there.
+    var sort: LibrarySort {
+        get { openView?.holder != nil ? boxSort : listSort }
+        set { if openView?.holder != nil { boxSort = newValue } else { listSort = newValue } }
+    }
+    var listSort = LibrarySort.load() { didSet { if listSort != oldValue { listSort.save() } } }
+    var boxSort = LibrarySort.load(key: LibrarySort.boxKey, fallback: LibrarySort(key: .custom)) {
+        didSet { if boxSort != oldValue { boxSort.save(key: LibrarySort.boxKey) } }
+    }
     /// The filter bar under the grid and over the contact sheet (`\`).
     var filterBarVisible = UserDefaults.standard.object(forKey: "qlick.filterBar") as? Bool ?? true {
         didSet { UserDefaults.standard.set(filterBarVisible, forKey: "qlick.filterBar") }

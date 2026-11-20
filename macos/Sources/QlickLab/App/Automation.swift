@@ -407,6 +407,21 @@ import AppKit
             let fields = rest.components(separatedBy: "|")
             if let photo = model.ratingTargets.first { model.setTitle(fields[0], caption: fields.count > 1 ? fields[1] : "", of: photo) }
         case "sort": if let key = LibrarySort.Key(rawValue: rest) { lab.sort.key = key }
+        // Qlick Lab, R7. stack | unstack | stackopen | stackbursts; reorder <i,j,…> <slot> (photographs shown, by index);
+        // markadvance <key> (⇧ with a mark key); raise | lower (] and [); autoadvance on|off.
+        case "stack": lab.stackSelection()
+        case "unstack": lab.unstackSelection()
+        case "stackopen": lab.toggleStackOpen()
+        case "stackbursts": lab.stackBursts()
+        case "reorder":
+            let shown = model.shownPhotos.map(\.url)
+            guard words.count == 2, let slot = Int(words[1]) else { break }
+            let moving = words[0].split(separator: ",").compactMap { Int($0) }.filter(shown.indices.contains).map { shown[$0] }
+            lab.reorderOpen(moving, slot: slot, shown: shown)
+        case "markadvance": lab.markAndAdvance(rest.lowercased())
+        case "raise": model.changeRating(by: 1)
+        case "lower": model.changeRating(by: -1)
+        case "autoadvance": model.advanceAfterRating = rest == "on"
         case "removeask": if rest == "rejected" { lab.requestRemoveRejected() } else { lab.requestRemove() }
         case "restoreremoved": if let archive = lab.projects.project(named: rest) { lab.restoreRemoved(in: archive) }
         case "wholeproject": if let project = lab.projects.projects.first(where: { $0.name == rest }) { lab.openWhole(project) }
@@ -679,7 +694,7 @@ import AppKit
         case "state":
             let counts = lab.counts
             let text = "previews=\(lab.previewBuilder.done)/\(lab.previewBuilder.total)\(lab.previewBuilder.running ? "+" : "") proxies=\(lab.proxyMaker.done)/\(lab.proxyMaker.total)\(lab.proxyMaker.busy ? "+" : "") leftout=\(lab.proxyMaker.leftOut.count) thumbnails=\(model.thumbnailsAsked.done)/\(model.thumbnailsAsked.total) left=\(model.thumbnailsLeft) work=[\(BackgroundWork.tasks(model).map { "\($0.kind.rawValue):\($0.figure.replacingOccurrences(of: " ", with: "_"))" }.joined(separator: ","))] kept=\(model.showsKeptRender) catalog=\(lab.catalogName) archives=\(lab.projects.projects.count) boxes=\(lab.projects.allBoxes.count) room=\(lab.workspace.rawValue) frames=\(lab.frames.count) picks=\(counts.picks) rejects=\(counts.rejects) selected=\(model.selection.selected.count) "
-                + "current=\(model.selection.current?.lastPathComponent ?? "-") mode=\(model.mode) ready=\(model.ready) preview=\(model.previewCurrent) "
+                + "current=\(model.selection.current?.lastPathComponent ?? "-") order=\(lab.frames.map { $0.url.lastPathComponent }.joined(separator: ",")) sort=\(lab.sort.key.rawValue) stacks=\(lab.projects.stacks.map { "\($0.frames.count)\($0.open ? "o" : "c")" }.joined(separator: ",")) advance=\(model.advanceAfterRating) mode=\(model.mode) ready=\(model.ready) preview=\(model.previewCurrent) "
                 + "status=[\(model.status)] film=\(model.film) panes=\(lab.compareModel.panes.count) images=\(lab.compareModel.images.values.map { "\($0.width)x\($0.height)" }.joined(separator: ",")) undo=\(window?.undoManager?.canUndo ?? false) "
                 + "presets=[\(model.presets.map(\.name).joined(separator: "|"))] wb=\(model.value("io.raw_white_balance.mode").string)/\(Int(model.value("io.raw_white_balance.temperature").double))/\(model.value("io.raw_white_balance.tint").double) match=\(model.state.brightnessMatch?.ev.map { String(format: "%.2f", $0) } ?? (model.state.brightnessMatch == nil ? "off" : "pending")) renaming=\(model.renamingPreset?.lastPathComponent ?? "-") pane=\(model.inspectorPane) responder=\(window.map { w in (w.firstResponder as? NSTextView).flatMap { $0.delegate as? NSTextField }.map { "field:\($0.stringValue.replacingOccurrences(of: " ", with: "_")):hidden=\($0.isHiddenOrHasHiddenAncestor)" } ?? String(describing: w.firstResponder.map { Swift.type(of: $0) }) } ?? "-")\n"
             try? text.write(toFile: rest, atomically: true, encoding: .utf8)

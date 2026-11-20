@@ -255,6 +255,7 @@ final class EdgeSplitView: NSSplitView {
         if tabSidebar(event) { return true }
         if numpadRating(event) { return true }
         if filterBarKey(event) { return true }
+        if markAndAdvance(event) { return true }
         // Qlick Lab: Esc puts the large frame (Space) down first, over the grid as over the sheet.
         if event.type == .keyDown, event.keyCode == 53, event.window === window, model.lab.loupe != nil,
            !(window?.firstResponder is NSText) { model.lab.loupe = nil; return true }
@@ -311,6 +312,17 @@ final class EdgeSplitView: NSSplitView {
               !(window?.firstResponder is NSText), !model.cropping else { return false }
         if !event.isARepeat { model.lab.menuRate(digit) }
         return true
+    }
+
+    /// Qlick Lab: ⇧ with a mark key (pick, reject, unmark, the stars 0–5, a colour label) marks, then moves on to the
+    /// next photograph, Auto Advance or not: on the sheet, in the grid, the film strip and Develop.
+    private func markAndAdvance(_ event: NSEvent) -> Bool {
+        guard event.type == .keyDown, event.window === window, model.alert == nil, !event.isARepeat,
+              event.modifierFlags.contains(.shift), event.modifierFlags.isDisjoint(with: [.command, .control, .option, .numericPad]),
+              [.develop, .contactSheet].contains(model.lab.workspace),
+              !(window?.firstResponder is NSText), !model.cropping,
+              let typed = event.characters(byApplyingModifiers: [])?.lowercased(), typed.count == 1 else { return false }
+        return model.lab.markAndAdvance(typed)
     }
 
     /// Qlick Lab: \ shows and hides the filter bar in the grid and on the contact sheet, as in Lightroom's Library.

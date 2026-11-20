@@ -160,6 +160,8 @@ struct ImportPanel: View {
                     }
                     PanelToggle("Leave out what’s already imported", isOn: $session.options.skipDuplicates, help: "Photographs this catalog imported before, known by name, size and capture time")
                     PanelToggle("Leave out the frames crossed out", isOn: $session.options.skipRejected, help: "A cross here means the frame isn’t imported")
+                    PanelToggle("Stack the bursts", isOn: Binding(get: { options.stackBursts == true }, set: { session.options.stackBursts = $0 ? true : nil }),
+                                help: "Frames taken less than 2 seconds apart with the same camera become a stack, shown as its first frame with how many it holds")
                     if session.frames.contains(where: { $0.companion != nil }) {
                         HStack {
                             Text("RAW + JPEG").font(.system(size: 11.5)).foregroundStyle(Color(white: 0.8))
