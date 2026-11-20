@@ -454,7 +454,9 @@ Lots, in order:
   personal choice). No format shared with QLab (decision 4, later). Automation: `exportrecipes <path>`,
   `importrecipes <path>`, `deleterecipe <name>`. Tests: 575 (`RecipeBundleTests`). Checked in the app off screen:
   three recipes out, deleted, back in with their ids and star.
-  Not done: double-clicking a .qlickrecipes in the Finder (needs a document type in Info.plist).
+  Double-click in the Finder (Quentin said yes): Info.plist exports `be.jackfrom.qlicklab.recipes` (zip archive,
+  extension qlickrecipes) and owns it as a document type; `application(_:open:)` waits for the engine (30 s at most),
+  opens the Recipes room and imports. Checked: after `lsregister`, the type resolves and the Finder picks Qlick Lab Dev.
 - [x] F Print (`Print/PrintPanel.swift`): Print is the editor's own canvas (the photograph as it will be printed, its
   border drawn), not a room laid over it: `LabShellController.update` leaves it uncovered, `show(.print)` opens the
   photograph like Develop, Develop's toolbar and its information panel stay out, and the inspector (column or floating)
@@ -476,8 +478,9 @@ Lots, in order:
     File › Export ⇧⌘E; the toolbar's red Export button is gone. The 1:1 help says ⇧⌘1.
   - The words with the facts: on the sheet, one Information card (ⓘ, ⌘K, ⌃⌘I): `PhotoWordsEditor` (label, title,
     caption, keywords) over `FrameInfoPanel(card: false)`; the tag button and the separate frame card are gone
-    (`wordsVisible` is now `sheet.showInfo`). Develop's information (⌘I) already had them. Keyword sets ⌥1–⌥9 kept
-    (the audit said "no key sets"; asked Quentin).
+    (`wordsVisible` is now `sheet.showInfo`). Develop's information (⌘I) already had them. Keyword sets ⌥1–⌥9 gone
+    (Quentin, 2026-11-20: decision 2 as the audit writes it): no Photo › Keywords slots, no set in the card, no
+    `KeywordSet` (its old preference is left alone).
   - Smart Rolls on one level: no "Add a Group"; groups from before are still shown and removable.
   - The sort bar at the sheet's (and grid's) foot: All, Picks, Rejects (⊖), Unmarked, stars, Sort; Developed, colour
     labels and Keyword moved to the find bar over it (search 240 pt).

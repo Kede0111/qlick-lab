@@ -133,6 +133,16 @@ import SwiftUI
     func application(_ application: NSApplication, open urls: [URL]) {
         // Qlick Lab: a catalog opens as one.
         if let catalog = urls.first(where: { $0.pathExtension.lowercased() == CatalogList.fileExtension }) { return model.lab.openCatalog(catalog) }
+        // Qlick Lab: recipes (a bundle opened from the Finder) go onto the Lab's shelf, once the engine is up.
+        let recipes = urls.filter { $0.pathExtension.lowercased() == RecipeBundle.fileExtension }
+        if !recipes.isEmpty {
+            Task { @MainActor [model] in
+                for _ in 0..<300 where !(model.canChangePresets && model.engine != nil) { try? await Task.sleep(for: .milliseconds(100)) }
+                model.lab.show(.recipes)
+                model.importPresets(recipes)
+            }
+            return
+        }
         if let url = urls.first(where: \.isFileURL) { model.open(url) }
     }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }

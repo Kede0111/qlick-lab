@@ -12,10 +12,9 @@ struct PhotoWordsEditor: View {
     /// The photograph `title` and `caption` were read from.
     @State private var editing: URL?
     @State private var adding = ""
-    @State private var keywordSet = KeywordSet.load()
     @FocusState private var focus: Field?
 
-    private enum Field: Hashable { case title, caption, add, slot(Int) }
+    private enum Field: Hashable { case title, caption, add }
     private var lab: LabState { model.lab }
 
     var body: some View {
@@ -31,7 +30,6 @@ struct PhotoWordsEditor: View {
                 }
                 keywords(targets)
             }
-            keywordSetSection
             catalogue(targets)
         }
         .onAppear { load(targets.count == 1 ? targets.first : nil) }
@@ -42,7 +40,6 @@ struct PhotoWordsEditor: View {
         }
         .onChange(of: focus) { old, new in
             if (old == .title || old == .caption), new != .title, new != .caption { commit(editing) }
-            if case .slot = old { KeywordSet.save(keywordSet) }
         }
         .task(id: lab.keywordFocus) {
             guard lab.keywordFocusPending else { return }
@@ -50,7 +47,7 @@ struct PhotoWordsEditor: View {
             try? await Task.sleep(for: .milliseconds(60))
             focus = .add
         }
-        .onDisappear { commit(editing); KeywordSet.save(keywordSet) }
+        .onDisappear { commit(editing) }
     }
 
     // MARK: Label
@@ -164,38 +161,6 @@ struct PhotoWordsEditor: View {
             }
         }
         return order.compactMap { counts[$0] }.sorted { $0.word.localizedStandardCompare($1.word) == .orderedAscending }
-    }
-
-    // MARK: The keyword set
-
-    private var keywordSetSection: some View {
-        VStack(alignment: .leading, spacing: 7) {
-            Button { lab.editingKeywordSet.toggle() } label: {
-                HStack(spacing: 5) {
-                    Image(systemName: lab.editingKeywordSet ? "chevron.down" : "chevron.right").font(.system(size: 8, weight: .bold)).foregroundStyle(Theme.dim)
-                    CapsLabel("Keyword Set  ⌥1 – ⌥9", size: 9.5)
-                    Spacer(minLength: 0)
-                }
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .help("Nine keywords on ⌥1 to ⌥9: each adds its keyword to the photographs selected, or takes it off if they all have it")
-            if lab.editingKeywordSet {
-                VStack(spacing: 4) {
-                    ForEach(0..<KeywordSet.size, id: \.self) { slot in
-                        HStack(spacing: 8) {
-                            Text("⌥\(slot + 1)").font(Theme.value(11)).foregroundStyle(Theme.dim).frame(width: 24, alignment: .leading)
-                            TextField("None", text: Binding(get: { keywordSet[slot] }, set: { keywordSet[slot] = $0 }))
-                                .textFieldStyle(.plain).font(.system(size: 12)).foregroundStyle(Theme.paper)
-                                .focused($focus, equals: .slot(slot))
-                                .onSubmit { KeywordSet.save(keywordSet) }
-                        }
-                        .padding(.horizontal, 8).frame(height: 23)
-                        .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Color.white.opacity(0.05)))
-                    }
-                }
-            }
-        }
     }
 
     // MARK: The catalogue's keywords

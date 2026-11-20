@@ -106,7 +106,7 @@ import XCTest
         XCTAssertEqual(store.key(.labelRed), "h")
     }
 
-    func testLabelNamesAndTheKeywordSet() {
+    func testLabelNamesAndTypedKeywords() {
         let defaults = defaults()
         XCTAssertEqual(LabelNames.name(.red, defaults: defaults), "Red")
         LabelNames.set("  To Print ", for: .red, defaults: defaults)
@@ -115,9 +115,6 @@ import XCTest
         XCTAssertEqual(LabelNames.name(.red, defaults: defaults), "Red")
         XCTAssertNil(defaults.object(forKey: LabelNames.key))
 
-        XCTAssertEqual(KeywordSet.load(defaults), Array(repeating: "", count: 9))
-        KeywordSet.save(["Spain", " night "], defaults)
-        XCTAssertEqual(KeywordSet.load(defaults).prefix(3), ["Spain", "night", ""])
         XCTAssertEqual(PhotoWords.typed("Madrid, street,, Madrid"), ["Madrid", "street"])
         XCTAssertEqual(PhotoWordsEditor.held([["Spain", "night"], ["spain"]]).map { "\($0.word) \($0.count)" }, ["night 1", "Spain 2"])
     }

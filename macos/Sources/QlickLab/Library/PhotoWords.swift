@@ -115,23 +115,6 @@ struct PhotoWords: Equatable, Sendable {
     }
 }
 
-/// The keyword set: nine keywords on ⌥1 to ⌥9, which add one to the photographs selected (or take it off if they
-/// all have it). Edited in the Keywords panel; kept for the app.
-enum KeywordSet {
-    static let key = "qlick.keywordSet"
-    static let size = 9
-
-    static func load(_ defaults: UserDefaults = .standard) -> [String] {
-        let saved = defaults.stringArray(forKey: key) ?? []
-        return (0..<size).map { saved.indices.contains($0) ? saved[$0] : "" }
-    }
-
-    static func save(_ words: [String], _ defaults: UserDefaults = .standard) {
-        let words = (0..<size).map { words.indices.contains($0) ? words[$0].trimmingCharacters(in: .whitespacesAndNewlines) : "" }
-        if words.allSatisfy(\.isEmpty) { defaults.removeObject(forKey: key) } else { defaults.set(words, forKey: key) }
-    }
-}
-
 /// The small round sticker a colour label is drawn as, in every view of the photographs.
 struct LabelDot: View {
     let label: ColorLabel
@@ -174,9 +157,9 @@ extension ProjectStore {
 }
 
 extension LabState {
-    /// ⌘K: the Keywords panel where the photographs are (over the sheet, or in Develop's information), its Add Keyword
-    /// field taking the keys. `editingSet` opens the keyword set's fields.
-    func askKeyword(editingSet: Bool = false) {
+    /// ⌘K: the information card where the photographs are (over the sheet, or Develop's), its Add Keyword field
+    /// taking the keys.
+    func askKeyword() {
         switch workspace {
         case .develop: infoVisible = true
         case .contactSheet: wordsVisible = true
@@ -185,7 +168,6 @@ extension LabState {
             show(model.mode == .grid ? .contactSheet : .develop)
             if model.mode == .grid { wordsVisible = true } else { infoVisible = true }
         }
-        if editingSet { editingKeywordSet = true }
         keywordFocusPending = true
         keywordFocus += 1
     }

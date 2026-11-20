@@ -398,12 +398,9 @@ import AppKit
             switch words.first {
             case "add": model.addKeywords(PhotoWords.typed(argument))
             case "remove": model.removeKeyword(argument)
-            case "set": if let slot = Int(argument) { lab.menuKeyword(slot: slot - 1) }
             case "ask": lab.askKeyword()
-            case "editset": lab.askKeyword(editingSet: true)
             default: break
             }
-        case "keywordset": KeywordSet.save(rest.components(separatedBy: ","))
         case "words": lab.wordsVisible = rest != "off"
         case "labelfilter":
             var filter = model.library.filter

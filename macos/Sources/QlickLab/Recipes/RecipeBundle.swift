@@ -7,7 +7,9 @@ import UniformTypeIdentifiers
 /// `Recipes/`, in spektrafilm's own format, each one openable alone.
 enum RecipeBundle {
     static let fileExtension = "qlickrecipes"
-    static var contentType: UTType { UTType(filenameExtension: fileExtension, conformingTo: .zip) ?? .zip }
+    /// Declared by the app (Info.plist), so the Finder opens a bundle in Qlick Lab with a double-click.
+    static let typeIdentifier = "be.jackfrom.qlicklab.recipes"
+    static var contentType: UTType { UTType(typeIdentifier) ?? UTType(filenameExtension: fileExtension, conformingTo: .zip) ?? .zip }
 
     struct Manifest: Codable, Equatable {
         var qlick = 1

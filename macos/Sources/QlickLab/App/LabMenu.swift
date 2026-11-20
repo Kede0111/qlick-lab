@@ -178,15 +178,6 @@ extension LabState {
         if workspace == .compare { compareModel.push() }
     }
 
-    /// ⌥1…⌥9: the keyword set's keyword `slot`, added to the selection or taken off it.
-    func menuKeyword(slot: Int) {
-        let words = KeywordSet.load()
-        guard words.indices.contains(slot), !words[slot].isEmpty, workspace != .importer else { return NSSound.beep() }
-        var targets: [URL]?
-        if workspace == .compare, compareModel.panes.indices.contains(compareModel.focused) { targets = [compareModel.panes[compareModel.focused].item] }
-        model.toggleKeyword(words[slot], targets: targets)
-    }
-
     /// ⇧ with a mark key: the mark (pick, reject, unmark, stars 0–5, a colour label), then the next photograph,
     /// Auto Advance or not. False for a key that isn't a mark's.
     @discardableResult func markAndAdvance(_ typed: String) -> Bool {

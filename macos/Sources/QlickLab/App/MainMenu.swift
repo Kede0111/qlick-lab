@@ -154,14 +154,8 @@ import SwiftUI
         none.tag = 0; none.target = self
         let keywords = NSMenu(title: "Keywords")
         photo.addItem(withTitle: "Keywords", action: nil, keyEquivalent: "").submenu = keywords
+        // Qlick Lab: the keywords are written in the information card (no keyword set on keys).
         command(keywords, "Add Keyword…", #selector(addKeyword), "k")
-        keywords.addItem(.separator())
-        for slot in 0..<KeywordSet.size {
-            let item = keywords.addItem(withTitle: "", action: #selector(keywordSlot(_:)), keyEquivalent: "\(slot + 1)")
-            item.keyEquivalentModifierMask = [.option]; item.tag = slot; item.target = self
-        }
-        keywords.addItem(.separator())
-        command(keywords, "Edit the Keyword Set…", #selector(editKeywordSet), "")
         photo.addItem(.separator())
         command(photo, "Copy Edits", #selector(copyEdits), "c", [.command, .shift])
         command(photo, "Copy Edits…", #selector(copyEditsChoosing), "c", [.command, .shift, .option])
@@ -312,8 +306,6 @@ import SwiftUI
         model.lab.menuLabel(item.tag == 0 ? nil : ColorLabel.allCases[item.tag - 1])
     }
     @objc private func addKeyword() { model.lab.askKeyword() }
-    @objc private func keywordSlot(_ item: NSMenuItem) { model.lab.menuKeyword(slot: item.tag) }
-    @objc private func editKeywordSet() { model.lab.askKeyword(editingSet: true) }
     @objc private func clearFilter() { model.library.filter = LibraryFilter() }
     @objc private func editPhotograph() { model.editCurrent() }
     @objc private func copyEdits() { model.copyEdits() }
@@ -463,13 +455,6 @@ import SwiftUI
             item.state = state { $0.label == label }
             return rating && model.lab.workspace != .importer
         case #selector(addKeyword): return !model.ratingTargets.isEmpty && model.lab.workspace != .importer && NSApp.keyWindow is EditorWindow
-        case #selector(keywordSlot(_:)):
-            let words = KeywordSet.load()
-            let word = words.indices.contains(item.tag) ? words[item.tag] : ""
-            item.title = word.isEmpty ? "Keyword \(item.tag + 1): None Set" : word
-            item.state = word.isEmpty ? .off : state { $0.words.has(keyword: word) }
-            return !word.isEmpty && rating && model.lab.workspace != .importer
-        case #selector(editKeywordSet): return NSApp.keyWindow is EditorWindow
         case #selector(clearFilter): return model.library.filter.active
         default: return true
         }

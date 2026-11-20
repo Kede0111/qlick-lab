@@ -260,8 +260,6 @@ struct SheetOptions: Codable, Equatable, Sendable {
     /// Moves when ⌘K asks for the Add Keyword field, which then takes the keys (`keywordFocusPending` until it has).
     var keywordFocus = 0
     @ObservationIgnored var keywordFocusPending = false
-    /// The keyword set's nine fields are open in the panel.
-    var editingKeywordSet = false
     /// The photographs laid side by side in Comparaison.
     var compare = CompareSetup()
     /// The print dialog of the contact sheet.

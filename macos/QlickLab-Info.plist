@@ -68,6 +68,18 @@
 				<string>be.jackfrom.qlicklab.catalog</string>
 			</array>
 		</dict>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Qlick Lab Recipes</string>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>LSHandlerRank</key>
+			<string>Owner</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>be.jackfrom.qlicklab.recipes</string>
+			</array>
+		</dict>
 	</array>
 	<key>UTExportedTypeDeclarations</key>
 	<array>
@@ -95,6 +107,24 @@
 				<key>public.filename-extension</key>
 				<array>
 					<string>qlicklab</string>
+				</array>
+			</dict>
+		</dict>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>be.jackfrom.qlicklab.recipes</string>
+			<key>UTTypeDescription</key>
+			<string>Qlick Lab Recipes</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.zip-archive</string>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>qlickrecipes</string>
 				</array>
 			</dict>
 		</dict>
