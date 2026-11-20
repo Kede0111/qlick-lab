@@ -278,8 +278,8 @@ final class PartSelector: NSView {
     private var plate: NSView?
     /// A segment pressed (or chosen by VoiceOver).
     var onChoose: ((LabPart) -> Void)?
-    static let height: CGFloat = 32
-    static let inset: CGFloat = 3
+    static let height: CGFloat = 28
+    static let inset: CGFloat = 2
 
     var chosen: LabPart = .lab {
         didSet { if chosen != oldValue { segments.forEach { $0.on = $0.part == chosen } } }
@@ -349,9 +349,9 @@ final class PartSegment: NSView {
     var pressed: () -> Void = {}
     var on = false { didSet { if on != oldValue { needsDisplay = true; setAccessibilityValue(on) } } }
     private var hovered = false { didSet { if hovered != oldValue { needsDisplay = true } } }
-    static let padding: CGFloat = 16
-    static let size: CGFloat = 12
-    static let icon: CGFloat = 17
+    static let padding: CGFloat = 14
+    static let size: CGFloat = 11.5
+    static let icon: CGFloat = 16
     static let gap: CGFloat = 7
 
     /// Each part's pictogram, drawn once per ink.
