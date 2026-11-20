@@ -24,26 +24,24 @@ struct LabSidebar: View {
             .padding(.leading, 20)
             .frame(height: 40)
 
-            VStack(alignment: .leading, spacing: 2) {
-                // The rooms of the part chosen in the title band's selector; the places (the Library's fixed
-                // entries, Archives, Boxes) are always below.
-                ForEach(lab.part.rooms) { room in
-                    // A card that's in says so beside Import.
-                    RoomRow(room: room, on: lab.workspace.listed(as: room), trailing: room == .importer ? lab.importer.cards.first?.name : nil) { lab.show(room) }
-                }
-            }
-            .padding(.horizontal, 10)
-            .padding(.top, 6)
-
             // One drop target for the whole list (`SidebarDropDelegate`): photographs on a Box or a Roll, rows among
             // rows, a folder on a Box, folders from the Finder; the label over the list says what a drop does.
+            // Qlick Lab: the part's own section first (its heading, then its entries), then the places: in the
+            // Library its Archives and Boxes; in the Lab and in Print the Boxes alone, the film strip being enough
+            // there and sorting the Library's.
             ScrollView(.vertical) {
                 VStack(alignment: .leading, spacing: 1) {
-                    LibraryFold(lab: lab).padding(.top, 10)
-                    if lab.sidebarFold.isOpen(.library, leadsToOpen: true) {
-                        FindingSection(model: model).padding(.top, 1)
+                    SidebarPartHeading(title: lab.part.title)
+                    if lab.part == .library { FindingSection(model: model) }
+                    ForEach(lab.part.rooms) { room in
+                        // A card that's in says so beside Import.
+                        RoomRow(room: room, on: lab.workspace.listed(as: room), trailing: room == .importer ? lab.importer.cards.first?.name : nil) { lab.show(room) }
                     }
-                    ArchivesSection(model: model)
+                    if lab.part == .library {
+                        SidebarHairline()
+                        ArchivesSection(model: model)
+                    }
+                    SidebarHairline()
                     BoxesSection(model: model)
                 }
                 .padding(.horizontal, 10)
@@ -89,24 +87,21 @@ private struct RoomRow: View {
     }
 }
 
-/// The Library's row: a click opens the room, its arrow folds or unfolds the catalogue's fixed entries under it (All
-/// Photographs, Last Import, Picks, By Date).
-private struct LibraryFold: View {
-    let lab: LabState
+/// A part's heading in the sidebar (LIBRARY, LAB, PRINT): small spaced capitals, as the places' headings.
+struct SidebarPartHeading: View {
+    let title: String
     var body: some View {
-        let open = lab.sidebarFold.isOpen(.library, leadsToOpen: true)
-        RoomButton(symbol: Workspace.library.symbol, title: Workspace.library.title, on: lab.workspace.listed(as: .library)) { lab.show(.library) }
-            .overlay(alignment: .trailing) {
-                Button { withAnimation(Theme.quick) { lab.sidebarFold.toggle(.library, leadsToOpen: true) } } label: {
-                    Image(systemName: "chevron.right").font(.system(size: 9, weight: .bold)).foregroundStyle(Theme.dim)
-                        .rotationEffect(.degrees(open ? 90 : 0))
-                        .frame(width: 26, height: 30).contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .padding(.trailing, 2)
-                .help(open ? "Fold the Library's entries" : "Show All Photographs, Last Import, Picks and By Date")
-            }
-            .help("\(Workspace.library.title) (⌥⌘\(Workspace.library.key))")
+        CapsLabel(title)
+            .padding(.leading, 10).padding(.top, 8).padding(.bottom, 6)
+            .accessibilityAddTraits(.isHeader)
+    }
+}
+
+/// The hairline between the sidebar's sections.
+struct SidebarHairline: View {
+    var body: some View {
+        Rectangle().fill(Color.white.opacity(0.1)).frame(height: 1).padding(.horizontal, 6).padding(.top, 12)
+            .accessibilityHidden(true)
     }
 }
 
@@ -122,14 +117,15 @@ struct RoomButton: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 9) {
-                LabSymbol(symbol: symbol, points: 13, color: on ? Theme.accent : Color(white: 0.72)).frame(width: 20)
-                Text(title).font(.system(size: 13, weight: on ? .semibold : .regular)).foregroundStyle(on ? Theme.paper : Color(white: 0.82)).lineLimit(1)
+                // Qlick Lab: as the places' rows (`SidebarRow`), one size for the whole sidebar.
+                LabSymbol(symbol: symbol, points: 11, color: on ? Theme.accent : Theme.dim).frame(width: 16)
+                Text(title).font(.system(size: 12.5, weight: on ? .semibold : .regular)).foregroundStyle(on ? Theme.paper : Color(white: 0.82)).lineLimit(1)
                 Spacer(minLength: 4)
                 if let trailing { Text(trailing).font(Theme.value(11)).foregroundStyle(Theme.dim).lineLimit(1).truncationMode(.tail).layoutPriority(-1) }
             }
             .padding(.horizontal, 10)
-            .frame(height: 30)
-            .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.white.opacity(on ? 0.1 : hovered ? 0.05 : 0)))
+            .frame(height: 26)
+            .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(Color.white.opacity(on ? 0.08 : hovered ? 0.05 : 0)))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

@@ -1,4 +1,5 @@
 import AppKit
+import SwiftUI
 
 // The title bar (§3): 38 pt of `bg` across the window, holding only the
 // traffic lights and the file name, in Newsreader 15 600 `paper`. There's
@@ -269,14 +270,16 @@ final class CrumbWord: NSTextField {
     }
 }
 
-/// The lab's three parts in one capsule, in the middle of the title band: Library · Lab · Print. The part chosen is
-/// filled with the lab's red. A segment acts as the mouse goes down, with no animation: the part shows at once.
+/// The lab's three parts in one capsule of Liquid Glass (a material before macOS 26), in the middle of the title band:
+/// Library · Lab · Print, each with its pictogram and its word. The part chosen is filled with the lab's red. A segment
+/// acts as the mouse goes down, with no animation: the part shows at once.
 final class PartSelector: NSView {
     private(set) var segments: [PartSegment] = []
+    private var plate: NSView?
     /// A segment pressed (or chosen by VoiceOver).
     var onChoose: ((LabPart) -> Void)?
-    static let height: CGFloat = 24
-    static let inset: CGFloat = 2
+    static let height: CGFloat = 32
+    static let inset: CGFloat = 3
 
     var chosen: LabPart = .lab {
         didSet { if chosen != oldValue { segments.forEach { $0.on = $0.part == chosen } } }
@@ -285,9 +288,24 @@ final class PartSelector: NSView {
     init() {
         super.init(frame: .zero)
         wantsLayer = true
-        layer?.cornerRadius = Self.height / 2
-        layer?.cornerCurve = .continuous
-        layer?.backgroundColor = NSColor.white.withAlphaComponent(0.07).cgColor
+        let plate: NSView
+        if #available(macOS 26.0, *) {
+            let glass = NSGlassEffectView()
+            glass.cornerRadius = Self.height / 2
+            plate = glass
+        } else {
+            let material = NSVisualEffectView()
+            material.material = .hudWindow
+            material.blendingMode = .withinWindow
+            material.state = .active
+            material.wantsLayer = true
+            material.layer?.cornerRadius = Self.height / 2
+            material.layer?.cornerCurve = .continuous
+            material.layer?.masksToBounds = true
+            plate = material
+        }
+        addSubview(plate)
+        self.plate = plate
         segments = LabPart.allCases.map { part in
             let segment = PartSegment(part: part)
             segment.on = part == chosen
@@ -308,6 +326,7 @@ final class PartSelector: NSView {
 
     override func layout() {
         super.layout()
+        plate?.frame = bounds
         var x = Self.inset
         for segment in segments {
             segment.frame = NSRect(x: x, y: Self.inset, width: segment.width, height: bounds.height - Self.inset * 2)
@@ -324,14 +343,28 @@ final class PartSelector: NSView {
     }
 }
 
-/// One part of the selector: its name in spaced capitals, white on red when chosen.
+/// One part of the selector: its pictogram and its name in spaced capitals, white on red when chosen.
 final class PartSegment: NSView {
     let part: LabPart
     var pressed: () -> Void = {}
     var on = false { didSet { if on != oldValue { needsDisplay = true; setAccessibilityValue(on) } } }
     private var hovered = false { didSet { if hovered != oldValue { needsDisplay = true } } }
-    static let padding: CGFloat = 13
-    static let size = Theme.Caps.size
+    static let padding: CGFloat = 16
+    static let size: CGFloat = 12
+    static let icon: CGFloat = 17
+    static let gap: CGFloat = 7
+
+    /// Each part's pictogram, drawn once per ink.
+    @MainActor private static var icons: [String: NSImage] = [:]
+    @MainActor static func icon(_ part: LabPart, ink: NSColor, key: String) -> NSImage? {
+        let name = "\(part.rawValue)|\(key)"
+        if let cached = icons[name] { return cached }
+        let renderer = ImageRenderer(content: LabGlyphView(glyph: part.glyph, size: icon, color: Color(nsColor: ink)))
+        renderer.scale = 2
+        guard let image = renderer.nsImage else { return nil }
+        icons[name] = image
+        return image
+    }
 
     init(part: LabPart) {
         self.part = part
@@ -349,12 +382,12 @@ final class PartSegment: NSView {
         NSAttributedString(string: part.title.uppercased(), attributes: [
             .font: NSFont.systemFont(ofSize: Self.size, weight: on ? .semibold : .medium),
             .kern: Self.size * Theme.Caps.tracking,
-            .foregroundColor: on ? Theme.NS.onAccent : hovered ? Theme.NS.paper : Theme.NS.dim,
+            .foregroundColor: on ? Theme.NS.onAccent : hovered ? Theme.NS.paper : Theme.NS.label,
         ])
     }
 
-    /// Wide enough for the name in semibold, so the segments never shift when one is chosen.
-    var width: CGFloat { ceil(text(on: true).size().width) + Self.padding * 2 }
+    /// Wide enough for the pictogram and the name in semibold, so the segments never shift when one is chosen.
+    var width: CGFloat { ceil(text(on: true).size().width) + Self.icon + Self.gap + Self.padding * 2 }
 
     override func draw(_ dirtyRect: NSRect) {
         if on {
@@ -362,7 +395,13 @@ final class PartSegment: NSView {
             NSBezierPath(roundedRect: bounds, xRadius: bounds.height / 2, yRadius: bounds.height / 2).fill()
         }
         let string = text(on: on), size = string.size()
-        string.draw(at: NSPoint(x: ((bounds.width - size.width) / 2).rounded(), y: ((bounds.height - size.height) / 2).rounded()))
+        let whole = Self.icon + Self.gap + size.width
+        let x = ((bounds.width - whole) / 2).rounded()
+        let ink = on ? Theme.NS.onAccent : hovered ? Theme.NS.paper : Theme.NS.label
+        if let image = Self.icon(part, ink: ink, key: on ? "on" : hovered ? "hover" : "off") {
+            image.draw(in: NSRect(x: x, y: ((bounds.height - Self.icon) / 2).rounded(), width: Self.icon, height: Self.icon))
+        }
+        string.draw(at: NSPoint(x: x + Self.icon + Self.gap, y: ((bounds.height - size.height) / 2).rounded()))
     }
 
     override var mouseDownCanMoveWindow: Bool { false }

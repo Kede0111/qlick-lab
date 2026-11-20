@@ -68,6 +68,15 @@ enum LabPart: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
+    /// The part's pictogram in the selector: the prints, the developing tank, the enlarger.
+    var glyph: LabGlyph {
+        switch self {
+        case .library: .prints
+        case .lab: .tank
+        case .print: .enlarger
+        }
+    }
+
     /// ⌘1, ⌘2, ⌘3.
     var key: String { String((LabPart.allCases.firstIndex(of: self) ?? 0) + 1) }
 

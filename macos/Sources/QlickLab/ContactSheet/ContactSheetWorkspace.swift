@@ -163,11 +163,12 @@ private struct SheetEmpty: View {
     let model: EditorModel
     var body: some View {
         VStack(spacing: 16) {
-            QMark(size: 54)
-            Text("No contact sheet open").font(Theme.title(19)).foregroundStyle(Theme.paper)
-            Text("Drop a folder of photographs on the window,\nor open a folder of an Archive.")
+            // The 135 cartridge and its leader, in a grey hairline (provisional, until Quentin's drawing).
+            LabGlyphView(glyph: .canister, size: 112, color: Theme.faint)
+            Text("Select a box to view its photographs").font(Theme.title(19)).foregroundStyle(Theme.paper)
+            Text("Or an Archive's folder, or drop a folder of photographs on the window.")
                 .font(.system(size: 13)).foregroundStyle(Theme.dim).multilineTextAlignment(.center)
-            Button("Import a Folder…") { model.lab.importPanel() }.buttonStyle(QPrimaryButtonStyle())
+            Button("Import a Folder…") { model.lab.importPanel() }.buttonStyle(QPillButtonStyle())
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
