@@ -13,6 +13,9 @@ struct AppAlert: Equatable {
         enum Role: Equatable { case plain, cancel, destructive }
         var title: String
         var role = Role.plain
+        /// What the choice does, in a line under it. When a button has one, the buttons are drawn as a column of
+        /// choices, each with its words (the Remove dialog), Cancel at the foot.
+        var detail: String? = nil
     }
 
     struct Choice: Equatable {
@@ -27,9 +30,13 @@ struct AppAlert: Equatable {
     var buttons = [Button(title: "OK")]
     /// Tick boxes between the words and the buttons.
     var choices: [Choice] = []
+    /// Return's button: the first unless said otherwise (a question whose safe answer is Cancel).
+    var defaultIndex = 0
+    /// Words that must not be missed, in the lab's red under the heading: what a delete from the disk does.
+    var warning: String? = nil
 
-    /// Return's button.
-    var defaultIndex: Int { 0 }
+    /// The buttons are choices with their words, in a column.
+    var choosing: Bool { buttons.contains { $0.detail != nil } }
     /// Esc's button: the Cancel one, or the only one there is. A question
     /// with neither stays until it's answered.
     var cancelIndex: Int? {
@@ -154,6 +161,14 @@ struct AlertSheet: View {
                 .lineSpacing(3)
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityAddTraits(.isHeader)
+            if let warning = alert.warning {
+                Text(warning)
+                    .font(Theme.serif(16.5, weight: 600))
+                    .foregroundStyle(Theme.accent)
+                    .lineSpacing(3)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 10)
+            }
             if let detail = alert.detail {
                 Text(detail)
                     .font(Theme.serif(16, italic: true))
@@ -170,17 +185,27 @@ struct AlertSheet: View {
                 }
                 .padding(.top, 16)
             }
+            if alert.choosing {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(alert.buttons.indices.filter { alert.buttons[$0].role != .cancel }, id: \.self) { index in
+                        AlertChoiceButton(button: alert.buttons[index], prominent: index == alert.defaultIndex) { answer(index) }
+                    }
+                }
+                .padding(.top, 18)
+            }
             HStack(spacing: 10) {
                 Spacer(minLength: 0)
-                ForEach(alert.buttons.indices.reversed(), id: \.self) { index in
+                ForEach(alert.buttons.indices.reversed().filter { !alert.choosing || alert.buttons[$0].role == .cancel }, id: \.self) { index in
                     Button { answer(index) } label: {
-                        Text(alert.buttons[index].title).frame(minWidth: 52)
+                        Text(alert.buttons[index].title)
+                            .foregroundStyle(alert.buttons[index].role == .destructive ? Theme.accent : Theme.paper)
+                            .frame(minWidth: 52)
                     }
                     .buttonStyle(OutlinedButtonStyle(prominent: index == alert.defaultIndex))
                     .accessibilityHint(index == alert.defaultIndex ? "Return" : index == alert.cancelIndex ? "Escape" : "")
                 }
             }
-            .padding(.top, 20)
+            .padding(.top, alert.choosing ? 14 : 20)
         }
         .padding(EdgeInsets(top: 22, leading: 26, bottom: 20, trailing: 26))
         .frame(width: Self.width, alignment: .leading)
@@ -192,6 +217,46 @@ struct AlertSheet: View {
         .padding(Self.margin)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(alert.title)
+    }
+}
+
+/// One choice of a question that offers several (the Remove dialog): a rounded card with its name and, under it, what
+/// it does. A destructive one's name is in the lab's red; Return's carries ↩.
+private struct AlertChoiceButton: View {
+    let button: AppAlert.Button
+    let prominent: Bool
+    let action: () -> Void
+    @State private var hovered = false
+
+    var body: some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Text(button.title)
+                        .font(Theme.serif(15, weight: prominent ? 650 : 560))
+                        .foregroundStyle(button.role == .destructive ? Theme.accent : Theme.paper)
+                    if prominent { Text("↩").font(Theme.ui(10.5)).foregroundStyle(Theme.dim).accessibilityHidden(true) }
+                    Spacer(minLength: 0)
+                }
+                if let detail = button.detail {
+                    Text(detail)
+                        .font(Theme.ui(12))
+                        .foregroundStyle(Theme.label)
+                        .lineSpacing(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .padding(.horizontal, 14).padding(.vertical, 10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(RoundedRectangle(cornerRadius: 8).fill(Theme.paper.opacity(hovered ? 0.05 : 0.02)))
+            .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(
+                button.role == .destructive ? Theme.accent.opacity(hovered ? 0.9 : 0.55) : (hovered || prominent ? Theme.dim : Theme.track), lineWidth: 1))
+            .contentShape(RoundedRectangle(cornerRadius: 8))
+        }
+        .buttonStyle(.plain)
+        .onHover { hovered = $0 }
+        .accessibilityLabel(button.title)
+        .accessibilityHint((button.detail ?? "") + (prominent ? " Return" : ""))
     }
 }
 

@@ -214,6 +214,7 @@ struct SheetOptions: Codable, Equatable, Sendable {
         for key in ["qlick.binderRoots", "qlick.importRecent"] { UserDefaults.standard.removeObject(forKey: key) }
         if NSClassFromString("XCTestCase") == nil { projects.folders.start() }
         model.canvasScale.contextMenu = { [weak self] point in self?.developCommands.menu(at: point) }
+        projects.removedChanged = { [weak self] in self?.followRemoved($0) }
     }
 
     // MARK: Rooms

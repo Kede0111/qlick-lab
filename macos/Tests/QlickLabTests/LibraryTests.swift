@@ -981,7 +981,7 @@ final class LibraryFormatTests: XCTestCase {
         XCTAssertEqual(model.source, c)
         XCTAssertEqual(model.library.items.map(\.name), ["a.png", "c.png", "c.png (2)", "d.png"], "gone at once")
         try await waitUntil { !exists(b) && exists(bin.appendingPathComponent("b.png")) && exists(bin.appendingPathComponent("b.png.qlick")) }
-        XCTAssertEqual(undo.undoActionName, "Move to Trash")
+        XCTAssertEqual(undo.undoActionName, "Delete from Disk")
 
         undo.undo()
         try await waitUntil { exists(b) && model.source == b && model.library.items.count == 6 }
@@ -995,7 +995,7 @@ final class LibraryFormatTests: XCTestCase {
         // A duplicate alone leaves its sidecar; the photograph stays.
         model.showGrid()
         model.click(c.variant("c2"))
-        step { model.requestDelete(asking: false) }
+        step { model.delete(model.deletePlan(model.deleteTargets)) }
         await model.flushSidecars()
         XCTAssertEqual(try variants(c).map(\.id), ["c1"])
         XCTAssertTrue(exists(c))

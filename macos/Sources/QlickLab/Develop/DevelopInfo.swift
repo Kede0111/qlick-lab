@@ -177,7 +177,7 @@ struct CaptionOptions: Codable, Equatable, Sendable {
         add(menu, model.exportTitle, #selector(export), key: "e", modifiers: [.command, .shift], enabled: model.canExport)
         add(menu, "Show in Finder", #selector(reveal))
         menu.addItem(.separator())
-        add(menu, "Move to Trash…", #selector(trash), enabled: model.canDelete)
+        add(menu, "Remove…", #selector(remove), enabled: model.canDelete)
         return menu
     }
 
@@ -241,7 +241,7 @@ struct CaptionOptions: Codable, Equatable, Sendable {
     @objc private func toggleInfo() { lab.infoVisible.toggle() }
     @objc private func export() { model.exportPanel() }
     @objc private func reveal() { NSWorkspace.shared.activateFileViewerSelecting(targets.map(\.photoFile)) }
-    @objc private func trash() { model.requestDelete(targets, asking: true) }
+    @objc private func remove() { lab.requestRemove(targets) }
 }
 
 // MARK: The photograph's metadata

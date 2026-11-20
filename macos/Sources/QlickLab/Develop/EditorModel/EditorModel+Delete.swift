@@ -26,29 +26,8 @@ extension EditorModel {
 
     func deletePlan(_ items: [URL]) -> DeletePlan { DeletePlan(items) { library.duplicates[$0] ?? [] } }
 
-    /// ⌫ asks first and ⌘⌫ doesn't. Without a Trash it always asks, as
-    /// nothing could be put back.
-    func requestDelete(_ items: [URL]? = nil, asking: Bool) {
-        let plan = deletePlan(items ?? deleteTargets)
-        guard canDelete, let first = plan.items.first else { return }
-        let folder = first.photoFile.deletingLastPathComponent()
-        guard PhotoLibrary.canWrite(in: folder) else {
-            error = "Nothing was deleted: the folder “\(folder.lastPathComponent)” is read-only."
-            return
-        }
-        let permanent = !plan.files.isEmpty && !trash.available(folder)
-        guard asking || permanent else { return delete(plan) }
-        let question = plan.question(name: library.name(of:), permanent: permanent)
-        let alert = AppAlert(title: question.message, detail: question.information,
-                             buttons: [.init(title: question.button, role: .destructive), .init(title: "Cancel", role: .cancel)])
-        Task { [weak self] in
-            guard await self?.ask(alert).button == 0 else { return }
-            self?.delete(plan, permanent: permanent)
-        }
-    }
-
-    /// Moves `plan`'s photographs to the Trash with their sidecars, and
-    /// removes its duplicates from theirs, as one undo step. If what was
+    /// Delete from Disk, once asked twice (`LabState.requestRemove`): moves `plan`'s photographs to the Trash with
+    /// their sidecars, and removes its duplicates from theirs, as one undo step. If what was
     /// current goes, the next photograph shown becomes current.
     func delete(_ plan: DeletePlan, permanent: Bool = false) {
         guard canDelete, !plan.isEmpty else { return }
@@ -57,12 +36,7 @@ extension EditorModel {
         flushSidecar()
         var gone = Set(plan.items)
         for file in plan.files { for id in library.duplicates[file] ?? [] { gone.insert(file.variant(id)) } }
-        let current = mode == .grid ? selection.current : sourceItem
-        let next = current.flatMap { current -> URL?? in
-            guard gone.contains(current) else { return nil }
-            return .some(Self.next(after: current, in: shownPhotos.map(\.url), skipping: gone)
-                ?? Self.next(after: current, in: library.items.map(\.url), skipping: gone))
-        }
+        let next = nextLeaving(gone)
         let open = sourceItem, openGone = sourceItem.map(gone.contains) ?? false
         // Nothing more is written for it.
         if openGone { sidecarWrite?.cancel(); sidecarWrite = nil; photoSidecar = nil }
@@ -87,17 +61,7 @@ extension EditorModel {
         }
         library.remove(plan.files)
 
-        // The selection moves on.
-        switch next {
-        case .some(.some(let next)):
-            if mode == .grid { selection.select(next) } else { self.open(next, restoring: nil) }
-        case .some(.none):
-            // Nothing is left to show.
-            forgetPhotograph()
-            selection = LibrarySelection(); mode = .photo
-        case .none:
-            selection.prune(to: Set(library.items.map(\.url)))
-        }
+        moveOn(to: next)
         if openGone, mode == .grid { sourceDeleted = true }
 
         let record = TrashRecord()
@@ -134,6 +98,31 @@ extension EditorModel {
             self.library.unhide(files)
         }
         if files.isEmpty, let failure { error = failure }
+    }
+
+    /// Where the selection goes when `gone` leave the listing: nil if what's current stays; else the photograph to
+    /// show next, or nil inside when nothing is left. Asked before they go.
+    func nextLeaving(_ gone: Set<URL>) -> URL?? {
+        let current = mode == .grid ? selection.current : sourceItem
+        return current.flatMap { current -> URL?? in
+            guard gone.contains(current) else { return nil }
+            return .some(Self.next(after: current, in: shownPhotos.map(\.url), skipping: gone)
+                ?? Self.next(after: current, in: library.items.map(\.url), skipping: gone))
+        }
+    }
+
+    /// The selection moves on, once photographs have left the listing (`nextLeaving`).
+    func moveOn(to next: URL??) {
+        switch next {
+        case .some(.some(let next)):
+            if mode == .grid { selection.select(next) } else { self.open(next, restoring: nil) }
+        case .some(.none):
+            // Nothing is left to show.
+            forgetPhotograph()
+            selection = LibrarySelection(); mode = .photo
+        case .none:
+            selection.prune(to: Set(library.items.map(\.url)))
+        }
     }
 
     /// The first photograph after `item` in `order` that isn't `gone`, or

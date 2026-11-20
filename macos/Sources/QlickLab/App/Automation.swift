@@ -126,11 +126,16 @@ import AppKit
                 if let event = NSEvent.mouseEvent(with: type, location: CGPoint(x: x, y: y), modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
                                                   windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1) { window.sendEvent(event) }
             }
-        // archive new <name> | open <name> | rename <name>|<new name>
+        // archive new <name> | open <name> | rename <name>|<new name> | addfolder <name>|<folder path>
         case "archive":
             let name = words.dropFirst().joined(separator: " ")
             switch words.first {
             case "new": lab.projects.create(named: name)
+            case "addfolder":
+                let fields = name.split(separator: "|").map(String.init)
+                if fields.count == 2, let archive = lab.projects.project(named: fields[0]) {
+                    lab.projects.addRolls([URL(fileURLWithPath: fields[1], isDirectory: true)], to: archive.id)
+                }
             case "open": if let archive = lab.projects.project(named: name) { lab.open(.archive(archive.id)) }
             case "rename":
                 let fields = name.split(separator: "|").map(String.init)
@@ -288,6 +293,9 @@ import AppKit
             lab.add(fields.dropFirst().map { URL(fileURLWithPath: $0, isDirectory: true) }, to: project.id)
         case "removeproject": if let project = lab.projects.projects.first(where: { $0.name == rest }) { lab.removeProject(project) }
         case "modelanswer": model.answerAlert(Int(rest) ?? 0)
+        // removeask [rejected]: the Remove dialog for the selection, or Remove Rejected Photos…; restore <archive>.
+        case "removeask": if rest == "rejected" { lab.requestRemoveRejected() } else { lab.requestRemove() }
+        case "restoreremoved": if let archive = lab.projects.project(named: rest) { lab.restoreRemoved(in: archive) }
         case "wholeproject": if let project = lab.projects.projects.first(where: { $0.name == rest }) { lab.openWhole(project) }
         case "catalog":
             // catalog new <path> | open <path> | saveas <path>

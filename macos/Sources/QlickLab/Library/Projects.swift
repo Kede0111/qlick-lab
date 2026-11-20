@@ -202,6 +202,7 @@ struct RollStats: Equatable, Sendable {
     func open(directory: URL) {
         counting.values.forEach { $0.cancel() }
         boxes = []
+        removed = []
         counting = [:]
         stats = [:]
         self.directory = directory
@@ -214,12 +215,13 @@ struct RollStats: Equatable, Sendable {
         decoder.dateDecodingStrategy = .iso8601
         // The folders of links whole projects were shown through before 0.3: lists need none now. Only the links go.
         try? FileManager.default.removeItem(at: directory.appendingPathComponent("Views", isDirectory: true))
-        projects = files.filter { $0.pathExtension == "json" && ![SavedImportSettings.fileName, BoxesFile.fileName].contains($0.lastPathComponent) }
+        projects = files.filter { $0.pathExtension == "json" && ![SavedImportSettings.fileName, BoxesFile.fileName, RemovedFile.fileName].contains($0.lastPathComponent) }
             .compactMap { try? decoder.decode(LabProject.self, from: Data(contentsOf: $0)) }
             // A newer schema is left alone, never written over.
             .filter { $0.schema <= LabProject.schema }
             .sorted { ($0.order ?? Int.max, $0.createdAt) < ($1.order ?? Int.max, $1.createdAt) }
         boxes = BoxesFile.read(inCatalog: directory) ?? []
+        removed = RemovedFile.read(inCatalog: directory) ?? []
         convert()
         followFolders()
     }
@@ -336,6 +338,25 @@ struct RollStats: Equatable, Sendable {
 
     /// The catalogue's Boxes on top, each with the Boxes inside it, in its file `boxes.json` (`BoxesFile`).
     private(set) var boxes: [LabBox] = []
+
+    /// The photographs removed from the lab (Remove from Qlick Lab), by path: left out of every listing (their
+    /// Archive's, a Folder's, the counts) and out of every Box. Their files aren't touched. In `removed.json`
+    /// (`RemovedFile`); put back by Undo or the Archive's Restore Removed Photos.
+    private(set) var removed: Set<String> = [] {
+        didSet {
+            guard removed != oldValue else { return }
+            PhotoFolder.excluded = removed
+            removedChanged?(removed.symmetricDifference(oldValue))
+        }
+    }
+    /// Told when `removed` changes, with the photographs that came or went, so what's listed follows (`LabState`).
+    @ObservationIgnored var removedChanged: ((Set<String>) -> Void)?
+
+    /// The removed photographs in place of these, written at once (a removal, its undo, a restore).
+    func replaceRemoved(_ new: Set<String>) {
+        guard new != removed, RemovedFile.write(new, inCatalog: directory) else { return }
+        removed = new
+    }
 
     /// The chain of Boxes from the top down to `id`.
     func boxPath(_ id: UUID) -> [LabBox]? {
@@ -502,13 +523,15 @@ struct RollStats: Equatable, Sendable {
     struct Snapshot: Equatable {
         var boxes: [LabBox]
         var projects: [LabProject]
+        var removed: Set<String> = []
     }
 
-    var snapshot: Snapshot { Snapshot(boxes: boxes, projects: projects) }
+    var snapshot: Snapshot { Snapshot(boxes: boxes, projects: projects, removed: removed) }
 
     /// Puts the Boxes and the Archives back as they were. An Archive made or removed since is left as it is.
     func restore(_ snapshot: Snapshot) {
         replaceBoxes(snapshot.boxes)
+        replaceRemoved(snapshot.removed)
         var restored: [LabProject] = []
         for old in snapshot.projects {
             guard let now = projects.first(where: { $0.id == old.id }) else { continue }

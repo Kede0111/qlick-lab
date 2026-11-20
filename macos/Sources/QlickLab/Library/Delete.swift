@@ -56,44 +56,8 @@ struct DeletePlan: Equatable, Sendable {
 
     /// The Undo menu's name for it.
     var actionName: String {
-        guard files.isEmpty else { return "Move to Trash" }
+        guard files.isEmpty else { return "Delete from Disk" }
         return duplicates.count > 1 ? "Remove Duplicates" : "Remove Duplicate"
-    }
-
-    struct Question: Equatable {
-        var message: String
-        var information: String
-        var button: String
-    }
-
-    /// The alert before it. A single photograph is named rather than counted.
-    func question(name: (URL) -> String, permanent: Bool) -> Question {
-        let photos = files.count, copies = duplicates.count
-        func count(_ n: Int, _ noun: String) -> String { n == 1 ? "1 \(noun)" : "\(n) \(noun)s" }
-        let with = following == 0 ? "" : photos == 1
-            ? (following == 1 ? ", with its duplicate" : ", with its \(following) duplicates")
-            : ", with \(count(following, "duplicate"))"
-        let filesGo = photos == 1 ? "the photograph’s file and its ratings and edits"
-            : "the photograph files and their ratings and edits"
-        let copiesGo = copies == 1 ? "The duplicate’s rating and edits are removed from its .qlick file; the photograph stays."
-            : "The duplicates’ ratings and edits are removed from their .qlick files; the photographs stay."
-        if photos == 0 {
-            return Question(message: copies == 1 ? "Remove the duplicate “\(name(duplicates[0]))”?" : "Remove \(copies) duplicates?",
-                            information: copiesGo + " You can put \(copies == 1 ? "it" : "them") back with Undo.", button: "Remove")
-        }
-        let what = photos == 1 && copies == 0 ? "“\(name(files[0]))”" : count(photos, "photograph")
-        let andCopies = copies == 0 ? "" : " and remove \(count(copies, "duplicate"))"
-        if permanent {
-            let back = copies == 0 ? "" : " The duplicates can be put back with Undo."
-            return Question(message: "Delete \(what) permanently\(andCopies)?",
-                            information: "This volume has no Trash, so \(filesGo) are deleted at once\(with). This can’t be undone."
-                                + (copies == 0 ? "" : " " + copiesGo) + back,
-                            button: "Delete")
-        }
-        let back = photos == 1 && copies == 0 ? "You can put it back with Undo or from the Trash." : "You can put them back with Undo or from the Trash."
-        return Question(message: "Move \(what) to the Trash\(andCopies)?",
-                        information: "\(filesGo.prefix(1).uppercased() + filesGo.dropFirst()) are moved to the Trash\(with). " + (copies == 0 ? "" : copiesGo + " ") + back,
-                        button: copies == 0 ? "Move to Trash" : "Delete")
     }
 }
 

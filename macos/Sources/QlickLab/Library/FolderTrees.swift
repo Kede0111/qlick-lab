@@ -95,10 +95,10 @@ struct FolderNode: Identifiable, Equatable, Sendable {
     nonisolated static func read(_ root: URL) -> FolderNode? {
         var budget = limit
         guard FileManager.default.fileExists(atPath: root.path) else { return nil }
-        return read(root.standardizedFileURL, depth: depth, budget: &budget)
+        return read(root.standardizedFileURL, depth: depth, budget: &budget, excluded: PhotoFolder.excluded)
     }
 
-    private nonisolated static func read(_ folder: URL, depth: Int, budget: inout Int) -> FolderNode {
+    private nonisolated static func read(_ folder: URL, depth: Int, budget: inout Int, excluded: Set<String>) -> FolderNode {
         budget -= 1
         let keys: [URLResourceKey] = [.isDirectoryKey, .isPackageKey, .isSymbolicLinkKey]
         guard let entries = try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: keys, options: [.skipsHiddenFiles]) else {
@@ -110,7 +110,8 @@ struct FolderNode: Identifiable, Equatable, Sendable {
             let values = try? entry.resourceValues(forKeys: Set(keys))
             if values?.isDirectory == true {
                 if values?.isPackage != true, values?.isSymbolicLink != true { folders.append(entry) }
-            } else if PhotoFolder.extensions.contains(entry.pathExtension.lowercased()) {
+            } else if PhotoFolder.extensions.contains(entry.pathExtension.lowercased()),
+                      excluded.isEmpty || !excluded.contains(folder.appendingPathComponent(entry.lastPathComponent).standardizedFileURL.path) {
                 photos += 1
             }
         }
@@ -118,7 +119,7 @@ struct FolderNode: Identifiable, Equatable, Sendable {
         if depth > 0 {
             for child in folders.sorted(by: { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }) {
                 guard budget > 0 else { break }
-                children.append(read(folder.appendingPathComponent(child.lastPathComponent, isDirectory: true), depth: depth - 1, budget: &budget))
+                children.append(read(folder.appendingPathComponent(child.lastPathComponent, isDirectory: true), depth: depth - 1, budget: &budget, excluded: excluded))
             }
         }
         return FolderNode(url: folder, photos: photos, children: children)

@@ -68,6 +68,15 @@ enum PhotoFolder {
         }
         return folders
     }
+    /// Qlick Lab: the photographs removed from the lab (`ProjectStore.removed`), by standardized path: no listing
+    /// shows them. Their files stay where they are.
+    nonisolated(unsafe) private static var excludedPaths: Set<String> = []
+    static var excluded: Set<String> {
+        get { listsLock.lock(); defer { listsLock.unlock() }; return excludedPaths }
+        set { listsLock.lock(); defer { listsLock.unlock() }; excludedPaths = newValue }
+    }
+    static func isExcluded(_ photo: URL) -> Bool { excluded.contains(photo.photoFile.standardizedFileURL.path) }
+
     /// A photograph's key for its sidecar in a listing: its path.
     static func sidecarKey(_ photo: URL) -> String { photo.path }
 
@@ -116,6 +125,9 @@ enum PhotoFolder {
             if sidecar { sidecars[directory.appendingPathComponent(url.deletingPathExtension().lastPathComponent).path] = file } else { photos.append(file) }
         }
         photos.sort { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+        // Qlick Lab: what was removed from the lab isn't listed (its file is still there).
+        let excluded = excluded
+        if !excluded.isEmpty { photos.removeAll { excluded.contains($0.url.standardizedFileURL.path) } }
         // A DNG without a .qlick file may keep its ratings and edits inside it: it is read as its own sidecar.
         for photo in photos where DNGMetadata.isDNG(photo.url) && sidecars[sidecarKey(photo.url)] == nil { sidecars[sidecarKey(photo.url)] = photo }
         return (photos, sidecars)
@@ -804,8 +816,8 @@ struct LibraryContextMenu: View {
         Button("Export" + several + "…") { model.exportPanel() }.disabled(!model.canExport)
         Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting(Array(Set(targets.map(\.photoFile)))) }
         Divider()
-        Button(targets.count > 1 ? "Move \(targets.count) Photographs to Trash…" : "Move to Trash…") {
-            model.requestDelete(targets, asking: true)
+        Button(targets.count > 1 ? "Remove \(targets.count) Photographs…" : "Remove…") {
+            lab.requestRemove(targets)
         }.disabled(!model.canDelete)
     }
 

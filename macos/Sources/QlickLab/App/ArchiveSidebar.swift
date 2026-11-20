@@ -32,6 +32,11 @@ struct ArchivesSection: View {
                     Button("Show All Its Photographs") { lab.open(.archive(archive.id)) }
                     Button("Add a Folder…") { lab.importPanel(into: archive.id) }
                     Button("Rename…") { lab.naming = .init(kind: .renameArchive(archive.id), name: archive.name) }
+                    let removed = lab.projects.removed(in: archive).count
+                    if removed > 0 {
+                        Divider()
+                        Button("Restore Removed Photos (\(removed))") { lab.restoreRemoved(in: archive) }
+                    }
                     Divider()
                     Button("Remove the Archive from the Catalog…") { lab.removeProject(archive) }
                 }

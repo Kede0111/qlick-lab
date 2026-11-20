@@ -248,7 +248,18 @@ Steps (one local commit each, tests, `scripts/drive.sh` screenshots checked, Dev
   Automation: `drop <what> ; <row> [; alt show at=]`, `editcopy`, `editpaste`, `boxtree`, `sheetmenu`, `dragimage`.
   Tests: 520 (`BoxMovesTests`). Not done: dragging from Compare's panes (they pan); real mouse drags can't be driven
   off screen, so the cursor and the SwiftUI `onDrag` on the sidebar's buttons were checked by code only.
-- [ ] R3 Remove… / Remove Rejected Photos… dialog; Move to Trash removed.
+- [x] R3 Remove… / Remove Rejected Photos… (6e23298): Move to Trash is gone from every menu (sheet, grid/strip,
+  Develop, Photo menu; ⌘⌫'s silent delete too). ⌫ / Remove… and Remove Rejected Photos… (Photo menu, and a ⊖ by the
+  Rejects count in the filter bar) open one dialog (`RemoveQuestion`, `Library/Remove.swift`): choices drawn as cards
+  with a line each (`AppAlert.Button.detail`), Return on the safest: Remove from “Box/Roll” (when one is open),
+  Remove from Qlick Lab (`ProjectStore.removed`, `removed.json` in the catalogue; `PhotoFolder.excluded` keeps them out
+  of every listing, count and Folder tree; out of every Box; one ⌘Z; Archive menu › Restore Removed Photos (N)),
+  Delete from Disk… (asks again: red `AppAlert.warning` "This deletes N photographs from the disk. They go to the
+  Trash.", Return = Cancel; files and sidecars to the Trash via the old `delete(plan)`, undoable; a volume without a
+  Trash refuses, never deletes outright). Duplicates alone: "Remove the Duplicate" (sidecar only). Removing everything
+  listed closes the list; Undo opens it again. Automation: `removeask [rejected]`, `restoreremoved <archive>`,
+  `archive addfolder <name>|<path>`. Tests: 524 (`RemoveTests`, the alert test rewritten).
+  Note: automation commands aren't events, so two steps can share one undo group off screen (real keys are fine).
 - [ ] R4 Colour labels, keywords panel, editable title/caption.
 - [ ] R5 All Photographs, Last Import, Picks, By Date, field search, Smart Rolls, New Rolls by Day, filters, sorts.
 - [ ] R6 Import options above.

@@ -142,7 +142,9 @@ private let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().d
 
     // MARK: The questions
 
-    func testDeletingAPhotographAsksInTheSheet() async throws {
+    /// Remove… asks in the sheet; Delete from Disk asks a second time, Return being Cancel, and only its explicit
+    /// answer sends the file to the Trash. Remove from Qlick Lab never touches the file.
+    func testRemovingAPhotographAsksTwiceBeforeTheDisk() async throws {
         let paths = EnginePaths(helper: root.appendingPathComponent("target/release/spektrafilm-native"),
                                 exporter: root.appendingPathComponent("target/release/spektrafilm-f64"), data: root.appendingPathComponent("data"))
         guard FileManager.default.isExecutableFile(atPath: paths.helper.path) else { throw XCTSkip("Build the release helper first") }
@@ -156,34 +158,81 @@ private let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().d
         let bitmap = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: 96, pixelsHigh: 64, bitsPerSample: 8, samplesPerPixel: 3, hasAlpha: false,
                                       isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 96 * 3, bitsPerPixel: 24)!
         try bitmap.representation(using: .png, properties: [:])!.write(to: photo)
+        let bytes = try Data(contentsOf: photo)
         let model = EditorModel(sidecars: SidecarStore())
         defer { model.shutdown() }
         await model.start(paths: paths, restoration: Task { nil })
-        // Never the user's own Trash.
+        // Never the user's own Trash; counted, so nothing reaches it unasked.
+        nonisolated(unsafe) var trashed = 0
         model.trash = PhotoTrash(available: { _ in true }, trash: { file in
+            trashed += 1
             let landed = bin.appendingPathComponent(file.lastPathComponent)
             try FileManager.default.moveItem(at: file, to: landed)
             return landed
-        }, remove: { try FileManager.default.removeItem(at: $0) })
+        }, remove: { _ in XCTFail("never deleted outright") })
         model.open(photo)
         let watching = Task { await model.library.watch(dir) }
         defer { watching.cancel() }
         try await waitUntil { model.library.items.count == 1 }
 
-        model.requestDelete(asking: true)
+        var fromLab: [URL] = [], fromHolder: [URL] = []
+        func ask(holder: (name: String, roll: Bool)? = nil) -> Task<Void, Never>? {
+            model.requestRemove([photo], holder: holder, fromHolder: { fromHolder += $0 }, fromLab: { fromLab += $0 })
+        }
+
+        // Esc: nothing.
+        var task = ask()
         try await waitUntil { model.alert != nil }
         let asked = try XCTUnwrap(model.alert?.alert)
-        XCTAssertEqual(asked.title, "Move “a.png” to the Trash?")
-        XCTAssertEqual(asked.buttons.map(\.title), ["Move to Trash", "Cancel"])
+        XCTAssertEqual(asked.title, "Remove “a.png”?")
+        XCTAssertEqual(asked.buttons.map(\.title), ["Remove from Qlick Lab", "Delete from Disk…", "Cancel"])
+        XCTAssertEqual(asked.defaultIndex, 0, "Return is the safe choice")
         XCTAssertTrue(model.dismissAlert())
-        try await Task.sleep(for: .milliseconds(100))
-        XCTAssertTrue(FileManager.default.fileExists(atPath: photo.path), "Esc deletes nothing")
+        await task?.value
+        XCTAssertTrue(fromLab.isEmpty && trashed == 0)
 
-        model.requestDelete(asking: true)
+        // Return: Remove from Qlick Lab, the file as it was.
+        task = ask()
         try await waitUntil { model.alert != nil }
         model.confirmAlert()
+        await task?.value
+        XCTAssertEqual(fromLab, [photo])
+        XCTAssertEqual(try Data(contentsOf: photo), bytes)
+        XCTAssertEqual(trashed, 0)
+
+        // With a Box open, its own removal comes first.
+        task = ask(holder: ("Madrid", false))
+        try await waitUntil { model.alert != nil }
+        XCTAssertEqual(model.alert?.alert.buttons.first?.title, "Remove from “Madrid”")
+        model.confirmAlert()
+        await task?.value
+        XCTAssertEqual(fromHolder, [photo])
+        XCTAssertEqual(trashed, 0)
+
+        // Delete from Disk asks again: Return there is Cancel, and the file stays.
+        task = ask()
+        try await waitUntil { model.alert != nil }
+        model.answerAlert(1)
+        try await waitUntil { model.alert?.alert.title == "Delete “a.png” from the disk?" }
+        let second = try XCTUnwrap(model.alert?.alert)
+        XCTAssertEqual(second.warning, "This deletes 1 photograph from the disk. It goes to the Trash.")
+        XCTAssertEqual(second.buttons.map(\.title), ["Cancel", "Delete from Disk"])
+        model.confirmAlert()
+        await task?.value
+        try await Task.sleep(for: .milliseconds(100))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: photo.path))
+        XCTAssertEqual(trashed, 0)
+
+        // Only its explicit answer sends it to the Trash.
+        task = ask()
+        try await waitUntil { model.alert != nil }
+        model.answerAlert(1)
+        try await waitUntil { model.alert?.alert.warning != nil }
+        model.answerAlert(1)
+        await task?.value
         try await waitUntil { !FileManager.default.fileExists(atPath: photo.path) }
         XCTAssertTrue(FileManager.default.fileExists(atPath: bin.appendingPathComponent("a.png").path))
+        XCTAssertEqual(trashed, 1)
     }
 
     func testCopyEditsChoosingTicksTheLastChoiceAndRemembersTheNewOne() async throws {

@@ -95,6 +95,16 @@ struct LibraryFilterBar: View {
             }
             chip("Picks", count: counts.picks, on: library.filter.flags == [.pick], mark: .pick) { only(.pick) }
             chip("Rejects", count: counts.rejects, on: library.filter.flags == [.reject], mark: .reject) { only(.reject) }
+            if counts.rejects > 0 {
+                Button { lab.requestRemoveRejected() } label: {
+                    Image(systemName: "minus.circle")
+                        .font(.system(size: 11.5, weight: .medium)).foregroundStyle(Theme.dim)
+                        .frame(width: 20, height: 24).contentShape(Rectangle())
+                }
+                .buttonStyle(.plain).disabled(!model.canDelete)
+                .help("Remove Rejected Photos…")
+                .accessibilityLabel("Remove Rejected Photos")
+            }
             chip("Unmarked", count: counts.unmarked, on: library.filter.flags == [.unflagged], mark: nil) { only(.unflagged) }
             separator
             StarFilter(model: model)

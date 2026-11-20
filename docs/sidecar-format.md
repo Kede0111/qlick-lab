@@ -80,11 +80,13 @@ namespace `http://ns.jackfrom.be/qlicklab/1.0/` (`Film`, `Paper`, `WhiteBalance`
   `createdAt`, `rolls` = its Folders, each `{id, name, folder, bookmark, film, camera, notes, addedAt}`; the folders
   under them are read from the disk, not stored); `boxes.json`, the Boxes, `{"qlick": {"schema": 1, "boxes": [...]}}`,
   each Box `{id, name, frames, boxes, rolls, createdAt}` (`frames`: photographs' paths; `boxes`: the Boxes inside it,
-  to any depth; `rolls`: `{id, name, frames, createdAt}`); `saved-settings.json` for the import's Saved Settings under
+  to any depth; `rolls`: `{id, name, frames, createdAt}`); `removed.json`, the photographs removed from the lab
+  (Remove from Qlick Lab: left out of every listing and Box, their files untouched), `{"qlick": {"schema": 1,
+  "photos": [paths]}}`, gone when empty (`Library/Remove.swift`); `saved-settings.json` for the import's Saved Settings under
   the top-level key `qlick`; `import-ledger.jsonl`. `Library/Projects.swift`, `Library/Catalogs.swift`.
   Before 0.4 (`schema` 1) a file could be Arrivals (`kind: "arrivals"`) or a selection (`kind: "selection"` with
   `frames`): read once and converted (Arrivals → the Archive “To Sort”, each selection → a Box on top, its file then
-  removed). A newer schema, Archive or `boxes.json`, is left alone.
+  removed). A newer schema, Archive, `boxes.json` or `removed.json`, is left alone.
 - `Roll.qlickroll`: a Folder's card inside the folder (the name kept from when Folders were rolls), `{"qlick": {"schema": 1, "roll": {"name", "film",
   "camera", "notes"}}}`. Unknown keys are kept; a newer schema is left alone. The catalogue keeps a copy; when a
   folder is read the card wins, and a Folder from before 0.3 gets one. `Library/RollCardFile.swift`.

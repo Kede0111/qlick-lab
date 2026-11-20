@@ -151,11 +151,9 @@ import SwiftUI
         command(photo, "Duplicate", #selector(duplicate), "d")
         command(photo, "Reset Edits", #selector(resetEdits), "r", [.command, .shift])
         photo.addItem(.separator())
-        // ⌫ asks first; holding ⌘ shows ⌘⌫, which doesn't. Both go to the Trash.
-        command(photo, "Move to Trash…", #selector(moveToTrash), "\u{8}", [])
-        command(photo, "Move to Trash", #selector(moveToTrashNow), "\u{8}", .command)
-        photo.items.last?.isAlternate = true
-        command(photo, "Delete Rejected Photographs…", #selector(deleteRejected), "")
+        // Qlick Lab: ⌫ opens the Remove dialog; nothing is ever deleted without it (and a second question for the disk).
+        command(photo, "Remove…", #selector(removePhotos), "\u{8}", [])
+        command(photo, "Remove Rejected Photos…", #selector(removeRejected), "")
         photo.addItem(.separator())
         command(photo, "Advance After Rating", #selector(toggleAdvance), "")
         photo.addItem(.separator())
@@ -285,9 +283,8 @@ import SwiftUI
     @objc private func pasteFromPrevious() { model.pasteFromPrevious() }
     @objc private func duplicate() { model.duplicate() }
     @objc private func resetEdits() { model.resetEdits() }
-    @objc private func moveToTrash() { model.requestDelete(asking: true) }
-    @objc private func moveToTrashNow() { model.requestDelete(asking: false) }
-    @objc private func deleteRejected() { model.requestDelete(model.rejected, asking: true) }
+    @objc private func removePhotos() { model.lab.requestRemove() }
+    @objc private func removeRejected() { model.lab.requestRemoveRejected() }
 
     /// Copy Edits…: the groups to copy, in the alert sheet; the choice is remembered.
     @objc private func copyEditsChoosing() {
@@ -386,12 +383,11 @@ import SwiftUI
             return model.previousEdits != nil && model.canChangeEdits && !model.editTargets.isEmpty && Self.takesRatingKeys(NSApp.keyWindow)
         case #selector(duplicate), #selector(resetEdits):
             return model.canChangeEdits && !model.editTargets.isEmpty && Self.takesRatingKeys(NSApp.keyWindow)
-        case #selector(moveToTrash), #selector(moveToTrashNow):
+        case #selector(removePhotos):
             let count = model.deleteTargets.count
-            let title = count > 1 ? "Move \(count) Photographs to Trash" : "Move to Trash"
-            item.title = item.action == #selector(moveToTrash) ? title + "…" : title
+            item.title = count > 1 ? "Remove \(count) Photographs…" : "Remove…"
             return model.canDelete && count > 0 && Self.takesDeleteKey(NSApp.keyWindow)
-        case #selector(deleteRejected): return model.canDelete && !model.rejected.isEmpty
+        case #selector(removeRejected): return model.canDelete && !model.rejected.isEmpty
         case #selector(rate(_:)):
             item.state = state { $0.rating == item.tag }; return rating
         case #selector(raiseRating), #selector(lowerRating): return rating

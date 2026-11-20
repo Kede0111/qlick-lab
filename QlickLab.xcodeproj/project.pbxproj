@@ -45,6 +45,7 @@
 		2DF6ED455EA02841D0CFBCE6 /* MatchCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79BCC72C5EB5003D8773C7BA /* MatchCache.swift */; };
 		2E18ED22C59D62FD133A26C7 /* LibraryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8582BD7082853AD69852B480 /* LibraryTests.swift */; };
 		2EAC856F090BCAFF9A89B22D /* StatusLine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 231B04B5DC77A25AEAF44A9B /* StatusLine.swift */; };
+		2F374B9600CCFB6B734B272F /* Remove.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19E7204908CEE5E51EB19FA7 /* Remove.swift */; };
 		2FAC77786EB111E66333AB6C /* FilmCacheRelease.swift in Sources */ = {isa = PBXBuildFile; fileRef = 619C53C72AF4833E24C0BA44 /* FilmCacheRelease.swift */; };
 		2FDC2D5095DEAE2E7B48AFD6 /* ImportSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB65E2A1ED6A92EAA65E4FA5 /* ImportSession.swift */; };
 		30ADE5FE23E32413D2D00BBF /* ThemeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C3C058EE9B5C54276C69739 /* ThemeTests.swift */; };
@@ -85,6 +86,7 @@
 		52921B57D73F564AD9C65003 /* SmallStatesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07FAECE8B068BFB362DFCDA2 /* SmallStatesTests.swift */; };
 		53C85AAC9A597BB315AE6721 /* ImportProgress.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0046879BAD48D581C72971E /* ImportProgress.swift */; };
 		54016949C30A6D12AEB94AC3 /* LightTableTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEBCFBC33FD4A1DA5F1170FF /* LightTableTests.swift */; };
+		542A6C1664FC2584B7CB804D /* RemoveTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27E49D8877D8C4DFCF7C73FB /* RemoveTests.swift */; };
 		554CE81C44589C2901D230C4 /* EditorModel+Thumbnails.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D306B5CC620E9325B30C392 /* EditorModel+Thumbnails.swift */; };
 		56DF6BACE40DE03C8564277D /* EngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19FFACDFBC430508B75334F0 /* EngineTests.swift */; };
 		5817CCC666B178FE93C27DAA /* RecipeDevelop.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB7C7B31BCD2F5942D495534 /* RecipeDevelop.swift */; };
@@ -268,6 +270,7 @@
 		11EC586789E41061E754D749 /* FolderTreesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderTreesTests.swift; sourceTree = "<group>"; };
 		1664E1401590EB64B53CCC0E /* ArchiveBoxTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArchiveBoxTests.swift; sourceTree = "<group>"; };
 		19DF04F0A1D8DCEB80742238 /* Original.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Original.swift; sourceTree = "<group>"; };
+		19E7204908CEE5E51EB19FA7 /* Remove.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Remove.swift; sourceTree = "<group>"; };
 		19F349F0ED043E1F6DDBC03D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		19FFACDFBC430508B75334F0 /* EngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EngineTests.swift; sourceTree = "<group>"; };
 		1A90580B63121C13E605EF65 /* DevelopToolbar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevelopToolbar.swift; sourceTree = "<group>"; };
@@ -280,6 +283,7 @@
 		23694C89FDF5BCAED477EA37 /* EditorModel+Rendering.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "EditorModel+Rendering.swift"; sourceTree = "<group>"; };
 		25D88B672442E393E4D9C483 /* HandStarTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HandStarTests.swift; sourceTree = "<group>"; };
 		2641FE283D38D96C37BF7D87 /* PresetTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresetTests.swift; sourceTree = "<group>"; };
+		27E49D8877D8C4DFCF7C73FB /* RemoveTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoveTests.swift; sourceTree = "<group>"; };
 		2B2D5228817DCE0F36780230 /* AppIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = wrapper.icon; path = AppIcon.icon; sourceTree = "<group>"; };
 		2BFA0490E75DEB676F4D2540 /* StatusLineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusLineTests.swift; sourceTree = "<group>"; };
 		2C3C058EE9B5C54276C69739 /* ThemeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeTests.swift; sourceTree = "<group>"; };
@@ -668,6 +672,7 @@
 				AD1E6135F3492F696DAE46C7 /* Projects.swift */,
 				4AD3FAABEFB6622FFCE2CA2A /* ProxyMaker.swift */,
 				B1DC9108560C2D59461E1B66 /* RejectCross.swift */,
+				19E7204908CEE5E51EB19FA7 /* Remove.swift */,
 				83B1D6E04D38C5E8DC21D0E5 /* RollCardFile.swift */,
 				36BDF65CB39157C16FF8B6FB /* ScrollWatch.swift */,
 				4A39E6D43CE8E4867FD95546 /* Selection.swift */,
@@ -730,6 +735,7 @@
 				7094137209C4E1527AB28474 /* QuickFrameTests.swift */,
 				99F31D0BF48ECE5197416387 /* RecipeDevelopTests.swift */,
 				EB97F5E1705DF1A85BA9239E /* RejectCrossTests.swift */,
+				27E49D8877D8C4DFCF7C73FB /* RemoveTests.swift */,
 				9875032566891AE0187F6BB8 /* RenderedPreviewCacheTests.swift */,
 				D6104F039C7183D3DD542072 /* RollCardFileTests.swift */,
 				E24FEF0A7A6EF123ADCA1444 /* SavedImportSettingsTests.swift */,
@@ -1120,6 +1126,7 @@
 				5817CCC666B178FE93C27DAA /* RecipeDevelop.swift in Sources */,
 				8FD1B5D2E47D7726FB387993 /* RecipesWorkspace.swift in Sources */,
 				C4A1E9DABE8014C12AE62098 /* RejectCross.swift in Sources */,
+				2F374B9600CCFB6B734B272F /* Remove.swift in Sources */,
 				2B150506044CD43A1F37E602 /* RenderedPreviewCache.swift in Sources */,
 				8EAADCE871E9BD960D4D97FE /* RollCardFile.swift in Sources */,
 				C042ABDC54D5169B30C2D2D2 /* SavedImportSettings.swift in Sources */,
@@ -1206,6 +1213,7 @@
 				D5CDEDE206A77F5157528AF0 /* QuickFrameTests.swift in Sources */,
 				1FA49BE0011D156E66804B71 /* RecipeDevelopTests.swift in Sources */,
 				BEA32861A9459F9B2B277B74 /* RejectCrossTests.swift in Sources */,
+				542A6C1664FC2584B7CB804D /* RemoveTests.swift in Sources */,
 				C9C07BFBB17005A2F71316AE /* RenderedPreviewCacheTests.swift in Sources */,
 				49414A80DDF953B34EDBFFD4 /* RollCardFileTests.swift in Sources */,
 				EF1291CD877EE3E859CF4995 /* SaveSettingsTests.swift in Sources */,

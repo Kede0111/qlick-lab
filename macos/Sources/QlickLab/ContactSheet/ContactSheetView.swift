@@ -789,7 +789,7 @@ extension ContactSheetView: NSDraggingSource {
         add("Export" + several + "…", #selector(export), enabled: model.canExport)
         add("Show in Finder", #selector(reveal))
         menu.addItem(.separator())
-        add(count > 1 ? "Move \(count) Photographs to Trash…" : "Move to Trash…", #selector(trash), enabled: model.canDelete)
+        add(count > 1 ? "Remove \(count) Photographs…" : "Remove…", #selector(remove), enabled: model.canDelete)
     }
 
     private func add(_ title: String, _ action: Selector, key: String = "", enabled: Bool = true) {
@@ -825,7 +825,7 @@ extension ContactSheetView: NSDraggingSource {
     @objc private func buildPreviews() { sheet.lab.previewBuilder.build(model.ratingTargets) }
     @objc private func buildThumbnails() { model.buildThumbnails(model.ratingTargets) }
     @objc private func pasteFromPrevious() { model.pasteFromPrevious(onto: model.ratingTargets) }
-    @objc private func trash() { model.requestDelete(model.ratingTargets, asking: true) }
+    @objc private func remove() { sheet.lab.requestRemove(model.ratingTargets) }
     @objc private func reveal() { NSWorkspace.shared.activateFileViewerSelecting(model.ratingTargets.map(\.photoFile)) }
 }
 
