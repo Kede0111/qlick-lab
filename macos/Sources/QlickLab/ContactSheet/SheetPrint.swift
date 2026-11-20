@@ -240,7 +240,7 @@ struct SheetPrintDialog: View {
                         ProgressView(value: Double(progress.done), total: Double(max(progress.total, 1))).frame(width: 180)
                         Text("Reading the frames… \(progress.done) / \(progress.total)").font(Theme.value(11)).foregroundStyle(Color(white: 0.8))
                     }
-                    .padding(16).glass(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .padding(16).glass(RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous))
                 }
             }
             .frame(width: 560, height: 620)

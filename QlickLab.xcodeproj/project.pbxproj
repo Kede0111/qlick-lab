@@ -49,6 +49,7 @@
 		2F374B9600CCFB6B734B272F /* Remove.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19E7204908CEE5E51EB19FA7 /* Remove.swift */; };
 		2FAC77786EB111E66333AB6C /* FilmCacheRelease.swift in Sources */ = {isa = PBXBuildFile; fileRef = 619C53C72AF4833E24C0BA44 /* FilmCacheRelease.swift */; };
 		2FDC2D5095DEAE2E7B48AFD6 /* ImportSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB65E2A1ED6A92EAA65E4FA5 /* ImportSession.swift */; };
+		30020ABC955A6C1F07A4C721 /* ThemeTokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DC0A399D4FCB1172039B870 /* ThemeTokens.swift */; };
 		30ADE5FE23E32413D2D00BBF /* ThemeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C3C058EE9B5C54276C69739 /* ThemeTests.swift */; };
 		313CF1EA0A1BCBAF4F732308 /* Tray.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2E77E2E7EF2B1B2CBE21C5B /* Tray.swift */; };
 		34168772C1B3EB36F530A285 /* PickBox.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D917CAF425F2A7A2AC68468 /* PickBox.swift */; };
@@ -59,6 +60,7 @@
 		376FAB1C69B3F04905AE5792 /* CatalogIndex.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BEAF5FB898C0E4BA87885D3 /* CatalogIndex.swift */; };
 		3A884441D81B9760A5BC645A /* PhotoQuery.swift in Sources */ = {isa = PBXBuildFile; fileRef = F04DD9D3D30330C02A585C2C /* PhotoQuery.swift */; };
 		3AF1D102C325DF77239F64B0 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 87A6B6AE37A11BC0CA50BB8A /* Sparkle */; };
+		3BC2D47C819D78706935A0FF /* DesignTokensTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10395DEEACF619024AC8285 /* DesignTokensTests.swift */; };
 		3BC30516CAD1153724F18D3B /* AutoStraightenTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED178390894958C83C40F37D /* AutoStraightenTests.swift */; };
 		3BCF4D672645DB3307FC949F /* Inspector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04C0E1C84C96409B68A5CE48 /* Inspector.swift */; };
 		3C642EBF429F214E4EB2156A /* qlick-lab.icns in Resources */ = {isa = PBXBuildFile; fileRef = FF3FE495ADC22EB1F0239034 /* qlick-lab.icns */; };
@@ -327,6 +329,7 @@
 		3AB3D917183EF23745418720 /* PhotoAspectsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoAspectsTests.swift; sourceTree = "<group>"; };
 		3B1D16C2C8205A626CF2F180 /* Boxes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Boxes.swift; sourceTree = "<group>"; };
 		3D917CAF425F2A7A2AC68468 /* PickBox.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PickBox.swift; sourceTree = "<group>"; };
+		3DC0A399D4FCB1172039B870 /* ThemeTokens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeTokens.swift; sourceTree = "<group>"; };
 		3F051FE58212183C99403243 /* EmbeddedThumbnailsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmbeddedThumbnailsTests.swift; sourceTree = "<group>"; };
 		3F9FAA9374BDABEF352BC4D1 /* ContactSheetLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactSheetLayout.swift; sourceTree = "<group>"; };
 		401A05957C294D834C8F4BDC /* TabEditsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabEditsTests.swift; sourceTree = "<group>"; };
@@ -457,6 +460,7 @@
 		CFE9943AB5BEB3E8C0DAD47C /* LibrarySorting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibrarySorting.swift; sourceTree = "<group>"; };
 		D03D74B00E9B08B16944A4A2 /* LabDeveloper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LabDeveloper.swift; sourceTree = "<group>"; };
 		D04C4438A596A9AD951F6410 /* PreviewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewTests.swift; sourceTree = "<group>"; };
+		D10395DEEACF619024AC8285 /* DesignTokensTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignTokensTests.swift; sourceTree = "<group>"; };
 		D33BB4E0CA9854D0473F90E5 /* ContactSheetRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactSheetRenderer.swift; sourceTree = "<group>"; };
 		D36482ADFD16BBAC3CADF319 /* ImportPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportPanel.swift; sourceTree = "<group>"; };
 		D5784AE8AAF7BDB20C5BC3CF /* Presets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Presets.swift; sourceTree = "<group>"; };
@@ -546,6 +550,7 @@
 				652173E63F3894310BB3613C /* Controls.swift */,
 				5D2E9F7C1EA414F7B851C610 /* LabGlyphs.swift */,
 				AC8126A7A53141CA91BF60C3 /* Theme.swift */,
+				3DC0A399D4FCB1172039B870 /* ThemeTokens.swift */,
 			);
 			path = Design;
 			sourceTree = "<group>";
@@ -739,6 +744,7 @@
 				4454409F59DAF0F93902CD1C /* CaptionLabelTests.swift */,
 				FCE7C4FB8741018067CCB746 /* ControlHelpTests.swift */,
 				9798D2896C38F7F2B5A0ACB8 /* CropTests.swift */,
+				D10395DEEACF619024AC8285 /* DesignTokensTests.swift */,
 				2FDB2A5D10B5F056AD1D51D3 /* DNGMetadataTests.swift */,
 				3F051FE58212183C99403243 /* EmbeddedThumbnailsTests.swift */,
 				BFE75471737FDEA141AF9ACA /* EngineContractTests.swift */,
@@ -1209,6 +1215,7 @@
 				A0058E2A5BE1A66F00732EFC /* Support.swift in Sources */,
 				E0396AC4CF7EC658A3718B1C /* TabEdits.swift in Sources */,
 				203907D0BAB8E4D8143B3C89 /* Theme.swift in Sources */,
+				30020ABC955A6C1F07A4C721 /* ThemeTokens.swift in Sources */,
 				02BB54E01ED1BE4232C26FBD /* TitleBar.swift in Sources */,
 				1918011E49A08EB58B0C8B1F /* ToneGraph.swift in Sources */,
 				313CF1EA0A1BCBAF4F732308 /* Tray.swift in Sources */,
@@ -1234,6 +1241,7 @@
 				9DE2AB4580AC63AD498D1A67 /* ControlHelpTests.swift in Sources */,
 				4C052E4A07329B7922857755 /* CropTests.swift in Sources */,
 				68BBF9C166555A27E2AE631D /* DNGMetadataTests.swift in Sources */,
+				3BC2D47C819D78706935A0FF /* DesignTokensTests.swift in Sources */,
 				A552AAC7DE09CEA67D4306D6 /* EmbeddedThumbnailsTests.swift in Sources */,
 				28C6DDC034326B8BD2972369 /* EngineContractTests.swift in Sources */,
 				56DF6BACE40DE03C8564277D /* EngineTests.swift in Sources */,

@@ -399,8 +399,8 @@ struct PhotoInfoPanel: View {
                 }
                 .frame(width: Self.width)
                 .background(Color.black.opacity(0.28))
-                .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-                .glass(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.floating, style: .continuous))
+                .glass(RoundedRectangle(cornerRadius: Theme.Radius.floating, style: .continuous))
                 .shadow(color: .black.opacity(0.35), radius: 18, y: 6)
                 .padding(Self.margin)
                 .environment(\.colorScheme, .dark)

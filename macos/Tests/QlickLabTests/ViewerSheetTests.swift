@@ -18,12 +18,12 @@ final class ViewerSheetTests: XCTestCase {
     /// and its neutral paper white.
     func testInksMatchTheProposal() {
         let expected: [ViewerSheet: (light: Bool, inks: [UInt32])] = [
-            .black: (true, [0xebe4d6, 0xb9b0a1, 0x8c8578, 0x424039, 0x25241f, 0xe5222b]),
-            .charcoal: (true, [0xffffff, 0xd0c7b8, 0xa09a8b, 0x55524a, 0x3b3934, 0xe5222b]),
+            .black: (true, [0xebe4d6, 0xb9b0a1, 0x8c8578, 0x424039, 0x25241f, 0xf8000a]),
+            .charcoal: (true, [0xffffff, 0xd0c7b8, 0xa09a8b, 0x55524a, 0x3b3934, 0xf8000a]),
             .grey22: (true, [0xffffff, 0xd5cdbd, 0xaaa294, 0x636058, 0x4b4944, 0xe44b43]),
             .middleGrey: (false, [0x000000, 0x0b0601, 0x0b0601, 0x605c55, 0x6e6b67, 0x600d06]),
             .lightGrey: (false, [0x000000, 0x342d21, 0x4c463a, 0x88847d, 0xa19e99, 0xbb2214]),
-            .paper: (false, [0x151007, 0x413a2e, 0x635d4f, 0xaeaaa2, 0xd3d0ca, 0xe5222b]),
+            .paper: (false, [0x151007, 0x413a2e, 0x635d4f, 0xaeaaa2, 0xd3d0ca, 0xf8000a]),
         ]
         for (sheet, want) in expected {
             let ink = sheet.ink.hex

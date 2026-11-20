@@ -406,7 +406,14 @@ Lots, in order:
   code and test comments no longer cite other apps (Lightroom, Capture One, Photoshop, Instagram), and NEgs only
   where it's a credit (About, CameraBrightnessReference's source, ControlHelp's sources, StockLibrary's profiles).
   The Rust comment in `spektrafilm-io/src/brightness.rs` left alone (lot H rule: no Rust). Tests: 561.
-- [ ] B Tokens: a tokens file in this repository only, `Theme` generated from it, QLab's red, `CapsLabel`.
+- [x] B Tokens: `macos/design-tokens.json` (colours with a doc line each, radii, motion, capital labels) is the one
+  source; `Design/ThemeTokens.swift` (`Theme.Hex`, `Theme.P3`, `Theme.Radius`, `Theme.Motion`, `Theme.Caps`) is
+  generated from it by `DesignTokensTests` (`QLICK_UPDATE_GENERATED=1 swift test --filter DesignTokensTests`), which
+  also checks the AccentColor set and that the sRGB red is the P3 red converted. The red is QLab's: SwiftUI's
+  `Theme.accent` and the sheet's pencil in Display P3 (0.89, 0.11, 0.14), AppKit and contrast checks in sRGB
+  `#f8000a`. Surface `panel` #131314 (was #141415). `CapsLabel` 11 pt, tracking 0.11 × size; floating panels 26,
+  dialog 22, glass cards 14, icon buttons 7. White on the red is 4.2 : 1 (test floor 4.0 for the main button's
+  semibold capitals; told Quentin). Not in the QLab repository (decision 4 later). Tests: 564.
 - [ ] C Central selector Library · Lab · Print in `TitleBand`; the sidebar follows it (the part's rooms on top,
   Archives and Boxes always below); switch on mouseDown, no animation; ⌘1/2/3; one key for Lab ↔ contact sheet.
 - [ ] D The Lab's shelf: show/hide per recipe and per stock, favourites by identifier in one system, sort and search.
@@ -422,7 +429,7 @@ Lots, in order:
 - Phase: **0.4 is done** (R1–R8; R8 from Quentin's first try of Dev). `feature/import-library` holds architecture waves 1–3, 0.1.5, 0.2, 0.3 and 0.4
   (local, nothing pushed, `main` untouched). Swift tests: 555 (24 skipped), all pass (561 after R8); the Rust side wasn't changed.
   Qlick Lab Dev is built from it (`dist/qlick-lab-dev/Qlick Lab Dev.app`).
-- Phase: **lab structure** on `feature/lab-structure` (from `feature/import-library`, local). Lot A done; next is lot B.
+- Phase: **lab structure** on `feature/lab-structure` (from `feature/import-library`, local). Lots A and B done; next is lot C.
 
 ## Build and test
 

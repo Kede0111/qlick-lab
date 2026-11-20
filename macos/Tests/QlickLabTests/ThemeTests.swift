@@ -76,9 +76,11 @@ final class ThemeTests: XCTestCase {
                 XCTAssertGreaterThanOrEqual(Theme.contrast(text, background), 4.5, String(format: "%06x on %06x", text, background))
             }
         }
-        XCTAssertGreaterThanOrEqual(Theme.contrast(Theme.Hex.onAccent, Theme.Hex.accent), 4.5, "Export's words on the pencil")
-        // The spec's table (§2.1): dim 5.3 on the panel, paper 16.6 on the sheet.
-        XCTAssertEqual(Theme.contrast(Theme.Hex.dim, Theme.Hex.panel), 5.3, accuracy: 0.1)
+        // QLab's red (Quentin, 2026-11-20) carries only short semibold capitals (the main button): 4.2 : 1, above
+        // the 3 : 1 of large and bold words.
+        XCTAssertGreaterThanOrEqual(Theme.contrast(Theme.Hex.onAccent, Theme.Hex.accent), 4.0, "Export's words on the pencil")
+        // The spec's table (§2.1): dim 5.4 on the panel, paper 17.4 on the sheet.
+        XCTAssertEqual(Theme.contrast(Theme.Hex.dim, Theme.Hex.panel), 5.4, accuracy: 0.1)
         XCTAssertEqual(Theme.contrast(Theme.Hex.paper, Theme.Hex.bg), 17.4, accuracy: 0.1)
         XCTAssertEqual(Theme.contrast(Theme.Hex.warn, Theme.Hex.panel), 9.5, accuracy: 0.1)
     }

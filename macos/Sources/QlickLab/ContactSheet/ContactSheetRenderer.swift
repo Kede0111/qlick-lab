@@ -54,7 +54,7 @@ struct SheetPalette {
     var rejectedOpacity: CGFloat
 
     private static func gray(_ white: CGFloat, _ alpha: CGFloat = 1) -> CGColor { CGColor(gray: white, alpha: alpha) }
-    static let pencilRed = CGColor(colorSpace: CGColorSpace(name: CGColorSpace.displayP3)!, components: [0.89, 0.11, 0.14, 1])!
+    static let pencilRed = CGColor(colorSpace: CGColorSpace(name: CGColorSpace.displayP3)!, components: [Theme.P3.accent.0, Theme.P3.accent.1, Theme.P3.accent.2, 1])!
 
     /// The dark sheet: strips lying on black card, as the lab is lit.
     static let dark = SheetPalette(sheet: gray(0.058), film: gray(0), hole: gray(0.135), filmEdge: gray(1, 0.07),

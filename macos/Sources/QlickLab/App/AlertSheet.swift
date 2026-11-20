@@ -148,7 +148,7 @@ struct AlertSheet: View {
     static let width: CGFloat = 440
     /// Between the title bar and the card, so the bar doesn't look to cut it off.
     static let gap: CGFloat = 12
-    static let radius: CGFloat = 10
+    static let radius: CGFloat = Theme.Radius.dialog
     /// Room round the sheet for its shadow, which a window can't draw past.
     static let margin = EdgeInsets(top: gap, leading: 44, bottom: 56, trailing: 44)
 

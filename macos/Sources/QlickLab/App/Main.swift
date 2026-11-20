@@ -568,8 +568,8 @@ struct FloatingInspector: View {
             if shown {
                 InspectorPanel(model: model, floating: true)
                     .frame(width: Self.width)
-                    .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-                    .glass(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.floating, style: .continuous))
+                    .glass(RoundedRectangle(cornerRadius: Theme.Radius.floating, style: .continuous))
                     .shadow(color: .black.opacity(0.35), radius: 18, y: 6)
                     .padding(Self.margin)
                     .transition(.move(edge: .trailing).combined(with: .opacity))

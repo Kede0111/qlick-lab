@@ -72,7 +72,7 @@ struct LibraryHome: View {
         .background(Theme.bg)
         .overlay {
             if dropping {
-                RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Theme.accent, lineWidth: 2).padding(10).allowsHitTesting(false)
+                RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous).strokeBorder(Theme.accent, lineWidth: 2).padding(10).allowsHitTesting(false)
             }
         }
         .onDrop(of: [.fileURL], isTargeted: $dropping) { providers in LabDrop.load(providers) { lab.importFolders($0) } }

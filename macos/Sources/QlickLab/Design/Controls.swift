@@ -6,11 +6,11 @@ import SwiftUI
 /// QLab's small capital label.
 struct CapsLabel: View {
     let text: String
-    var size: CGFloat = 10.5
+    var size: CGFloat = Theme.Caps.size
     var color: Color = Theme.dim
-    init(_ text: String, size: CGFloat = 10.5, color: Color = Theme.dim) { self.text = text; self.size = size; self.color = color }
+    init(_ text: String, size: CGFloat = Theme.Caps.size, color: Color = Theme.dim) { self.text = text; self.size = size; self.color = color }
     var body: some View {
-        Text(text.uppercased()).font(Theme.caps(size)).tracking(size * 0.11).foregroundStyle(color).lineLimit(1)
+        Text(text.uppercased()).font(Theme.caps(size)).tracking(size * Theme.Caps.tracking).foregroundStyle(color).lineLimit(1)
     }
 }
 
@@ -76,7 +76,7 @@ struct QIconButton: View {
                 .font(.system(size: 13, weight: .medium))
                 .foregroundStyle(active ? Theme.accent : (hovered ? Theme.paper : Color(white: 0.72)))
                 .frame(width: 28, height: 26)
-                .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(Color.white.opacity(active ? 0.1 : hovered ? 0.07 : 0)))
+                .background(RoundedRectangle(cornerRadius: Theme.Radius.thumbnail, style: .continuous).fill(Color.white.opacity(active ? 0.1 : hovered ? 0.07 : 0)))
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
