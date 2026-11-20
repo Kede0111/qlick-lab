@@ -248,7 +248,7 @@ Steps (one local commit each, tests, `scripts/drive.sh` screenshots checked, Dev
   Automation: `drop <what> ; <row> [; alt show at=]`, `editcopy`, `editpaste`, `boxtree`, `sheetmenu`, `dragimage`.
   Tests: 520 (`BoxMovesTests`). Not done: dragging from Compare's panes (they pan); real mouse drags can't be driven
   off screen, so the cursor and the SwiftUI `onDrag` on the sidebar's buttons were checked by code only.
-- [x] R3 Remove… / Remove Rejected Photos… (6e23298): Move to Trash is gone from every menu (sheet, grid/strip,
+- [x] R3 Remove… / Remove Rejected Photos… (03f7043): Move to Trash is gone from every menu (sheet, grid/strip,
   Develop, Photo menu; ⌘⌫'s silent delete too). ⌫ / Remove… and Remove Rejected Photos… (Photo menu, and a ⊖ by the
   Rejects count in the filter bar) open one dialog (`RemoveQuestion`, `Library/Remove.swift`): choices drawn as cards
   with a line each (`AppAlert.Button.detail`), Return on the safest: Remove from “Box/Roll” (when one is open),
