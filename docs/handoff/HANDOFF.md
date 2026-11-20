@@ -260,7 +260,7 @@ Steps (one local commit each, tests, `scripts/drive.sh` screenshots checked, Dev
   listed closes the list; Undo opens it again. Automation: `removeask [rejected]`, `restoreremoved <archive>`,
   `archive addfolder <name>|<path>`. Tests: 524 (`RemoveTests`, the alert test rewritten).
   Note: automation commands aren't events, so two steps can share one undo group off screen (real keys are fine).
-- [x] R4 Colour labels, keywords, title/caption (HASH_R4): `PhotoWords` (label, keywords, title, caption) in each
+- [x] R4 Colour labels, keywords, title/caption (fe8d081): `PhotoWords` (label, keywords, title, caption) in each
   sidecar variant (`label`, `keywords`, `title`, `caption`; schema unchanged, unknown label kept) and in a DNG's XMP
   (`xmp:Label`, `dc:subject`, `dc:title`, `dc:description`, only once the lab writes them). `LibrarySummary.words`, so
   the rating machinery saves, undoes and redoes them (`changeLibrary(advancing:)`: words never auto-advance). Labels:
