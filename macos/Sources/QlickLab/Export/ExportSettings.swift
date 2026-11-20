@@ -241,7 +241,9 @@ struct ExportSize: Equatable {
         spacePopup.autoenablesItems = false
         spacePopup.item(at: SaveSettings.prophoto)?.toolTip = "ProPhoto RGB needs 16 bits; 8 bits would band."
         spacePopup.target = self; spacePopup.action = #selector(spaceChanged)
-        spacePopup.toolTip = "The colour space the file is saved in, with its ICC profile."
+        spacePopup.toolTip = "The colour space the file is saved in, with its ICC profile: chosen in Print."
+        // Qlick Lab: one door for the output colour space, in Print; the panel shows it.
+        spacePopup.isEnabled = false
         rows.append(NSStackView(views: [NSTextField(labelWithString: "Colour Space:"), spacePopup]))
         qualitySlider.doubleValue = Double(SaveSettings.lastQuality)
         qualitySlider.isContinuous = true

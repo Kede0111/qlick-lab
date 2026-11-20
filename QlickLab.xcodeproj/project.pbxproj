@@ -222,6 +222,7 @@
 		CEF00E9FCF48BCEE4095AE77 /* WindowMinimumTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 556A7BE9794CBEFC28EE9AD6 /* WindowMinimumTests.swift */; };
 		D3798E19E51B0AC06A73E712 /* LabMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA7A5AB323909782BD87154A /* LabMenu.swift */; };
 		D3E036137C659C6F0B9E62CD /* Border.swift in Sources */ = {isa = PBXBuildFile; fileRef = 868AE37101D42673031F3AAB /* Border.swift */; };
+		D3FA6C7A1E19776D19FCCE27 /* GamutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0302293C8F3F374DEE3B46E0 /* GamutTests.swift */; };
 		D503B7B51FFEB5447048227B /* Original.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19DF04F0A1D8DCEB80742238 /* Original.swift */; };
 		D5962D12DEDFEA21E6F243D4 /* PreviewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D04C4438A596A9AD951F6410 /* PreviewTests.swift */; };
 		D5CDEDE206A77F5157528AF0 /* QuickFrameTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7094137209C4E1527AB28474 /* QuickFrameTests.swift */; };
@@ -259,6 +260,7 @@
 		F8436096F66215DAB3CD3FAC /* PhotoBrowser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A8C0A1DA7DCA56ED1C31BB1 /* PhotoBrowser.swift */; };
 		FB4DDC5252785DD92DA51754 /* LabSelectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB8F9194088E038B68B4495B /* LabSelectionTests.swift */; };
 		FB771D3EAFF6A737C98DF9C3 /* EditorModel+ToneGraph.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7706F658CC9C8A9E5FF9A7AD /* EditorModel+ToneGraph.swift */; };
+		FCE31B0BB9618BBCA85D8480 /* Gamut.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCBF52569E6F422F2FAA576E /* Gamut.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -280,6 +282,7 @@
 		02357A588164A49086E71BC6 /* ViewerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewerSheet.swift; sourceTree = "<group>"; };
 		02A8452E68238F23220F2BEA /* TabEdits.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabEdits.swift; sourceTree = "<group>"; };
 		02C8CD58E355F4D778A67968 /* EditorModel+BatchExport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "EditorModel+BatchExport.swift"; sourceTree = "<group>"; };
+		0302293C8F3F374DEE3B46E0 /* GamutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GamutTests.swift; sourceTree = "<group>"; };
 		04C0E1C84C96409B68A5CE48 /* Inspector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Inspector.swift; sourceTree = "<group>"; };
 		056296E187984876A270E990 /* CompareCanvas.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompareCanvas.swift; sourceTree = "<group>"; };
 		0691F6C03BAC1F2C859AA0ED /* BorderGeometry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BorderGeometry.swift; sourceTree = "<group>"; };
@@ -522,6 +525,7 @@
 		F9D3DE880C50DD2E27BD7F0A /* LabState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LabState.swift; sourceTree = "<group>"; };
 		FA68E110B451939214B42C9E /* FolderTrees.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderTrees.swift; sourceTree = "<group>"; };
 		FAE3DE589815F97CB209B23E /* Engine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Engine.swift; sourceTree = "<group>"; };
+		FCBF52569E6F422F2FAA576E /* Gamut.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Gamut.swift; sourceTree = "<group>"; };
 		FCE7C4FB8741018067CCB746 /* ControlHelpTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ControlHelpTests.swift; sourceTree = "<group>"; };
 		FD4F54F1658D45C9F99BDA33 /* FitDownscaleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FitDownscaleTests.swift; sourceTree = "<group>"; };
 		FF3FE495ADC22EB1F0239034 /* qlick-lab.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = "qlick-lab.icns"; sourceTree = "<group>"; };
@@ -747,6 +751,7 @@
 		54688B724D911DA8B2A639A0 /* Print */ = {
 			isa = PBXGroup;
 			children = (
+				FCBF52569E6F422F2FAA576E /* Gamut.swift */,
 				01490653566C1FA9B81CCC0B /* PrintPanel.swift */,
 			);
 			path = Print;
@@ -783,6 +788,7 @@
 				4768819E8E7BDA1B05B6AD95 /* FitZoomTests.swift */,
 				11EC586789E41061E754D749 /* FolderTreesTests.swift */,
 				CF3B300DDCA3FD87FBA4BD00 /* FrameCanvasTests.swift */,
+				0302293C8F3F374DEE3B46E0 /* GamutTests.swift */,
 				25D88B672442E393E4D9C483 /* HandStarTests.swift */,
 				83A7C58EC67F2BD2DD676C06 /* HistogramTests.swift */,
 				5EEB44797E57D79D6DECAB6E /* ImageOnlyTests.swift */,
@@ -1161,6 +1167,7 @@
 				6B010E6D8CEF2F1CE6CC89B2 /* FolderTrees.swift in Sources */,
 				A2D5AD062690D8C548ACC97B /* FrameCanvas.swift in Sources */,
 				9105E8A2D348737C8B5B5E0F /* FrameFacts.swift in Sources */,
+				FCE31B0BB9618BBCA85D8480 /* Gamut.swift in Sources */,
 				9FC1384AC15501939C0EFAC6 /* GreasePencil.swift in Sources */,
 				77B2CF3705A4669EC9E03198 /* GridBenchmark.swift in Sources */,
 				E472EF79B530B3492A698AB1 /* HandStar.swift in Sources */,
@@ -1288,6 +1295,7 @@
 				DF525CEC5E176463455BABD3 /* FitZoomTests.swift in Sources */,
 				6B2F66FBB530463DC5E96B33 /* FolderTreesTests.swift in Sources */,
 				CDD73BB71BBD9082E0ACF18A /* FrameCanvasTests.swift in Sources */,
+				D3FA6C7A1E19776D19FCCE27 /* GamutTests.swift in Sources */,
 				CDE1679A953379B7199780F0 /* HandStarTests.swift in Sources */,
 				519C8C5E7F0C48F84CC13A0B /* HistogramTests.swift in Sources */,
 				16CF2F22262A12022FC42F4A /* ImageOnlyTests.swift in Sources */,

@@ -264,6 +264,12 @@ struct SheetOptions: Codable, Equatable, Sendable {
     var compare = CompareSetup()
     /// The print dialog of the contact sheet.
     var printing = false
+    /// Print › Show out-of-gamut: the photograph's colours the output space can't hold, marked in cyan (`Gamut`).
+    var showGamut = UserDefaults.standard.bool(forKey: "qlick.showGamut") {
+        didSet { UserDefaults.standard.set(showGamut, forKey: "qlick.showGamut") }
+    }
+    /// The last colour check of the open photograph (marks, share out, its colours on the xy diagram).
+    var gamutCheck: Gamut.Check?
     /// A sheet asking for a name: a new Archive (and the folders waiting for it), a new Box or Roll (and the photographs
     /// going in), or a new name for one of them.
     var naming: Naming?

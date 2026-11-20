@@ -39,8 +39,9 @@ extension EditorModel {
     /// or with `film` chosen as a click on it would, or under `preset` (a
     /// recipe's text). Cropped, turned and straightened as its thumbnail is;
     /// without its border, which Comparaison doesn't judge. Nil if it fails.
+    /// Qlick Lab: `space`, the output colour space, the preview's unless given (Print's gamut check asks ProPhoto RGB).
     func labDevelop(_ item: URL, film: String? = nil, paper: String? = nil, preset: String? = nil, longSide: Int, engine: EngineClient,
-                    whole: Bool = false, sized: ((CGSize) -> Void)? = nil) async -> CGImage? {
+                    whole: Bool = false, space chosenSpace: String? = nil, sized: ((CGSize) -> Void)? = nil) async -> CGImage? {
         guard !closing, hasCatalog else { return nil }
         let photo = item.photoFile
         var (state, matchSolved) = labEdits(for: item)
@@ -69,7 +70,7 @@ extension EditorModel {
         if let known = labGenerations[photo.path] { generation = known } else {
             labGeneration += 1; generation = labGeneration; labGenerations[photo.path] = generation
         }
-        let space = previewSpace, id = UUID().uuidString
+        let space = chosenSpace ?? previewSpace, id = UUID().uuidString
         let buffer = engine.directory.appendingPathComponent("lab-\(id).rgba")
         defer { try? FileManager.default.removeItem(at: buffer) }
         func command(_ state: EditState) -> [String: JSONValue] {

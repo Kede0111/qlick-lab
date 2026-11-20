@@ -497,12 +497,35 @@ Lots, in order:
   names, information, filters) still have no word beside them, only their help.
   Quentin, 2026-11-20: "Scanner" and "Color Management" stay as they are.
 
+- [x] J Output colour space and proofing, in Print (Quentin via the coordinator, 2026-11-20):
+  - One door: Print's Colour section (`PrintColourSection`, Print/PrintPanel.swift) chooses the output space (sRGB,
+    Display P3, Adobe RGB (1998), ProPhoto RGB) and "Encode with the colour space's curve"; Emulsion's Scan & Color
+    no longer has its Output module, its edits count in Print (`outputTabCount`, `outputEdits`). A print format
+    carries its space and applying one makes it the preview's (`choosePreviewSpace`). The save panel shows the space,
+    disabled ("chosen in Print").
+  - Proof (`EditorModel.proofing`, `qlick.proofing`, on by default): the preview develops in the output space
+    (`renderSpace`), so it shows only what a print in it holds (that was already so: `renderState` sets
+    `io.output_color_space` to the preview's space); off, it develops in ProPhoto RGB. The panel says which.
+  - Show out-of-gamut (`LabState.showGamut`): the Lab's second helper (`LabDeveloper`, `Request.space`,
+    `labDevelop(space:)`) develops the open photograph in ProPhoto RGB at 900 px only while it's ticked; `Gamut.check`
+    draws it into the output space linearised and extended (no clipping) and marks every pixel under 0 or over 1
+    (± 0.004) in cyan #18d4f0 (never the lab's red), over the photograph fitted (`CanvasArea.photoRect`; with a border,
+    the photograph's shape fitted in the print, approximate), with the share out ("Less than 1 % … out of sRGB").
+    The engine's buffer for wide spaces is Rec. 2020 (sRGB curve): colours past Rec. 2020 are clipped there, which
+    changes nothing for sRGB, P3 or Adobe RGB; checked against ProPhoto nothing is marked. No Rust, no preview pipeline.
+  - The CIE 1931 xy diagram (`GamutDiagram`): spectral locus, the output space's triangle (paper), Display P3
+    (dashed), D65, the photograph's colours (the ProPhoto check's while it runs, else sampled on the preview's
+    IOSurface, `Gamut.picture`).
+  - Automation: `gamut on|off`, `outspace <name>`, `proof on|off`; `state` has `gamut=<share>/<points>`. Tests: 580
+    (`GamutTests`; `QLICK_GAMUT_SHEET=<png>` renders the diagram). Checked off screen on the M11 photograph in sRGB:
+    0.05 % out, marked.
+
 ## Current state
 
 - Phase: **0.4 is done** (R1–R8; R8 from Quentin's first try of Dev). `feature/import-library` holds architecture waves 1–3, 0.1.5, 0.2, 0.3 and 0.4
   (local, nothing pushed, `main` untouched). Swift tests: 555 (24 skipped), all pass (561 after R8); the Rust side wasn't changed.
   Qlick Lab Dev is built from it (`dist/qlick-lab-dev/Qlick Lab Dev.app`).
-- Phase: **lab structure** on `feature/lab-structure` (from `feature/import-library`, local). Lots A to I done, G but the recipes' door (question to Quentin); next is lot J (output colour space and proofing in Print).
+- Phase: **lab structure** on `feature/lab-structure` (from `feature/import-library`, local). Lots A to I done, G but the recipes' door (question to Quentin); J done; next: the recipes' door (Quentin chose option 1).
 
 ## Build and test
 

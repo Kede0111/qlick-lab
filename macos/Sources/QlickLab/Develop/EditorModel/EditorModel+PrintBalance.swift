@@ -203,7 +203,7 @@ extension EditorModel {
     /// existing file untouched. False if the preview could not be saved.
     /// Another colour space than the preview's develops again in it.
     func exportPreview(to url: URL, size: ExportSize, save: SaveSettings) async -> Bool {
-        guard canSave, renderAtExportSize, save.spaceName == previewSpace, !ExportFinisher.needed(save, destination: url), let engine else { return false }
+        guard canSave, renderAtExportSize, save.spaceName == renderSpace, !ExportFinisher.needed(save, destination: url), let engine else { return false }
         saving = true
         defer { saving = false }
         let staging = url.deletingLastPathComponent().appendingPathComponent(".qlick-\(UUID().uuidString).\(url.pathExtension)")

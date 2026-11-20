@@ -102,6 +102,13 @@ import UserNotifications
     /// last used, so editing shows the export's gamut and Fast export and
     /// Save Preview can keep the preview's own values.
     var previewSpace = SaveSettings.colorSpaces[SaveSettings.chosenSpace]
+    /// Qlick Lab: Print › Proof. On (the default), the preview develops in the output colour space, so it shows only
+    /// what a print in it holds; off, in ProPhoto RGB, the widest, as far as the screen shows.
+    var proofing = UserDefaults.standard.object(forKey: "qlick.proofing") as? Bool ?? true {
+        didSet { UserDefaults.standard.set(proofing, forKey: "qlick.proofing"); if proofing != oldValue { changed() } }
+    }
+    /// The space the preview develops in: the output's while proofing.
+    var renderSpace: String { proofing ? previewSpace : SaveSettings.colorSpaces[SaveSettings.prophoto] }
     /// How the engine read the photograph's colours: the last render's
     /// `input_colour` (summary, automatic reading, warning).
     var inputColour: JSONValue = .null

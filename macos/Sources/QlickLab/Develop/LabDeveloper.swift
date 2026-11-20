@@ -17,6 +17,8 @@ import ImageIO
         /// The undeveloped photograph: the file as macOS reads it.
         var original = false
         var longSide: Int
+        /// Qlick Lab: another output colour space than the preview's (Print's gamut check).
+        var space: String? = nil
     }
 
     private let model: EditorModel
@@ -77,7 +79,8 @@ import ImageIO
             guard let file = model.presets.first(where: { $0.url == recipe }), let text = model.labPresetText(file) else { return nil }
             preset = text
         }
-        let image = await model.labDevelop(request.item, film: request.film, paper: request.paper, preset: preset, longSide: request.longSide, engine: engine)
+        let image = await model.labDevelop(request.item, film: request.film, paper: request.paper, preset: preset, longSide: request.longSide, engine: engine,
+                                           space: request.space)
         stopSoon()
         return image
     }

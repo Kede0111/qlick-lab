@@ -640,7 +640,8 @@ extension AdjustmentInspector {
         case .camera: count += ["camera.exposure_compensation_ev", FilmFormatPicker.path, "camera.lens_blur_um"].filter(model.isModified).count
         case .film: count += [filmDevelopmentPath, EditorModel.noFilmPath, GrainSimpleRows.monochrome].filter(model.isModified).count
         case .print: count += (scanFilmModified(model) ? 1 : 0) + (model.isModified(printDevelopmentPath) ? 1 : 0)
-        case .scan: count += outputCount(model)
+        // Qlick Lab: the output colour space and its curve are Print's (`outputTabCount`).
+        case .scan: break
         }
         return count
     }
@@ -685,7 +686,7 @@ extension AdjustmentInspector {
         InspectorSection.allCases.map { count($0, model) }.reduce(0, +) + EffectsTab.count(model)
     }
     static func outputTabCount(_ model: EditorModel) -> Int {
-        (model.isModified(ImageSize.targetPath) ? 1 : 0) + (model.border.enabled ? 1 : 0)
+        (model.isModified(ImageSize.targetPath) ? 1 : 0) + (model.border.enabled ? 1 : 0) + outputCount(model)
     }
     static func count(_ tab: InspectorTab, _ model: EditorModel) -> Int {
         switch tab {
@@ -1026,22 +1027,10 @@ struct AdjustmentInspector: View {
             modules(.print, ruledFirst: scanSwitch || printTime, skipped: scanning)
             if !scanning { moreLine(.print, loose: ["Scan film directly"]) }
         }
-        let outputChanged = InspectorEdits.outputCount(model) > 0
-        let outputShown = outputChanged || shows(section: .scan)
+        // Qlick Lab: the output colour space and its curve are chosen in Print (`PrintColourSection`).
         InkSection(title: "Scan & Color", edited: InspectorEdits.count(.scan, model) > 0) {
             modules(.scan, ruledFirst: false)
-            if outputShown {
-                module("Output", help: ControlHelp.group("Output"), summary: model.previewSpace, edited: outputChanged,
-                       ruled: adjustmentGroups.contains { $0.section == .scan && shows($0) }) {
-                    ChoiceRow(title: "Colour space", items: SaveSettings.colorSpaces.map { .option($0, tag: $0) }, selection: model.previewSpace,
-                              changed: model.previewSpace != SaveSettings.colorSpaces[0],
-                              help: "The preview develops in this colour space, so it shows the colours an export in it can hold. Save and Export use it next, and switch it when you pick another.",
-                              choose: model.choosePreviewSpace)
-                    TickRow(title: "Encode with the colour space’s curve", isOn: model.toggle("io.output_cctf_encoding"),
-                            changed: model.isModified("io.output_cctf_encoding"), help: "Off writes linear values, for further processing.")
-                }
-            }
-            moreLine(.scan, loose: outputChanged ? [] : ["Output"])
+            moreLine(.scan)
         }
     }
 

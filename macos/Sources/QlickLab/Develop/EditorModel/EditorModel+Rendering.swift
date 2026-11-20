@@ -17,7 +17,7 @@ extension EditorModel {
     /// keep the edit itself; the space is the app's.
     var renderState: EditState {
         var rendered = state
-        rendered.params["io.output_color_space"] = .string(previewSpace)
+        rendered.params["io.output_color_space"] = .string(renderSpace)
         return rendered
     }
     /// Develops the preview in `name` from now on, and remembers it for the

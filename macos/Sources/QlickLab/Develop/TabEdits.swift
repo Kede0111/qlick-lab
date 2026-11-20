@@ -87,10 +87,8 @@ struct TabEdit: Identifiable, Equatable {
             }
             path("Print development", printDevelopmentPath, unit: " min")
         case .scan:
-            if model.previewSpace != SaveSettings.colorSpaces[0] {
-                out.append(TabEdit(title: "Colour space", value: model.previewSpace, target: .previewSpace))
-            }
-            path("Encode with the colour space’s curve", "io.output_cctf_encoding")
+            // Qlick Lab: the output colour space and its curve are Print's (`outputEdits`).
+            break
         }
         for group in adjustmentGroups where group.section == section {
             if let enable = group.enable, model.isModified(enable) {
@@ -107,6 +105,13 @@ struct TabEdit: Identifiable, Equatable {
             out.append(TabEdit(title: "Image size", value: "\(number(model.value(ImageSize.targetPath).double)) px", target: .param(ImageSize.targetPath)))
         }
         if model.border.enabled { out.append(TabEdit(title: "Border", value: "On", target: .border)) }
+        if model.previewSpace != SaveSettings.colorSpaces[0] {
+            out.append(TabEdit(title: "Colour space", value: model.previewSpace, target: .previewSpace))
+        }
+        if model.isModified("io.output_cctf_encoding") {
+            out.append(TabEdit(title: "Encode with the colour space’s curve", value: model.value("io.output_cctf_encoding").bool ? "On" : "Off",
+                               target: .param("io.output_cctf_encoding")))
+        }
         return out
     }
 

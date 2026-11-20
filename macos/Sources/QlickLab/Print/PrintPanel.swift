@@ -100,6 +100,7 @@ struct PrintPanel: View {
                 VStack(alignment: .leading, spacing: 0) {
                     formatsSection
                     if model.source != nil {
+                        PrintColourSection(model: model)
                         ImageSizeSection(model: model)
                         PrintFrameSection(model: model)
                     } else {
@@ -139,7 +140,8 @@ struct PrintPanel: View {
         InkSection(title: "Print format") {
             ForEach(formats) { format in
                 PrintFormatRow(format: format, chosen: format.isCurrent) {
-                    format.apply(); applied += 1
+                    // The format's colour space is the preview's too.
+                    format.apply(); model.choosePreviewSpace(format.colorSpace); applied += 1
                 } remove: {
                     formats.removeAll { $0.id == format.id }; PrintFormat.save(formats)
                 }
@@ -271,5 +273,76 @@ struct PrintFrameSection: View {
         let named = [(1.0, "1:1"), (5.0 / 4, "5:4"), (7.0 / 5, "7:5"), (16.0 / 9, "16:9"), (2.0, "2:1"), (21.0 / 9, "21:9")]
         if let (_, name) = named.first(where: { abs(ratio / $0.0 - 1) <= 0.01 }) { return name }
         return String(format: "%.2f:1", Double(ratio))
+    }
+}
+
+/// The print's colour: the output colour space (the one place it's chosen; each print format carries its own), its
+/// curve, the proof, the colours out of the space, and where the photograph's colours lie.
+struct PrintColourSection: View {
+    let model: EditorModel
+    private var lab: LabState { model.lab }
+
+    var body: some View {
+        let space = model.previewSpace
+        InkSection(title: "Colour", edited: InspectorEdits.outputCount(model) > 0) {
+            ChoiceRow(title: "Colour space", items: SaveSettings.colorSpaces.map { .option($0, tag: $0) }, selection: space,
+                      changed: space != SaveSettings.colorSpaces[0],
+                      help: "The space the print is made in, with its ICC profile. The preview develops in it.",
+                      choose: model.choosePreviewSpace)
+            TickRow(title: "Encode with the colour space’s curve", isOn: model.toggle("io.output_cctf_encoding"),
+                    changed: model.isModified("io.output_cctf_encoding"), help: "Off writes linear values, for further processing.")
+            TickRow(title: "Proof", isOn: Binding(get: { model.proofing }, set: { model.proofing = $0 }), changed: !model.proofing,
+                    help: "The preview develops in the output colour space itself, so it shows only what a print in it holds.")
+            HintText(model.proofing
+                     ? "The preview is the print in \(space): every colour shown is one the file holds."
+                     : "The preview develops in ProPhoto RGB, as wide as the screen shows: not what a print in \(space) holds.")
+            TickRow(title: "Show out-of-gamut", isOn: Binding(get: { lab.showGamut }, set: { lab.showGamut = $0 }), changed: lab.showGamut,
+                    help: "Marks in cyan the colours \(space) can't hold, which the print's gamut compression brings inside it.")
+            if lab.showGamut {
+                if let check = lab.gamutCheck {
+                    HintText(check.fraction < 0.0005 ? "Every colour fits in \(space)."
+                             : "\(Self.percent(check.fraction)) of the photograph is out of \(space), marked in cyan\(model.border.enabled ? " (on the photograph without its border, fitted)" : " (fitted)").")
+                } else {
+                    HintText("Checking the colours…")
+                }
+            }
+            GamutDiagram(space: space, cloud: lab.gamutCheck?.cloud ?? [])
+                .frame(maxWidth: 220).frame(maxWidth: .infinity)
+                .padding(.horizontal, Theme.Size.gutter).padding(.vertical, 6)
+            HintText("The visible colours, \(space) (white), the screen’s Display P3 (dashed), and the photograph’s colours.")
+        }
+        // The check: another develop of the photograph, in ProPhoto RGB, by the Lab's second helper, a moment after
+        // each new preview (an edit, another space). The cloud is taken from it too.
+        .task(id: "\(model.sourceItem?.path ?? "")|\(model.image.map { ObjectIdentifier($0).hashValue } ?? 0)|\(space)|\(lab.showGamut)") {
+            try? await Task.sleep(for: .milliseconds(400))
+            guard !Task.isCancelled else { return }
+            await lab.checkGamut()
+        }
+    }
+
+    static func percent(_ fraction: Double) -> String {
+        fraction < 0.01 ? "Less than 1 %" : "\(Int((fraction * 100).rounded())) %"
+    }
+}
+
+extension LabState {
+    /// With Show out-of-gamut: develops the open photograph in ProPhoto RGB at 900 pixels (`LabDeveloper`, never the
+    /// editor's helper) and checks it against the output space. Without: only the diagram's cloud, sampled on the
+    /// preview itself.
+    func checkGamut() async {
+        guard let item = model.sourceItem, workspace == .print else { return }
+        let space = model.previewSpace
+        let check: Gamut.Check?
+        if showGamut {
+            let request = LabDeveloper.Request(item: item, longSide: 900, space: SaveSettings.colorSpaces[SaveSettings.prophoto])
+            guard let image = await compareModel.developer.image(request) else { return }
+            check = await Task.detached(priority: .userInitiated) { Gamut.check(image, against: space, marking: true) }.value
+        } else {
+            guard let surface = model.image else { return }
+            let preview = Gamut.picture(surface, longSide: 400)
+            check = await Task.detached(priority: .userInitiated) { preview.map { Gamut.Check(marks: nil, fraction: 0, cloud: Gamut.cloud($0)) } }.value
+        }
+        guard model.sourceItem == item, model.previewSpace == space else { return }
+        gamutCheck = check
     }
 }

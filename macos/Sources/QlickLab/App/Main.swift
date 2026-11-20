@@ -545,7 +545,22 @@ struct CanvasArea: View {
             if !geometry.zoomed, !model.imageOnly, model.image != nil, model.developFailure == nil {
                 CropTrimMarks(print: print, lit: overPrint, crop: model.beginCrop)
             }
+            // Qlick Lab: Print › Show out-of-gamut, over the photograph fitted (with a border, over the photograph inside it).
+            if model.lab.workspace == .print, model.lab.showGamut, !geometry.zoomed, let marks = model.lab.gamutCheck?.marks {
+                let photo = Self.photoRect(in: print, marks: CGSize(width: marks.width, height: marks.height), border: model.border.enabled)
+                Image(decorative: marks, scale: 1).resizable().interpolation(.none)
+                    .frame(width: photo.width, height: photo.height).offset(x: photo.minX, y: photo.minY)
+                    .opacity(0.85).allowsHitTesting(false)
+            }
         }
+    }
+
+    /// Where the photograph lies in the print: all of it without a border, else its shape fitted in the middle.
+    static func photoRect(in print: CGRect, marks: CGSize, border: Bool) -> CGRect {
+        guard border, marks.width > 0, marks.height > 0 else { return print }
+        let scale = min(print.width / marks.width, print.height / marks.height) * 0.9
+        let size = CGSize(width: marks.width * scale, height: marks.height * scale)
+        return CGRect(x: print.midX - size.width / 2, y: print.midY - size.height / 2, width: size.width, height: size.height)
     }
 
     /// The stand-in's layout size: its own shape (fitted, only that shows),
