@@ -6,7 +6,7 @@ import SwiftUI
 /// A 1 pt track, a tick at the default, a 2 pt pencil fill from the default
 /// to the knob once changed, and a 9 pt knob (§4.9).
 ///
-/// Double-click or ⌥-click resets, as in Lightroom and Capture One. With
+/// Double-click or ⌥-click resets to the neutral value. With
 /// keyboard focus, ← → step it (⇧ for ten steps), ↑ ↓ and Tab move to the
 /// next control, and Return starts typing.
 final class InkSliderView: NSView, InkFocusTarget {

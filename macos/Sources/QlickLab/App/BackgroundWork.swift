@@ -94,7 +94,7 @@ struct BackgroundTask: Identifiable {
         if previews.running, previews.total > 0 {
             tasks.append(BackgroundTask(kind: .previews, title: "Building previews", detail: previews.current?.lastPathComponent,
                                         done: previews.done, total: previews.total, stop: { previews.stop() },
-                                        stopHelp: "Stop building this folder's previews: Build Previews starts them again"))
+                                        stopHelp: "Stop building this folder's previews: they start again when another folder opens"))
         }
         if model.savingLeft > 1 {
             tasks.append(BackgroundTask(kind: .saving, title: "Saving edits", detail: nil, done: 0, total: nil, left: model.savingLeft,

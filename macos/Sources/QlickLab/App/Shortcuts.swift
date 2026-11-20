@@ -36,7 +36,7 @@ enum SheetAction: String, CaseIterable, Codable, Identifiable, Sendable {
         }
     }
 
-    /// NEgs's keys (Lightroom's and Capture One's) where it has one.
+    /// The usual keys where there is one.
     var standard: String {
         switch self {
         case .pick: "p"
@@ -62,7 +62,7 @@ enum SheetAction: String, CaseIterable, Codable, Identifiable, Sendable {
     @ObservationIgnored var changed: (() -> Void)?
     @ObservationIgnored private let defaults: UserDefaults
 
-    /// Keys the lab and NEgs already use plainly: digits rate, arrows move, and these letters have a menu command.
+    /// Keys the lab already uses plainly: digits rate, arrows move, and these letters have a menu command.
     static let reserved: Set<String> = ["0", "1", "2", "3", "4", "5", "[", "]", "e", "g", "f", "t", "r", "\\"]
 
     init(defaults: UserDefaults = .standard) {

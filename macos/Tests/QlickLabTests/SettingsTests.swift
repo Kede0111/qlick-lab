@@ -28,21 +28,21 @@ import XCTest
     }
 
     func testEachPageFitsTheWindowFromItsTop() throws {
-        UserDefaults.standard.set(SettingsTab.speed.rawValue, forKey: "settingsTab")
+        UserDefaults.standard.set(SettingsTab.upkeep.rawValue, forKey: "settingsTab")
         let (controller, _) = controller()
         let window = try XCTUnwrap(controller.window)
         window.makeKeyAndOrderFront(nil)
         defer { window.orderOut(nil) }
         window.contentView?.layoutSubtreeIfNeeded()
         RunLoop.main.run(until: Date().addingTimeInterval(0.3))
-        let speed = window.frame
-        XCTAssertGreaterThan(speed.height, Theme.Size.titleBar + Theme.Size.tabRow + 100, "the page has its rows")
+        let upkeep = window.frame
+        XCTAssertGreaterThan(upkeep.height, Theme.Size.titleBar + Theme.Size.tabRow + 100, "the page has its rows")
 
         UserDefaults.standard.set(SettingsTab.photographs.rawValue, forKey: "settingsTab")
         RunLoop.main.run(until: Date().addingTimeInterval(0.6))
         let photographs = window.frame
-        XCTAssertGreaterThan(photographs.height, speed.height, "Photographs has more rows than Speed")
-        XCTAssertEqual(photographs.maxY, speed.maxY, accuracy: 0.5, "the top edge stays put")
+        XCTAssertNotEqual(photographs.height, upkeep.height, accuracy: 0.5, "the window takes each page's height")
+        XCTAssertEqual(photographs.maxY, upkeep.maxY, accuracy: 0.5, "the top edge stays put")
         XCTAssertNil(window.firstResponder as? FocusAnchorView, "nothing has the focus box until Tab")
     }
 

@@ -2,7 +2,7 @@
 import AppKit
 import SwiftUI
 
-/// The order the photographs are shown in, as Lightroom's Sort: by when they were taken, their name, type, size,
+/// The order the photographs are shown in: by when they were taken, their name, type, size,
 /// rating, mark, whether they're developed or their shape; either way round. The folder's own order is by name.
 struct LibrarySort: Codable, Equatable, Sendable {
     enum Key: String, Codable, CaseIterable, Sendable {
@@ -194,7 +194,7 @@ private struct BarGlass: ViewModifier {
     }
 }
 
-/// Five stars and how they count, as in Lightroom's filter bar: a click on a star filters by it, a second click
+/// Five stars and how they count in the filter bar: a click on a star filters by it, a second click
 /// clears it; the sign before them chooses at least (≥), at most (≤) or exactly (=), or unrated.
 private struct StarFilter: View {
     let model: EditorModel

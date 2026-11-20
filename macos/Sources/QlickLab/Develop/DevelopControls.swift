@@ -7,7 +7,7 @@ import SwiftUI
 
 // What the lab adds to the Develop panel: the film and paper chosen in the panel itself, the white balance with its
 // temperature and tint always at hand, the grain and the anti-halation layer as a photographer names them, and the
-// curve where it is looked for. The engine's parameters are NEgs's; these are other handles on them.
+// curve where it is looked for. The engine's parameters are spektrafilm's; these are other handles on them.
 
 extension EditorModel {
     /// Qlick Lab: no film: the image is taken as it is (the engine's `io.no_film`).
@@ -147,7 +147,7 @@ enum WhiteBalanceMath {
     }
 
     /// The panel's tint, −100 (green) to +100 (magenta), and the engine's green scale: ±100 is about ±15 % of green,
-    /// as far as Lightroom's ±150 goes; the engine's own 0…4 range is far past any photograph's need.
+    /// as far as ±150; the engine's own 0…4 range is far past any photograph's need.
     static func tintValue(_ scale: Double) -> Double { -500 * log2(max(scale, 0.01)) + 0 }
     static func tintScale(_ value: Double) -> Double { pow(2, -value / 500) }
 }
@@ -212,7 +212,7 @@ struct WhiteBalanceSection: View {
                 default: model.set(Self.mode, .string(tag))
                 }
             }
-                // The eyedropper, as Lightroom's: a click on a white or a grey in the photograph balances it there.
+                // The eyedropper: a click on a white or a grey in the photograph balances it there.
                 Button { model.lab.pickingWhite.toggle() } label: {
                     Image(systemName: "eyedropper")
                         .font(.system(size: 12, weight: .medium))

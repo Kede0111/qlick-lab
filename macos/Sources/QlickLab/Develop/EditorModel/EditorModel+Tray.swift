@@ -214,7 +214,7 @@ extension EditorModel {
     }
     func zoom(fit: Bool) { fitImage = fit; zoomCommand = UUID() }
 
-    /// Double-clicking the photograph, as in Lightroom: a zoomed one fits
+    /// Double-clicking the photograph: a zoomed one fits
     /// the window, a fitted one shows the grid. Cropping has its own.
     func doubleClickPhotograph(zoomed: Bool) {
         guard mode == .photo, !cropping else { return }

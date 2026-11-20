@@ -131,7 +131,7 @@ extension SheetToolbar {
     }
 }
 
-/// The sheet's four views: strips of film, tight strips, large frames with their facts, and NEgs's grid.
+/// The sheet's four views: strips of film, tight strips, large frames with their facts, and the editor's grid.
 struct SheetStylePicker: View {
     let lab: LabState
     var body: some View {

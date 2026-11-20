@@ -36,7 +36,7 @@ extension EditorModel {
     }
 
     /// A folder's first photograph in name order, or nil if it has none
-    /// (or isn't a folder Negs can read).
+    /// (or isn't a folder the lab can read).
     nonisolated static func firstPhotograph(in folder: URL) -> URL? {
         (try? PhotoFolder.images(in: folder))?.first
     }

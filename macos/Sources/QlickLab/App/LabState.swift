@@ -3,7 +3,7 @@ import AppKit
 import Observation
 import SwiftUI
 
-/// The lab's rooms. `develop` is NEgs's editor, untouched underneath; the others are laid over it.
+/// The lab's rooms. `develop` is the editor underneath; the others are laid over it.
 enum Workspace: String, CaseIterable, Identifiable, Sendable {
     case library, contactSheet, develop, compare, recipes, films, papers, importer
     var id: String { rawValue }
@@ -47,7 +47,7 @@ enum Workspace: String, CaseIterable, Identifiable, Sendable {
 
 /// How the contact sheet is laid out and worked on. Kept between launches.
 struct SheetOptions: Codable, Equatable, Sendable {
-    /// `grid` is NEgs's own sheet: the photographs side by side at their proportions, no film.
+    /// `grid` is the editor's own sheet: the photographs side by side at their proportions, no film.
     enum Style: String, Codable, CaseIterable, Sendable { case classic, compact, detail, grid }
     enum Tool: String, Codable, Sendable { case pencil, pointer, loupe }
     /// What the pencil draws at a click: a ring (pick) or a cross (reject). ⌥ draws the other.
@@ -99,8 +99,8 @@ struct SheetOptions: Codable, Equatable, Sendable {
     }
 }
 
-/// What Qlick Lab adds round NEgs's editor: which room is open, the projects, and the contact sheet's state.
-/// The photographs, their marks, their developments and the selection stay NEgs's (`EditorModel`), so every
+/// What Qlick Lab keeps round the editor: which room is open, the projects, and the contact sheet's state.
+/// The photographs, their marks, their developments and the selection stay the editor's (`EditorModel`), so every
 /// command of the editor (rating, copy and paste of edits, batch export, duplicates) works on the sheet as it is.
 @MainActor @Observable final class LabState {
     @ObservationIgnored unowned let model: EditorModel
@@ -252,7 +252,7 @@ struct SheetOptions: Codable, Equatable, Sendable {
 
     // MARK: Rooms
 
-    /// Opens a room, bringing NEgs's editor to the state it needs: the sheet works on the folder as NEgs's grid
+    /// Opens a room, bringing the editor to the state it needs: the sheet works on the folder as the editor's grid
     /// does (rating and edit commands act on the selection), developing on one photograph.
     func show(_ next: Workspace) {
         guard !model.cropping || next == .develop else { NSSound.beep(); return }
@@ -535,7 +535,7 @@ struct SheetOptions: Codable, Equatable, Sendable {
     /// Folders dropped on the window or chosen in the panel: Folders of `project`, or of a new Archive that asks its name.
     func importFolders(_ urls: [URL], into project: UUID? = nil) {
         let folders = urls.filter { (try? $0.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory == true }
-        // A photograph dropped alone opens, as in NEgs.
+        // A photograph dropped alone opens.
         guard !folders.isEmpty else {
             if let file = urls.first(where: \.isFileURL) { model.open(file); show(.develop) }
             return
@@ -606,7 +606,7 @@ struct SheetOptions: Codable, Equatable, Sendable {
 
     // MARK: The sheet's marks
 
-    /// The photographs the sheet shows, as NEgs's grid would.
+    /// The photographs the sheet shows, as the editor's grid would.
     var frames: [PhotoFile] { model.library.filtering ? [] : model.shownPhotos }
 
     /// Counts for the sheet's filters, over the whole roll.

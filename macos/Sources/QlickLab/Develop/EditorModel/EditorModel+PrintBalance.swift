@@ -90,7 +90,7 @@ extension EditorModel {
         if photograph != .zero { extras += " The photograph is \(Int(photograph.width)) × \(Int(photograph.height)) px." }
         if state.crop.cropped { extras += " Crops the photograph." }
         if let border = state.border.exported(for: photoSize) {
-            extras += " Adds the \(border.style.title.lowercased()) border\(border.instagram ? ", extended to 3:4 for Instagram" : "")."
+            extras += " Adds the \(border.style.title.lowercased()) border\(border.instagram ? ", extended to a 3:4 portrait" : "")."
         }
         let previewSpace = previewSpace
         let picker = FormatPicker(panel: panel, selected: OutputFormat.last, engine: export ? ExportEngine.selected : nil, size: ExportSize.last) { engine, size, save in

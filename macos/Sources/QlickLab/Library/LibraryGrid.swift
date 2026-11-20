@@ -750,7 +750,7 @@ private struct SheetFoot: View {
             }
             .fixedSize()
             .layoutPriority(1)
-            // Qlick Lab: the filters and the order, and Build Previews at work.
+            // Qlick Lab: the filters and the order, and the previews being built.
             if model.lab.filterBarVisible {
                 Divider().frame(height: 14).overlay(Color.white.opacity(0.12))
                 LibraryFilterBar(model: model, inline: true).fixedSize()

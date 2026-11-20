@@ -38,7 +38,7 @@ struct LibrarySummary: Equatable, Sendable {
     var rating = 0
     var flag: PhotoSidecar.Flag?
     var edited = false
-    /// Why its sidecar isn't used (unreadable, from a newer Negs).
+    /// Why its sidecar isn't used (unreadable, from a newer version).
     var problem: String?
     /// Qlick Lab: its colour label, keywords, title and caption.
     var words = PhotoWords()
@@ -90,7 +90,7 @@ struct LibraryFilter: Codable, Equatable, Sendable {
         /// At least this many stars, 1 to 5.
         case atLeast(Int)
         case unrated
-        /// Qlick Lab: at most this many stars, as Lightroom's ≤; and exactly this many.
+        /// Qlick Lab: at most this many stars (≤); and exactly this many.
         case atMost(Int)
         case exactly(Int)
     }

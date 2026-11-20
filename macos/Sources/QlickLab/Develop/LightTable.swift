@@ -27,7 +27,7 @@ enum LightTable {
         guard let border else { return nil }
         switch border.style {
         case .solid, .keyline: return border.color.hex24
-        // Instagram's extension puts the film borders on white.
+        // The 3:4 portrait extension puts the film borders on white.
         case .film, .film35: return border.instagram ? 0xffffff : 0x000000
         }
     }

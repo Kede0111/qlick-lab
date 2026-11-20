@@ -363,7 +363,7 @@ import UserNotifications
         return Self.detailCovers(detail.rect, visible: visible, photo: imageSize)
     }
     /// Qlick Lab › Réglages: edits develop as many pixels as the canvas shows, and the whole photograph only
-    /// when it's zoomed in. Off in NEgs's own tests, which expect its export-size frames.
+    /// when it's zoomed in. Off in the older tests, which expect its export-size frames.
     var fastPreview = NSClassFromString("XCTestCase") == nil && (UserDefaults.standard.object(forKey: "qlick.fastPreview") as? Bool ?? true) {
         didSet {
             UserDefaults.standard.set(fastPreview, forKey: "qlick.fastPreview")
@@ -508,7 +508,7 @@ import UserNotifications
         var exists: Bool
         /// The stored edits last read or sent; the same edits aren't written again.
         var written: JSONValue?
-        /// Why it isn't written: unreadable, from a newer Negs, unwritable.
+        /// Why it isn't written: unreadable, from a newer version, unwritable.
         var blocked: String?
         /// Its edits are read again once the catalog arrives; until then
         /// they aren't written. Ratings and flags are.

@@ -2,12 +2,12 @@ import AppKit
 import SwiftUI
 
 // Settings in the T2 · Label look, as "B · Index" in design/proposals/r19-settings.html:
-// the title band over the inspector's tabs, here Photographs, Speed and Upkeep,
+// the title band over the inspector's tabs, here Photographs, Upkeep and Shortcuts,
 // each a short page of the inspector's rows. The window fits its page's height.
 
 /// Settings' pages, in the order of their tabs.
 enum SettingsTab: String, CaseIterable {
-    case photographs = "Photographs", speed = "Speed", upkeep = "Upkeep"
+    case photographs = "Photographs", upkeep = "Upkeep"
     // Qlick Lab: the sorting keys and the menus' shortcuts.
     case shortcuts = "Shortcuts"
 }
@@ -114,7 +114,6 @@ struct SettingsView: View {
             .accessibilityLabel("Settings tabs")
             switch tab {
             case .photographs: photographs
-            case .speed: speed
             case .upkeep: upkeep
             case .shortcuts:
                 ShortcutSettings(keys: model.lab.keys)
@@ -188,16 +187,16 @@ struct SettingsView: View {
                                                   .option("Moves the photograph", tag: CanvasScale.ScrollZoom.option.rawValue)],
                       selection: scrollZoom) { scrollZoom = $0; CanvasScale.scrollZoom = CanvasScale.ScrollZoom(rawValue: $0) ?? .always }
             HintText("⌥ always zooms.")
-            ChoiceRow(title: "Previews ahead", items: [.option("Build by themselves", tag: "on"), .option("Only when asked", tag: "off")],
-                      selection: model.lab.previewBuilder.automatic ? "on" : "off") { model.lab.previewBuilder.automatic = $0 == "on" }
-            HintText("Developed in the background, so photographs open at once.")
         }
     }
 
-    // MARK: Speed
+    // MARK: Upkeep: what the lab prepares by itself, the room it takes, updates
 
-    @ViewBuilder private var speed: some View {
+    @ViewBuilder private var upkeep: some View {
         InkSection(title: "Previews") {
+            TickRow(title: "Build previews ahead", isOn: Binding(
+                get: { model.lab.previewBuilder.automatic }, set: { model.lab.previewBuilder.automatic = $0 }))
+            HintText("Developed in the background, so photographs open at once.")
             TickRow(title: "Film, paper and recipe previews", isOn: Binding(
                 get: { model.previews.enabled }, set: { model.setPreviews($0) }))
             HintText("Shown on your own photograph. Turn off on a slower computer.")
@@ -209,29 +208,6 @@ struct SettingsView: View {
             TickRow(title: "Use less memory for export", isOn: Binding(
                 get: { model.lowMemoryExport }, set: { model.lowMemoryExport = $0 }))
             HintText("Same result, longer export.")
-        }
-    }
-
-    // MARK: Upkeep: updates, the thumbnail cache, app data
-
-    @ViewBuilder private var upkeep: some View {
-        InkSection(title: "Updates") {
-            if updates.configured {
-                TickRow(title: "Automatically check for updates", isOn: Binding(
-                    get: { updates.automaticChecks }, set: { updates.setAutomaticChecks($0) }))
-                ButtonRow {
-                    if let lastCheck = updates.lastCheck {
-                        FigureText(lead: "Last checked", figure: lastCheck.formatted(date: .abbreviated, time: .shortened))
-                    }
-                } button: {
-                    Button("Check for Updates…", action: updates.check).buttonStyle(OutlinedButtonStyle())
-                        .inkDisabled(!updates.canCheck)
-                }
-                if let error = updates.configurationError { HintText(error, warning: true) }
-            } else {
-                ReadoutRow(title: "Updates are not configured for this build.", value: "")
-                HintText("Install a release build to receive updates.")
-            }
         }
         InkSection(title: "Thumbnails") {
             ButtonRow {
@@ -263,6 +239,24 @@ struct SettingsView: View {
         .task { thumbnailBytes = await model.thumbnailCacheSize() }
         // Qlick Lab: the previews built ahead: where, how much room, emptied.
         PreviewStorageSection(model: model)
+        InkSection(title: "Updates") {
+            if updates.configured {
+                TickRow(title: "Automatically check for updates", isOn: Binding(
+                    get: { updates.automaticChecks }, set: { updates.setAutomaticChecks($0) }))
+                ButtonRow {
+                    if let lastCheck = updates.lastCheck {
+                        FigureText(lead: "Last checked", figure: lastCheck.formatted(date: .abbreviated, time: .shortened))
+                    }
+                } button: {
+                    Button("Check for Updates…", action: updates.check).buttonStyle(OutlinedButtonStyle())
+                        .inkDisabled(!updates.canCheck)
+                }
+                if let error = updates.configurationError { HintText(error, warning: true) }
+            } else {
+                ReadoutRow(title: "Updates are not configured for this build.", value: "")
+                HintText("Install a release build to receive updates.")
+            }
+        }
     }
 
     /// A stock menu's items, one section per group.

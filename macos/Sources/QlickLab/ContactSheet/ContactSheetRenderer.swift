@@ -348,7 +348,7 @@ struct ContactSheetRenderer {
         return ContactSheetLayout.fit(aspect: CGFloat(image.width) / CGFloat(max(image.height, 1)), in: window, sideways: sidewaysVerticals).rect
     }
 
-    /// The pencil that boxes the frame the keys act on: the lab's red, as NEgs's grid draws its box in the accent.
+    /// The pencil that boxes the frame the keys act on: the lab's red, as the Grid draws its box in the accent.
     static let boxColour = SheetPalette.pencilRed
 
     /// The frame the keys act on is boxed by hand in red pencil, round the picture itself, so the eye finds it at

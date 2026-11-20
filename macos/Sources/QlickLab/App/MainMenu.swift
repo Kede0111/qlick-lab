@@ -56,7 +56,7 @@ import SwiftUI
         recentItem.submenu = recent
         recent.delegate = self
         file.addItem(.separator())
-        // Qlick Lab: the catalogs, as Lightroom's and Capture One's File menus have them.
+        // Qlick Lab: the catalogs, in File.
         labMenu.addCatalogItems(to: file)
         file.addItem(.separator())
         file.addItem(withTitle: "Close", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
@@ -89,7 +89,7 @@ import SwiftUI
         labMenu.addPanelItems(to: view)
         labMenu.addInformationItems(to: view)
         view.addItem(.separator())
-        // Plain keys, as in Lightroom, behind the same check as the rating keys.
+        // Plain keys, behind the same check as the rating keys.
         command(view, "Edit Photograph", #selector(editPhotograph), "e", [])
         hidden(view, #selector(editPhotograph), "\r")
         command(view, "Show Grid", #selector(showGrid), "g", [])
@@ -118,7 +118,7 @@ import SwiftUI
         command(view, "Reset All Adjustments", #selector(resetAdjustments), "")
         view.addItem(.separator())
 
-        // Plain keys, as in Lightroom and Capture One. Disabled while text is
+        // Plain keys. Disabled while text is
         // typed, so a number typed into a field never rates the photograph.
         let photo = submenu("Photo")
         let rating = NSMenu(title: "Rating")

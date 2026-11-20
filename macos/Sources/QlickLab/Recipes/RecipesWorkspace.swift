@@ -1,7 +1,7 @@
 // Qlick Lab — GPL-3.0-only.
 import SwiftUI
 
-/// The recipes: NEgs's presets (spektrafilm's own format, so they open in NEgs and in spektrafilm), shown as
+/// The recipes: presets in spektrafilm's own format (so they open in spektrafilm too), shown as
 /// developments of the open photograph, to apply to it or to every selected frame, to duplicate into a new version,
 /// to compare, to import and export.
 struct RecipesWorkspace: View {

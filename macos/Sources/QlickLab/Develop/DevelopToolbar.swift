@@ -137,7 +137,7 @@ private struct ToolButton<Label: View>: View {
     }
 }
 
-/// Lightroom's zoom slider: from fitting to 16 to 1, on a scale of doublings, with the zoom it shows beside it.
+/// The zoom slider: from fitting to 16 to 1, on a scale of doublings, with the zoom it shows beside it.
 /// A click on the figure picks a step from a menu.
 private struct ZoomSlider: View {
     let model: EditorModel

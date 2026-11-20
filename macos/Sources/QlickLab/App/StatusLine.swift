@@ -237,7 +237,7 @@ private struct ZoomWord: View {
 }
 
 /// Press and hold to compare with the photograph before developing, like
-/// Lightroom's Show Original. The decode starts when the pointer arrives.
+/// Shows the original. The decode starts when the pointer arrives.
 /// While it's held the word is in `paper` with the pencil under it.
 private struct OriginalWord: View {
     let model: EditorModel

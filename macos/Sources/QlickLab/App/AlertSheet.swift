@@ -44,9 +44,9 @@ struct AppAlert: Equatable {
     }
 
     /// One of the app's error messages: its first sentence is the heading,
-    /// the rest the detail. "Could not save the editing session. Negs
+    /// the rest the detail. "Could not save the editing session. Qlick Lab
     /// stayed open." reads "Could not save the editing session" over
-    /// "Negs stayed open."
+    /// "Qlick Lab stayed open."
     static func error(_ message: String) -> AppAlert {
         let text = message.trimmingCharacters(in: .whitespacesAndNewlines)
         if let end = text.range(of: ". ") {

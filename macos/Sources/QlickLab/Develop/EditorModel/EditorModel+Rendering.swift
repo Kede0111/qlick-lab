@@ -90,8 +90,8 @@ extension EditorModel {
                                        showsFinishedFrame: Bool, quickFrameDone: Bool, reusesHelperOutput: Bool,
                                        screenPreview: Bool = false, dragBudget: Double = dragPixelBudget) -> RenderStep {
         let scale = screenScale.flatMap { $0 > 0 && $0 < 1 ? $0 : nil }
-        // Qlick Lab: zoomed in, a slider's frames are a few megapixels all the same, shown enlarged until it's let go,
-        // as Lightroom does: a whole photograph per frame never keeps up with the hand (nor its white balance).
+        // Qlick Lab: zoomed in, a slider's frames are a few megapixels all the same, shown enlarged until it's let go:
+        // a whole photograph per frame never keeps up with the hand (nor its white balance).
         if interacting, screenPreview, framePixels > 0 {
             let budget = CGFloat((dragBudget / framePixels).squareRoot())
             if budget < 1, (screenScale ?? 1) > budget { return .drag(budget) }

@@ -98,7 +98,7 @@ extension EditorModel {
         }
         // Qlick Lab: the white balance doesn't move the match. Solving it again reads the whole RAW with the new
         // balance, seconds for a 60 MP file, to shift the exposure by what the balance changed: the photographer
-        // sets the balance, then the exposure, as in any RAW developer. (NEgs's own tests keep its behaviour.)
+        // sets the balance, then the exposure, as in any RAW developer. (The older tests keep the first behaviour.)
         if Self.matchIgnoresWhiteBalance { params["io.raw_white_balance"] = .null }
         return .object(["film": .string(state.film), "paper": .string(state.paper), "params": params])
     }

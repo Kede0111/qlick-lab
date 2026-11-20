@@ -397,8 +397,15 @@ is added in one view goes in every view that shows the same thing. After each lo
 short note; ask him first when a choice drifts from the philosophy.
 
 Lots, in order:
-- [ ] A Housekeeping: the cache commands out of the Lab menu, one Catalogue menu (File), Speed and Upkeep as one
-  section, "Extend to 3:4 portrait", code comments that cite other apps.
+- [x] A Housekeeping: Build Thumbnails / Build Previews / Stop All Background Work gone from the Lab menu and from
+  every frame menu (sheet, grid/strip: the work happens by itself, the background pill keeps its Stop and Stop All;
+  automation `buildthumbnails`/`stopall` kept); the Lab menu's catalogue items gone (File keeps them, with their
+  keys); Settings has Photographs · Upkeep · Shortcuts: Speed folded into Upkeep (Previews: "Build previews ahead"
+  tick, was Photographs › Viewer's "Previews ahead"; film previews; 12 MP; Export memory; Thumbnails; preview
+  storage; Updates last); "Extend to 3:4 portrait" (help and the print note too; the sidecar key `instagram` kept);
+  code and test comments no longer cite other apps (Lightroom, Capture One, Photoshop, Instagram), and NEgs only
+  where it's a credit (About, CameraBrightnessReference's source, ControlHelp's sources, StockLibrary's profiles).
+  The Rust comment in `spektrafilm-io/src/brightness.rs` left alone (lot H rule: no Rust). Tests: 561.
 - [ ] B Tokens: a tokens file in this repository only, `Theme` generated from it, QLab's red, `CapsLabel`.
 - [ ] C Central selector Library · Lab · Print in `TitleBand`; the sidebar follows it (the part's rooms on top,
   Archives and Boxes always below); switch on mouseDown, no animation; ⌘1/2/3; one key for Lab ↔ contact sheet.
@@ -415,8 +422,7 @@ Lots, in order:
 - Phase: **0.4 is done** (R1–R8; R8 from Quentin's first try of Dev). `feature/import-library` holds architecture waves 1–3, 0.1.5, 0.2, 0.3 and 0.4
   (local, nothing pushed, `main` untouched). Swift tests: 555 (24 skipped), all pass (561 after R8); the Rust side wasn't changed.
   Qlick Lab Dev is built from it (`dist/qlick-lab-dev/Qlick Lab Dev.app`).
-- Phase: **lab structure** on `feature/lab-structure` (from `feature/import-library`, local). Decisions recorded;
-  next is lot A.
+- Phase: **lab structure** on `feature/lab-structure` (from `feature/import-library`, local). Lot A done; next is lot B.
 
 ## Build and test
 

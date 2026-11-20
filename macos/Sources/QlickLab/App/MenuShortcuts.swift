@@ -61,7 +61,7 @@ import SwiftUI
     private func walk(_ menu: NSMenu, top: String, path: String, into list: inout [Command]) {
         for item in menu.items where !item.isSeparatorItem && !item.title.isEmpty && !item.isHidden {
             if let sub = item.submenu {
-                // NEgs's Open Recent and the like: lists of files, not commands.
+                // Open Recent and the like: lists of files, not commands.
                 if sub === NSApp.servicesMenu || item.action == nil && sub.items.allSatisfy({ $0.action == nil || $0.representedObject is URL }) { continue }
                 walk(sub, top: top, path: path + item.title + " › ", into: &list)
                 continue

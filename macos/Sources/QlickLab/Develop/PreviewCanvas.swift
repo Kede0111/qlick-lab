@@ -126,7 +126,7 @@ struct PreviewCanvas: NSViewRepresentable {
     var spaceHeld = false { didSet { if spaceHeld != oldValue { refreshCursor() } } }
     /// The zoom fitted the photograph (true) or zoomed it (false).
     var loupeZoomed: ((_ fit: Bool) -> Void)?
-    /// How scrolling zooms the photograph (Settings › Speed): a mouse's wheel only, every scroll, or only with ⌥.
+    /// How scrolling zooms the photograph (Settings › Photographs › Viewer): a mouse's wheel only, every scroll, or only with ⌥.
     enum ScrollZoom: String, CaseIterable { case wheel, always, option }
     static var scrollZoom: ScrollZoom {
         get { UserDefaults.standard.string(forKey: "qlick.scrollZoom").flatMap(ScrollZoom.init) ?? .always }
@@ -134,7 +134,7 @@ struct PreviewCanvas: NSViewRepresentable {
     }
     static var wheelZooms: Bool { scrollZoom != .option }
 
-    /// The zoom's steps, in screen pixels per photograph pixel: Lightroom's, from an eighth to 16 to 1.
+    /// The zoom's steps, in screen pixels per photograph pixel, from an eighth to 16 to 1.
     static let steps: [CGFloat] = [0.125, 0.25, 1.0 / 3, 0.5, 2.0 / 3, 1, 2, 3, 4, 8, 16]
     /// The canvas's zoom, in screen pixels per photograph pixel, and whether it's fitted.
     var ratio: CGFloat? { screenPixelsPerPhotoPixel }
@@ -369,7 +369,7 @@ final class ImageScrollView: NSScrollView {
     }
 
     override func scrollWheel(with event: NSEvent) {
-        // Qlick Lab: scrolling zooms about the pointer (Settings › Speed): a mouse's wheel, with or without smooth
+        // Qlick Lab: scrolling zooms about the pointer (Settings › Photographs › Viewer): a mouse's wheel, with or without smooth
         // scrolling, or every scroll; ⌥ always does. Its momentum is let go, so the zoom stops with the fingers.
         let mode = CanvasScale.scrollZoom
         let wheel = !event.hasPreciseScrollingDeltas && event.phase == [] && event.momentumPhase == []

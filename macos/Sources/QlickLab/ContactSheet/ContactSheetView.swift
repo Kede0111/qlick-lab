@@ -7,8 +7,8 @@ import SwiftUI
 ///
 /// One AppKit view draws the whole sheet with `ContactSheetRenderer` (only what's on screen), so a roll of thousands
 /// of frames scrolls like one of thirty-six, and what's printed is drawn by the same code. The photographs, their
-/// marks and the selection are NEgs's (`EditorModel`): a ring is a sidecar's `pick`, a cross its `reject`, so marks
-/// made here show in NEgs's own grid, on Windows and Linux too, and every undo is the editor's.
+/// marks and the selection are the editor's (`EditorModel`): a ring is a sidecar's `pick`, a cross its `reject`, so marks
+/// made here show in the Grid too, and every undo is the editor's.
 @MainActor final class ContactSheetView: NSView {
     let model: EditorModel
     let lab: LabState
@@ -638,7 +638,7 @@ import SwiftUI
             default: break
             }
             if let action = lab.keys.action(for: event) { return perform(action) }
-            // Stars, as in Lightroom: 1 to 5, and 0 for none.
+            // Stars: 1 to 5, and 0 for none.
             if !extending, let typed = event.charactersIgnoringModifiers, typed.count == 1, let stars = Int(typed), (0...5).contains(stars) {
                 return lab.menuRate(stars)
             }
@@ -862,8 +862,6 @@ extension ContactSheetView: NSDraggingSource {
         add("New Version (Virtual Copy)", #selector(duplicate), enabled: model.canChangeEdits)
         add("Reset Edits" + several, #selector(resetEdits), enabled: model.canChangeEdits)
         menu.addItem(.separator())
-        add("Build Thumbnail" + (count > 1 ? "s" : "") + several, #selector(buildThumbnails))
-        add("Build Preview" + (count > 1 ? "s" : "") + several, #selector(buildPreviews))
         add("Export" + several + "…", #selector(export), enabled: model.canExport)
         add("Show in Finder", #selector(reveal))
         menu.addItem(.separator())
@@ -900,8 +898,6 @@ extension ContactSheetView: NSDraggingSource {
     @objc private func duplicate() { model.duplicate() }
     @objc private func resetEdits() { model.resetEdits() }
     @objc private func export() { model.exportPanel() }
-    @objc private func buildPreviews() { sheet.lab.previewBuilder.build(model.ratingTargets) }
-    @objc private func buildThumbnails() { model.buildThumbnails(model.ratingTargets) }
     @objc private func pasteFromPrevious() { model.pasteFromPrevious(onto: model.ratingTargets) }
     @objc private func remove() { sheet.lab.requestRemove(model.ratingTargets) }
     @objc private func reveal() { NSWorkspace.shared.activateFileViewerSelecting(model.ratingTargets.map(\.photoFile)) }

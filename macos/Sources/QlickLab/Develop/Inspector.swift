@@ -1138,7 +1138,7 @@ struct AdjustmentInspector: View {
 
     /// How a non-RAW photograph's values are read: automatically from its
     /// profile and tags, as an assumed colour space, or (Manual) by the input
-    /// colour space and curve, as Negs 0.8 read every file.
+    /// colour space and curve, as every file was read before.
     @ViewBuilder private var inputColour: some View {
         let colour = model.inputColour
         let edited = InspectorEdits.inputPaths.contains(where: model.isModified)
@@ -1188,8 +1188,8 @@ struct AdjustmentInspector: View {
                     HintText("35mm needs a 3:2 or 3:4 photograph. This one is \(Self.ratio(photo)); crop it to 3:2 or 4:3 to use it.")
                 }
                 borderControls
-                TickRow(title: "Extend to 3:4 for Instagram", isOn: model.border(\.instagram), changed: model.border.instagram != BorderSettings().instagram,
-                        help: "Adds white above and below, or at the sides, so Instagram shows the whole photograph in a 3:4 portrait post.")
+                TickRow(title: "Extend to 3:4 portrait", isOn: model.border(\.instagram), changed: model.border.instagram != BorderSettings().instagram,
+                        help: "Adds white above and below, or at the sides, so the whole photograph fits a 3:4 portrait frame.")
                 TickRow(title: "Include in export", isOn: model.border(\.export), changed: model.border.export != BorderSettings().export,
                         help: "Adds the border to exported photographs and saved previews.")
             }
@@ -1273,8 +1273,8 @@ struct ExportFoot: View {
 }
 
 // Crop's Angle slider, until crop gets its dial (step 6).
-/// A small slider that double-click or Option-click resets, as in Lightroom
-/// and Capture One. AppKit, because NSSlider tracks the mouse itself and
+/// A small slider that double-click or Option-click resets to its neutral
+/// value. AppKit, because NSSlider tracks the mouse itself and
 /// SwiftUI's tap gestures on a Slider never fire. A double-click's first
 /// click still moves the knob; the second resets.
 struct ResettableSlider: NSViewRepresentable {

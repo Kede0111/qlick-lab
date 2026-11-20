@@ -278,7 +278,7 @@ final class EdgeSplitView: NSSplitView {
         model.canvasScale.spaceHeld = false
     }
 
-    /// Holding \ shows the original, as in Lightroom, unless text is being
+    /// Holding \ shows the original, unless text is being
     /// typed. True if the event was handled.
     private func holdOriginal(_ event: NSEvent) -> Bool {
         if event.type == .keyUp {
@@ -293,7 +293,7 @@ final class EdgeSplitView: NSSplitView {
         return true
     }
 
-    /// Qlick Lab: Tab shows and hides the sidebar, as it does Lightroom's panels. ⇧Tab still steps into the inspector.
+    /// Qlick Lab: Tab shows and hides the sidebar. ⇧Tab still steps into the inspector.
     private func tabSidebar(_ event: NSEvent) -> Bool {
         guard event.type == .keyDown, event.keyCode == 48, event.window === window, model.alert == nil,
               event.modifierFlags.isDisjoint(with: [.command, .control, .option, .shift]),
@@ -303,7 +303,7 @@ final class EdgeSplitView: NSSplitView {
         return true
     }
 
-    /// Qlick Lab: the numeric keypad's 0 to 5 rate too, as in Lightroom: the menu's plain 0–5 don't match them.
+    /// Qlick Lab: the numeric keypad's 0 to 5 rate too: the menu's plain 0–5 don't match them.
     private func numpadRating(_ event: NSEvent) -> Bool {
         guard event.type == .keyDown, event.window === window, model.alert == nil, event.modifierFlags.contains(.numericPad),
               event.modifierFlags.isDisjoint(with: [.command, .control, .option]),
@@ -325,7 +325,7 @@ final class EdgeSplitView: NSSplitView {
         return model.lab.markAndAdvance(typed)
     }
 
-    /// Qlick Lab: \ shows and hides the filter bar in the grid and on the contact sheet, as in Lightroom's Library.
+    /// Qlick Lab: \ shows and hides the filter bar in the grid and on the contact sheet.
     private func filterBarKey(_ event: NSEvent) -> Bool {
         guard event.type == .keyDown, event.window === window, event.characters == "\\",
               event.modifierFlags.isDisjoint(with: [.command, .control, .option]),
@@ -361,7 +361,7 @@ final class EdgeSplitView: NSSplitView {
         return true
     }
 
-    /// Qlick Lab: W takes and puts down the white balance eyedropper, as in Lightroom; Esc puts it down too.
+    /// Qlick Lab: W takes and puts down the white balance eyedropper; Esc puts it down too.
     private func whitePicker(_ event: NSEvent) -> Bool {
         guard event.type == .keyDown, event.window === window, model.mode == .photo, model.source != nil, !model.cropping,
               event.modifierFlags.isDisjoint(with: [.command, .control, .option]),
@@ -506,11 +506,11 @@ final class EdgeSplitView: NSSplitView {
         guard let window else { return }
         // Qlick Lab: the room follows the editor between one photograph and
         // the folder, and names the window. The contact sheet takes the
-        // place of NEgs's grid, whose sheet no longer opens.
+        // place of the editor's grid, whose sheet no longer opens.
         let lab = model.lab
         lab.follow(mode: model.mode)
         shell.update()
-        // Qlick Lab: NEgs's grid is the contact sheet's Grid view.
+        // Qlick Lab: the editor's grid is the contact sheet's Grid view.
         showSheet(model.mode == .grid && lab.workspace == .contactSheet && lab.sheet.style == .grid)
         if model.sheetFolding, !sheetShown { model.sheetFolding = false }
         let title = lab.title

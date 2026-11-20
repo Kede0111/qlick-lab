@@ -2,8 +2,8 @@
 import AppKit
 import Observation
 
-/// Builds each photograph's preview ahead, in the background, as Lightroom builds its standard previews: the develop
-/// NEgs keeps of a photograph (`renderArchive`, 2560 pixels, uncropped) is made before it's ever opened, so opening
+/// Builds each photograph's preview ahead, in the background: the develop
+/// the lab keeps of a photograph (`renderArchive`, 2560 pixels, uncropped) is made before it's ever opened, so opening
 /// or stepping to it shows it developed at once while the editor's own develop follows.
 ///
 /// A helper of its own at utility priority, one photograph at a time, the nearest to the open one first. It waits

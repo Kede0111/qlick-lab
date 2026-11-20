@@ -64,7 +64,7 @@ struct SheetLoupe: View {
         }.value
         guard !Task.isCancelled, current == item else { return }
         if let thumbnail { image = thumbnail; shown = item }
-        // Then its built preview (Build Previews, or built in the background), cropped and turned: at once when
+        // Then its built preview (built in the background), cropped and turned: at once when
         // it's there; else built now, ahead of the rest, and kept for the next look and for Develop.
         if let kept = await keptPreview(item) {
             guard !Task.isCancelled, current == item else { return }

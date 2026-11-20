@@ -28,7 +28,7 @@ final class LightTableTests: XCTestCase {
         XCTAssertNotNil(LightTable.light(sheet: sheet, edge: LightTable.edge(of: border(.keyline, color: BorderColor(red: 0x22, green: 0x22, blue: 0x22)))))
     }
 
-    /// Instagram's extension puts the film borders on white, which stands out.
+    /// The 3:4 portrait extension puts the film borders on white, which stands out.
     func testInstagramFilmBorderNeedsNoLight() {
         XCTAssertEqual(LightTable.edge(of: border(.film, instagram: true)), 0xffffff)
         XCTAssertNil(LightTable.light(sheet: sheet, edge: LightTable.edge(of: border(.film, instagram: true))))

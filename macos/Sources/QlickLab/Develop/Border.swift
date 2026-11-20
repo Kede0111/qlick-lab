@@ -91,7 +91,7 @@ struct BorderSettings: Codable, Equatable, Sendable {
     var enabled = false
     var style = BorderStyle.solid
     var export = true
-    /// Extends the border to Instagram's 3:4 portrait: with the mat's
+    /// Extends the border to a 3:4 portrait: with the mat's
     /// colour around a mat, with white around film.
     var instagram = false
     /// The solid and keyline mat on every side, a fraction of the
@@ -135,7 +135,7 @@ struct BorderSettings: Codable, Equatable, Sendable {
         }
         return CGSize(width: size.width + 2 * inset, height: size.height + 2 * inset)
     }
-    /// The 3:4 portrait canvas Instagram shows whole, around the bordered
+    /// The 3:4 portrait canvas that shows the whole print, around the bordered
     /// `canvas`: the film borders get a white margin first, then the
     /// background extends the short way as little as it can.
     func instagramCanvas(for canvas: CGSize) -> CGSize {
@@ -274,7 +274,7 @@ final class BorderLayers {
 
     /// Lays the border out around a photograph of `size` (as displayed,
     /// after rotation), centred in `host`. The mat fills the whole canvas,
-    /// Instagram's extension too; there the film borders sit on white,
+    /// The 3:4 portrait extension too; there the film borders sit on white,
     /// like the exporter's.
     func layout(_ border: BorderSettings?, photo size: CGSize, host: CALayer, texture: CGImage?, filmStrip: FilmStrip?) {
         let center = CGPoint(x: host.bounds.midX, y: host.bounds.midY)

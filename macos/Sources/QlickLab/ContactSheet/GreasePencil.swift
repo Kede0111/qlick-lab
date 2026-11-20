@@ -9,7 +9,7 @@ import Foundation
 /// a width at each point (the pencil's pressure); it is filled as an outline, so it can be drawn part-way for the
 /// short animation of the gesture and stays vector in a PDF.
 ///
-/// The hash and random generator are NEgs's (`RejectCross`), so both families of marks vary alike.
+/// The hash and random generator are the reject cross's (`RejectCross`), so both families of marks vary alike.
 enum GreasePencil {
     struct Stroke {
         var points: [CGPoint]
@@ -162,7 +162,7 @@ enum GreasePencil {
     // MARK: The cross over a reject
 
     /// A cross over `rect`: two fast diagonals, each starting short of one corner and running past the other,
-    /// bowed and a little unsteady. NEgs draws its own with the same kind of outline (`RejectCross.outline`).
+    /// bowed and a little unsteady. The reject cross is drawn with the same kind of outline (`RejectCross.outline`).
     static func cross(in rect: CGRect, seed: String, weight: CGFloat) -> [Stroke] {
         guard rect.width > 0, rect.height > 0 else { return [] }
         var random = RejectCross.Random(seed: RejectCross.hash("cross|" + seed))

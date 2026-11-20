@@ -2,7 +2,7 @@
 import AppKit
 import SwiftUI
 
-/// The rooms laid over NEgs's editor. Développement is the editor itself, so nothing is drawn for it.
+/// The rooms laid over the editor. Develop is the editor itself, so nothing is drawn for it.
 struct WorkspaceOverlay: View {
     let model: EditorModel
 
@@ -33,7 +33,7 @@ struct WorkspaceOverlay: View {
     }
 }
 
-/// The window's two columns: the lab's sidebar, and NEgs's editor with the rooms laid over it.
+/// The window's two columns: the lab's sidebar, and the editor with the rooms laid over it.
 ///
 /// The sidebar is a real sidebar item, so macOS 26 draws it as a floating pane of Liquid Glass with the traffic
 /// lights in it, and it collapses, resizes and restores as any Mac sidebar does.
@@ -89,7 +89,7 @@ struct WorkspaceOverlay: View {
     func update() {
         let lab = model.lab
         if sidebarItem.isCollapsed == lab.sidebarVisible { sidebarItem.animator().isCollapsed = !lab.sidebarVisible }
-        // The contact sheet's Grid is NEgs's own sheet, under the room: nothing covers it.
+        // The contact sheet's Grid is the editor's own sheet, under the room: nothing covers it.
         let covered = lab.workspace != .develop && !(lab.workspace == .contactSheet && lab.sheet.style == .grid && model.source != nil)
         model.canvasScale.covered = covered
         if overlay.isHidden == covered {

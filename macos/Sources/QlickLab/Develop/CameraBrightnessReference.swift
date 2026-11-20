@@ -26,7 +26,7 @@ enum CameraBrightnessReference {
     /// `declared`: what the RAW says the preview is in. ImageIO's own guess
     /// isn't used, so every platform reads the same preview the same way:
     /// Adobe RGB is converted, a preview that says nothing is sRGB (cameras
-    /// and Lightroom make sRGB previews unless set otherwise), and any other
+    /// and other developers make sRGB previews unless set otherwise), and any other
     /// colour space is refused.
     static func png(from url: URL, expectedSize: CGSize, declared: PreviewColourSpace? = nil) throws -> Data {
         try png(preview: preview(from: url), expectedSize: expectedSize, declared: declared)
@@ -105,7 +105,7 @@ enum CameraBrightnessReference {
     }
 
     /// A JPEG, PNG or TIFF as its own brightness reference: the file is what
-    /// the camera (or the editor before Negs) made, so the developed photo
+    /// the camera (or the editor before the lab) made, so the developed photo
     /// should be about as bright. Read through ImageIO with its colour
     /// profile, untagged as sRGB, as the engine's Automatic reading does.
     /// Transparent and floating-point files are refused: the engine drops

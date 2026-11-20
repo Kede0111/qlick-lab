@@ -157,7 +157,7 @@ enum BatchNames {
     }
 }
 
-/// The rating an export embeds, as Lightroom writes it: the stars, or −1
+/// The rating an export embeds, as XMP writes it: the stars, or −1
 /// for a reject. Nil (no packet at all) for an unrated, unrejected photo.
 enum ExportRating {
     static func value(_ summary: LibrarySummary) -> Int? {

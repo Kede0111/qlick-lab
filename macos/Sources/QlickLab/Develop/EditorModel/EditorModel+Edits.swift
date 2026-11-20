@@ -566,7 +566,7 @@ extension EditorModel {
                 let original = item.variantID.flatMap { id in variants.firstIndex { $0["id"] == .string(id) } } ?? 0
                 let id = SidecarRestore.newVariantID()
                 var copy: [String: JSONValue] = ["id": .string(id)]
-                // Edits, rating and flag, as Lightroom's virtual copies; from here on its own.
+                // Edits, rating and flag, as a print from the same negative; from here on its own.
                 for key in ["edits", "rating", "flag"] { if let value = variants[original].object?[key] { copy[key] = value } }
                 variants.append(.object(copy))
                 top["variants"] = .array(variants)

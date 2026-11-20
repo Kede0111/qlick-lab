@@ -3,7 +3,7 @@ import AppKit
 import SwiftUI
 
 /// Where the previews built ahead are kept, and how much room they may take: on the start-up disk's caches unless
-/// another folder (another disk) is chosen. Two kinds, as Lightroom keeps standard and smart previews:
+/// another folder (another disk) is chosen. Two kinds:
 /// - each photograph's develop, 2560 pixels, about 1 MB: it shows the moment the photograph opens;
 /// - its proxy, the RAW's data reduced to 2560 pixels (about 9 MB, a third of what half floats took): Develop edits
 ///   it at the size it's shown, so opening a photograph and its first edits never wait for the RAW to be read.
@@ -125,7 +125,7 @@ extension EditorModel {
         return await Task.detached(priority: .utility) { archive.size() + PreviewStorage.proxiesSize() }.value
     }
 
-    /// Removes every preview built ahead; they're built again as photographs are opened (or by Build Previews).
+    /// Removes every preview built ahead; they're built again as photographs are opened (or ahead, in the background).
     func emptyPreviewCache() async {
         lab.previewBuilder.cancel(); lab.proxyMaker.cancel()
         let archive = renderArchive

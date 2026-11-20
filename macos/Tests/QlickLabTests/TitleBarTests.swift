@@ -3,7 +3,7 @@ import XCTest
 @testable import QlickLab
 
 /// No toolbar (§6.7): the title bar holds only the traffic lights and the
-/// file name, "Negs" with no photograph, and the columns start under it.
+/// file name, "Qlick Lab" with no photograph, and the columns start under it.
 @MainActor final class TitleBarTests: XCTestCase {
     private let frameKey = "NSWindow Frame editor"
 

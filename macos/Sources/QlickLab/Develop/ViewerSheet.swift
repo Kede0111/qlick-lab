@@ -30,13 +30,13 @@ enum ViewerSheet: String, CaseIterable, Identifiable, Sendable {
         switch self {
         case .darkroom: Theme.Hex.bg
         case .black: 0x000000
-        // Lightroom's and Photoshop's Dark Gray, about.
+        // A dark grey, the usual editing surround.
         case .charcoal: 0x242424
-        // 22% in Lightroom's readout.
+        // About 22 % grey.
         case .grey22: 0x383838
         // The 18% grey card, L* 50: ISO 3664's surround for judging prints.
         case .middleGrey: 0x777777
-        // Lightroom's Light Gray, about.
+        // A light grey.
         case .lightGrey: 0xb4b4b4
         case .paper: Theme.Hex.paper
         }

@@ -544,7 +544,7 @@ final class LibraryFormatTests: XCTestCase {
     /// opening it, ratings apply to the whole selection, and leaving opens
     /// the current one. In the edit view ratings stay on the open photograph.
     /// Double-clicking the photograph fits a zoomed one, else shows the
-    /// grid, as in Lightroom; never while cropping.
+    /// grid; never while cropping.
     func testDoubleClickingThePhotographFitsItOrShowsTheGrid() async throws {
         let dir = try folder()
         defer { try? FileManager.default.removeItem(at: dir) }
