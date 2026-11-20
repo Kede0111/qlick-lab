@@ -228,7 +228,7 @@ Steps (one local commit each, tests, `scripts/drive.sh` screenshots checked, Dev
   Left: the tree's + on hover isn't drivable off screen (checked by code only); a folder in two Archives belongs, for
   crumbs, to the one with the deepest Folder; "Photos → an Archive row" (gesture list) to settle in R2; the README's
   screenshots still show projects.
-- [x] R2 Drag and drop, copy/paste, menus (HASH): one drop target for the sidebar's list (`App/SidebarDrop.swift`:
+- [x] R2 Drag and drop, copy/paste, menus (3a9aa24): one drop target for the sidebar's list (`App/SidebarDrop.swift`:
   rows report their frames, `SidebarDropDelegate`, `SidebarDropOverlay` = the row lit in red, the insertion line, the
   label "Move 12 photographs to “Rue”"; `.move`/`.copy`/`.forbidden` proposals give the cursor). What a drop does is
   planned in `Library/BoxMoves.swift` (`ProjectStore.plan` → `DropPlan`, `apply(DropAction)`), done by
