@@ -33,9 +33,21 @@ final class RenderedPreviewCache: @unchecked Sendable {
     let file: URL
     private let queue = DispatchQueue(label: "be.jackfrom.qlicklab.rendered-preview", qos: .userInitiated)
     private static let maxBytes = 8192 * 8192 * 4
+    /// Qlick Lab: the last settled frame waits this long before it's written: a frame is up to 48 MB, and walking
+    /// through a roll settles one every few hundred milliseconds. Only the frame the lab rests on (or quits on, `flush`)
+    /// is written, once. On the queue only.
+    let writeDelay: TimeInterval
+    private struct Staged {
+        var surface: IOSurface, photoSize: CGSize, sourceSize: CGSize, workingSize: CGSize, raw: Bool, key: String
+    }
+    private var staged: Staged?
+    private var stagedWrite: DispatchWorkItem?
+    /// For the benchmarks and tests: frames written to disk.
+    private(set) var writes = 0
 
-    init(file: URL = AppDataLocations.cachesDirectory.appendingPathComponent("rendered-preview.cache")) {
+    init(file: URL = AppDataLocations.cachesDirectory.appendingPathComponent("rendered-preview.cache"), writeDelay: TimeInterval = 3) {
         self.file = file
+        self.writeDelay = writeDelay
     }
 
     /// Canvas-only edits (crop, rotation and border) are reapplied by the
@@ -66,16 +78,21 @@ final class RenderedPreviewCache: @unchecked Sendable {
     }
 
     func invalidate() {
-        queue.async { try? FileManager.default.removeItem(at: self.file) }
+        queue.async {
+            self.staged = nil; self.stagedWrite?.cancel(); self.stagedWrite = nil
+            try? FileManager.default.removeItem(at: self.file)
+        }
     }
 
+    /// Writes the frame waiting, now.
     func flush() async {
-        await withCheckedContinuation { continuation in queue.async { continuation.resume() } }
+        await withCheckedContinuation { continuation in queue.async { self.writeStaged(); continuation.resume() } }
     }
 
     func load(source: URL, state: EditState, paths: EnginePaths) async -> Frame? {
         await withCheckedContinuation { continuation in
             queue.async {
+                self.writeStaged()
                 let frame = Self.key(source: source, state: state, paths: paths).flatMap { self.read(key: $0) }
                 continuation.resume(returning: frame)
             }
@@ -102,6 +119,25 @@ final class RenderedPreviewCache: @unchecked Sendable {
     /// never reads the helper's preview file, which the next render can reuse.
     func save(_ surface: IOSurface, photoSize: CGSize, sourceSize: CGSize, workingSize: CGSize, raw: Bool, key: String) {
         queue.async {
+            self.staged = Staged(surface: surface, photoSize: photoSize, sourceSize: sourceSize, workingSize: workingSize, raw: raw, key: key)
+            self.stagedWrite?.cancel()
+            let write = DispatchWorkItem { [weak self] in self?.writeStaged() }
+            self.stagedWrite = write
+            self.queue.asyncAfter(deadline: .now() + self.writeDelay, execute: write)
+        }
+    }
+
+    /// On the queue.
+    private func writeStaged() {
+        stagedWrite?.cancel(); stagedWrite = nil
+        guard let frame = staged else { return }
+        staged = nil
+        write(frame.surface, photoSize: frame.photoSize, sourceSize: frame.sourceSize, workingSize: frame.workingSize, raw: frame.raw, key: frame.key)
+    }
+
+    /// On the queue.
+    private func write(_ surface: IOSurface, photoSize: CGSize, sourceSize: CGSize, workingSize: CGSize, raw: Bool, key: String) {
+        do {
             let width = surface.width, height = surface.height
             surface.lock(options: .readOnly, seed: nil)
             var pixels = Data(count: width * height * 4)
@@ -124,6 +160,7 @@ final class RenderedPreviewCache: @unchecked Sendable {
                 try output.write(contentsOf: data); try output.write(contentsOf: pixels)
                 try output.close()
                 guard rename(staging.path, self.file.path) == 0 else { throw EngineError(message: "Could not cache preview") }
+                writes += 1
             } catch { /* A cache failure must never interrupt editing. */ }
         }
     }

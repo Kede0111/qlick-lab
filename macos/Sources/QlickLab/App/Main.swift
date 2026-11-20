@@ -94,6 +94,7 @@ import SwiftUI
         #if DEBUG || SPEKTRAFILM_BENCHMARK
         InteractionBenchmark.start(model)
         GridBenchmark.start(model)
+        SpeedBenchmark.start(model)
         #endif
         updates.schedule(afterStartupOf: model)
         offerBatchResume()

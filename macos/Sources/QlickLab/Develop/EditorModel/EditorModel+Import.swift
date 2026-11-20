@@ -97,7 +97,7 @@ extension EditorModel {
         matchCache.flush()
 
         closing = true; pendingRender?.cancel(); activityTimer?.cancel()
-        if let powerStateObserver { NotificationCenter.default.removeObserver(powerStateObserver); self.powerStateObserver = nil }
+        powerStateObservers.forEach(NotificationCenter.default.removeObserver); powerStateObservers = []
         thumbnailTask?.cancel(); thumbnailIdle?.cancel()
         thumbnailsDeveloping.values.forEach { $0.task.cancel() }; thumbnailEngines.values.forEach { $0.stop() }
         exportJob?.cancel(); batch?.job?.cancel(); batchEngine?.stop(); engine?.stop()

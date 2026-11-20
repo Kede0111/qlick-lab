@@ -62,7 +62,7 @@ import Observation
         guard !candidates.isEmpty else { return }
         let asked = Set(Self.candidates(items, skipping: []))
         let generation = generation, limit = PreviewStorage.proxiesLimit
-        let order = Self.order(candidates, around: centre(), in: model.library.items.map(\.url))
+        let order = Self.order(candidates, around: centre(), in: model.library.items.map(\.url), direction: model.aheadDirection)
         checking += 1
         Task { [weak self] in
             // Off the main thread: thousands of photographs, each looked for on disk.
@@ -274,7 +274,7 @@ import Observation
     /// more than three: the thumbnails' helpers and Develop's share the machine. One in Low Power Mode.
     nonisolated static func helpers(cores: Int = ProcessInfo.processInfo.activeProcessorCount,
                                     memory: UInt64 = ProcessInfo.processInfo.physicalMemory,
-                                    lowPower: Bool = ProcessInfo.processInfo.isLowPowerModeEnabled) -> Int {
+                                    lowPower: Bool = MachineState.shared.saving) -> Int {
         if lowPower || cores < 8 || memory < 16 << 30 { return 1 }
         if cores >= 12 && memory >= 32 << 30 { return 3 }
         return 2
@@ -296,14 +296,14 @@ import Observation
     }
 
     /// `photos` from the nearest to `centre` outward, in the folder's order (`all`); as given without a centre.
-    nonisolated static func order(_ photos: [URL], around centre: URL?, in all: [URL]) -> [URL] {
+    /// Qlick Lab: with a `direction` (walked through in Develop), those ahead first (`RenderAhead.walkOrder`).
+    nonisolated static func order(_ photos: [URL], around centre: URL?, in all: [URL], direction: Int? = nil) -> [URL] {
         var index: [URL: Int] = [:]
         for (position, item) in all.enumerated() where index[item.photoFile] == nil { index[item.photoFile] = position }
         guard let centre, let middle = index[centre] else { return photos }
-        return photos.enumerated().sorted { a, b in
-            let (x, y) = (abs((index[a.element] ?? Int.max / 2) - middle), abs((index[b.element] ?? Int.max / 2) - middle))
-            return x != y ? x < y : a.offset < b.offset
-        }.map(\.element)
+        // Those not listed last, in the order given.
+        let ranked = photos.enumerated().map { (index: index[$0.element].map { $0 * 2 } ?? Int.max / 4 + $0.offset, item: $0.element) }
+        return RenderAhead.walkOrder(ranked, from: middle * 2, direction: direction)
     }
 
     /// Whether `photo` has its proxy, with either lens correction (the app keeps one).
