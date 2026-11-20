@@ -251,7 +251,7 @@ struct CropTrimMarks: View {
         // One Crop for VoiceOver, not one per corner.
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Crop")
-        .accessibilityHint("Trim marks; ⌘K")
+        .accessibilityHint("Trim marks; R")
         .accessibilityAddTraits(.isButton)
         .accessibilityAction(.default, crop)
     }
@@ -286,6 +286,6 @@ private struct TrimMark: View {
                     defer { started = false }
                     if !started, hypot(value.translation.width, value.translation.height) < 4 { crop() }
                 })
-            .help("Crop (⌘K)")
+            .help("Crop (R)")
     }
 }

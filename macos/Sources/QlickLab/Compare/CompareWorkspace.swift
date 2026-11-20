@@ -452,6 +452,7 @@ private struct PaneLabel: View {
                 if kind == .photographs || kind == .versions {
                     if let flag = summary.flag { MarkGlyph(flag: flag).frame(width: 17, height: 13) }
                     if summary.rating > 0 { Text(String(repeating: "★", count: summary.rating)).font(.system(size: 10)).foregroundStyle(Theme.paper) }
+                    if let label = summary.label { LabelDot(label: label, size: 9).help(LabelNames.name(label)) }
                 }
             }
             .padding(.horizontal, 10).frame(height: 28)
@@ -484,7 +485,7 @@ private struct PaneLabel: View {
 
     private func emptyTag(_ kind: CompareSetup.Kind, summary: LibrarySummary) -> Bool {
         (kind == .photographs || kind == .versions) && lab.sheet.fileNames == .off && summary.flag == nil && summary.rating == 0
-            && !compare.busy.contains(pane.id)
+            && summary.label == nil && !compare.busy.contains(pane.id)
     }
 
     private func tagText(_ title: String, chevron: Bool) -> some View {
@@ -579,6 +580,7 @@ struct CompareCanvasHost: NSViewRepresentable {
         case .unmark: compare.mark(nil)
         case .develop: if compare.panes.indices.contains(compare.focused) { compare.adopt(compare.panes[compare.focused]) }
         case .loupe: (compare.canvas?.viewport.zoom ?? 1) <= 1.001 ? compare.canvas?.zoomToActual() : compare.canvas?.zoomToFit()
+        case .labelRed, .labelYellow, .labelGreen, .labelBlue: model.lab.menuLabel(action.label)
         default: return false
         }
         compare.push()

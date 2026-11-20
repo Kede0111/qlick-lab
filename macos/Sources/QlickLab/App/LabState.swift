@@ -160,6 +160,16 @@ struct SheetOptions: Codable, Equatable, Sendable {
     }
     /// The frame shown large over the sheet (Space).
     var loupe: URL?
+    /// Qlick Lab: the Keywords panel over the contact sheet (label, title, caption, keywords); in Develop it's part of
+    /// the photograph's information (⌘I).
+    var wordsVisible = UserDefaults.standard.bool(forKey: "qlick.keywordsPanel") {
+        didSet { UserDefaults.standard.set(wordsVisible, forKey: "qlick.keywordsPanel") }
+    }
+    /// Moves when ⌘K asks for the Add Keyword field, which then takes the keys (`keywordFocusPending` until it has).
+    var keywordFocus = 0
+    @ObservationIgnored var keywordFocusPending = false
+    /// The keyword set's nine fields are open in the panel.
+    var editingKeywordSet = false
     /// The photographs laid side by side in Comparaison.
     var compare = CompareSetup()
     var favouriteStocks: Set<String> = Set(UserDefaults.standard.stringArray(forKey: "qlick.favouriteStocks") ?? []) {
@@ -575,7 +585,7 @@ struct SheetOptions: Codable, Equatable, Sendable {
     var markFilter: MarkFilter {
         get {
             let filter = model.library.filter
-            guard filter.rating == .any, !filter.editedOnly else { return .other }
+            guard filter.rating == .any, !filter.editedOnly, filter.labels.isEmpty, !filter.unlabelled, filter.keyword == nil else { return .other }
             switch filter.flags {
             case []: return .all
             case [.pick]: return .picks

@@ -40,13 +40,19 @@ struct LibrarySummary: Equatable, Sendable {
     var edited = false
     /// Why its sidecar isn't used (unreadable, from a newer Negs).
     var problem: String?
+    /// Qlick Lab: its colour label, keywords, title and caption.
+    var words = PhotoWords()
+    var label: ColorLabel? {
+        get { words.label }
+        set { words.label = newValue }
+    }
 }
 
 extension PhotoSidecar {
     var summary: LibrarySummary { variants.first.map(Self.summary(of:)) ?? LibrarySummary() }
 
     static func summary(of variant: Variant) -> LibrarySummary {
-        LibrarySummary(rating: variant.rating, flag: variant.flag, edited: variant.edits != nil)
+        LibrarySummary(rating: variant.rating, flag: variant.flag, edited: variant.edits != nil, words: variant.words)
     }
 
     /// Each library item of the photograph: itself (the first variant) and its duplicates.
@@ -94,8 +100,32 @@ struct LibraryFilter: Codable, Equatable, Sendable {
     /// The flags shown; empty shows every one.
     var flags: Set<Flag> = []
     var editedOnly = false
+    /// Qlick Lab: the colour labels shown (and those without one, with `unlabelled`); none chosen shows every one.
+    var labels: Set<ColorLabel> = []
+    var unlabelled = false
+    /// Qlick Lab: only the photographs with this keyword.
+    var keyword: String?
 
     var active: Bool { self != LibraryFilter() }
+
+    init(rating: Rating = .any, flags: Set<Flag> = [], editedOnly: Bool = false, labels: Set<ColorLabel> = [], unlabelled: Bool = false,
+         keyword: String? = nil) {
+        self.rating = rating; self.flags = flags; self.editedOnly = editedOnly
+        self.labels = labels; self.unlabelled = unlabelled; self.keyword = keyword
+    }
+
+    private enum CodingKeys: String, CodingKey { case rating, flags, editedOnly, labels, unlabelled, keyword }
+
+    /// A filter saved before the labels and keywords reads as it was.
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        rating = try container.decodeIfPresent(Rating.self, forKey: .rating) ?? .any
+        flags = try container.decodeIfPresent(Set<Flag>.self, forKey: .flags) ?? []
+        editedOnly = try container.decodeIfPresent(Bool.self, forKey: .editedOnly) ?? false
+        labels = try container.decodeIfPresent(Set<ColorLabel>.self, forKey: .labels) ?? []
+        unlabelled = try container.decodeIfPresent(Bool.self, forKey: .unlabelled) ?? false
+        keyword = try container.decodeIfPresent(String.self, forKey: .keyword)
+    }
 
     func includes(_ summary: LibrarySummary) -> Bool {
         switch rating {
@@ -109,6 +139,10 @@ struct LibraryFilter: Codable, Equatable, Sendable {
             let flag: Flag = switch summary.flag { case .pick: .pick; case .reject: .reject; case nil: .unflagged }
             if !flags.contains(flag) { return false }
         }
+        if !labels.isEmpty || unlabelled {
+            if let label = summary.label { if !labels.contains(label) { return false } } else if !unlabelled { return false }
+        }
+        if let keyword, !summary.words.has(keyword: keyword) { return false }
         return !editedOnly || summary.edited
     }
 

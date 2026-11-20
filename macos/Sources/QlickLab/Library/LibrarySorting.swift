@@ -6,7 +6,7 @@ import SwiftUI
 /// rating, mark, whether they're developed or their shape; either way round. The folder's own order is by name.
 struct LibrarySort: Codable, Equatable, Sendable {
     enum Key: String, Codable, CaseIterable, Sendable {
-        case captureTime, fileName, fileType, fileSize, modified, rating, pick, edited, aspect
+        case captureTime, fileName, fileType, fileSize, modified, rating, pick, label, edited, aspect
 
         var title: String {
             switch self {
@@ -17,6 +17,7 @@ struct LibrarySort: Codable, Equatable, Sendable {
             case .modified: "Modified Date"
             case .rating: "Rating"
             case .pick: "Pick"
+            case .label: "Colour Label"
             case .edited: "Developed"
             case .aspect: "Aspect Ratio"
             }
@@ -57,6 +58,9 @@ extension LabState {
             case .pick:
                 func rank(_ flag: PhotoSidecar.Flag?) -> Int { flag == .pick ? 2 : flag == .reject ? 0 : 1 }
                 return order(rank(library.summary(for: a.url).flag), rank(library.summary(for: b.url).flag))
+            case .label:
+                // As the labels are listed, red first; unlabelled photographs after them.
+                return order(library.summary(for: a.url).label?.rank ?? ColorLabel.allCases.count, library.summary(for: b.url).label?.rank ?? ColorLabel.allCases.count)
             case .edited: return order(library.summary(for: a.url).edited ? 1 : 0, library.summary(for: b.url).edited ? 1 : 0)
             case .aspect:
                 let ratios = model.aspects.ratios
@@ -117,6 +121,9 @@ struct LibraryFilterBar: View {
                     .contentShape(Capsule())
             }
             .buttonStyle(.plain).help("Only the photographs with a development of their own")
+            separator
+            LabelFilter(model: model)
+            KeywordFilter(model: model)
             if library.filter.active {
                 Button { model.library.filter = LibraryFilter() } label: {
                     Image(systemName: "xmark.circle.fill").font(.system(size: 12)).foregroundStyle(Theme.dim)
@@ -267,5 +274,75 @@ struct SortPicker: View {
             .help(sort.ascending ? "Ascending: click for descending" : "Descending: click for ascending")
         }
         .padding(.horizontal, 6)
+    }
+}
+
+/// The colour labels in the filter bar: a click shows only that label's photographs, more clicks add others; the
+/// menu at the end adds those without a label.
+private struct LabelFilter: View {
+    let model: EditorModel
+
+    var body: some View {
+        let filter = model.library.filter
+        let counts = Dictionary(grouping: model.library.items.compactMap { model.library.summary(for: $0.url).label }, by: { $0 }).mapValues(\.count)
+        HStack(spacing: 1) {
+            ForEach(ColorLabel.allCases) { label in
+                let on = filter.labels.contains(label)
+                Button {
+                    if on { model.library.filter.labels.remove(label) } else { model.library.filter.labels.insert(label) }
+                } label: {
+                    LabelDot(label: label, size: 10)
+                        .opacity(on || (filter.labels.isEmpty && !filter.unlabelled) ? 1 : 0.35)
+                        .padding(3)
+                        .overlay(Circle().strokeBorder(Theme.paper.opacity(on ? 0.9 : 0), lineWidth: 1.2))
+                        .frame(width: 20, height: 24).contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("\(LabelNames.name(label)) label: \(counts[label] ?? 0)")
+            }
+            Button { model.library.filter.unlabelled.toggle() } label: {
+                Image(systemName: "circle.dashed").font(.system(size: 10.5))
+                    .foregroundStyle(filter.unlabelled ? Theme.paper : Theme.dim)
+                    .frame(width: 20, height: 24).contentShape(Rectangle())
+            }
+            .buttonStyle(.plain).help("Without a label")
+        }
+        .padding(.horizontal, 2)
+    }
+}
+
+/// Keyword ▾ in the filter bar: the keywords of what's listed, with their counts; one chosen shows only its photographs.
+private struct KeywordFilter: View {
+    let model: EditorModel
+
+    var body: some View {
+        let chosen = model.library.filter.keyword
+        Menu {
+            let held = PhotoWordsEditor.held(model.library.items.map { model.library.summary(for: $0.url).words.keywords })
+            if held.isEmpty { Text("No keywords here yet") }
+            ForEach(held, id: \.word) { entry in
+                Button {
+                    model.library.filter.keyword = chosen?.caseInsensitiveCompare(entry.word) == .orderedSame ? nil : entry.word
+                } label: {
+                    let title = "\(entry.word)  \(entry.count)"
+                    if chosen?.caseInsensitiveCompare(entry.word) == .orderedSame { Label(title, systemImage: "checkmark") } else { Text(title) }
+                }
+            }
+            if chosen != nil {
+                Divider()
+                Button("Any Keyword") { model.library.filter.keyword = nil }
+            }
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: "tag").font(.system(size: 10.5))
+                Text(chosen ?? "Keyword").lineLimit(1)
+            }
+            .font(Theme.caps(12, weight: chosen == nil ? .regular : .semibold))
+            .foregroundStyle(chosen == nil ? Theme.paper : Theme.film)
+            .padding(.horizontal, 10).frame(height: 24)
+            .background(Capsule().fill(chosen == nil ? Color.white.opacity(0.001) : Theme.paper))
+        }
+        .menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden).fixedSize()
+        .help("Only the photographs with a keyword")
     }
 }

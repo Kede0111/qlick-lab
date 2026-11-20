@@ -130,6 +130,8 @@ struct PhotoSidecar: Equatable, Sendable {
         var flag: Flag?
         /// The stored edits, as in the file; nil when none.
         var edits: JSONValue?
+        /// Its colour label, keywords, title and caption.
+        var words = PhotoWords()
     }
 
     var raw: JSONValue
@@ -180,7 +182,7 @@ struct PhotoSidecar: Equatable, Sendable {
             }
             let edits = fields["edits"]
             if let edits, edits.object == nil { throw Problem.unreadable("edits that aren’t an object") }
-            variants.append(Variant(id: id, rating: rating, flag: flag, edits: edits))
+            variants.append(Variant(id: id, rating: rating, flag: flag, edits: edits, words: PhotoWords(fields: fields)))
         }
         self.raw = raw
         defaultsVersion = version
@@ -281,6 +283,13 @@ struct SidecarPatch: Equatable, Sendable {
     var rating: Int? = nil
     /// The new flag (`.some(nil)` unflags); nil leaves it.
     var flag: PhotoSidecar.Flag?? = nil
+    /// The new colour label (`.some(nil)` takes it off); nil leaves it.
+    var label: ColorLabel?? = nil
+    /// The new keywords (empty: none); nil leaves them.
+    var keywords: [String]? = nil
+    /// The new title and caption (empty: none); nil leaves them.
+    var title: String? = nil
+    var caption: String? = nil
     /// What the writer's own version knows of each stored group (`params`,
     /// `crop`, `border`): the defaults table, and for the parameters also the
     /// engine's defaults. Stored values outside them are a newer version's
@@ -297,7 +306,10 @@ struct SidecarPatch: Equatable, Sendable {
     var app: String
 
     /// Whether the change gives a variant something to hold.
-    private var adds: Bool { (edits ?? nil) != nil || (rating ?? 0) > 0 || (flag ?? nil) != nil }
+    private var adds: Bool {
+        (edits ?? nil) != nil || (rating ?? 0) > 0 || (flag ?? nil) != nil || (label ?? nil) != nil || !(keywords ?? []).isEmpty
+            || !(title ?? "").isEmpty || !(caption ?? "").isEmpty
+    }
 
     /// The file after this change, or nil to remove it: a single variant with
     /// nothing in it and nothing else in the file means the photo has no
@@ -337,6 +349,16 @@ struct SidecarPatch: Equatable, Sendable {
         }
         if let rating { fields["rating"] = rating > 0 ? .number(Double(min(rating, 5))) : nil }
         if let flag { fields["flag"] = flag.map { .string($0.rawValue) } }
+        if let label { fields["label"] = label.map { .string($0.rawValue) } }
+        if let keywords {
+            let clean = PhotoWords.clean(keywords)
+            fields["keywords"] = clean.isEmpty ? nil : .array(clean.map(JSONValue.string))
+        }
+        for (key, text) in [("title", title), ("caption", caption)] {
+            guard let text else { continue }
+            let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            fields[key] = trimmed.isEmpty ? nil : .string(trimmed)
+        }
         variants[index!] = .object(fields)
         top["variants"] = .array(variants)
         let plain = variants.count == 1 && Set(fields.keys) == ["id"] && Set(top.keys).isSubset(of: ["qlick", "app", "defaultsVersion", "variants"])

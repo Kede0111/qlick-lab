@@ -14,6 +14,8 @@ struct SheetFrameContent {
     var flag: PhotoSidecar.Flag?
     var rating = 0
     var edited = false
+    /// Qlick Lab: the colour label, a round sticker on the frame's top left corner.
+    var label: ColorLabel?
     var selected = false
     var current = false
     /// A second line for the detailed view: date and exposure.
@@ -183,6 +185,23 @@ struct ContactSheetRenderer {
             context.fill(window)
         }
         drawEdgePrint(context, index: index, content, window: window)
+        drawLabel(context, content, picture: content.image == nil ? window : pictureRect(index, content))
+    }
+
+    /// The colour label: a round sticker laid on the picture's top left corner, as on a print, with a dark rim so it
+    /// reads on a bright sky. In every style, and printed.
+    func drawLabel(_ context: CGContext, _ content: SheetFrameContent, picture: CGRect) {
+        guard let label = content.label else { return }
+        let diameter = min(max(layout.frame.width * 0.065, 7), 15)
+        let inset = max(diameter * 0.45, 3)
+        let dot = CGRect(x: picture.minX + inset, y: picture.minY + inset, width: diameter, height: diameter)
+        context.saveGState()
+        context.setFillColor(label.cgColor)
+        context.fillEllipse(in: dot)
+        context.setStrokeColor(CGColor(gray: 0, alpha: 0.6))
+        context.setLineWidth(max(diameter * 0.1, 0.8))
+        context.strokeEllipse(in: dot.insetBy(dx: 0.4, dy: 0.4))
+        context.restoreGState()
     }
 
     private func drawEdgePrint(_ context: CGContext, index: Int, _ content: SheetFrameContent, window: CGRect) {

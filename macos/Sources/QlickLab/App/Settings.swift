@@ -174,6 +174,10 @@ struct SettingsView: View {
                          : "In a .qlick file beside the DNG, like every other photograph.")
             }
         }
+        InkSection(title: "Colour labels") {
+            ForEach(ColorLabel.allCases) { label in LabelNameRow(label: label) }
+            HintText("Your own name for each colour (“To print”, “For the client”). Empty, the colour’s name. Photographs keep the colour, not the name.")
+        }
         InkSection(title: "Viewer") {
             ChoiceRow(title: "Sheet", items: ViewerSheet.allCases.map { .option($0.title, tag: $0.rawValue) },
                       selection: sheet.rawValue) { sheet = ViewerSheet(rawValue: $0) ?? .darkroom }
@@ -318,5 +322,26 @@ struct FigureText: View {
         }
         .lineLimit(1)
         .accessibilityElement(children: .combine)
+    }
+}
+
+/// A colour label's own name, in Settings: its sticker, then the name typed, the colour's name until one is.
+private struct LabelNameRow: View {
+    let label: ColorLabel
+    @State private var name = ""
+
+    var body: some View {
+        ButtonRow {
+            LabelDot(label: label, size: 12)
+            Text(label.standardName).font(Theme.serif(14.5)).foregroundStyle(Theme.label).frame(width: 70, alignment: .leading)
+        } button: {
+            TextField(label.standardName, text: $name)
+                .textFieldStyle(.plain).font(Theme.serif(14.5)).foregroundStyle(Theme.paper)
+                .padding(.horizontal, 8).frame(width: 220, height: 24)
+                .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Color.white.opacity(0.07)))
+                .onSubmit { LabelNames.set(name, for: label) }
+                .onChange(of: name) { _, new in LabelNames.set(new, for: label) }
+        }
+        .onAppear { name = LabelNames.own(label) }
     }
 }

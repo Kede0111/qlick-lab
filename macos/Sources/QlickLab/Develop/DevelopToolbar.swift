@@ -36,7 +36,7 @@ struct DevelopToolbar: View {
             }
             // The crop tool by name: it also straightens, by hand or by itself.
             group {
-                ToolButton(on: model.cropping, help: "Crop and Straighten (⌘K)", action: { model.cropping ? model.endCrop(apply: true) : model.beginCrop() }) {
+                ToolButton(on: model.cropping, help: "Crop and Straighten (R)", action: { model.cropping ? model.endCrop(apply: true) : model.beginCrop() }) {
                     HStack(spacing: 5) {
                         Image(systemName: "crop").font(.system(size: 12, weight: .medium))
                         Text(model.cropping ? "Done" : "Crop").font(.system(size: 11, weight: .medium))

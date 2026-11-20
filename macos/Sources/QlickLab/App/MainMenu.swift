@@ -19,7 +19,11 @@ import SwiftUI
     private func applyShortcuts() {
         let keys = model.lab.keys
         for (item, action) in zip(flagItems, [SheetAction.pick, .reject, .unmark]) { item.keyEquivalent = keys.key(action) }
+        for (item, label) in labelItems { if let action = label.action { item.keyEquivalent = keys.key(action) } }
     }
+    private var labelItems: [(NSMenuItem, ColorLabel)] = []
+
+    static func dot(_ label: ColorLabel) -> NSImage { MainMenuDots.dot(label) }
     init(model: EditorModel, updates: UpdateController) {
         self.model = model
         self.updates = updates
@@ -106,7 +110,8 @@ import SwiftUI
         // Rotate lives in cropping (§4.10); from here it starts cropping.
         command(view, "Rotate Clockwise", #selector(rotate), "r")
         command(view, "Rotate Counterclockwise", #selector(rotateLeft), "r", [.command, .option])
-        command(view, "Crop", #selector(crop), "k")
+        // Qlick Lab: R, as the habit is; ⌘K adds a keyword.
+        command(view, "Crop", #selector(crop), "r", [])
         command(view, "Straighten Automatically", #selector(autoStraighten), "")
         view.addItem(.separator())
         // ⇧⌘R is Photo › Reset Edits.
@@ -133,6 +138,28 @@ import SwiftUI
         command(flag, "Reject", #selector(reject), "x", [])
         command(flag, "Unflagged", #selector(unflag), "u", [])
         flagItems = Array(flag.items.suffix(3))
+        // Qlick Lab: colour labels (6 to 9 by default, purple in the menu only) and keywords.
+        let labels = NSMenu(title: "Colour Label")
+        photo.addItem(withTitle: "Colour Label", action: nil, keyEquivalent: "").submenu = labels
+        for (index, label) in ColorLabel.allCases.enumerated() {
+            let item = labels.addItem(withTitle: label.standardName, action: #selector(colorLabel(_:)), keyEquivalent: "")
+            item.keyEquivalentModifierMask = []; item.tag = index + 1; item.target = self
+            item.image = Self.dot(label)
+            if label.action != nil { labelItems.append((item, label)) }
+        }
+        labels.addItem(.separator())
+        let none = labels.addItem(withTitle: "None", action: #selector(colorLabel(_:)), keyEquivalent: "")
+        none.tag = 0; none.target = self
+        let keywords = NSMenu(title: "Keywords")
+        photo.addItem(withTitle: "Keywords", action: nil, keyEquivalent: "").submenu = keywords
+        command(keywords, "Add Keyword…", #selector(addKeyword), "k")
+        keywords.addItem(.separator())
+        for slot in 0..<KeywordSet.size {
+            let item = keywords.addItem(withTitle: "", action: #selector(keywordSlot(_:)), keyEquivalent: "\(slot + 1)")
+            item.keyEquivalentModifierMask = [.option]; item.tag = slot; item.target = self
+        }
+        keywords.addItem(.separator())
+        command(keywords, "Edit the Keyword Set…", #selector(editKeywordSet), "")
         photo.addItem(.separator())
         command(photo, "Copy Edits", #selector(copyEdits), "c", [.command, .shift])
         command(photo, "Copy Edits…", #selector(copyEditsChoosing), "c", [.command, .shift, .option])
@@ -272,6 +299,12 @@ import SwiftUI
     @objc private func reject() { model.lab.menuMark(.reject) }
     @objc private func unflag() { model.lab.menuMark(nil) }
     @objc private func toggleAdvance() { model.advanceAfterRating.toggle() }
+    @objc private func colorLabel(_ item: NSMenuItem) {
+        model.lab.menuLabel(item.tag == 0 ? nil : ColorLabel.allCases[item.tag - 1])
+    }
+    @objc private func addKeyword() { model.lab.askKeyword() }
+    @objc private func keywordSlot(_ item: NSMenuItem) { model.lab.menuKeyword(slot: item.tag) }
+    @objc private func editKeywordSet() { model.lab.askKeyword(editingSet: true) }
     @objc private func clearFilter() { model.library.filter = LibraryFilter() }
     @objc private func editPhotograph() { model.editCurrent() }
     @objc private func copyEdits() { model.copyEdits() }
@@ -361,7 +394,8 @@ import SwiftUI
         case #selector(rotate), #selector(rotateLeft): return model.cropping || (editing && model.image != nil)
         case #selector(crop):
             item.title = model.cropping ? "Done Cropping" : "Crop"
-            return model.cropping || (model.image != nil && model.mode == .photo)
+            // A plain key: never while a word is typed.
+            return Self.takesRatingKeys(NSApp.keyWindow) && (model.cropping || (model.image != nil && model.mode == .photo))
         case #selector(autoStraighten): return model.image != nil && model.mode == .photo && model.lab.workspace == .develop
         case #selector(resetAdjustments): return model.hasCatalog && !model.cropping && model.mode == .photo
         case #selector(editPhotograph): return model.mode == .grid && model.selection.current != nil && Self.takesRatingKeys(NSApp.keyWindow)
@@ -395,6 +429,19 @@ import SwiftUI
         case #selector(reject): item.state = state { $0.flag == .reject }; return rating
         case #selector(unflag): item.state = state { $0.flag == nil }; return rating
         case #selector(toggleAdvance): item.state = model.advanceAfterRating ? .on : .off; return true
+        case #selector(colorLabel(_:)):
+            let label = item.tag == 0 ? nil : ColorLabel.allCases[item.tag - 1]
+            if let label { item.title = LabelNames.name(label) }
+            item.state = state { $0.label == label }
+            return rating && model.lab.workspace != .importer
+        case #selector(addKeyword): return !model.ratingTargets.isEmpty && model.lab.workspace != .importer && NSApp.keyWindow is EditorWindow
+        case #selector(keywordSlot(_:)):
+            let words = KeywordSet.load()
+            let word = words.indices.contains(item.tag) ? words[item.tag] : ""
+            item.title = word.isEmpty ? "Keyword \(item.tag + 1): None Set" : word
+            item.state = word.isEmpty ? .off : state { $0.words.has(keyword: word) }
+            return !word.isEmpty && rating && model.lab.workspace != .importer
+        case #selector(editKeywordSet): return NSApp.keyWindow is EditorWindow
         case #selector(clearFilter): return model.library.filter.active
         default: return true
         }

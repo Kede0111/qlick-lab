@@ -326,6 +326,7 @@ import SwiftUI
         var content = SheetFrameContent(name: file.name, number: numbers[url] ?? "", image: images[url], flag: flag(url), rating: summary.rating,
                                         edited: summary.edited, selected: selection.selected.contains(url) && selection.selected.count > 1,
                                         current: selection.current == url)
+        content.label = summary.label
         if options.style == .detail { content.caption = lab.facts.get(url)?.caption }
         if let start = markAnimations[url] {
             let t = min(max((CACurrentMediaTime() - start) / Self.markDuration, 0), 1)
@@ -594,6 +595,7 @@ import SwiftUI
         case .compare: lab.compareSelection()
         case .pencil: lab.sheet.tool = lab.sheet.tool == .pencil ? .pointer : .pencil
         case .loupeTool: lab.sheet.tool = lab.sheet.tool == .loupe ? .pointer : .loupe
+        case .labelRed, .labelYellow, .labelGreen, .labelBlue: if let label = action.label { model.toggleLabel(label) }
         case .nextUnmarked:
             let start = model.selection.current.flatMap { indexOf[$0] } ?? -1
             let order = Array(files.indices.dropFirst(start + 1)) + Array(files.indices.prefix(max(start, 0)))
@@ -750,6 +752,7 @@ extension ContactSheetView: NSDraggingSource {
             entry.keyEquivalentModifierMask = []; entry.tag = stars; entry.target = self
         }
         menu.addItem(withTitle: "Rating", action: nil, keyEquivalent: "").submenu = rating
+        menu.addItem(sheet.lab.labelMenuItem(for: model.ratingTargets))
         menu.addItem(.separator())
         add("Open in Develop", #selector(develop), key: keys.key(.develop))
         add("See Larger", #selector(loupe), key: keys.key(.loupe))

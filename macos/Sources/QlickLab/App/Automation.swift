@@ -294,6 +294,30 @@ import AppKit
         case "removeproject": if let project = lab.projects.projects.first(where: { $0.name == rest }) { lab.removeProject(project) }
         case "modelanswer": model.answerAlert(Int(rest) ?? 0)
         // removeask [rejected]: the Remove dialog for the selection, or Remove Rejected Photos…; restore <archive>.
+        // label <colour|none>; keyword add <a, b> | remove <word> | set <slot 1-9> | ask; words on|off (the sheet's panel);
+        // labelfilter <colour…|none|off>; keywordfilter <word|off>; title <text>|<caption>.
+        case "label": lab.menuLabel(ColorLabel(word: rest))
+        case "keyword":
+            let argument = words.dropFirst().joined(separator: " ")
+            switch words.first {
+            case "add": model.addKeywords(PhotoWords.typed(argument))
+            case "remove": model.removeKeyword(argument)
+            case "set": if let slot = Int(argument) { lab.menuKeyword(slot: slot - 1) }
+            case "ask": lab.askKeyword()
+            case "editset": lab.askKeyword(editingSet: true)
+            default: break
+            }
+        case "keywordset": KeywordSet.save(rest.components(separatedBy: ","))
+        case "words": lab.wordsVisible = rest != "off"
+        case "labelfilter":
+            var filter = model.library.filter
+            filter.labels = Set(words.compactMap(ColorLabel.init(word:))); filter.unlabelled = words.contains("none")
+            model.library.filter = filter
+        case "keywordfilter": model.library.filter.keyword = rest == "off" ? nil : rest
+        case "title":
+            let fields = rest.components(separatedBy: "|")
+            if let photo = model.ratingTargets.first { model.setTitle(fields[0], caption: fields.count > 1 ? fields[1] : "", of: photo) }
+        case "sort": if let key = LibrarySort.Key(rawValue: rest) { lab.sort.key = key }
         case "removeask": if rest == "rejected" { lab.requestRemoveRejected() } else { lab.requestRemove() }
         case "restoreremoved": if let archive = lab.projects.project(named: rest) { lab.restoreRemoved(in: archive) }
         case "wholeproject": if let project = lab.projects.projects.first(where: { $0.name == rest }) { lab.openWhole(project) }

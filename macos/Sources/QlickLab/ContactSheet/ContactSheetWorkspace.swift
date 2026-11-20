@@ -29,8 +29,15 @@ struct ContactSheetWorkspace: View {
             if lab.sheet.showInfo, lab.loupe == nil, let current = model.selection.current {
                 FrameInfoPanel(model: model, item: current)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
-                    .padding(.top, 58).padding(.trailing, 16)
+                    .padding(.top, 58).padding(.trailing, 16 + (lab.wordsVisible ? KeywordsPanel.width + 12 : 0))
                     .allowsHitTesting(false)
+            }
+            if lab.wordsVisible, lab.loupe == nil, library.directory != nil {
+                KeywordsPanel(model: model)
+                    .fixedSize(horizontal: true, vertical: false)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                    .padding(.top, 54).padding(.trailing, 14).padding(.bottom, lab.filterBarVisible ? 66 : 14)
+                    .transition(.move(edge: .trailing).combined(with: .opacity))
             }
             if let loupe = lab.loupe {
                 SheetLoupe(model: model, item: loupe)
@@ -38,6 +45,7 @@ struct ContactSheetWorkspace: View {
             }
         }
         .animation(Theme.quick, value: lab.loupe)
+        .animation(Theme.quick, value: lab.wordsVisible)
         .background(lab.sheet.lightTable ? Color(white: 0.9) : Color(white: 0.058))
         .environment(\.colorScheme, .dark)
     }
@@ -86,6 +94,7 @@ struct SheetToolbar: View {
             QIconButton(symbol: "rectangle.portrait.rotate", help: "Upright frames on their side, as on the film", active: lab.sheet.sidewaysVerticals) { lab.sheet.sidewaysVerticals.toggle() }
             FileNamesMenu(lab: lab)
             QIconButton(symbol: "info.circle", help: "Frame information", active: lab.sheet.showInfo) { lab.sheet.showInfo.toggle() }
+            QIconButton(symbol: "tag", help: "Keywords, colour label, title and caption (⌘K)", active: lab.wordsVisible) { lab.wordsVisible.toggle() }
             QIconButton(symbol: "line.3.horizontal.decrease.circle", help: "Filters and sorting (\\)", active: lab.filterBarVisible) { lab.filterBarVisible.toggle() }
             Divider().frame(height: 16).overlay(Color.white.opacity(0.12))
             QIconButton(symbol: "rectangle.split.2x1", help: "Compare the selection (\(ShortcutStore.display(lab.keys.key(.compare))))") { lab.compareSelection() }
@@ -186,6 +195,9 @@ struct FrameInfoPanel: View {
             }
             row("Film", summary.edited ? filmName : "\(model.films.first { $0.id == model.newPhotoFilm }?.name ?? model.newPhotoFilm) (default)")
             if summary.rating > 0 { row("Rating", String(repeating: "★", count: summary.rating)) }
+            if let label = summary.label { row("Label", LabelNames.name(label)) }
+            if !summary.words.title.isEmpty { row("Title", summary.words.title) }
+            if !summary.words.keywords.isEmpty { row("Keywords", summary.words.keywords.joined(separator: ", ")) }
             if let problem = summary.problem { Text(problem).font(.system(size: 11)).foregroundStyle(Theme.warn).fixedSize(horizontal: false, vertical: true) }
         }
         .padding(14)

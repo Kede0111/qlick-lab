@@ -35,6 +35,10 @@ struct PhotoMarks: View {
         // The halo: drop-shadow 1.5 pt black at 0.95, then 4 pt at 0.45.
         .shadow(color: .black.opacity(0.95), radius: 0.75)
         .shadow(color: .black.opacity(0.45), radius: 2)
+        .overlay(alignment: .topLeading) {
+            // Qlick Lab: the colour label, a round sticker at the top left.
+            if let label = summary.label { LabelDot(label: label, size: 10).padding([.top, .leading], 9) }
+        }
         .overlay(alignment: .topTrailing) {
             // The same dot that marks edits in the panel; no halo.
             if summary.edited {
@@ -52,7 +56,9 @@ struct PhotoMarks: View {
     }
 
     static func help(_ name: String, summary: LibrarySummary, readOnly: Bool) -> String {
-        var lines = [name]
+        var lines = [summary.words.title.isEmpty ? name : "\(summary.words.title) (\(name))"]
+        if let label = summary.label { lines.append("\(LabelNames.name(label)) label") }
+        if !summary.words.keywords.isEmpty { lines.append(summary.words.keywords.joined(separator: ", ")) }
         if let problem = summary.problem { lines.append(problem) }
         if readOnly { lines.append("Ratings and edits can’t be saved in this folder: it’s read-only.") }
         return lines.joined(separator: "\n")
@@ -62,6 +68,8 @@ struct PhotoMarks: View {
         var parts = [name]
         if summary.rating > 0 { parts.append(summary.rating == 1 ? "1 star" : "\(summary.rating) stars") }
         if let flag = summary.flag { parts.append(flag == .pick ? "Pick" : "Rejected") }
+        if let label = summary.label { parts.append("\(LabelNames.name(label)) label") }
+        if !summary.words.keywords.isEmpty { parts.append("Keywords: " + summary.words.keywords.joined(separator: ", ")) }
         if summary.edited { parts.append("Edited") }
         return parts.joined(separator: ", ")
     }

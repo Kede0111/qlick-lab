@@ -187,6 +187,25 @@ extension LabState {
         }
     }
 
+    /// A colour label key or menu item: on the selection (Compare: the frame in focus); nil takes it off. Import
+    /// sorts with its own marks only.
+    func menuLabel(_ label: ColorLabel?) {
+        if workspace == .importer { return NSSound.beep() }
+        var targets: [URL]?
+        if workspace == .compare, compareModel.panes.indices.contains(compareModel.focused) { targets = [compareModel.panes[compareModel.focused].item] }
+        if let label { model.toggleLabel(label, targets: targets) } else { model.setLabel(nil, targets: targets) }
+        if workspace == .compare { compareModel.push() }
+    }
+
+    /// ⌥1…⌥9: the keyword set's keyword `slot`, added to the selection or taken off it.
+    func menuKeyword(slot: Int) {
+        let words = KeywordSet.load()
+        guard words.indices.contains(slot), !words[slot].isEmpty, workspace != .importer else { return NSSound.beep() }
+        var targets: [URL]?
+        if workspace == .compare, compareModel.panes.indices.contains(compareModel.focused) { targets = [compareModel.panes[compareModel.focused].item] }
+        model.toggleKeyword(words[slot], targets: targets)
+    }
+
     func menuRate(_ stars: Int) {
         if workspace == .importer { return importer.rate(stars) }
         if workspace == .compare, compareModel.panes.indices.contains(compareModel.focused) {

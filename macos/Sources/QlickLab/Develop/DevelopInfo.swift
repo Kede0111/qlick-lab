@@ -162,11 +162,12 @@ struct CaptionOptions: Codable, Equatable, Sendable {
             entry.tag = stars
         }
         menu.addItem(withTitle: "Rating", action: nil, keyEquivalent: "").submenu = rating
+        menu.addItem(lab.labelMenuItem(for: [item]))
         menu.addItem(.separator())
 
         add(menu, "Rotate Left", #selector(rotateLeft), key: "r", modifiers: [.command, .option], enabled: developed)
         add(menu, "Rotate Right", #selector(rotateRight), key: "r", enabled: developed)
-        add(menu, "Crop and Straighten", #selector(crop), key: "k", enabled: developed)
+        add(menu, "Crop and Straighten", #selector(crop), key: "r", modifiers: [], enabled: developed)
         add(menu, "Straighten Automatically", #selector(autoStraighten), enabled: developed)
         menu.addItem(.separator())
 
@@ -394,10 +395,7 @@ struct PhotoInfoPanel: View {
                     header
                     Rectangle().fill(Color.white.opacity(0.08)).frame(height: 1)
                     // As tall as what it says; it scrolls only when the canvas is shorter.
-                    ViewThatFits(in: .vertical) {
-                        rows
-                        ScrollView { rows }.scrollIndicators(.never)
-                    }
+                    FittingScroll { VStack(alignment: .leading, spacing: 0) { rows } }
                 }
                 .frame(width: Self.width)
                 .background(Color.black.opacity(0.28))
@@ -440,6 +438,11 @@ struct PhotoInfoPanel: View {
     }
 
     @ViewBuilder private var rows: some View {
+        // Qlick Lab: what the photograph says in words, editable: label, title, caption, keywords.
+        PhotoWordsEditor(model: model)
+            .padding(.horizontal, 16).padding(.top, 14).padding(.bottom, 4)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        Rectangle().fill(Color.white.opacity(0.08)).frame(height: 1).padding(.horizontal, 16).padding(.top, 10)
         if let metadata {
             VStack(alignment: .leading, spacing: 14) {
                 if metadata.sections.isEmpty {

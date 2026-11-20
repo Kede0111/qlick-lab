@@ -51,6 +51,9 @@ keeps sync services quiet). At most 1 MiB; a larger file is not a Qlick Lab side
 | `variants[].rating` | 0 (absent) to 5. |
 | `variants[].flag` | `pick` (circled in red pencil) or `reject` (crossed out); absent when unmarked. |
 | `variants[].edits` | Absent when the photograph is undeveloped. |
+| `variants[].label` | Colour label: `red`, `yellow`, `green`, `blue` or `purple`; absent without one. A word this version doesn't know reads as none and is kept. |
+| `variants[].keywords` | Array of strings, each once (letter case aside); absent when empty. |
+| `variants[].title`, `variants[].caption` | Strings; absent when empty. |
 
 `edits` holds `film` and `paper` always, then **only what differs from the defaults table**: `params` (the engine's
 parameters, nested as the engine names them), `crop`, `border`, and `brightnessMatch` (`ev`, `highlightLimited`,
@@ -70,7 +73,9 @@ parameters, nested as the engine names them), `crop`, `border`, and `brightnessM
 
 ## Inside a DNG
 
-The XMP gets the standard fields other apps read (`xmp:Rating`, `xmpDM:pick`), a few readable ones in the lab's
+The XMP gets the standard fields other apps read (`xmp:Rating`, `xmpDM:pick`; and, once the lab has written any of
+them, `xmp:Label` with the colour's English name, `dc:subject` as a Bag of keywords, `dc:title` and `dc:description`
+as x-default Alts: before that, another app's are left as they are), a few readable ones in the lab's
 namespace `http://ns.jackfrom.be/qlicklab/1.0/` (`Film`, `Paper`, `WhiteBalance`, `Temperature`, `Tint`,
 `Exposure`), and the whole sidecar above, as JSON, in `qlick:Sidecar`. That last field is what Qlick Lab reads back.
 

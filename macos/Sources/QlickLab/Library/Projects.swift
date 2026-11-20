@@ -173,6 +173,8 @@ struct RollStats: Equatable, Sendable {
     /// The films its developments are on, by stock id, with how many frames each: what the library's search finds
     /// a years-old development by.
     var films: [String: Int] = [:]
+    /// Qlick Lab: the keywords its photographs carry, with how many each (`ProjectStore.keywordCounts`).
+    var keywords: [String: Int] = [:]
     /// File names, in order, relative to the folder (`2026-09-19/L1004394.DNG` below it), for the search and for its
     /// first frames.
     var names: [String] = []
@@ -843,6 +845,7 @@ struct RollStats: Equatable, Sendable {
                 if summary.edited { stats.edited += 1 }
                 // Every version counts: a frame developed on two films is found by either.
                 for film in Set(sidecar.variants.compactMap { $0.edits?["film"].string }.filter { !$0.isEmpty }) { stats.films[film, default: 0] += 1 }
+                for word in summary.words.keywords { stats.keywords[word, default: 0] += 1 }
             }
         }
         add(listing, prefix: "")

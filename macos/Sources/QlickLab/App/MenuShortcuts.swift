@@ -36,7 +36,7 @@ import SwiftUI
     }
 
     /// Commands the photographer can't change here: their keys are the sorting keys' (the Flag menu), or the system's.
-    private static let fixed: Set<String> = ["pick", "reject", "unflag", "undo:", "redo:", "cut:", "copy:", "paste:", "selectAll:",
+    private static let fixed: Set<String> = ["pick", "reject", "unflag", "colorLabel:", "keywordSlot:", "undo:", "redo:", "cut:", "copy:", "paste:", "selectAll:",
                                               "terminate:", "hide:", "hideOtherApplications:", "performClose:", "performMiniaturize:"]
 
     nonisolated static func id(menu: String, item: NSMenuItem) -> String? {

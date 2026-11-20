@@ -194,7 +194,7 @@ struct SheetPagination: Equatable {
                 done += 1
                 progress?(done, frames.count)
                 let content = SheetFrameContent(name: frame.file.name, number: frame.number, image: image, flag: options.marks ? frame.summary.flag : nil,
-                                                rating: frame.summary.rating, edited: frame.summary.edited)
+                                                rating: frame.summary.rating, edited: frame.summary.edited, label: options.marks ? frame.summary.label : nil)
                 renderer.drawFrame(context, index: slot, content)
                 contents.append((slot, content))
             }

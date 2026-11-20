@@ -32,6 +32,16 @@ enum DNGMetadata {
     static let rdf = "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
     static let xmpNS = "http://ns.adobe.com/xap/1.0/"
     static let dynamicMediaNS = "http://ns.adobe.com/xmp/1.0/DynamicMedia/"
+    static let dublinCore = "http://purl.org/dc/elements/1.1/"
+    static let xmlNS = "http://www.w3.org/XML/1998/namespace"
+
+    /// Qlick Lab: the words of `raw`'s first variant, for the standard fields (`xmp:Label`, `dc:subject`, `dc:title`,
+    /// `dc:description`); nil when it has none of them.
+    static func words(of raw: JSONValue?) -> PhotoWords? {
+        guard let fields = raw?["variants"].array.first?.object,
+              fields.keys.contains(where: { ["label", "keywords", "title", "caption"].contains($0) }) else { return nil }
+        return PhotoWords(fields: fields)
+    }
     /// A variant made up for a DNG rated or marked by another app.
     static let derivedVariant = "dng00000"
     /// Room left in a packet the lab writes, so later changes fit in place.
@@ -241,6 +251,13 @@ enum DNGMetadata {
         let about = descriptions.first?.attribute(forLocalName: "about", uri: rdf)?.stringValue ?? ""
 
         var managed: [(String, String)] = [("Rating", xmpNS), ("pick", dynamicMediaNS), ("MetadataDate", xmpNS)]
+        // Qlick Lab: the label, keywords, title and caption are the lab's to write once it has written them (or has
+        // them now); before that, another app's stay as they are.
+        let wroteWords = packet.map { Self.words(of: Self.managed(in: $0).sidecar) != nil } ?? false
+        let words = Self.words(of: raw)
+        if words != nil || wroteWords {
+            managed += [("Label", xmpNS), ("subject", dublinCore), ("title", dublinCore), ("description", dublinCore)]
+        }
         for description in descriptions {
             // The lab's own description goes whole; it's written again below.
             let ours = description.namespaces?.contains { $0.stringValue == namespace } == true
@@ -257,7 +274,7 @@ enum DNGMetadata {
 
         let description = XMLElement(name: "rdf:Description", uri: rdf)
         description.addAttribute(XMLNode.attribute(withName: "rdf:about", uri: rdf, stringValue: about) as! XMLNode)
-        for (name, uri) in [("xmp", xmpNS), ("xmpDM", dynamicMediaNS), (prefix, namespace)] {
+        for (name, uri) in [("xmp", xmpNS), ("xmpDM", dynamicMediaNS), ("dc", dublinCore), (prefix, namespace)] {
             description.addNamespace(XMLNode.namespace(withName: name, stringValue: uri) as! XMLNode)
         }
         func add(_ name: String, _ uri: String, _ prefix: String, _ value: String) {
@@ -270,6 +287,25 @@ enum DNGMetadata {
         add("pick", dynamicMediaNS, "xmpDM", String(standard.pick))
         add("MetadataDate", xmpNS, "xmp", ISO8601DateFormatter.string(from: now, timeZone: .current,
                                                                        formatOptions: [.withInternetDateTime]))
+        if let words {
+            if let label = words.label { add("Label", xmpNS, "xmp", label.standardName) }
+            func list(_ name: String, _ kind: String, _ values: [String], language: Bool) {
+                guard !values.isEmpty else { return }
+                let element = XMLElement(name: "dc:\(name)", uri: dublinCore)
+                let container = XMLElement(name: "rdf:\(kind)", uri: rdf)
+                for value in values {
+                    let item = XMLElement(name: "rdf:li", uri: rdf)
+                    if language { item.addAttribute(XMLNode.attribute(withName: "xml:lang", uri: xmlNS, stringValue: "x-default") as! XMLNode) }
+                    item.stringValue = value
+                    container.addChild(item)
+                }
+                element.addChild(container)
+                description.addChild(element)
+            }
+            list("subject", "Bag", words.keywords, language: false)
+            list("title", "Alt", words.title.isEmpty ? [] : [words.title], language: true)
+            list("description", "Alt", words.caption.isEmpty ? [] : [words.caption], language: true)
+        }
         if let raw {
             let edits = raw["variants"].array.first?["edits"]
             if case .string(let film)? = edits?["film"] { add("Film", namespace, prefix, film) }

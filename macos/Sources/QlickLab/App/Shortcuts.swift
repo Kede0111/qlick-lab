@@ -6,7 +6,20 @@ import Observation
 /// sorts while the other moves through the roll. The Photo menu's Pick, Reject and Unflagged follow them.
 enum SheetAction: String, CaseIterable, Codable, Identifiable, Sendable {
     case pick, reject, unmark, loupe, develop, compare, pencil, nextUnmarked, loupeTool
+    /// Qlick Lab: the colour labels with a key (purple is in the menus only).
+    case labelRed, labelYellow, labelGreen, labelBlue
     var id: String { rawValue }
+
+    /// The colour label the key sets, for the four label keys.
+    var label: ColorLabel? {
+        switch self {
+        case .labelRed: .red
+        case .labelYellow: .yellow
+        case .labelGreen: .green
+        case .labelBlue: .blue
+        default: nil
+        }
+    }
 
     var title: String {
         switch self {
@@ -19,6 +32,7 @@ enum SheetAction: String, CaseIterable, Codable, Identifiable, Sendable {
         case .pencil: "Pencil / pointer"
         case .nextUnmarked: "Next unmarked frame"
         case .loupeTool: "Loupe tool"
+        case .labelRed, .labelYellow, .labelGreen, .labelBlue: "\(label.map { LabelNames.name($0) } ?? "") label"
         }
     }
 
@@ -34,6 +48,10 @@ enum SheetAction: String, CaseIterable, Codable, Identifiable, Sendable {
         case .pencil: "b"
         case .nextUnmarked: "n"
         case .loupeTool: "l"
+        case .labelRed: "6"
+        case .labelYellow: "7"
+        case .labelGreen: "8"
+        case .labelBlue: "9"
         }
     }
 }
@@ -45,7 +63,7 @@ enum SheetAction: String, CaseIterable, Codable, Identifiable, Sendable {
     @ObservationIgnored private let defaults: UserDefaults
 
     /// Keys the lab and NEgs already use plainly: digits rate, arrows move, and these letters have a menu command.
-    static let reserved: Set<String> = ["0", "1", "2", "3", "4", "5", "[", "]", "e", "g", "f", "t", "\\"]
+    static let reserved: Set<String> = ["0", "1", "2", "3", "4", "5", "[", "]", "e", "g", "f", "t", "r", "\\"]
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults

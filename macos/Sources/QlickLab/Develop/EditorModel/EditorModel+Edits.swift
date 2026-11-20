@@ -170,7 +170,8 @@ extension EditorModel {
             }
         }
         guard let restore else { photoSidecar = nil; return }
-        library.opened(sourceItem ?? url, summary: LibrarySummary(rating: restore.rating, flag: restore.flag, edited: restore.edits != nil, problem: restore.problem))
+        library.opened(sourceItem ?? url, summary: LibrarySummary(rating: restore.rating, flag: restore.flag, edited: restore.edits != nil, problem: restore.problem,
+                                                                  words: restore.words))
         var context = sidecarContext(for: url, restore: restore)
         context.missingFilm = missingFilm; context.missingPaper = missingPaper
         if legacy != nil {
@@ -264,7 +265,7 @@ extension EditorModel {
         // Its look too, which names its edited thumbnail.
         library.reload(photo)
         context.written = edits; context.migrating = false
-        context.exists = edits != nil || summary.rating > 0 || summary.flag != nil
+        context.exists = edits != nil || summary.rating > 0 || summary.flag != nil || !summary.words.isEmpty
         photoSidecar = context
         return Task { [weak self] in
             let failures = await sidecars.flush()

@@ -260,17 +260,31 @@ Steps (one local commit each, tests, `scripts/drive.sh` screenshots checked, Dev
   listed closes the list; Undo opens it again. Automation: `removeask [rejected]`, `restoreremoved <archive>`,
   `archive addfolder <name>|<path>`. Tests: 524 (`RemoveTests`, the alert test rewritten).
   Note: automation commands aren't events, so two steps can share one undo group off screen (real keys are fine).
-- [ ] R4 Colour labels, keywords panel, editable title/caption.
+- [x] R4 Colour labels, keywords, title/caption (HASH_R4): `PhotoWords` (label, keywords, title, caption) in each
+  sidecar variant (`label`, `keywords`, `title`, `caption`; schema unchanged, unknown label kept) and in a DNG's XMP
+  (`xmp:Label`, `dc:subject`, `dc:title`, `dc:description`, only once the lab writes them). `LibrarySummary.words`, so
+  the rating machinery saves, undoes and redoes them (`changeLibrary(advancing:)`: words never auto-advance). Labels:
+  keys 6–9 are `SheetAction`s (assignable in Settings › Shortcuts), purple in menus; Photo › Colour Label, and in the
+  sheet / grid / strip / Develop menus; a round sticker at the top left in every view (sheet's four styles and its
+  print, grid, film strip, Compare tag, sheet loupe, frame info, Develop bar menu). Own names in Settings › Colour labels
+  (`LabelNames`). Keywords: `KeywordsPanel` over the contact sheet (toolbar tag, ⌘K) and the same `PhotoWordsEditor`
+  at the top of Develop's information (⌘I): label dots, title, caption (one photograph), keyword chips (partial
+  counts), Add Keyword (commas, ⌘K focuses it), keyword set ⌥1–⌥9 (Photo › Keywords; editable list), the catalogue's
+  keywords with counts (`RollStats.keywords`, `ProjectStore.keywordCounts`) to add or filter. Filter bar: label dots
+  + "without label", Keyword menu; Sort › Colour Label. **Crop moved from ⌘K to R** (plain key, off while typing; "r"
+  reserved). Import's grid has no labels (its own marks only; label keys beep there). Automation: `label`, `keyword
+  add|remove|set|ask|editset`, `keywordset`, `words`, `labelfilter`, `keywordfilter`, `title`, `sort`.
+  Tests: 531 (`PhotoWordsTests`).
 - [ ] R5 All Photographs, Last Import, Picks, By Date, field search, Smart Rolls, New Rolls by Day, filters, sorts.
 - [ ] R6 Import options above.
 - [ ] R7 Manual order polish, burst stacks, `[` `]`, auto advance.
 
 ## Current state
 
-- Phase: `feature/import-library` holds architecture waves 1–3, 0.1.5, 0.2, 0.3 and 0.4's R1–R2 (local, nothing pushed,
-  `main` untouched). Swift tests: 520 (24 skipped), all pass; the Rust side wasn't changed. Qlick Lab Dev is built
+- Phase: `feature/import-library` holds architecture waves 1–3, 0.1.5, 0.2, 0.3 and 0.4's R1–R4 (local, nothing pushed,
+  `main` untouched). Swift tests: 531 (24 skipped), all pass; the Rust side wasn't changed. Qlick Lab Dev is built
   from it (`dist/qlick-lab-dev/Qlick Lab Dev.app`).
-- Next: the library redesign 0.4 above, R3 → R7, on `feature/import-library`. Merge into `main` and push only when
+- Next: the library redesign 0.4 above, R5 → R7, on `feature/import-library`. Merge into `main` and push only when
   he says so.
 
 ## Build and test
