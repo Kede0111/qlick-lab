@@ -275,7 +275,7 @@ Steps (one local commit each, tests, `scripts/drive.sh` screenshots checked, Dev
   reserved). Import's grid has no labels (its own marks only; label keys beep there). Automation: `label`, `keyword
   add|remove|set|ask|editset`, `keywordset`, `words`, `labelfilter`, `keywordfilter`, `title`, `sort`.
   Tests: 531 (`PhotoWordsTests`).
-- [x] R5 Finding photographs (HASH): the catalogue's index (`Library/CatalogIndex.swift`): every photograph of every
+- [x] R5 Finding photographs (3d1d18c): the catalogue's index (`Library/CatalogIndex.swift`): every photograph of every
   Archive (removed ones aside), its file's facts (`FrameFacts`) and sidecar (marks, words, films, recipe, edit date),
   read off the main thread, several at once, cached in Caches/<bundle>/Catalog Index/<hash of the catalogue>.json, read
   again on any change (Archives, FSEvents trees, removed, the marks on screen) but only the files whose date/size
@@ -298,7 +298,7 @@ Steps (one local commit each, tests, `scripts/drive.sh` screenshots checked, Dev
   by Day on Archive / Folder / Box menus (a Box named after it, one Roll per capture day, “Undated” if any). Sorts: Import
   Date (ledger, else when the Folder joined), Edit Date (sidecar's date). Automation: `fixed`, `day`, `unfold date`,
   `search`, `findfilter`, `savesmart`, `libsearch`, `found`, `smartroll new|ask|query|edit|open|done|cancel`,
-  `rollsbyday`, `indexinfo`. Tests: TESTS (`PhotoQueryTests`).
+  `rollsbyday`, `indexinfo`. Tests: 540 (`PhotoQueryTests`).
   Left / risky: an open computed list (Picks, a Smart Roll) follows the index when files change, not each mark given
   (reopen it); a photograph outside every Archive is searched by its file's facts as they're read; the first reading of
   a large catalogue takes a while (counts show once it's done).
@@ -308,7 +308,7 @@ Steps (one local commit each, tests, `scripts/drive.sh` screenshots checked, Dev
 ## Current state
 
 - Phase: `feature/import-library` holds architecture waves 1–3, 0.1.5, 0.2, 0.3 and 0.4's R1–R5 (local, nothing pushed,
-  `main` untouched). Swift tests: TESTS (24 skipped), all pass; the Rust side wasn't changed. Qlick Lab Dev is built
+  `main` untouched). Swift tests: 540 (24 skipped), all pass; the Rust side wasn't changed. Qlick Lab Dev is built
   from it (`dist/qlick-lab-dev/Qlick Lab Dev.app`).
 - Next: the library redesign 0.4 above, R6 → R7, on `feature/import-library`. Merge into `main` and push only when
   he says so.
