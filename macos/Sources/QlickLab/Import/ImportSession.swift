@@ -73,12 +73,16 @@ enum ImportScan {
         var captured: CaptureTime?
         var camera: String?
         var lens: String?
+        /// Its header could be read as a picture's: a file that can't (cut short, damaged, empty) is flagged.
+        var readable = true
     }
 
     /// When and with what a photograph was taken, from its header.
     static func facts(of url: URL) -> Facts {
         guard let source = CGImageSourceCreateWithURL(url as CFURL, [kCGImageSourceShouldCache: false] as CFDictionary),
-              let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any] else { return Facts() }
+              CGImageSourceGetCount(source) > 0,
+              let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
+              properties[kCGImagePropertyPixelWidth] != nil || properties[kCGImagePropertyExifDictionary] != nil else { return Facts(readable: false) }
         let exif = properties[kCGImagePropertyExifDictionary] as? [CFString: Any] ?? [:]
         let tiff = properties[kCGImagePropertyTIFFDictionary] as? [CFString: Any] ?? [:]
         let text = (exif[kCGImagePropertyExifDateTimeOriginal] ?? exif[kCGImagePropertyExifDateTimeDigitized] ?? tiff[kCGImagePropertyTIFFDateTime]) as? String
@@ -105,7 +109,7 @@ enum ImportScan {
 
 /// Which frames the import's grid shows.
 enum ImportFilter: String, CaseIterable, Sendable {
-    case all, new, checked, picks, unmarked, rejects, bursts
+    case all, new, checked, picks, unmarked, rejects, bursts, twins, unreadable
     var title: String {
         switch self {
         case .all: "All"
@@ -115,6 +119,8 @@ enum ImportFilter: String, CaseIterable, Sendable {
         case .unmarked: "Unmarked"
         case .rejects: "Rejects"
         case .bursts: "Bursts"
+        case .twins: "Duplicates"
+        case .unreadable: "Unreadable"
         }
     }
     var help: String {
@@ -126,6 +132,8 @@ enum ImportFilter: String, CaseIterable, Sendable {
         case .unmarked: "Those neither ringed nor crossed out"
         case .rejects: "Those crossed out"
         case .bursts: "Those taken within two seconds of another"
+        case .twins: "Those found twice in the source: same name, size and capture time"
+        case .unreadable: "Files that can’t be read as photographs"
         }
     }
 }
@@ -171,6 +179,12 @@ enum ImportProgressStyle: String, CaseIterable, Sendable {
     private(set) var known: Set<URL> = []
     /// Frames of a burst, with their burst's number.
     private(set) var bursts: [URL: Int] = [:]
+    /// Qlick Lab: photographs found more than once in the source (same name, size and capture time, in two folders
+    /// of a card or a disk): each with the first of its kind. The first is imported, the others are left out while
+    /// "Leave out what's already imported" is on.
+    private(set) var twins: [URL: URL] = [:]
+    /// Qlick Lab: files whose header can't be read as a photograph's.
+    private(set) var unreadable: Set<URL> = []
     /// What the grid shows, in order.
     private(set) var shown: [ImportFrame] = []
 
@@ -227,6 +241,8 @@ enum ImportProgressStyle: String, CaseIterable, Sendable {
     @ObservationIgnored private var ledgerCache: ImportLedger?
     @ObservationIgnored private var observers: [NSObjectProtocol] = []
     @ObservationIgnored private var index: [URL: Int] = [:]
+    /// The source opened last: the Archive and the card are kept while it's the same one.
+    @ObservationIgnored private var lastSource: URL?
 
     init(model: EditorModel) {
         self.model = model
@@ -262,8 +278,15 @@ enum ImportProgressStyle: String, CaseIterable, Sendable {
         guard run == nil else { return }
         scan?.cancel()
         self.source = source
-        frames = []; index = [:]; shown = []; known = []; bursts = [:]
+        frames = []; index = [:]; shown = []; known = []; bursts = [:]; twins = [:]; unreadable = []
         excluded = []; marks = [:]; selected = []; current = nil; anchor = nil
+        // What belongs to one import subject is chosen again for each source: the Archive (required), the Box or Roll,
+        // the film card. `LabState.importFolders` names the Archive after opening.
+        if source.root != lastSource {
+            options.project = ""; options.projectID = nil; options.boxID = nil; options.boxRollID = nil
+            options.film = nil; options.camera = nil; options.notes = nil
+        }
+        lastSource = source.root
         factsRead = 0; scanning = true; view = .grid; filter = .all
         plan = ImportPlan()
         // A card's photographs can't stay where they are: it starts on Copy.
@@ -294,6 +317,7 @@ enum ImportProgressStyle: String, CaseIterable, Sendable {
                 for (url, facts) in zip(batch, read) {
                     guard let at = self.index[url] else { continue }
                     self.frames[at].captured = facts.captured; self.frames[at].camera = facts.camera; self.frames[at].lens = facts.lens
+                    if !facts.readable || self.frames[at].file.size == 0 { self.unreadable.insert(url) }
                 }
                 self.factsRead = min(start + batch.count, urls.count)
             }
@@ -332,7 +356,7 @@ enum ImportProgressStyle: String, CaseIterable, Sendable {
     func included(_ id: URL) -> Bool {
         if excluded.contains(id) { return false }
         if options.skipRejected, marks[id]?.flag == "reject" { return false }
-        if options.skipDuplicates, known.contains(id) { return false }
+        if options.skipDuplicates, known.contains(id) || twins[id] != nil { return false }
         return true
     }
     var includedFrames: [ImportFrame] { frames.filter { included($0.id) } }
@@ -347,6 +371,21 @@ enum ImportProgressStyle: String, CaseIterable, Sendable {
             for at in group { found[ordered[at].id] = number }
         }
         bursts = found
+        twins = Self.twins(of: frames)
+    }
+
+    /// The photographs found again in the same source: same name (any case), same size, same capture time. Each is
+    /// paired with the first met in the source's order, which is the one imported.
+    nonisolated static func twins(of frames: [ImportFrame]) -> [URL: URL] {
+        struct Key: Hashable { var name: String; var size: Int; var time: CaptureTime? }
+        var first: [Key: URL] = [:], found: [URL: URL] = [:]
+        for frame in frames.sorted(by: { $0.file.url.path.localizedStandardCompare($1.file.url.path) == .orderedAscending }) {
+            // Without the camera's own time a name and a size alone could be two different frames (two cards' L1000001).
+            guard let time = frame.captured else { continue }
+            let key = Key(name: frame.file.name.lowercased(), size: frame.file.size, time: time)
+            if let earlier = first[key] { found[frame.id] = earlier } else { first[key] = frame.id }
+        }
+        return found
     }
 
     func refreshShown() {
@@ -360,6 +399,8 @@ enum ImportProgressStyle: String, CaseIterable, Sendable {
             case .unmarked: return mark?.flag == nil
             case .rejects: return mark?.flag == "reject"
             case .bursts: return bursts[frame.id] != nil
+            case .twins: return twins[frame.id] != nil || twins.values.contains(frame.id)
+            case .unreadable: return unreadable.contains(frame.id)
             }
         }
         // As they were taken, once that's known; a file's own date stands in till then.
@@ -426,6 +467,12 @@ enum ImportProgressStyle: String, CaseIterable, Sendable {
     }
     func unmark() { change(targets) { $0.flag = nil } }
     func rate(_ stars: Int) { change(targets) { $0.rating = min(max(stars, 0), 5) } }
+    /// Gives the targets a colour label, or takes it off if they all carry it (nil: off).
+    func toggle(label: ColorLabel?) {
+        let ids = targets
+        let all = label != nil && !ids.isEmpty && ids.allSatisfy { marks[$0]?.label == label?.rawValue }
+        change(ids) { $0.label = all ? nil : label?.rawValue }
+    }
     func rotate(by quarter: Int) { change(targets) { $0.rotation = (($0.rotation + quarter) % 4 + 4) % 4 } }
     /// Gives `recipe` (a recipe's name, nil for none) to `ids`, or to the targets.
     func assign(recipe: String?, to ids: [URL]? = nil) { change(ids ?? targets) { $0.recipe = recipe } }
@@ -482,6 +529,16 @@ enum ImportProgressStyle: String, CaseIterable, Sendable {
         }
     }
 
+    /// Where the photograph in view (or the first to go) is copied, and under what name:
+    /// `L1004394.DNG → Imports/2026/2026-09-19/20260919_0001.DNG`. Nil before the plan is made.
+    var exampleLine: String? {
+        guard options.mode != .add, let destination = options.destination else { return nil }
+        let planned = current.flatMap { id in plan.frames.first { $0.id == id && $0.status == .new } } ?? plan.toCopy.first
+        guard let planned, let file = planned.files.first else { return nil }
+        let parts = [destination.lastPathComponent] + planned.folder.split(separator: "/").map(String.init) + [file.destination.lastPathComponent]
+        return "\(file.source.name) → \(parts.joined(separator: "/"))"
+    }
+
     /// Bytes the import writes: the copies and their second copies.
     var bytesNeeded: Int { options.mode == .add ? 0 : plan.bytes }
     /// Why the import can't start, in the user's words; nil when it can.
@@ -493,6 +550,7 @@ enum ImportProgressStyle: String, CaseIterable, Sendable {
         if frames.isEmpty { return "No photographs here." }
         if !datesReady { return "Reading the dates…" }
         if options.mode != .add, options.destination == nil { return "Choose where the photographs go." }
+        if !hasArchive { return "Choose an Archive for these photographs, or a new one." }
         if options.mode == .move, source?.kind == .card { return "Move isn’t offered for memory cards: copy, then format the card in the camera." }
         if let problem = plan.problems.first { return problem }
         if planning { return "Working out where the photographs go…" }

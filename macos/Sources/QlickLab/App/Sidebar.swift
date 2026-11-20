@@ -100,7 +100,7 @@ struct RoomButton: View {
                     .foregroundStyle(on ? Theme.accent : Color(white: 0.72))
                 Text(title).font(.system(size: 13, weight: on ? .semibold : .regular)).foregroundStyle(on ? Theme.paper : Color(white: 0.82)).lineLimit(1)
                 Spacer(minLength: 4)
-                if let trailing { Text(trailing).font(Theme.value(11)).foregroundStyle(Theme.dim) }
+                if let trailing { Text(trailing).font(Theme.value(11)).foregroundStyle(Theme.dim).lineLimit(1).truncationMode(.tail).layoutPriority(-1) }
             }
             .padding(.horizontal, 10)
             .frame(height: 30)

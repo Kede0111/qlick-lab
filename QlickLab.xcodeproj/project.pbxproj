@@ -171,6 +171,7 @@
 		A2D5AD062690D8C548ACC97B /* FrameCanvas.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8713B04DFE44C494CCA4E285 /* FrameCanvas.swift */; };
 		A4AC924D8AFAFED91CA53BFD /* EditorModel+Parameters.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC250B69B775787556BB4256 /* EditorModel+Parameters.swift */; };
 		A552AAC7DE09CEA67D4306D6 /* EmbeddedThumbnailsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F051FE58212183C99403243 /* EmbeddedThumbnailsTests.swift */; };
+		A80797D1BB1403C6DAFCF76B /* ImportOptionsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A57421269DB8F809F85F465 /* ImportOptionsTests.swift */; };
 		AA782016B5947F5A5DE374B0 /* InkControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55A4C10F899D14B6F193EBE2 /* InkControls.swift */; };
 		AADEC0B3C15F15C31F95AEAC /* BoxMoves.swift in Sources */ = {isa = PBXBuildFile; fileRef = C05C626135A0EC07AE1312A6 /* BoxMoves.swift */; };
 		AB2CC0FA31F81D7AF43DADAF /* EditorModel+Import.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE3CDB94CE7F326D84FE3BC5 /* EditorModel+Import.swift */; };
@@ -360,6 +361,7 @@
 		619C53C72AF4833E24C0BA44 /* FilmCacheRelease.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilmCacheRelease.swift; sourceTree = "<group>"; };
 		652173E63F3894310BB3613C /* Controls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Controls.swift; sourceTree = "<group>"; };
 		66872882A8663B9173089E75 /* PreviewBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewBuilder.swift; sourceTree = "<group>"; };
+		6A57421269DB8F809F85F465 /* ImportOptionsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportOptionsTests.swift; sourceTree = "<group>"; };
 		6CA73849F0DC8D0716580A09 /* LibraryGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryGrid.swift; sourceTree = "<group>"; };
 		6D306B5CC620E9325B30C392 /* EditorModel+Thumbnails.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "EditorModel+Thumbnails.swift"; sourceTree = "<group>"; };
 		6F27863EDA72651F6CA053DF /* LUTExportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LUTExportTests.swift; sourceTree = "<group>"; };
@@ -736,6 +738,7 @@
 				83A7C58EC67F2BD2DD676C06 /* HistogramTests.swift */,
 				5EEB44797E57D79D6DECAB6E /* ImageOnlyTests.swift */,
 				B3F12DF640352A4E3804BF0A /* ImageSizeTests.swift */,
+				6A57421269DB8F809F85F465 /* ImportOptionsTests.swift */,
 				CCE04E52783EA841F0ADAABC /* ImportTests.swift */,
 				B44678D2158A2D26EB152963 /* InkControlTests.swift */,
 				34777687D9E619CA6A0CC905 /* InspectorLayoutTests.swift */,
@@ -1222,6 +1225,7 @@
 				519C8C5E7F0C48F84CC13A0B /* HistogramTests.swift in Sources */,
 				16CF2F22262A12022FC42F4A /* ImageOnlyTests.swift in Sources */,
 				86008F35810C314DAAD4EA31 /* ImageSizeTests.swift in Sources */,
+				A80797D1BB1403C6DAFCF76B /* ImportOptionsTests.swift in Sources */,
 				82F8F99371223E0C7E379A79 /* ImportTests.swift in Sources */,
 				DB8AB4CD0CBD685B8BE207E2 /* InkControlTests.swift in Sources */,
 				69D649A47CE4705E23A7EA22 /* InspectorLayoutTests.swift in Sources */,

@@ -8,6 +8,11 @@ struct ImportPanel: View {
     let model: EditorModel
     @State private var profileName = ""
     @State private var naming = false
+    /// Custom chosen while its text is still one of the ready-made forms.
+    @State private var customFolders = false
+    @State private var customNames = false
+
+    static let inPlaceLine = "The photographs stay where they are: nothing is copied or renamed."
 
     var body: some View {
         @Bindable var session = model.lab.importer
@@ -47,12 +52,15 @@ struct ImportPanel: View {
                     }
                 }
 
+                PanelSection("Archive") {
+                    ArchiveChooser(model: model, session: session)
+                }
+
                 if options.mode != .add {
-                PanelSection("Destination") {
-                    if options.mode == .move, session.source?.kind == .card {
-                        PanelHint("Move isn’t offered for memory cards. Copy, check, then format the card in the camera.", warn: true)
-                    }
-                    if options.mode != .add {
+                    PanelSection("Destination") {
+                        if options.mode == .move, session.source?.kind == .card {
+                            PanelHint("Move isn’t offered for memory cards. Copy, check, then format the card in the camera.", warn: true)
+                        }
                         FolderRow(title: "To", url: options.destination, placeholder: "Choose a folder…") { session.options.destination = $0 }
                         if let free = session.freeSpace {
                             let need = session.bytesNeeded
@@ -67,56 +75,74 @@ struct ImportPanel: View {
                         }
                     }
                 }
-                }
 
-                if options.mode != .add {
-                    PanelSection("Folders") {
-                        TemplateRow(presets: ImportTemplate.folderPresets, template: $session.options.folders, folders: true, placeholder: "One folder")
+                // The structure is always in sight; leaving the photographs where they are greys it, and says why.
+                PanelSection("Folders") {
+                    if options.mode == .add { PanelHint(Self.inPlaceLine) }
+                    VStack(alignment: .leading, spacing: 8) {
+                        ChoiceList(choices: ImportStructure.allCases.map { ($0, $0.title, $0.example) }, selection: Binding(
+                            get: { customFolders ? .custom : ImportStructure(template: options.folders) },
+                            set: { choice in
+                                customFolders = choice == .custom
+                                if let template = choice.template { session.options.folders = template }
+                            }))
+                        if customFolders || ImportStructure(template: options.folders) == .custom {
+                            TemplateEditor(template: $session.options.folders, files: false, placeholder: "e.g. {yyyy}/{month}")
+                        }
                         if options.folders.contains("{job}") || options.rename.contains("{job}") {
                             PanelField("Job name", text: $session.options.job)
                         }
-                        HStack(spacing: 8) {
-                            Stepper(value: Binding(get: { options.clockOffset / 60 }, set: { session.options.clockOffset = $0 * 60 }), in: -23...23) {
-                                Text(options.clockOffset == 0 ? "Camera clock as it is" : "Camera clock \(options.clockOffset > 0 ? "+" : "−")\(abs(options.clockOffset) / 60) h")
-                                    .font(.system(size: 11.5)).foregroundStyle(options.clockOffset == 0 ? Theme.dim : Theme.paper)
-                            }
-                            .controlSize(.small)
-                            .help("Shifts every capture time before filing: a camera left on another time zone")
+                        Stepper(value: Binding(get: { options.clockOffset / 60 }, set: { session.options.clockOffset = $0 * 60 }), in: -23...23) {
+                            Text(options.clockOffset == 0 ? "Camera clock as it is" : "Camera clock \(options.clockOffset > 0 ? "+" : "−")\(abs(options.clockOffset) / 60) h")
+                                .font(.system(size: 11.5)).foregroundStyle(options.clockOffset == 0 ? Theme.dim : Theme.paper)
                         }
+                        .controlSize(.small)
+                        .help("Shifts every capture time before filing: a camera left on another time zone")
                         Stepper(value: $session.options.dayStart, in: 0...8) {
                             Text(options.dayStart == 0 ? "A day starts at midnight" : "A day starts at 0\(options.dayStart):00")
                                 .font(.system(size: 11.5)).foregroundStyle(options.dayStart == 0 ? Theme.dim : Theme.paper)
                         }
                         .controlSize(.small)
                         .help("Frames taken before this hour are filed with the evening before, so a night stays in one folder")
-                        PlanTree(session: session)
+                        if options.mode != .add { PlanTree(session: session) }
                     }
+                    .disabled(options.mode == .add)
+                    .opacity(options.mode == .add ? 0.4 : 1)
+                }
 
-                    PanelSection("File Names") {
-                        TemplateRow(presets: ImportTemplate.renamePresets, template: $session.options.rename, folders: false, placeholder: "Camera names")
-                        if !options.rename.isEmpty, let first = session.plan.toCopy.first?.files.first {
-                            Text("\(first.source.name) → \(first.destination.lastPathComponent)").font(Theme.value(10.5)).foregroundStyle(Theme.dim).lineLimit(1).truncationMode(.middle)
+                PanelSection("File Names") {
+                    VStack(alignment: .leading, spacing: 8) {
+                        ChoiceList(choices: ImportNaming.allCases.map { ($0, $0.title, $0.example) }, selection: Binding(
+                            get: { customNames ? .custom : ImportNaming(template: options.rename) },
+                            set: { choice in
+                                customNames = choice == .custom
+                                if let template = choice.template { session.options.rename = template }
+                            }))
+                        if customNames || ImportNaming(template: options.rename) == .custom {
+                            TemplateEditor(template: $session.options.rename, files: true, placeholder: "e.g. {date}_{camera}_{seq:4}")
                         }
                     }
+                    .disabled(options.mode == .add)
+                    .opacity(options.mode == .add ? 0.4 : 1)
+                    if options.mode != .add, let example = session.exampleLine {
+                        Text(example).font(Theme.value(10.5)).foregroundStyle(Theme.label)
+                            .lineLimit(2).truncationMode(.middle).fixedSize(horizontal: false, vertical: true)
+                            .padding(.horizontal, 8).padding(.vertical, 6)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Color.black.opacity(0.25)))
+                            .help("Where the photograph in view goes, and its new name")
+                    }
+                }
+
+                PanelSection("Folder Card") {
+                    PanelField("Film loaded, e.g. Portra 400 pushed +1", text: optional($session.options.film))
+                    PanelField("Camera", text: optional($session.options.camera))
+                    PanelField("Notes", text: optional($session.options.notes))
+                    PanelHint(options.mode == .add ? "Written on the card of the Folder the photographs are added from: it travels with the folder."
+                                                   : "Written on the card of each Folder the import makes: it travels with the folder.")
                 }
 
                 PanelSection("Recipe") { RecipeChooser(model: model) }
-
-                PanelSection("Archive") {
-                    HStack(spacing: 6) {
-                        PanelField(ProjectStore.toSortName, text: Binding(get: { session.chosenProject?.name ?? session.options.project },
-                                                              set: { session.options.project = $0; session.options.projectID = nil }))
-                        Menu {
-                            Button("\(ProjectStore.toSortName) (No Archive)") { session.choose(project: nil) }
-                            Divider()
-                            ForEach(model.lab.projects.ordinary) { project in Button(project.name) { session.choose(project: project) } }
-                        } label: { Image(systemName: "chevron.down").font(.system(size: 10, weight: .semibold)) }
-                            .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
-                    }
-                    PanelHint(options.project.trimmingCharacters(in: .whitespaces).isEmpty
-                              ? "Without an Archive, the photographs go to the Archive “\(ProjectStore.toSortName)”, to be filed later."
-                              : "The folders of the import go in the Archive “\(session.chosenProject?.name ?? options.project)”, as they are on the disk.")
-                }
 
                 PanelSection("Words") {
                     PanelField("Keywords, separated by commas", text: $session.options.keywords)
@@ -157,6 +183,11 @@ struct ImportPanel: View {
             .padding(.bottom, 16)
         }
         .scrollIndicators(.never)
+    }
+
+    /// An optional text as a field's text: empty is nil.
+    private func optional(_ binding: Binding<String?>) -> Binding<String> {
+        Binding(get: { binding.wrappedValue ?? "" }, set: { binding.wrappedValue = $0.isEmpty ? nil : $0 })
     }
 
     private func currentProfile(_ session: ImportSession) -> String? {
@@ -251,28 +282,233 @@ private struct FolderRow: View {
     }
 }
 
-/// A template: its ready-made forms, and the text itself for a form of one's own.
-private struct TemplateRow: View {
-    let presets: [(title: String, template: String)]
-    @Binding var template: String
-    let folders: Bool
-    let placeholder: String
+/// The Archive the import's folders join (required): one that's there, or a new one, pre-named after the card or
+/// the folder and the day. Under it, a Box or a Roll the photographs also go in, if wanted.
+private struct ArchiveChooser: View {
+    let model: EditorModel
+    @Bindable var session: ImportSession
+
+    var body: some View {
+        let projects = model.lab.projects
+        let chosen = session.chosenProject
+        let typed = session.options.project.trimmingCharacters(in: .whitespaces)
+        let isNew = chosen == nil && !typed.isEmpty
+        let suggested = session.suggestedArchiveName
+        VStack(alignment: .leading, spacing: 8) {
+            Menu {
+                Button("New Archive “\(suggested)”") { session.chooseNewArchive(named: suggested) }
+                if !projects.projects.isEmpty {
+                    Divider()
+                    ForEach(recent(projects)) { project in Button(project.name) { session.choose(project: project) } }
+                }
+            } label: {
+                PanelRowLabel(symbol: "archivebox", text: chosen?.name ?? (isNew ? typed : "Choose an Archive…"), placeholder: chosen == nil && !isNew,
+                              trailing: isNew ? "NEW" : nil)
+            }
+            .menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden)
+            .help("The Archive the import’s folders join: one that’s there, or a new one")
+            if isNew {
+                PanelField("Name of the new Archive", text: Binding(get: { session.options.project }, set: { session.chooseNewArchive(named: $0) }))
+            }
+            PanelHint(chosen.map { "The folders join “\($0.name)”, as they are on the disk." }
+                      ?? (isNew ? "A new Archive, made when the import starts." : "Required: every import goes in an Archive."),
+                      warn: chosen == nil && !isNew)
+
+            HStack(spacing: 8) {
+                Text("Also in").font(.system(size: 11.5)).foregroundStyle(Theme.dim).frame(width: 46, alignment: .leading)
+                Menu {
+                    Button("No Box") { setHolder(nil) }
+                    if !projects.boxes.isEmpty { Divider() }
+                    ImportBoxItems(boxes: projects.boxes, choose: setHolder)
+                } label: {
+                    PanelRowLabel(symbol: session.chosenHolder.map { if case .roll = $0 { "film" } else { "shippingbox" } } ?? "shippingbox",
+                                  text: session.chosenHolder.flatMap(projects.name(of:)) ?? "No Box", placeholder: session.chosenHolder == nil, quiet: true)
+                }
+                .menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden)
+                .disabled(projects.boxes.isEmpty)
+                .help(projects.boxes.isEmpty ? "No Box yet: make one in the sidebar to put imports in it" : "A Box or a Roll the imported photographs are also put in")
+            }
+        }
+    }
+
+    private func setHolder(_ holder: Holder?) {
+        switch holder {
+        case .box(let id): session.options.boxID = id; session.options.boxRollID = nil
+        case .roll(let id, let box): session.options.boxID = box; session.options.boxRollID = id
+        case nil: session.options.boxID = nil; session.options.boxRollID = nil
+        }
+    }
+
+    /// The Archives most recently added to first.
+    private func recent(_ projects: ProjectStore) -> [LabProject] {
+        projects.projects.sorted { ($0.rolls.map(\.addedAt).max() ?? $0.createdAt) > ($1.rolls.map(\.addedAt).max() ?? $1.createdAt) }
+    }
+}
+
+/// The Boxes as nested menus: each Box itself, its Rolls (not the Smart ones: rules fill them), the Boxes inside.
+private struct ImportBoxItems: View {
+    let boxes: [LabBox]
+    let choose: (Holder?) -> Void
+
+    var body: some View {
+        ForEach(boxes) { box in
+            let rolls = box.rolls.filter { !$0.isSmart }
+            if rolls.isEmpty && box.boxes.isEmpty {
+                Button(box.name) { choose(.box(box.id)) }
+            } else {
+                Menu(box.name) {
+                    Button("In “\(box.name)” Itself") { choose(.box(box.id)) }
+                    Divider()
+                    ForEach(rolls) { roll in Button(roll.name) { choose(.roll(roll.id, box: box.id)) } }
+                    AnyView(ImportBoxItems(boxes: box.boxes, choose: choose))
+                }
+            }
+        }
+    }
+}
+
+/// What a menu row of the panel shows: a symbol, its text, and a short word at the end.
+private struct PanelRowLabel: View {
+    let symbol: String
+    let text: String
+    var placeholder = false
+    var trailing: String? = nil
+    var quiet = false
 
     var body: some View {
         HStack(spacing: 6) {
-            PanelField(placeholder, text: $template)
-            Menu {
-                ForEach(Array(presets.enumerated()), id: \.offset) { _, preset in
-                    Button(preset.title) { template = preset.template }
-                }
-                Divider()
-                Menu("Insert") {
-                    ForEach(ImportTemplate.tokens, id: \.self) { token in Button("{\(token)}") { template += "{\(token)}" } }
-                }
-            } label: { Image(systemName: "chevron.down").font(.system(size: 10, weight: .semibold)) }
-                .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
+            Image(systemName: symbol).font(.system(size: 11))
+            Text(text).font(.system(size: 12)).lineLimit(1).truncationMode(.middle)
+            Spacer(minLength: 4)
+            if let trailing {
+                Text(trailing).font(.system(size: 8.5, weight: .bold)).tracking(0.5).foregroundStyle(Theme.dim)
+            }
+            Image(systemName: "chevron.up.chevron.down").font(.system(size: 9, weight: .semibold)).foregroundStyle(Theme.dim)
         }
-        if let problem = ImportTemplate.problem(template, folders: folders) { PanelHint(problem, warn: true) }
+        .foregroundStyle(placeholder ? (quiet ? Theme.dim : Theme.accent) : Theme.paper)
+        .padding(.horizontal, 8).frame(height: 26)
+        .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Color.white.opacity(0.07)))
+        .contentShape(Rectangle())
+    }
+}
+
+/// A list of choices, one line each: a red dot for the one chosen, its name, and an example of what it makes.
+private struct ChoiceList<T: Hashable>: View {
+    let choices: [(value: T, title: String, example: String)]
+    @Binding var selection: T
+
+    var body: some View {
+        VStack(spacing: 1) {
+            ForEach(Array(choices.enumerated()), id: \.offset) { _, choice in
+                let on = choice.value == selection
+                Button { selection = choice.value } label: {
+                    HStack(spacing: 8) {
+                        ZStack {
+                            Circle().strokeBorder(on ? Theme.accent : Color.white.opacity(0.28), lineWidth: 1.2)
+                            if on { Circle().fill(Theme.accent).padding(3) }
+                        }
+                        .frame(width: 12, height: 12)
+                        Text(choice.title).font(.system(size: 12)).foregroundStyle(on ? Theme.paper : Color(white: 0.8))
+                        Spacer(minLength: 6)
+                        Text(choice.example).font(Theme.value(10.5)).foregroundStyle(on ? Theme.label : Theme.dim).lineLimit(1)
+                    }
+                    .padding(.horizontal, 8).frame(height: 24)
+                    .background(RoundedRectangle(cornerRadius: 5, style: .continuous).fill(on ? Color.white.opacity(0.07) : .clear))
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+}
+
+/// One's own template: the text, small buttons that put a tag where the cursor is, and a line when a tag is unknown.
+private struct TemplateEditor: View {
+    @Binding var template: String
+    let files: Bool
+    let placeholder: String
+    @State private var handle = TemplateFieldHandle()
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            TemplateField(text: $template, placeholder: placeholder, handle: handle)
+                .padding(.horizontal, 8).frame(height: 26)
+                .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Color.white.opacity(0.07)))
+            FlowLayout(spacing: 4) {
+                ForEach(ImportTemplate.tags(forFiles: files), id: \.token) { tag in
+                    Button { handle.insert(tag.token, into: $template) } label: {
+                        Text(tag.title).font(.system(size: 10.5, weight: .medium)).foregroundStyle(Theme.label)
+                            .padding(.horizontal, 7).frame(height: 18)
+                            .background(Capsule().fill(Color.white.opacity(0.09)))
+                            .contentShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .help("Puts \(tag.token) where the cursor is")
+                }
+            }
+            if let problem = ImportTemplate.problem(template, folders: !files) { PanelHint(problem, warn: true) }
+        }
+    }
+}
+
+/// The text field of a template, which keeps where its cursor was so a tag button can insert there.
+@MainActor final class TemplateFieldHandle {
+    weak var field: NSTextField?
+    /// The selection when the field last changed or lost the keyboard.
+    var range: NSRange?
+
+    func insert(_ token: String, into text: Binding<String>) {
+        let editor = field?.currentEditor() as? NSTextView
+        let at = editor?.selectedRange() ?? range ?? NSRange(location: (text.wrappedValue as NSString).length, length: 0)
+        let (new, caret) = ImportTemplate.insert(token, into: text.wrappedValue, at: at)
+        text.wrappedValue = new
+        field?.stringValue = new
+        range = NSRange(location: caret, length: 0)
+        // The keyboard back in the field, the cursor after the tag, to go on typing.
+        if let field, field.window?.makeFirstResponder(field) == true, let editor = field.currentEditor() {
+            editor.selectedRange = NSRange(location: caret, length: 0)
+        }
+    }
+}
+
+private struct TemplateField: NSViewRepresentable {
+    @Binding var text: String
+    let placeholder: String
+    let handle: TemplateFieldHandle
+
+    func makeNSView(context: Context) -> NSTextField {
+        let field = NSTextField(string: text)
+        field.isBordered = false; field.drawsBackground = false; field.focusRingType = .none
+        field.font = .monospacedSystemFont(ofSize: 11.5, weight: .regular)
+        field.textColor = Theme.NS.paper
+        field.placeholderAttributedString = NSAttributedString(string: placeholder, attributes: [.foregroundColor: Theme.NS.faint, .font: NSFont.systemFont(ofSize: 11.5)])
+        field.cell?.lineBreakMode = .byTruncatingTail
+        field.delegate = context.coordinator
+        handle.field = field
+        return field
+    }
+
+    func updateNSView(_ field: NSTextField, context: Context) {
+        context.coordinator.parent = self
+        handle.field = field
+        if field.stringValue != text, field.currentEditor() == nil { field.stringValue = text }
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator(parent: self) }
+
+    @MainActor final class Coordinator: NSObject, NSTextFieldDelegate {
+        var parent: TemplateField
+        init(parent: TemplateField) { self.parent = parent }
+        func controlTextDidChange(_ note: Notification) {
+            guard let field = note.object as? NSTextField else { return }
+            parent.text = field.stringValue
+            parent.handle.range = (field.currentEditor() as? NSTextView)?.selectedRange()
+        }
+        func controlTextDidEndEditing(_ note: Notification) {
+            guard let field = note.object as? NSTextField else { return }
+            parent.handle.range = (field.currentEditor() as? NSTextView)?.selectedRange() ?? parent.handle.range
+            parent.text = field.stringValue
+        }
     }
 }
 

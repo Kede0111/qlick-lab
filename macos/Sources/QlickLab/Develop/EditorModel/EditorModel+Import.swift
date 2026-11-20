@@ -40,11 +40,13 @@ extension EditorModel {
                                              balance: (temperature: Double, tint: Double)? = nil, matchExposure: Bool = false) -> Bool {
         let flag = marks.flag.flatMap(PhotoSidecar.Flag.init(rawValue:))
         let wantsEdits = recipe != nil || marks.rotation % 4 != 0
-        guard wantsEdits || marks.rating > 0 || flag != nil else { return true }
+        let label = marks.label.flatMap(ColorLabel.init(word:))
+        guard wantsEdits || marks.rating > 0 || flag != nil || label != nil else { return true }
         guard sidecarsEnabled, let sidecars, sidecars.writes, PhotoLibrary.canWrite(beside: photo) else { return false }
         var patch = SidecarPatch(variant: SidecarRestore.newVariantID(), primary: true, defaultsVersion: SidecarDefaults.latest, app: Self.appVersion)
         if marks.rating > 0 { patch.rating = marks.rating }
         if let flag { patch.flag = .some(flag) }
+        if let label { patch.label = .some(label) }
         var wrote = true
         if wantsEdits {
             if hasCatalog, let data = engine?.paths.data, let table = try? SidecarDefaults.load(version: SidecarDefaults.latest, data: data) {

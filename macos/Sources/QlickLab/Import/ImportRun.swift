@@ -159,7 +159,7 @@ private final class ImportMailbox: @unchecked Sendable {
 
 extension ImportSession {
     /// The Archive the import's options name: by its identity first, so a renamed Archive is still found, then by
-    /// name. Nil for a name no Archive has yet (the import makes it) and for none (“To Sort”).
+    /// name. Nil for a name no Archive has yet (the import makes it) and for none.
     var chosenProject: LabProject? {
         let projects = model.lab.projects
         if let id = options.projectID, let project = projects.ordinary.first(where: { $0.id == id }) { return project }
@@ -171,6 +171,38 @@ extension ImportSession {
     func choose(project: LabProject?) {
         options.project = project?.name ?? ""
         options.projectID = project?.id
+    }
+
+    /// Chooses a new Archive by its name: made when the import starts.
+    func chooseNewArchive(named name: String) {
+        options.project = name
+        options.projectID = nil
+    }
+
+    /// Whether an Archive is set: one that's there, or a new one's name. An import needs one.
+    var hasArchive: Bool { chosenProject != nil || !options.project.trimmingCharacters(in: .whitespaces).isEmpty }
+
+    /// The name a new Archive is offered under: the card's or the folder's, and today's date, “M11 · 2026-11-19”.
+    var suggestedArchiveName: String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd"
+        var base = source?.kind == .card ? (source?.volume?.lastPathComponent ?? source?.name ?? "Import") : (source?.name ?? "Import")
+        // A camera's own folder says nothing: the card's (or the folder's holding it) name does.
+        if base.uppercased() == "DCIM", let parent = source?.root.deletingLastPathComponent().lastPathComponent, !parent.isEmpty, parent != "/" { base = parent }
+        return model.lab.projects.uniqueName("\(base) · \(formatter.string(from: Date()))")
+    }
+
+    /// The Box or Roll chosen for the import, while it's still there.
+    var chosenHolder: Holder? {
+        guard let holder = options.holder, model.lab.projects.exists(holder), !model.lab.projects.isSmart(holder) else { return nil }
+        return holder
+    }
+
+    /// Puts the imported photographs in the Box or Roll chosen, if any, after those it holds.
+    private func fileInHolder(_ photos: [URL], options: ImportOptions) {
+        guard !photos.isEmpty, let holder = options.holder, model.lab.projects.exists(holder), !model.lab.projects.isSmart(holder) else { return }
+        model.lab.projects.addFrames(photos, to: holder)
     }
 
     /// Starts the import of what's checked. Nothing happens if something stands in its way (`blocker`).
@@ -275,7 +307,7 @@ extension ImportSession {
                 Task.detached(priority: .utility) { metadata.write(beside: photo) }
             }
         }
-        addRolls(run.folders, project: options.project)
+        addRolls(run.folders, options: options)
     }
 
     private func flushMarks(_ run: ImportRun) async {
@@ -290,18 +322,54 @@ extension ImportSession {
         model.labWatchSaving()
     }
 
-    /// The folders photographs arrived in become Folders of the Archive named (made if it isn't there). Without a
-    /// name they go to the Archive “To Sort”, so nothing imported is ever left outside the library.
-    private func addRolls(_ folders: [URL], project name: String) {
-        let name = name.trimmingCharacters(in: .whitespaces)
+    /// The folders photographs arrived in become Folders of the Archive named (made if it isn't there), each with the
+    /// card typed at the import (film, camera, notes). An import always names an Archive (`blocker`); one started
+    /// without (an interrupted import from before 0.4) goes to “To Sort”, so nothing imported is left outside the
+    /// library. A folder an Archive's Folder already holds isn't added again: the tree shows it.
+    private func addRolls(_ folders: [URL], options: ImportOptions) {
+        let name = options.project.trimmingCharacters(in: .whitespaces)
         guard !folders.isEmpty else { return }
         let projects = model.lab.projects
-        let project = name.isEmpty ? projects.toSort() : chosenProject ?? projects.create(named: name)
-        let had = Set(project.rolls.map(\.folder))
-        let new = folders.filter { !had.contains($0.standardizedFileURL.path) }
-        guard !new.isEmpty else { return }
-        projects.sidecars = model.sidecarLookup?.store
-        projects.addRolls(new, to: project.id)
+        let project: LabProject
+        if let id = options.projectID, let found = projects.archive(id) { project = found }
+        else { project = name.isEmpty ? projects.toSort() : projects.project(named: name) ?? projects.create(named: name) }
+        // Pins the Archive by identity once it's made, so a rename meanwhile doesn't make a second one.
+        if self.options.projectID == nil, self.options.project.trimmingCharacters(in: .whitespaces) == name, !name.isEmpty { self.options.projectID = project.id }
+        let held = project.rolls.map(\.folder)
+        let new = folders.map(\.standardizedFileURL).filter { folder in
+            !held.contains { folder.path == $0 || folder.path.hasPrefix($0 + "/") }
+        }
+        if !new.isEmpty {
+            projects.sidecars = model.sidecarLookup?.store
+            projects.addRolls(new, to: project.id)
+        }
+        // The film card on the Folders this import made or filled, written into each folder (`Roll.qlickroll`).
+        guard let card = options.card, let current = projects.archive(project.id) else { return }
+        for folder in folders.map(\.standardizedFileURL) {
+            guard let roll = current.rolls.first(where: { $0.folder == folder.path }) else { continue }
+            projects.updateRoll(roll.id, in: project.id) { roll in
+                if !card.film.isEmpty { roll.film = card.film }
+                if !card.camera.isEmpty { roll.camera = card.camera }
+                if !card.notes.isEmpty { roll.notes = card.notes }
+            }
+        }
+    }
+
+    /// Leave in Place: the folder chosen is the Folder, with every folder under it at every depth, as the disk has
+    /// it. From a disk (or a card), the deepest folder holding all the photographs added: a whole disk isn't added.
+    nonisolated static func placeRoot(of photos: [URL], source: URL, sourceIsFolder: Bool) -> URL? {
+        let root = source.standardizedFileURL
+        if sourceIsFolder, !photos.isEmpty, photos.allSatisfy({ $0.standardizedFileURL.path.hasPrefix(root.path + "/") }) { return root }
+        let folders = Set(photos.map { $0.deletingLastPathComponent().standardizedFileURL.path })
+        guard var common = folders.first?.split(separator: "/", omittingEmptySubsequences: true).map(String.init) else { return nil }
+        for folder in folders {
+            let parts = folder.split(separator: "/", omittingEmptySubsequences: true).map(String.init)
+            var shared = 0
+            while shared < min(common.count, parts.count), common[shared] == parts[shared] { shared += 1 }
+            common = Array(common.prefix(shared))
+        }
+        guard !common.isEmpty else { return nil }
+        return URL(fileURLWithPath: "/" + common.joined(separator: "/"), isDirectory: true)
     }
 
     private func ended(_ journal: ImportJournal, run: ImportRun, stopped: Bool) {
@@ -325,6 +393,7 @@ extension ImportSession {
         if journal.remaining > 0 { setUnfinished(journal) } else { ImportJournal.remove() }
         // Qlick Lab: their proxies straight away, so their thumbnails develop in milliseconds.
         let arrived = journal.items.filter(\.done)
+        fileInHolder(arrived.compactMap(\.photo), options: journal.options)
         model.lab.noteImported(arrived.compactMap(\.photo))
         model.lab.proxyMaker.make(arrived.compactMap(\.photo), first: true)
         // Then each one's own white balance, from its proxy as it's made.
@@ -355,7 +424,8 @@ extension ImportSession {
         let run = ImportRun(adding: frames.map(\.id), sourceName: source?.name ?? "")
         self.run = run
         let options = options
-        let project = options.project.trimmingCharacters(in: .whitespaces)
+        // The Folder is the folder the photographs are taken from, with its tree (a sub-folder at any depth shows).
+        let root = Self.placeRoot(of: frames.map(\.id), source: source?.root ?? URL(fileURLWithPath: "/"), sourceIsFolder: source?.kind == .folder)
         activity = ProcessInfo.processInfo.beginActivity(options: [.idleSystemSleepDisabled, .userInitiated], reason: "Adding photographs")
         adding = Task { [weak self] in
             guard let self else { return }
@@ -397,8 +467,8 @@ extension ImportSession {
                     let failure = failures[frame.id] ?? failures[frame.id.standardizedFileURL]
                     run.added(frame.id, failure: failure)
                 }
-                // The project is there, and grows, while the photographs are taken in.
-                addRolls(run.folders, project: project)
+                // The Archive is there, and grows, while the photographs are taken in.
+                if let root { addRolls([root], options: options) } else { addRolls(run.folders, options: options) }
                 await Task.yield()
             }
             // Written in the background: the lab shows what's queued, so the photographs can be worked on now.
@@ -407,6 +477,7 @@ extension ImportSession {
             adding = nil
             // Qlick Lab: their proxies straight away, so their thumbnails develop in milliseconds.
             let added = run.order.filter { run.state(of: $0) == .verified }
+            fileInHolder(added, options: options)
             model.lab.noteImported(added)
             model.lab.proxyMaker.make(added, first: true)
             if options.balanceEach { model.labBalanceImported(added.filter { marks[$0]?.recipe != nil }) }
@@ -422,9 +493,10 @@ extension ImportSession {
     /// Opens what the import brought in on its contact sheet.
     func openImported() {
         guard let run, let first = run.folders.first else { return }
-        let name = options.project.trimmingCharacters(in: .whitespaces)
         let projects = model.lab.projects
-        if run.folders.count > 1, let project = name.isEmpty ? projects.project(named: ProjectStore.toSortName) : chosenProject {
+        if let holder = chosenHolder {
+            model.lab.open(holder.view)
+        } else if run.folders.count > 1, let project = chosenProject ?? projects.project(named: options.project.trimmingCharacters(in: .whitespaces)) {
             model.lab.openWhole(project)
         } else {
             model.lab.open(folder: first)

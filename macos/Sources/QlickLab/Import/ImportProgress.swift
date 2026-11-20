@@ -313,7 +313,7 @@ private struct ImportAccount: View {
         let good = run.done - run.failed
         let left = run.total - run.done
         let checked = session.options.verify
-        let project = session.options.project.trimmingCharacters(in: .whitespaces)
+        let project = session.chosenProject?.name ?? session.options.project.trimmingCharacters(in: .whitespaces)
         ScrollView(.vertical) {
             VStack(alignment: .leading, spacing: 14) {
                 HStack(spacing: 12) {

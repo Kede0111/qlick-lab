@@ -149,6 +149,14 @@ enum BoxesFile {
 enum Holder: Hashable, Sendable {
     case box(UUID)
     case roll(UUID, box: UUID)
+
+    /// The list that shows it.
+    var view: LabView {
+        switch self {
+        case .box(let id): .box(id)
+        case .roll(let id, let box): .roll(id, box: box)
+        }
+    }
 }
 
 /// What a list on the contact sheet shows (`ProjectStore.viewFolder`): a whole Archive, a Folder with the folders

@@ -302,7 +302,31 @@ Steps (one local commit each, tests, `scripts/drive.sh` screenshots checked, Dev
   Left / risky: an open computed list (Picks, a Smart Roll) follows the index when files change, not each mark given
   (reopen it); a photograph outside every Archive is searched by its file's facts as they're read; the first reading of
   a large catalogue takes a while (counts show once it's done).
-- [ ] R6 Import options above.
+- [x] R6 Import (HASH6): **Archive required** (`ImportSession.hasArchive`, blocker "Choose an Archive for these
+  photographs, or a new one."): the panel's Archive row (`ArchiveChooser`) offers the Archives (most recently added to
+  first) or a new one pre-named `suggestedArchiveName` ("R6 Card · 2026-11-20"; a `DCIM` folder takes its parent's name),
+  editable; the Archive, Box/Roll and film card are cleared when another source opens (`lastSource`), kept for the same
+  one; `importFolders` names the Archive after opening. "To Sort" is only a fallback for a journal from before 0.4.
+  **Also in**: a Box or Roll (nested menu, Smart Rolls left out; `ImportOptions.boxID/boxRollID`, `holder`): the
+  imported photographs are added there (`fileInHolder`), Open Imported opens it. **Folder Card** (film, camera, notes:
+  `ImportOptions.film/camera/notes`, `card`) written on each Folder the import made or filled (`updateRoll` → `Roll.qlickroll`).
+  New `ImportOptions` fields are optional so old saved options/journals decode. **Leave in Place** registers one
+  Folder: the folder chosen (from a disk/card, the deepest common folder; `ImportSession.placeRoot`), so every
+  sub-folder shows in the Archive's tree (checked at depth 4); a folder an Archive's Folder already holds isn't added
+  again. **Structure** always visible, greyed in Leave in Place with "The photographs stay where they are: nothing is
+  copied or renamed.": `ImportStructure` (By Day / Month / Year / Day and Job / One Folder / Custom) and `ImportNaming`
+  (Camera's Names, Date_0001, Job_001, Date-Name, Date_Time, Custom) as radio lists (`ChoiceList`) with examples;
+  Custom shows `TemplateEditor` (an AppKit field that keeps its cursor, `TemplateFieldHandle`; tag buttons year, month,
+  day, month name, job, camera, lens, card, + seq, name, time for files; `ImportTemplate.insert`, `tags(forFiles:)`) and
+  "“{x}” isn’t a tag the lab knows." The example line (`exampleLine`) under File Names, for the current frame or the
+  first. Grid: TWICE (same name, size, capture time in the source: `ImportSession.twins`, the second left out while
+  "Leave out what's already imported" is on), UNREADABLE (header not readable or empty file: `Facts.readable`), and a
+  line under the toolbar (`ImportNotices`, each count toggles its filter: Duplicates / Unreadable). Colour labels at
+  Import: `ImportMarks.label`, label keys, the dot in the cell, written with the marks. Automation: `import archive
+  <name>|new`, `import box <Box › Roll>`, `import film|camera|notes`, `import label`; `import state` has archive,
+  holder, twins, unreadable, example. Tests: 548 (`ImportOptionsTests`).
+  Left: an unreadable file is still imported if left checked (on purpose: a damaged file from a card is better copied);
+  the template field's cursor is kept from the last edit, a click elsewhere in it without typing isn't noted.
 - [ ] R7 Manual order polish, burst stacks, `[` `]`, auto advance.
 
 ## Current state

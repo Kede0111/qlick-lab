@@ -26,6 +26,7 @@ struct ImportWorkspace: View {
                             ImportEmpty(session: session)
                         } else {
                             ImportToolbar(model: model)
+                            ImportNotices(session: session)
                             ImportBrowser(model: model)
                         }
                     }
@@ -219,6 +220,45 @@ private struct ImportToolbar: View {
     }
 }
 
+/// Under the bar, when there's something to know about the source before importing it: photographs found twice
+/// in it, files that can't be read. Each count shows them (the filter) on a click.
+private struct ImportNotices: View {
+    let session: ImportSession
+
+    var body: some View {
+        let twins = session.twins.count, unreadable = session.unreadable.count
+        if twins > 0 || unreadable > 0 {
+            HStack(spacing: 14) {
+                if twins > 0 {
+                    notice("square.on.square", twins == 1 ? "1 photograph is in the source twice" : "\(twins) photographs are in the source twice",
+                           detail: session.options.skipDuplicates ? "the second is left out" : "both are imported", filter: .twins)
+                }
+                if unreadable > 0 {
+                    notice("exclamationmark.triangle", unreadable == 1 ? "1 file can’t be read" : "\(unreadable) files can’t be read",
+                           detail: "uncheck to leave out", filter: .unreadable, warn: true)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 14).frame(height: 28)
+            .background(Color(white: 0.05))
+            .overlay(alignment: .bottom) { Rectangle().fill(Color.white.opacity(0.06)).frame(height: 1) }
+        }
+    }
+
+    private func notice(_ symbol: String, _ text: String, detail: String, filter: ImportFilter, warn: Bool = false) -> some View {
+        Button { session.filter = session.filter == filter ? .all : filter } label: {
+            HStack(spacing: 5) {
+                Image(systemName: symbol).font(.system(size: 10.5)).foregroundStyle(warn ? Theme.warn : Theme.label)
+                Text(text).font(.system(size: 11.5)).foregroundStyle(session.filter == filter ? Theme.paper : Theme.label)
+                Text("· \(detail)").font(.system(size: 11.5)).foregroundStyle(Theme.dim)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(session.filter == filter ? "Shows every frame again" : "Shows them alone")
+    }
+}
+
 // MARK: The frames
 
 /// The middle of the room: the grid, the loupe or the comparison, with the keys of the sort.
@@ -353,6 +393,10 @@ enum ImportKeys {
         if character == keys.key(.pick) { session.toggle(flag: "pick"); return true }
         if character == keys.key(.reject) { session.toggle(flag: "reject"); return true }
         if character == keys.key(.unmark) { session.unmark(); return true }
+        // The colour labels, by the keys the lab gives them everywhere (6–9 unless changed).
+        for label in ColorLabel.allCases {
+            if let action = label.action, character == keys.key(action) { session.toggle(label: label); return true }
+        }
         switch character {
         case "0", "1", "2", "3", "4", "5": session.rate(Int(character) ?? 0); return true
         case "i": session.toggleIncluded(); return true
@@ -408,15 +452,21 @@ struct ImportCell: View {
                 HStack(spacing: 4) {
                     if frame.companion != nil { badge("R+J", help: "A RAW with its JPEG: one photograph") }
                     if session.bursts[id] != nil { badge("BURST", help: "Taken within two seconds of another") }
+                    if let first = session.twins[id] { badge("TWICE", help: "The same photograph as \(first.lastPathComponent) in \(first.deletingLastPathComponent().lastPathComponent): same name, size and capture time") }
+                    if session.unreadable.contains(id) { badge("UNREADABLE", help: "This file can’t be read as a photograph: it may be cut short or damaged", warn: true) }
                     if known { badge("IMPORTED", help: "This catalog imported it before") }
                 }
                 .padding(6)
             }
             .overlay(alignment: .bottomLeading) {
-                if marks.rating > 0 {
-                    Text(String(repeating: "★", count: marks.rating)).font(.system(size: 10)).foregroundStyle(Theme.paper)
-                        .shadow(color: .black, radius: 1.5).padding(.leading, 8).padding(.bottom, 6)
+                HStack(spacing: 5) {
+                    if let label = marks.label.flatMap(ColorLabel.init(word:)) { LabelDot(label: label, size: 10) }
+                    if marks.rating > 0 {
+                        Text(String(repeating: "★", count: marks.rating)).font(.system(size: 10)).foregroundStyle(Theme.paper)
+                            .shadow(color: .black, radius: 1.5)
+                    }
                 }
+                .padding(.leading, 8).padding(.bottom, 6)
             }
             .overlay(alignment: .bottomTrailing) {
                 if let recipe = marks.recipe {
@@ -452,8 +502,8 @@ struct ImportCell: View {
         }
     }
 
-    private func badge(_ text: String, help: String) -> some View {
-        Text(text).font(.system(size: 8.5, weight: .bold)).tracking(0.5).foregroundStyle(Color(white: 0.9))
+    private func badge(_ text: String, help: String, warn: Bool = false) -> some View {
+        Text(text).font(.system(size: 8.5, weight: .bold)).tracking(0.5).foregroundStyle(warn ? Theme.warn : Color(white: 0.9))
             .padding(.horizontal, 5).frame(height: 15).background(Capsule().fill(Color.black.opacity(0.62))).help(help)
     }
 

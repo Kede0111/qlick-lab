@@ -308,6 +308,29 @@ import AppKit
             case "folders": session.options.folders = argument
             case "rename": session.options.rename = argument
             case "project": session.options.project = argument
+            // import archive <name>|new: an Archive there by name, or the new one offered; box <Box › Roll>|none;
+            // film|camera|notes <text>; label <colour|none>.
+            case "archive":
+                if argument == "new" { session.chooseNewArchive(named: session.suggestedArchiveName) }
+                else if argument.isEmpty { session.choose(project: nil) }
+                else if let found = lab.projects.project(named: argument) { session.choose(project: found) }
+                else { session.chooseNewArchive(named: argument) }
+            case "box":
+                let projects = lab.projects
+                var holder: Holder?
+                for box in projects.allBoxes {
+                    if projects.name(of: .box(box.id)) == argument { holder = .box(box.id) }
+                    for roll in box.rolls where projects.name(of: .roll(roll.id, box: box.id)) == argument { holder = .roll(roll.id, box: box.id) }
+                }
+                switch holder {
+                case .box(let id): session.options.boxID = id; session.options.boxRollID = nil
+                case .roll(let id, let box): session.options.boxID = box; session.options.boxRollID = id
+                case nil: session.options.boxID = nil; session.options.boxRollID = nil
+                }
+            case "film": session.options.film = argument.isEmpty ? nil : argument
+            case "camera": session.options.camera = argument.isEmpty ? nil : argument
+            case "notes": session.options.notes = argument.isEmpty ? nil : argument
+            case "label": session.toggle(label: ColorLabel(word: argument))
             case "keywords": session.options.keywords = argument
             case "card": if let card = session.cards.first(where: { argument.isEmpty || $0.name == argument }) { session.open(card) }
             case "skipdup": session.options.skipDuplicates = argument != "0"
@@ -342,7 +365,10 @@ import AppKit
                              "included=\(session.includedCount)", "known=\(session.known.count)", "plan=\(session.plan.toCopy.count)", "bytes=\(session.plan.bytes)",
                              "folders=\(session.plan.folders.map { "\($0.path):\($0.count)" }.joined(separator: ","))", "blocker=\(session.blocker ?? "-")",
                              "run=\(run.map { "\($0.done)/\($0.total) failed=\($0.failed) finished=\($0.finished) stopped=\($0.stopped)" } ?? "-")",
-                             "figures=\(run?.figures ?? "-")", "notes=\(run?.notes.joined(separator: " | ") ?? "-")", "unfinished=\(session.unfinished?.remaining ?? 0)"]
+                             "figures=\(run?.figures ?? "-")", "notes=\(run?.notes.joined(separator: " | ") ?? "-")", "unfinished=\(session.unfinished?.remaining ?? 0)",
+                             "archive=\(session.chosenProject?.name ?? (session.options.project.isEmpty ? "-" : "new:" + session.options.project))",
+                             "holder=\(session.chosenHolder.flatMap(lab.projects.name(of:)) ?? "-")", "twins=\(session.twins.count)",
+                             "unreadable=\(session.unreadable.count)", "example=\(session.exampleLine ?? "-")"]
                 try? (lines.joined(separator: "\n") + "\n").write(toFile: argument, atomically: true, encoding: .utf8)
             default: break
             }

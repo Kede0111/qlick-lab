@@ -10,7 +10,9 @@ struct ImportMarks: Codable, Equatable, Sendable {
     var rotation = 0
     /// The recipe's file name, without extension.
     var recipe: String?
-    var isEmpty: Bool { rating == 0 && flag == nil && rotation == 0 && recipe == nil }
+    /// Qlick Lab: the colour label (`ColorLabel`'s word), written with the marks.
+    var label: String?
+    var isEmpty: Bool { rating == 0 && flag == nil && rotation == 0 && recipe == nil && label == nil }
 }
 
 /// An import under way or interrupted, as the batch export keeps its own (`BatchJournal`): what was asked, and how

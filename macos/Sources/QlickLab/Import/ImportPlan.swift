@@ -183,33 +183,137 @@ struct ImportOptions: Codable, Equatable, Sendable {
     var creator = ""
     var copyright = ""
     var caption = ""
-    /// The project the rolls go to, by name; empty sends them to Arrivals.
+    /// The Archive the folders join, by name: required (an import never leaves photographs outside the library).
     var project = ""
-    /// The same project by its identity, so renaming it doesn't make a new one at the next import. Nil when the
-    /// name was typed (a new project) or for options saved before it.
+    /// The same Archive by its identity, so renaming it doesn't make a new one at the next import. Nil when the
+    /// name was typed (a new Archive) or for options saved before it.
     var projectID: UUID? = nil
     /// Each photograph's own Auto white balance and exposure under its recipe.
     var balanceEach = false
+    /// Qlick Lab: a Box, or a Roll of it (`boxRollID`), the imported photographs are also put in. Optional, as every
+    /// field added since the first options, so what was saved before still reads.
+    var boxID: UUID? = nil
+    var boxRollID: UUID? = nil
+    /// Qlick Lab: the card of each Folder the import makes (`RollCardFile`): the film loaded, the camera, notes.
+    var film: String? = nil
+    var camera: String? = nil
+    var notes: String? = nil
+
+    /// The Box or Roll chosen, if any.
+    var holder: Holder? {
+        guard let boxID else { return nil }
+        return boxRollID.map { .roll($0, box: boxID) } ?? .box(boxID)
+    }
+
+    /// The Folder card the import writes, or nil when nothing was typed.
+    var card: RollCardFile? {
+        let card = RollCardFile(film: (film ?? "").trimmingCharacters(in: .whitespaces), camera: (camera ?? "").trimmingCharacters(in: .whitespaces),
+                                notes: (notes ?? "").trimmingCharacters(in: .whitespacesAndNewlines))
+        return card.isBlank ? nil : card
+    }
+}
+
+/// How the copies are laid out in folders under the destination: a ready-made structure, or one's own.
+enum ImportStructure: String, CaseIterable, Identifiable, Sendable {
+    case byDay, byMonth, byYear, byDayAndJob, oneFolder, custom
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .byDay: "By Day"
+        case .byMonth: "By Month"
+        case .byYear: "By Year"
+        case .byDayAndJob: "By Day and Job"
+        case .oneFolder: "One Folder"
+        case .custom: "Custom"
+        }
+    }
+
+    /// Its template; nil for Custom, which is the text typed.
+    var template: String? {
+        switch self {
+        case .byDay: "{yyyy}/{yyyy}-{mm}-{dd}"
+        case .byMonth: "{yyyy}/{yyyy}-{mm}"
+        case .byYear: "{yyyy}"
+        case .byDayAndJob: "{yyyy}/{yyyy}-{mm}-{dd} {job}"
+        case .oneFolder: ""
+        case .custom: nil
+        }
+    }
+
+    /// What it makes, as an example beside its name.
+    var example: String {
+        switch self {
+        case .byDay: "2026/2026-09-19"
+        case .byMonth: "2026/2026-09"
+        case .byYear: "2026"
+        case .byDayAndJob: "2026/2026-09-19 Job"
+        case .oneFolder: "all in the destination"
+        case .custom: "your own"
+        }
+    }
+
+    /// The structure a template is, Custom when it's none of the ready-made ones.
+    init(template: String) {
+        self = Self.allCases.first { $0.template == template } ?? .custom
+    }
+}
+
+/// How the copies are named: the camera's own names, a ready-made form, or one's own.
+enum ImportNaming: String, CaseIterable, Identifiable, Sendable {
+    case camera, dateSequence, jobSequence, dateName, dateTime, custom
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .camera: "Camera’s Names"
+        case .dateSequence: "Date_0001"
+        case .jobSequence: "Job_001"
+        case .dateName: "Date-Name"
+        case .dateTime: "Date_Time"
+        case .custom: "Custom"
+        }
+    }
+
+    var template: String? {
+        switch self {
+        case .camera: ""
+        case .dateSequence: "{date}_{seq:4}"
+        case .jobSequence: "{job}_{seq:3}"
+        case .dateName: "{date}-{name}"
+        case .dateTime: "{date}_{time}"
+        case .custom: nil
+        }
+    }
+
+    var example: String {
+        switch self {
+        case .camera: "L1004394"
+        case .dateSequence: "20260919_0001"
+        case .jobSequence: "Job_001"
+        case .dateName: "20260919-L1004394"
+        case .dateTime: "20260919_113856"
+        case .custom: "your own"
+        }
+    }
+
+    init(template: String) {
+        self = Self.allCases.first { $0.template == template } ?? .custom
+    }
 }
 
 /// Folder and file name templates: text with `{tokens}`, as the batch export's names.
 enum ImportTemplate {
     static let defaultFolders = "{yyyy}/{yyyy}-{mm}-{dd}"
-    static let folderPresets: [(title: String, template: String)] = [
-        ("2026 / 2026-09-19", "{yyyy}/{yyyy}-{mm}-{dd}"),
-        ("2026 / 09 / 19", "{yyyy}/{mm}/{dd}"),
-        ("2026 / 2026-09-19 Job", "{yyyy}/{yyyy}-{mm}-{dd} {job}"),
-        ("2026 / 09 September", "{yyyy}/{mm} {month}"),
-        ("Job", "{job}"),
-        ("One folder", ""),
-    ]
-    static let renamePresets: [(title: String, template: String)] = [
-        ("Camera names", ""),
-        ("20260919_0001", "{date}_{seq:4}"),
-        ("Job_001", "{job}_{seq:3}"),
-        ("20260919-L1004394", "{date}-{name}"),
-        ("20260919_113856", "{date}_{time}"),
-    ]
+    /// The tags a custom template's buttons insert, in plain words: the folders' and, with the sequence and the
+    /// camera's name, the files'.
+    static func tags(forFiles files: Bool) -> [(title: String, token: String)] {
+        var tags: [(title: String, token: String)] = [("year", "{yyyy}"), ("month", "{mm}"), ("day", "{dd}"), ("month name", "{month}"), ("job", "{job}"),
+                                                      ("camera", "{camera}"), ("lens", "{lens}"), ("card", "{card}")]
+        if files { tags += [("seq", "{seq:4}"), ("name", "{name}"), ("time", "{time}")] }
+        return tags
+    }
+
     static let tokens = ["yyyy", "yy", "mm", "dd", "month", "hh", "min", "ss", "date", "time", "name", "seq", "job", "camera", "lens", "archive", "card"]
     private static let months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
 
@@ -266,6 +370,16 @@ enum ImportTemplate {
         }
     }
 
+    /// `token` put in `text` over the selection `range` (UTF-16, as a text field counts): the new text and where the
+    /// cursor goes, after the token.
+    static func insert(_ token: String, into text: String, at range: NSRange) -> (text: String, caret: Int) {
+        let ns = text as NSString
+        let location = min(max(range.location, 0), ns.length)
+        let length = min(max(range.length, 0), ns.length - location)
+        let new = ns.replacingCharacters(in: NSRange(location: location, length: length), with: token)
+        return (new, location + (token as NSString).length)
+    }
+
     /// One name of a path: nothing a file system refuses, no leading period, never empty.
     static func component(_ text: String, fallback: String = "Untitled") -> String {
         var name = String(text.map { "/\\:*?\"<>|".contains($0) || $0.isNewline ? "-" : $0 })
@@ -291,7 +405,7 @@ enum ImportTemplate {
         var rest = Substring(template)
         while let open = rest.firstIndex(of: "{"), let close = rest[open...].firstIndex(of: "}") {
             let token = rest[rest.index(after: open)..<close].split(separator: ":").first.map(String.init) ?? ""
-            if !tokens.contains(token), token != "project" { return "“{\(token)}” isn’t a token." }
+            if !tokens.contains(token), token != "project" { return "“{\(token)}” isn’t a tag the lab knows." }
             rest = rest[rest.index(after: close)...]
         }
         if !folders, template.contains("/") { return "A file name can’t contain /." }
