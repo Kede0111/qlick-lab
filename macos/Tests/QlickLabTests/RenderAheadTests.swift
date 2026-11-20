@@ -92,3 +92,31 @@ final class RenderAheadTests: XCTestCase {
         return context?.makeImage()
     }
 }
+
+final class EngineSettingsTests: XCTestCase {
+    /// A setting the helpers read at launch (Make proxies) changes: the one running is replaced before its next request.
+    func testHelpersStartAgainWhenTheirSettingsChange() async throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let helper = dir.appendingPathComponent("helper")
+        try Data("""
+        #!/usr/bin/python3
+        import json, os, sys
+        for line in sys.stdin:
+            c = json.loads(line)
+            print(json.dumps({'id': c['id'], 'result': {'pid': os.getpid()}}), flush=True)
+        """.utf8).write(to: helper)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: helper.path)
+        let engine = try EngineClient(paths: EnginePaths(helper: helper, exporter: helper, data: dir))
+        defer { engine.stop() }
+        let first = try await engine.request(["command": .string("catalog")]).1["pid"].double
+        let same = try await engine.request(["command": .string("catalog")]).1["pid"].double
+        XCTAssertEqual(first, same)
+        EngineClient.settingsChanged()
+        let next = try await engine.request(["command": .string("catalog")]).1["pid"].double
+        XCTAssertNotEqual(first, next, "Started again with the new settings")
+        let after = try await engine.request(["command": .string("catalog")]).1["pid"].double
+        XCTAssertEqual(next, after)
+    }
+}

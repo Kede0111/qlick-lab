@@ -808,6 +808,15 @@ import UserNotifications
         }
     }
     @ObservationIgnored var powerStateObservers: [NSObjectProtocol] = []
+    /// Qlick Lab: Settings › Upkeep › Develop thumbnails ahead. Off, only those on screen are developed, as in Low
+    /// Power Mode; the rest show the camera's picture until they're shown.
+    var thumbnailsAhead = UserDefaults.standard.object(forKey: "qlick.thumbnailsAhead") as? Bool ?? true {
+        didSet {
+            guard thumbnailsAhead != oldValue else { return }
+            UserDefaults.standard.set(thumbnailsAhead, forKey: "qlick.thumbnailsAhead")
+            pumpThumbnails()
+        }
+    }
     /// The background helpers, started while there's work, by slot.
     @ObservationIgnored var thumbnailEngines: [Int: EngineClient] = [:]
     /// Each slot's thumbnail developing now, and its job.

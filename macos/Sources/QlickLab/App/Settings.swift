@@ -205,6 +205,9 @@ struct SettingsView: View {
             HintText("Same result, longer export.")
         }
         InkSection(title: "Thumbnails") {
+            TickRow(title: "Develop thumbnails ahead", isOn: Binding(
+                get: { model.thumbnailsAhead }, set: { model.thumbnailsAhead = $0 }))
+            HintText("Off, only the frames on screen are developed; the others show the camera's picture until they're shown.")
             ButtonRow {
                 FigureText(figure: thumbnailBytes.map { ByteCountFormatter.string(fromByteCount: Int64($0), countStyle: .file) } ?? "…", trail: "of 1 GB")
             } button: {

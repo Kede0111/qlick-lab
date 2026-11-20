@@ -236,6 +236,15 @@ final class EngineClient: @unchecked Sendable {
     private var sequence = 0
     /// Counts helper launches: a relaunched helper keeps nothing of the last one.
     private var launches = 0
+    /// Qlick Lab: the settings a helper reads when it starts (where proxies go, or none), as `settingsChanged` last
+    /// counted them when this one was launched.
+    private var launchedSettings = 0
+    private static let settingsLock = NSLock()
+    nonisolated(unsafe) private static var settings = 0
+    /// Qlick Lab: a setting every helper reads at launch changed (Make proxies): each helper running is relaunched
+    /// before its next request, so none goes on with the old one (a proxy made after "Never", say).
+    static func settingsChanged() { settingsLock.withLock { settings += 1 } }
+    private static var currentSettings: Int { settingsLock.withLock { settings } }
 
     /// The helper's priority; nil leaves the system's default.
     private let quality: QualityOfService?
@@ -316,7 +325,13 @@ final class EngineClient: @unchecked Sendable {
     private func startIfNeeded() throws {
         lock.lock(); defer { lock.unlock() }
         guard !stopped else { throw CancellationError() }
-        if process?.isRunning == true { return }
+        let settings = Self.currentSettings
+        if let child = process, child.isRunning {
+            if launchedSettings == settings { return }
+            // Its settings are out of date: it goes, and the next starts with today's (on the queue: no request waits).
+            kill(child.processIdentifier, SIGKILL)
+        }
+        launchedSettings = settings
         closeHandles()
         let child = Process(), stdin = Pipe(), stdout = Pipe()
         let logURL = directory.appendingPathComponent("engine.log")

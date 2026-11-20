@@ -296,14 +296,15 @@ extension EditorModel {
               library.looks[item] != nil || Self.uneditedLook(of: state) == look,
               let file = library.items.first(where: { $0.url == item }), let key = renderArchive.key(for: file, look: look) else { return }
         let archive = renderArchive, size = imageSize, shown = surface, loose = archive.looseKey(for: file, look: look), photo = archive.photoKey(for: file)
-        // Qlick Lab: held in memory too (`RenderAhead`), so stepping back to it shows it at once.
-        let ahead = renderAhead
+        // Qlick Lab: held in memory too (`RenderAhead`), so stepping back to it shows it at once. On disk only while
+        // previews are built ahead (Settings › Upkeep): off, the lab keeps no preview there.
+        let ahead = renderAhead, keepOnDisk = lab.previewBuilder.automatic
         Task.detached(priority: .utility) {
             let onDisk = archive.contains(key)
             guard !onDisk || !ahead.contains(key),
                   let frame = ThumbnailComposer.image(of: shown, maxPixels: EditedThumbnailStore.renderLongSide) else { return }
             ahead.keep(frame, photoSize: size, as: key)
-            if !onDisk { try? archive.save(frame, as: key, loose: loose, photo: photo, photoSize: size) }
+            if !onDisk, keepOnDisk { try? archive.save(frame, as: key, loose: loose, photo: photo, photoSize: size) }
         }
     }
 
@@ -340,7 +341,7 @@ extension EditorModel {
             // Qlick Lab: on the contact sheet the open photograph isn't developed, so the pump makes its thumbnail too.
             let items = self.library.items, open = self.mode == .grid ? nil : self.sourceItem, onScreen = self.thumbnailsOnScreen, looks = self.thumbnailLooks
             let failures = self.thumbnailFailures, checked = self.thumbnailsChecked, emptied = self.thumbnailsEmptied
-            let developing = Set(self.thumbnailsDeveloping.values.map(\.item)), onlyOnScreen = self.lowPowerMode || self.thumbnailsHeld
+            let developing = Set(self.thumbnailsDeveloping.values.map(\.item)), onlyOnScreen = self.lowPowerMode || self.thumbnailsHeld || !self.thumbnailsAhead
             let wanted = self.thumbnailsWanted, wantedSet = Set(wanted), direction = self.aheadDirection
             // Qlick Lab: with proxies made ahead, a RAW's thumbnail waits for its proxy (the camera's JPEG shows
             // meanwhile): developed from it, it takes milliseconds instead of seconds.
