@@ -621,25 +621,51 @@ struct TabPills: View {
     }
 }
 
-/// The recipe, in the film card: the one applied to this photograph, and + to save this development as a new one.
-/// Qlick Lab: the recipes themselves are the Lab's Recipes room's (one door), applied there or from the caption's menu.
+/// The recipe, in the film card: the one applied to this photograph, a menu of the recipes to apply another (hidden ones
+/// aside, favourites first), and + to save this development as a new one. The Recipes room keeps the shelf itself.
 private struct PresetRow: View {
     let model: EditorModel
+
+    private func item(_ preset: PresetFile) -> some View {
+        Button { model.applyPreset(preset) } label: {
+            if model.appliedPreset == preset.url { Label(preset.name, systemImage: "checkmark") } else { Text(preset.name) }
+        }
+    }
 
     var body: some View {
         let name = model.appliedPreset.map { $0.deletingPathExtension().lastPathComponent }
         HStack(spacing: 0) {
-            HStack(spacing: 10) {
-                Image(systemName: "square.stack.3d.up.fill").font(.system(size: 13)).foregroundStyle(Theme.accent)
-                    .frame(width: 22)
-                Text("Recipe").font(.system(size: 11)).foregroundStyle(Theme.dim).fixedSize()
-                Text(name ?? "None").font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(name == nil ? Color(white: 0.6) : Color(white: 0.9)).lineLimit(1)
-                Spacer(minLength: 4)
+            // Qlick Lab: the recipe chooser, under the film and the paper: a click applies one to this photograph.
+            Menu {
+                let recipes = model.listedPresets
+                let favourites = recipes.filter(model.lab.isFavourite(recipe:))
+                if recipes.isEmpty { Text("No recipes yet") }
+                if !favourites.isEmpty {
+                    Section("Favourites") { ForEach(favourites) { preset in item(preset) } }
+                    Section("All Recipes") { ForEach(recipes.filter { !favourites.contains($0) }) { preset in item(preset) } }
+                } else {
+                    ForEach(recipes) { preset in item(preset) }
+                }
+                Divider()
+                Button("Save This Development as a Recipe…") { model.newPreset() }.disabled(!model.canChangePresets)
+                Button("Show the Recipes") { model.lab.show(.recipes) }
+            } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: "square.stack.3d.up.fill").font(.system(size: 13)).foregroundStyle(Theme.accent)
+                        .frame(width: 22)
+                    Text("Recipe").font(.system(size: 11)).foregroundStyle(Theme.dim).fixedSize()
+                    Text(name ?? "None").font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(name == nil ? Color(white: 0.6) : Color(white: 0.9)).lineLimit(1)
+                    Spacer(minLength: 4)
+                    Image(systemName: "chevron.down").font(.system(size: 9, weight: .semibold)).foregroundStyle(Theme.dim)
+                }
+                .padding(.leading, 12).padding(.trailing, 6)
+                .frame(height: 36)
+                .contentShape(Rectangle())
             }
-            .padding(.leading, 12).padding(.trailing, 6)
-            .frame(height: 36)
-            .accessibilityElement(children: .combine)
+            .menuStyle(.borderlessButton).menuIndicator(.hidden)
+            .disabled(model.source == nil || !model.canChangePresets)
+            .help("Apply a recipe to this photograph: its film, paper and settings")
             Button { model.newPreset() } label: {
                 Image(systemName: "plus").font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.dim)
                     .frame(width: 30, height: 36).contentShape(Rectangle())

@@ -2,90 +2,11 @@
 import AppKit
 import SwiftUI
 
-/// A print format the photographer keeps: the file's format, quality, colour space and size, chosen in one click
-/// before an export ("Web", "Archive TIFF"). Applying it sets what the export offers first.
-struct PrintFormat: Codable, Equatable, Identifiable, Sendable {
-    var id = UUID()
-    var name: String
-    var format: String
-    var quality: Int
-    var colorSpace: String
-    /// 8 or 16 for PNG and TIFF; nil for JPEG and HEIF.
-    var bitDepth: Int?
-    var edge: String
-    var pixels: Int
-
-    var output: OutputFormat { OutputFormat(rawValue: format) ?? .jpeg }
-    var size: ExportSize { ExportSize(edge: ExportSize.Edge(rawValue: edge) ?? .full, pixels: pixels) }
-    var spaceIndex: Int { SaveSettings.colorSpaces.firstIndex(of: colorSpace) ?? 0 }
-
-    static let key = "qlick.printFormats"
-
-    /// The three a lab starts with.
-    static let first: [PrintFormat] = [
-        PrintFormat(name: "Web", format: OutputFormat.jpeg.rawValue, quality: 90, colorSpace: "sRGB", bitDepth: nil, edge: ExportSize.Edge.long.rawValue, pixels: 2048),
-        PrintFormat(name: "Full Size JPEG", format: OutputFormat.jpeg.rawValue, quality: 95, colorSpace: "sRGB", bitDepth: nil, edge: ExportSize.Edge.full.rawValue, pixels: 2048),
-        PrintFormat(name: "Archive TIFF", format: OutputFormat.tiff.rawValue, quality: 95, colorSpace: "Adobe RGB (1998)", bitDepth: 16, edge: ExportSize.Edge.full.rawValue, pixels: 2048),
-    ]
-
-    static func load(_ defaults: UserDefaults = .standard) -> [PrintFormat] {
-        guard let data = defaults.data(forKey: key), let formats = try? JSONDecoder().decode([PrintFormat].self, from: data) else { return first }
-        return formats
-    }
-    static func save(_ formats: [PrintFormat], _ defaults: UserDefaults = .standard) {
-        if let data = try? JSONEncoder().encode(formats) { defaults.set(data, forKey: key) }
-    }
-
-    /// What the export offers now, as a format named `name`.
-    static func current(named name: String) -> PrintFormat {
-        let output = OutputFormat.last, size = ExportSize.last
-        let depth: Int? = output == .png || output == .tiff ? SaveSettings.bitDepth(for: output) : nil
-        return PrintFormat(name: name, format: output.rawValue, quality: SaveSettings.lastQuality,
-                           colorSpace: SaveSettings.colorSpaces[min(max(SaveSettings.chosenSpace, 0), SaveSettings.colorSpaces.count - 1)],
-                           bitDepth: depth, edge: size.edge.rawValue, pixels: size.pixels)
-    }
-
-    /// Makes it what the export offers first.
-    func apply() {
-        OutputFormat.last = output
-        SaveSettings.lastQuality = quality
-        SaveSettings.chosenSpace = spaceIndex
-        if let bitDepth { SaveSettings.setBitDepth(bitDepth, for: output) }
-        ExportSize.last = size
-    }
-
-    /// Whether the export offers this now.
-    var isCurrent: Bool { Self.current(named: name).sameSettings(as: self) }
-
-    func sameSettings(as other: PrintFormat) -> Bool {
-        let lossy = output == .jpeg || output == .heif
-        return format == other.format && colorSpace == other.colorSpace && edge == other.edge
-            && (edge == ExportSize.Edge.full.rawValue || pixels == other.pixels)
-            && (!lossy || quality == other.quality) && (lossy || bitDepth == other.bitDepth)
-    }
-
-    /// "JPEG 90 · sRGB · 2048 px long edge".
-    var summary: String {
-        let kind = switch output {
-        case .jpeg: "JPEG \(quality)"
-        case .heif: "HEIF \(quality)"
-        case .png: "PNG \(bitDepth ?? 8)-bit"
-        case .tiff: "TIFF \(bitDepth ?? 16)-bit"
-        }
-        let fit = size.edge == .full ? "full size" : "\(pixels) px \(size.edge == .long ? "long" : "short") edge"
-        return [kind, colorSpace, fit].joined(separator: " · ")
-    }
-}
-
-/// Print, the lab's third part, beside the photograph as it will be printed: the print format, the print's size
-/// and border, the contact sheet and the LUT, the exports under way, and the export itself.
+/// Print, the lab's third part, beside the photograph as it will be printed: its colour (the output space, the
+/// proof, what's out of gamut), its size and border, the contact sheet and the LUT, the exports under way, and the
+/// export itself, whose panel holds the file's format, quality and size.
 struct PrintPanel: View {
     let model: EditorModel
-    @State private var formats = PrintFormat.load()
-    @State private var naming = false
-    @State private var name = ""
-    /// Moves when a format is applied, so the rows read the export's settings again.
-    @State private var applied = 0
 
     var body: some View {
         let count = model.exportsSingle ? (model.source == nil ? 0 : 1) : model.exportTargets.count
@@ -98,7 +19,6 @@ struct PrintPanel: View {
             .padding(.horizontal, Theme.Size.gutter).frame(height: Theme.Size.paneHeader)
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
-                    formatsSection
                     if model.source != nil {
                         PrintColourSection(model: model)
                         ImageSizeSection(model: model)
@@ -131,83 +51,9 @@ struct PrintPanel: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
             .scrollIndicators(.automatic)
-            ExportFoot(model: model).id(applied)
+            ExportFoot(model: model)
         }
         .disabled(!model.hasCatalog)
-    }
-
-    @ViewBuilder private var formatsSection: some View {
-        InkSection(title: "Print format") {
-            ForEach(formats) { format in
-                PrintFormatRow(format: format, chosen: format.isCurrent) {
-                    // The format's colour space is the preview's too.
-                    format.apply(); model.choosePreviewSpace(format.colorSpace); applied += 1
-                } remove: {
-                    formats.removeAll { $0.id == format.id }; PrintFormat.save(formats)
-                }
-                .id("\(format.id)-\(applied)")
-            }
-            if naming {
-                ButtonRow {
-                    TextField("Name of the format", text: $name)
-                        .textFieldStyle(.plain).font(Theme.serif(14.5)).foregroundStyle(Theme.paper)
-                        .padding(.horizontal, 8).frame(height: 24)
-                        .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Color.white.opacity(0.07)))
-                        .onSubmit(saveFormat)
-                } button: {
-                    Button("Keep", action: saveFormat).buttonStyle(OutlinedButtonStyle())
-                        .inkDisabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
-                }
-            } else {
-                ButtonRow {
-                    Text(formats.contains(where: \.isCurrent) ? "" : PrintFormat.current(named: "").summary)
-                        .font(Theme.serif(13, italic: true)).foregroundStyle(Theme.dim).lineLimit(1)
-                } button: {
-                    Button("Keep as a Format…") { name = ""; naming = true }.buttonStyle(OutlinedButtonStyle())
-                        .inkDisabled(formats.contains(where: \.isCurrent))
-                }
-            }
-            HintText("The export offers the format chosen first: its file, colour space and size. The save panel can still change them.")
-        }
-    }
-
-    private func saveFormat() {
-        let trimmed = name.trimmingCharacters(in: .whitespaces)
-        guard !trimmed.isEmpty else { return }
-        formats.append(PrintFormat.current(named: trimmed))
-        PrintFormat.save(formats)
-        naming = false
-    }
-}
-
-/// One print format: its name and what it makes; the chosen one marked in red.
-private struct PrintFormatRow: View {
-    let format: PrintFormat
-    let chosen: Bool
-    let choose: () -> Void
-    let remove: () -> Void
-    @State private var hovered = false
-
-    var body: some View {
-        Button(action: choose) {
-            HStack(spacing: 10) {
-                Circle().strokeBorder(chosen ? Theme.accent : Theme.track, lineWidth: 1.5)
-                    .overlay { if chosen { Circle().fill(Theme.accent).padding(3.5) } }
-                    .frame(width: 13, height: 13)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(format.name).font(Theme.serif(14.5, weight: chosen ? 600 : 400)).foregroundStyle(chosen ? Theme.paper : Theme.label)
-                    Text(format.summary).font(Theme.value(11)).foregroundStyle(Theme.dim).lineLimit(1)
-                }
-                Spacer(minLength: 0)
-            }
-            .padding(.horizontal, Theme.Size.gutter).padding(.vertical, 5)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .onHover { hovered = $0 }
-        .contextMenu { Button("Remove the Format “\(format.name)”", action: remove) }
-        .accessibilityAddTraits(chosen ? .isSelected : [])
-        .help("Export as \(format.summary)")
     }
 }
 
