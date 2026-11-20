@@ -6,7 +6,7 @@ import SwiftUI
 /// rating, mark, whether they're developed or their shape; either way round. The folder's own order is by name.
 struct LibrarySort: Codable, Equatable, Sendable {
     enum Key: String, Codable, CaseIterable, Sendable {
-        case captureTime, fileName, fileType, fileSize, modified, rating, pick, label, edited, aspect
+        case captureTime, fileName, fileType, fileSize, modified, rating, pick, label, edited, aspect, importDate, editDate
 
         var title: String {
             switch self {
@@ -20,6 +20,8 @@ struct LibrarySort: Codable, Equatable, Sendable {
             case .label: "Colour Label"
             case .edited: "Developed"
             case .aspect: "Aspect Ratio"
+            case .importDate: "Import Date"
+            case .editDate: "Edit Date"
             }
         }
     }
@@ -45,6 +47,14 @@ extension LabState {
         let sort = self.sort
         guard !sort.natural, items.count > 1 else { return items }
         let library = model.library
+        // Qlick Lab: the import and edit dates come from each photograph's record (the index), worked out once.
+        var dates: [URL: Date] = [:]
+        if sort.key == .importDate || sort.key == .editDate {
+            for item in items {
+                let record = record(for: item.url)
+                dates[item.url] = (sort.key == .importDate ? record.imported : record.editedAt) ?? .distantPast
+            }
+        }
         func compare(_ a: PhotoFile, _ b: PhotoFile) -> ComparisonResult {
             func order<T: Comparable>(_ x: T, _ y: T) -> ComparisonResult { x < y ? .orderedAscending : x > y ? .orderedDescending : .orderedSame }
             switch sort.key {
@@ -65,6 +75,8 @@ extension LabState {
             case .aspect:
                 let ratios = model.aspects.ratios
                 return order(ratios[a.url] ?? PhotoAspects.fallback, ratios[b.url] ?? PhotoAspects.fallback)
+            case .importDate, .editDate:
+                return order(dates[a.url] ?? .distantPast, dates[b.url] ?? .distantPast)
             }
         }
         if sort.key == .captureTime { readDates(items) }
@@ -344,5 +356,164 @@ private struct KeywordFilter: View {
         }
         .menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden).fixedSize()
         .help("Only the photographs with a keyword")
+    }
+}
+
+/// Over the filter bar: the search, which understands fields (`PhotoQuery`: `rating:>=3 film:portra iso:>800
+/// date:2026-09`…), the period, film, camera and lens of what's listed, and Save as Smart Roll… for the whole filter.
+struct LibraryFindBar: View {
+    let model: EditorModel
+    /// Without its own pane of glass: over the grid's foot.
+    var inline = false
+    private var lab: LabState { model.lab }
+    @FocusState private var typing: Bool
+
+    var body: some View {
+        let filter = model.library.filter
+        HStack(spacing: 4) {
+            HStack(spacing: 6) {
+                Image(systemName: "magnifyingglass").font(.system(size: 11)).foregroundStyle(filter.search.isEmpty ? Theme.dim : Theme.accent)
+                TextField("Search, or rating:>=3 iso:>800…", text: Binding(get: { model.library.filter.search },
+                                                                                             set: { model.library.filter.search = $0 }))
+                    .textFieldStyle(.plain).font(.system(size: 12)).focused($typing)
+                    .onExitCommand { typing = false }
+                if !filter.search.isEmpty {
+                    Button { model.library.filter.search = "" } label: { Image(systemName: "xmark.circle.fill").font(.system(size: 11)).foregroundStyle(Theme.dim) }
+                        .buttonStyle(.plain).help("Clear the search")
+                }
+            }
+            .padding(.horizontal, 10).frame(width: 300, height: 24)
+            .background(Capsule().fill(Color.white.opacity(0.07)))
+            .help(LibraryFindBar.searchHelp)
+            separator
+            let facets = Facets(model: model)
+            FacetMenu(title: "Period", symbol: "calendar", chosen: filter.period.map(Self.periodTitle), help: "Only the photographs taken then") {
+                ForEach([7, 30, 365], id: \.self) { days in
+                    choice("Last \(days) Days", on: filter.period == "last:\(days)") { model.library.filter.period = "last:\(days)" }
+                }
+                Divider()
+                ForEach(facets.periods.years) { year in
+                    Menu("\(year.title)  \(year.count)") {
+                        choice("All of \(year.title)", on: filter.period == year.key) { model.library.filter.period = year.key }
+                        Divider()
+                        ForEach(year.children) { month in
+                            choice("\(month.title)  \(month.count)", on: filter.period == month.key) { model.library.filter.period = month.key }
+                        }
+                    }
+                }
+                if filter.period != nil {
+                    Divider()
+                    Button("Any Time") { model.library.filter.period = nil }
+                }
+            }
+            FacetMenu(title: "Film", symbol: "film", chosen: filter.film, help: "Only the photographs of a film: loaded in the camera or developed on") {
+                values(facets.films, chosen: filter.film) { model.library.filter.film = $0 }
+            }
+            FacetMenu(title: "Camera", symbol: "camera", chosen: filter.camera, help: "Only the photographs of a camera") {
+                values(facets.cameras, chosen: filter.camera) { model.library.filter.camera = $0 }
+            }
+            FacetMenu(title: "Lens", symbol: "camera.aperture", chosen: filter.lens, help: "Only the photographs of a lens") {
+                values(facets.lenses, chosen: filter.lens) { model.library.filter.lens = $0 }
+            }
+            separator
+            Button { lab.saveFilterAsSmartRoll() } label: {
+                Label("Save as Smart Roll…", systemImage: SmartRollEditor.symbol).font(Theme.caps(12))
+                    .foregroundStyle(filter.active ? Theme.paper : Theme.dim)
+                    .padding(.horizontal, 8).frame(height: 24).contentShape(Rectangle())
+            }
+            .buttonStyle(.plain).disabled(!filter.active)
+            .help("A Smart Roll with these filters and this search: it finds them again across the whole catalog")
+        }
+        .padding(inline ? 0 : 5)
+        .modifier(FindGlass(on: !inline))
+    }
+
+    static let searchHelp = """
+    Words find file names, titles, captions, keywords, cameras, lenses, films and folders. Fields: rating:>=3, pick, reject, \
+    label:red, keyword:usa, film:portra, camera:m11, lens:35, iso:>800, aperture:<2.8, shutter:1/250, date:2026-09, \
+    imported:30d, title:…, name:…, type:dng, developed. Quotes keep words together; a minus leaves out.
+    """
+
+    static func periodTitle(_ period: String) -> String {
+        if period.hasPrefix("last:") { return "Last \(period.dropFirst(5)) Days" }
+        let parts = period.split(separator: "-")
+        guard parts.count > 1, let start = SmartRule.period(period)?.start else { return period }
+        return parts.count == 2 ? start.formatted(.dateTime.month(.abbreviated).year().locale(Locale(identifier: "en_GB")))
+            : start.formatted(.dateTime.day().month(.abbreviated).year().locale(Locale(identifier: "en_GB")))
+    }
+
+    private var separator: some View { Divider().frame(height: 16).overlay(Color.white.opacity(0.15)).padding(.horizontal, 4) }
+
+    @ViewBuilder private func choice(_ title: String, on: Bool, _ action: @escaping () -> Void) -> some View {
+        Button(action: action) { if on { Label(title, systemImage: "checkmark") } else { Text(title) } }
+    }
+
+    @ViewBuilder private func values(_ list: [(name: String, count: Int)], chosen: String?, set: @escaping (String?) -> Void) -> some View {
+        if list.isEmpty { Text("None here") }
+        ForEach(list, id: \.name) { entry in
+            choice("\(entry.name)  \(entry.count)", on: chosen?.caseInsensitiveCompare(entry.name) == .orderedSame) {
+                set(chosen?.caseInsensitiveCompare(entry.name) == .orderedSame ? nil : entry.name)
+            }
+        }
+        if chosen != nil {
+            Divider()
+            Button("Any") { set(nil) }
+        }
+    }
+
+    /// The periods, films, cameras and lenses of what's listed, with their counts.
+    @MainActor struct Facets {
+        var periods = DateTree(years: [])
+        var films: [(name: String, count: Int)] = []
+        var cameras: [(name: String, count: Int)] = []
+        var lenses: [(name: String, count: Int)] = []
+
+        init(model: EditorModel) {
+            let records = model.library.items.filter { $0.url.variantID == nil }.map { model.lab.record(for: $0.url) }
+            periods = DateTree.build(records.compactMap(\.captured))
+            func counted(_ names: [String]) -> [(name: String, count: Int)] {
+                var counts: [String: (name: String, count: Int)] = [:]
+                for name in names where !name.isEmpty {
+                    let key = name.lowercased()
+                    counts[key] = (counts[key]?.name ?? name, (counts[key]?.count ?? 0) + 1)
+                }
+                return counts.values.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+            }
+            // A development is named by its stock's name, not its id.
+            films = counted(records.flatMap { Array(Set([$0.filmLoaded] + $0.filmNames)) })
+            cameras = counted(records.compactMap(\.camera))
+            lenses = counted(records.compactMap(\.lens))
+        }
+    }
+}
+
+/// A menu of the find bar: its title, or the value chosen (then lit).
+private struct FacetMenu<Items: View>: View {
+    let title: String
+    let symbol: String
+    let chosen: String?
+    let help: String
+    @ViewBuilder let items: () -> Items
+
+    var body: some View {
+        Menu { items() } label: {
+            HStack(spacing: 4) {
+                Image(systemName: symbol).font(.system(size: 10.5))
+                Text(chosen ?? title).lineLimit(1).frame(maxWidth: 140)
+            }
+            .font(Theme.caps(12, weight: chosen == nil ? .regular : .semibold))
+            .foregroundStyle(chosen == nil ? Theme.paper : Theme.film)
+            .padding(.horizontal, 10).frame(height: 24)
+            .background(Capsule().fill(chosen == nil ? Color.white.opacity(0.001) : Theme.paper))
+        }
+        .menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden).fixedSize()
+        .help(help)
+    }
+}
+
+private struct FindGlass: ViewModifier {
+    let on: Bool
+    func body(content: Content) -> some View {
+        if on { content.glass(Capsule()) } else { content }
     }
 }

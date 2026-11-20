@@ -78,6 +78,7 @@ extension ProjectStore {
             guard !urls.isEmpty else { return nil }
             guard let holder = target.holder else { return .refused(Self.diskAsItIs) }
             let name = shortName(holder) ?? ""
+            if isSmart(holder) { return .refused(Self.smartByRules(name)) }
             if source == holder { return .refused("Already in “\(name)”") }
             if let source, exists(source), !copying {
                 return DropPlan(operation: .move, verb: "Move", rest: "\(photographs(urls.count)) to “\(name)”",
@@ -103,6 +104,7 @@ extension ProjectStore {
                                 action: .rollFromFolder(path, archive: archiveID, in: id))
             case .roll(let id, let boxID):
                 guard let roll = boxRoll(id, in: boxID)?.roll else { return nil }
+                if roll.isSmart { return .refused(Self.smartByRules(roll.name)) }
                 if count == 0 { return .refused("No photographs in “\(folderName)”") }
                 return DropPlan(operation: .copy, verb: "Copy", rest: "the photographs of “\(folderName)” to “\(roll.name)”",
                                 action: .addFolder(path, to: .roll(id, box: boxID)))
@@ -176,6 +178,8 @@ extension ProjectStore {
     }
 
     static let diskAsItIs = "The disk is shown as it is: drop photographs on a Box or a Roll"
+    /// Qlick Lab: why nothing goes into a Smart Roll by hand.
+    static func smartByRules(_ name: String) -> String { "“\(name)” is a Smart Roll: its rules fill it" }
 
     /// A Box's or a Roll's own name (not its Boxes').
     func shortName(_ holder: Holder) -> String? {

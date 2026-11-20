@@ -22,6 +22,14 @@ struct GridSheet: View {
             VStack(spacing: 0) {
                 if inSheet { SheetToolbar(model: model) } else { SheetSentence(model: model) }
                 SheetGrid(model: model)
+                if model.lab.filterBarVisible {
+                    // Qlick Lab: the search and the period, film, camera and lens, over the foot's filters.
+                    HStack {
+                        LibraryFindBar(model: model, inline: true).fixedSize()
+                        Spacer(minLength: 0)
+                    }
+                    .padding(.horizontal, 18).padding(.top, 6)
+                }
                 SheetFoot(model: model)
             }
             .background(Theme.film)

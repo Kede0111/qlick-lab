@@ -105,16 +105,26 @@ struct LibraryFilter: Codable, Equatable, Sendable {
     var unlabelled = false
     /// Qlick Lab: only the photographs with this keyword.
     var keyword: String?
+    /// Qlick Lab: the search over the sheet (`PhotoQuery`: words and fields such as `iso:>800`).
+    var search = ""
+    /// Qlick Lab: the period they were taken in: `2026`, `2026-09`, `2026-09-19`, or `last:30` (days).
+    var period: String?
+    /// Qlick Lab: only the photographs of this film (loaded or developed on), camera or lens, as their files and cards
+    /// name them.
+    var film: String?
+    var camera: String?
+    var lens: String?
 
     var active: Bool { self != LibraryFilter() }
 
     init(rating: Rating = .any, flags: Set<Flag> = [], editedOnly: Bool = false, labels: Set<ColorLabel> = [], unlabelled: Bool = false,
-         keyword: String? = nil) {
+         keyword: String? = nil, search: String = "", period: String? = nil, film: String? = nil, camera: String? = nil, lens: String? = nil) {
         self.rating = rating; self.flags = flags; self.editedOnly = editedOnly
         self.labels = labels; self.unlabelled = unlabelled; self.keyword = keyword
+        self.search = search; self.period = period; self.film = film; self.camera = camera; self.lens = lens
     }
 
-    private enum CodingKeys: String, CodingKey { case rating, flags, editedOnly, labels, unlabelled, keyword }
+    private enum CodingKeys: String, CodingKey { case rating, flags, editedOnly, labels, unlabelled, keyword, search, period, film, camera, lens }
 
     /// A filter saved before the labels and keywords reads as it was.
     init(from decoder: Decoder) throws {
@@ -125,6 +135,49 @@ struct LibraryFilter: Codable, Equatable, Sendable {
         labels = try container.decodeIfPresent(Set<ColorLabel>.self, forKey: .labels) ?? []
         unlabelled = try container.decodeIfPresent(Bool.self, forKey: .unlabelled) ?? false
         keyword = try container.decodeIfPresent(String.self, forKey: .keyword)
+        search = try container.decodeIfPresent(String.self, forKey: .search) ?? ""
+        period = try container.decodeIfPresent(String.self, forKey: .period)
+        film = try container.decodeIfPresent(String.self, forKey: .film)
+        camera = try container.decodeIfPresent(String.self, forKey: .camera)
+        lens = try container.decodeIfPresent(String.self, forKey: .lens)
+    }
+
+    /// Qlick Lab: what the filter asks of more than the marks (the search, the period, film, camera, lens), as rules
+    /// over each photograph's record (`PhotoRecord`); empty when it asks nothing of them.
+    var recordRules: RuleGroup {
+        var group = PhotoQuery.parse(search, label: LabState.labelWord)
+        if let period {
+            if period.hasPrefix("last:") { group.rules.append(SmartRule(field: .captureDate, op: .inLast, value: String(period.dropFirst(5)))) }
+            else { group.rules.append(SmartRule(field: .captureDate, op: .is, value: period)) }
+        }
+        if let film { group.rules.append(SmartRule(field: .film, op: .is, value: film)) }
+        if let camera { group.rules.append(SmartRule(field: .camera, op: .is, value: camera)) }
+        if let lens { group.rules.append(SmartRule(field: .lens, op: .is, value: lens)) }
+        return group
+    }
+
+    /// Qlick Lab: the filter as a Smart Roll's rules: the marks, then the rest (`recordRules`).
+    var asRules: RuleGroup {
+        var group = recordRules
+        var marks: [SmartRule] = []
+        switch rating {
+        case .any: break
+        case .atLeast(let stars): marks.append(SmartRule(field: .rating, op: .atLeast, value: "\(stars)"))
+        case .unrated: marks.append(SmartRule(field: .rating, op: .is, value: "0"))
+        case .atMost(let stars): marks.append(SmartRule(field: .rating, op: .atMost, value: "\(stars)"))
+        case .exactly(let stars): marks.append(SmartRule(field: .rating, op: .is, value: "\(stars)"))
+        }
+        let flagRules = flags.sorted { $0.rawValue < $1.rawValue }.map { flag in
+            SmartRule(field: .flag, op: .is, value: flag == .unflagged ? "none" : flag.rawValue)
+        }
+        if flagRules.count == 1 { marks += flagRules } else if !flagRules.isEmpty { group.groups.insert(RuleGroup(match: .any, rules: flagRules), at: 0) }
+        var labelRules = labels.sorted { $0.rank < $1.rank }.map { SmartRule(field: .label, op: .is, value: $0.rawValue) }
+        if unlabelled { labelRules.append(SmartRule(field: .label, op: .is, value: "none")) }
+        if labelRules.count == 1 { marks += labelRules } else if !labelRules.isEmpty { group.groups.insert(RuleGroup(match: .any, rules: labelRules), at: 0) }
+        if let keyword { marks.append(SmartRule(field: .keyword, op: .is, value: keyword)) }
+        if editedOnly { marks.append(SmartRule(field: .developed, op: .is, value: "yes")) }
+        group.rules = marks + group.rules
+        return group
     }
 
     func includes(_ summary: LibrarySummary) -> Bool {
@@ -331,8 +384,16 @@ struct LibraryFilter: Codable, Equatable, Sendable {
     func shown(current: URL?) -> [PhotoFile] {
         let items = items
         guard filter.active else { return items }
-        return items.filter { $0.url == current || filter.includes(summary(for: $0.url)) }
+        // Qlick Lab: the search, the period, film, camera and lens ask the photograph's record (`LabState.record`).
+        let rules = filter.recordRules
+        let records = rules.isEmpty ? nil : recordFilter
+        return items.filter { item in
+            item.url == current || (filter.includes(summary(for: item.url)) && (records?(item.url, rules) ?? true))
+        }
     }
+
+    /// Qlick Lab: whether a photograph meets rules over its record (its file's facts, its folder's card…).
+    @ObservationIgnored var recordFilter: ((URL, RuleGroup) -> Bool)?
 
     /// An active filter is waiting for sidecars still being read.
     var filtering: Bool { filter.active && (loading || !summariesLoaded) }

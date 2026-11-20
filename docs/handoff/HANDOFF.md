@@ -275,16 +275,42 @@ Steps (one local commit each, tests, `scripts/drive.sh` screenshots checked, Dev
   reserved). Import's grid has no labels (its own marks only; label keys beep there). Automation: `label`, `keyword
   add|remove|set|ask|editset`, `keywordset`, `words`, `labelfilter`, `keywordfilter`, `title`, `sort`.
   Tests: 531 (`PhotoWordsTests`).
-- [ ] R5 All Photographs, Last Import, Picks, By Date, field search, Smart Rolls, New Rolls by Day, filters, sorts.
+- [x] R5 Finding photographs (HASH): the catalogue's index (`Library/CatalogIndex.swift`): every photograph of every
+  Archive (removed ones aside), its file's facts (`FrameFacts`) and sidecar (marks, words, films, recipe, edit date),
+  read off the main thread, several at once, cached in Caches/<bundle>/Catalog Index/<hash of the catalogue>.json, read
+  again on any change (Archives, FSEvents trees, removed, the marks on screen) but only the files whose date/size
+  changed; the marks given are laid over it at once (`adopt`). Sidebar's fixed entries (`FindingSection`): All
+  Photographs, Last Import (`last-import.json` in the catalogue, written by both imports; before it, the ledger's last
+  run), Picks, By Date (year › month › day with counts, `DateTree`); lists `LabView.all/.lastImport/.picks/.day/.found`
+  (`Views/all`, `…/date/2026-09-19`). Field search (`Library/PhotoQuery.swift`, `PhotoQuery.parse` → `RuleGroup`):
+  `rating:>=3 pick reject label:red film:portra camera:m11 lens:35 iso:>800 aperture:<2.8 shutter:1/250 date:2026-09
+  imported:30d keyword:usa title:… name:… type:dng developed`, plain words, quotes, `-` to leave out, `a..b` ranges,
+  several marks = either; a label's own name works. Used by the find bar (`LibraryFindBar`, over the sheet's filter bar
+  and the grid's foot: search, Period, Film, Camera, Lens, Save as Smart Roll…; `LibraryFilter.search/period/film/
+  camera/lens`, `recordRules`, `asRules`) and the library page (fields show the folders holding matches, "N photographs
+  match" → Show on the Contact Sheet / Save as Smart Roll). Smart Rolls: `BoxRoll.rules` in boxes.json, all/any/none,
+  nested groups; fields rating, flag, label, keyword, film loaded (card), film developed, recipe, camera, lens, focal,
+  aperture, shutter, ISO, capture/import/edit dates, name, type, orientation, developed, title, caption, Archive, Folder,
+  any text. Rule editor sheet (`Library/SmartRollEditor.swift`, live count); + › New Smart Roll… on the Boxes heading
+  (into the Box “Smart Rolls”, made if needed) and in a Box's + and menu; Edit Rules… on the row; distinct icon. A Smart
+  Roll refuses drops/paste/Add to Box, has no Remove from (openHolder is nil), and a Box shows its Smart Rolls'
+  photographs. Recipes: the name of the recipe applied last is now kept in the sidecar (`variants[].recipe`). New Rolls
+  by Day on Archive / Folder / Box menus (a Box named after it, one Roll per capture day, “Undated” if any). Sorts: Import
+  Date (ledger, else when the Folder joined), Edit Date (sidecar's date). Automation: `fixed`, `day`, `unfold date`,
+  `search`, `findfilter`, `savesmart`, `libsearch`, `found`, `smartroll new|ask|query|edit|open|done|cancel`,
+  `rollsbyday`, `indexinfo`. Tests: TESTS (`PhotoQueryTests`).
+  Left / risky: an open computed list (Picks, a Smart Roll) follows the index when files change, not each mark given
+  (reopen it); a photograph outside every Archive is searched by its file's facts as they're read; the first reading of
+  a large catalogue takes a while (counts show once it's done).
 - [ ] R6 Import options above.
 - [ ] R7 Manual order polish, burst stacks, `[` `]`, auto advance.
 
 ## Current state
 
-- Phase: `feature/import-library` holds architecture waves 1–3, 0.1.5, 0.2, 0.3 and 0.4's R1–R4 (local, nothing pushed,
-  `main` untouched). Swift tests: 531 (24 skipped), all pass; the Rust side wasn't changed. Qlick Lab Dev is built
+- Phase: `feature/import-library` holds architecture waves 1–3, 0.1.5, 0.2, 0.3 and 0.4's R1–R5 (local, nothing pushed,
+  `main` untouched). Swift tests: TESTS (24 skipped), all pass; the Rust side wasn't changed. Qlick Lab Dev is built
   from it (`dist/qlick-lab-dev/Qlick Lab Dev.app`).
-- Next: the library redesign 0.4 above, R5 → R7, on `feature/import-library`. Merge into `main` and push only when
+- Next: the library redesign 0.4 above, R6 → R7, on `feature/import-library`. Merge into `main` and push only when
   he says so.
 
 ## Build and test

@@ -158,6 +158,29 @@ final class ImportLedger: @unchecked Sendable {
         return entry.destination
     }
 
+    /// Qlick Lab: when each photograph still known was imported, by its path (the catalogue's index).
+    func importDates() -> [String: Date] {
+        lock.withLock {
+            var dates: [String: Date] = [:]
+            for entry in entries.values { dates[URL(fileURLWithPath: entry.destination).standardizedFileURL.path] = entry.imported }
+            return dates
+        }
+    }
+
+    /// Qlick Lab: the photographs of the last import, as the ledger remembers it: the last file copied and those copied
+    /// before it without a pause of more than half an hour. For catalogues whose last import was before `LastImportFile`.
+    func lastImport() -> [String] {
+        let sorted = lock.withLock { entries.values.sorted { $0.imported > $1.imported } }
+        guard var previous = sorted.first?.imported else { return [] }
+        var paths: [String] = []
+        for entry in sorted {
+            guard previous.timeIntervalSince(entry.imported) < 1800 else { break }
+            paths.append(URL(fileURLWithPath: entry.destination).standardizedFileURL.path)
+            previous = entry.imported
+        }
+        return paths.reversed()
+    }
+
     /// Qlick Lab: forgets what was imported into `folders` (their paths), so a later import takes it again.
     func forget(folders: Set<String>) {
         guard !folders.isEmpty else { return }

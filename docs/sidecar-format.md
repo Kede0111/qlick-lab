@@ -54,6 +54,7 @@ keeps sync services quiet). At most 1 MiB; a larger file is not a Qlick Lab side
 | `variants[].label` | Colour label: `red`, `yellow`, `green`, `blue` or `purple`; absent without one. A word this version doesn't know reads as none and is kept. |
 | `variants[].keywords` | Array of strings, each once (letter case aside); absent when empty. |
 | `variants[].title`, `variants[].caption` | Strings; absent when empty. |
+| `variants[].recipe` | The name of the recipe applied last (what Smart Rolls and the search's `recipe:` find); absent when none was. |
 
 `edits` holds `film` and `paper` always, then **only what differs from the defaults table**: `params` (the engine's
 parameters, nested as the engine names them), `crop`, `border`, and `brightnessMatch` (`ev`, `highlightLimited`,
@@ -85,7 +86,10 @@ namespace `http://ns.jackfrom.be/qlicklab/1.0/` (`Film`, `Paper`, `WhiteBalance`
   `createdAt`, `rolls` = its Folders, each `{id, name, folder, bookmark, film, camera, notes, addedAt}`; the folders
   under them are read from the disk, not stored); `boxes.json`, the Boxes, `{"qlick": {"schema": 1, "boxes": [...]}}`,
   each Box `{id, name, frames, boxes, rolls, createdAt}` (`frames`: photographs' paths; `boxes`: the Boxes inside it,
-  to any depth; `rolls`: `{id, name, frames, createdAt}`); `removed.json`, the photographs removed from the lab
+  to any depth; `rolls`: `{id, name, frames, createdAt}`, and for a Smart Roll `rules`: `{match: all|any|none, rules:
+  [{field, op, value}], groups: [...]}`, its photographs found by them, none kept in `frames`; `Library/PhotoQuery.swift`);
+  `last-import.json`, the photographs of the last import, `{"qlick": {"schema": 1, "date", "photos": [paths]}}`
+  (Last Import; before it, the ledger's last run of files); `removed.json`, the photographs removed from the lab
   (Remove from Qlick Lab: left out of every listing and Box, their files untouched), `{"qlick": {"schema": 1,
   "photos": [paths]}}`, gone when empty (`Library/Remove.swift`); `saved-settings.json` for the import's Saved Settings under
   the top-level key `qlick`; `import-ledger.jsonl`. `Library/Projects.swift`, `Library/Catalogs.swift`.

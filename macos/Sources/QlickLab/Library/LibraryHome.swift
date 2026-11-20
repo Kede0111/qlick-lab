@@ -5,24 +5,26 @@ import SwiftUI
 /// file name. A folder is where it lies; nothing here copies, moves or changes a photograph.
 struct LibraryHome: View {
     let model: EditorModel
-    @State private var query = ""
     @State private var dropping = false
     @FocusState private var searching: Bool
 
     private var lab: LabState { model.lab }
+
+    private var query: String { lab.libraryQuery }
 
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 10) {
                 HStack(spacing: 6) {
                     Image(systemName: "magnifyingglass").font(.system(size: 11)).foregroundStyle(Theme.dim)
-                    TextField("Search Archives, folders, Boxes, films, files…", text: $query)
+                    TextField("Search Archives, folders, films, files, or rating:>=3 camera:m11…", text: Binding(get: { lab.libraryQuery }, set: { lab.libraryQuery = $0 }))
                         .textFieldStyle(.plain).font(.system(size: 12.5)).focused($searching)
                     if !query.isEmpty {
-                        Button { query = "" } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(Theme.dim) }.buttonStyle(.plain)
+                        Button { lab.libraryQuery = "" } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(Theme.dim) }.buttonStyle(.plain)
                     }
                 }
-                .padding(.horizontal, 10).frame(width: 340, height: 28)
+                .padding(.horizontal, 10).frame(width: 400, height: 28)
+                .help(LibraryFindBar.searchHelp)
                 .background(Capsule().fill(Color.white.opacity(0.07)))
                 Spacer()
                 Button { lab.importPanel() } label: { Label("Import a Folder…", systemImage: "square.and.arrow.down") }
@@ -35,21 +37,29 @@ struct LibraryHome: View {
             .background(Color(white: 0.04))
             .overlay(alignment: .bottom) { Rectangle().fill(Color.white.opacity(0.06)).frame(height: 1) }
 
-            let results = LibrarySearch.results(query, projects: lab.projects.projects, stats: lab.projects.stats, stocks: model.films,
-                                                roots: { lab.projects.roots(of: $0) })
-            let boxes = LibrarySearch.boxes(query, in: lab.holderChoicesAll)
+            // Fields (`rating:>=3 film:portra…`) look at the photographs themselves: the folders shown are those
+            // holding photographs that match. Plain words also look at names, films, notes and files, as before.
+            let parsed = PhotoQuery.parse(query, label: LabState.labelWord)
+            let found = parsed.isEmpty ? [] : lab.smartFrames(parsed)
+            let fielded = LibrarySearch.fielded(parsed)
+            let results = fielded
+                ? LibrarySearch.folders(holding: found, projects: lab.projects.projects, roots: { lab.projects.roots(of: $0) })
+                : LibrarySearch.results(query, projects: lab.projects.projects, stats: lab.projects.stats, stocks: model.films,
+                                        roots: { lab.projects.roots(of: $0) })
+            let boxes = fielded ? [] : LibrarySearch.boxes(query, in: lab.holderChoicesAll)
             if lab.projects.projects.isEmpty && lab.projects.boxes.isEmpty {
                 LibraryEmpty(model: model)
-            } else if results.isEmpty && boxes.isEmpty {
+            } else if results.isEmpty && boxes.isEmpty && found.isEmpty {
                 VStack(spacing: 8) {
                     Text("Nothing matches “\(query)”").font(Theme.title(16)).foregroundStyle(Theme.paper)
-                    Text("Search looks at Archive, folder and Box names, the film, the camera, the notes,\nthe films frames were developed on, and file names.")
+                    Text("Search looks at Archive, folder and Box names, the film, the camera, the notes,\nthe films frames were developed on, and file names. Fields look at each photograph:\nrating:>=3  pick  label:red  film:portra  camera:m11  lens:35  iso:>800  date:2026-09  keyword:usa")
                         .font(.system(size: 12)).foregroundStyle(Theme.dim).multilineTextAlignment(.center)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ScrollView(.vertical) {
                     LazyVStack(alignment: .leading, spacing: 34) {
+                        if !found.isEmpty { FoundStrip(model: model, query: query, count: found.count, rules: parsed) }
                         ForEach(results) { result in
                             ProjectSection(model: model, project: result.project, rolls: result.rolls, reasons: result.reasons, whole: query.isEmpty)
                         }
@@ -113,6 +123,29 @@ enum LibrarySearch {
                     return false
                 }
                 if found { rolls.append(roll); if let reason { reasons[roll.id] = reason } }
+            }
+            if !rolls.isEmpty { results.append(Result(project: project, rolls: rolls, reasons: reasons)) }
+        }
+        return results
+    }
+
+    /// Whether a query asks the photographs themselves (a field, a mark, a minus), not only words.
+    static func fielded(_ query: RuleGroup) -> Bool {
+        !query.groups.isEmpty || query.rules.contains { $0.field != .text }
+    }
+
+    /// The Folders on top of each Archive holding photographs among `paths`, each with how many.
+    static func folders(holding paths: [String], projects: [LabProject], roots: (LabProject) -> [URL]) -> [Result] {
+        guard !paths.isEmpty else { return [] }
+        var results: [Result] = []
+        for project in projects {
+            var rolls: [LabRoll] = [], reasons: [UUID: String] = [:]
+            for root in roots(project) {
+                let path = root.standardizedFileURL.path
+                let count = paths.reduce(0) { $0 + ($1.hasPrefix(path + "/") ? 1 : 0) }
+                guard count > 0, let roll = project.rolls.first(where: { URL(fileURLWithPath: $0.folder).standardizedFileURL.path == path }) else { continue }
+                rolls.append(roll)
+                reasons[roll.id] = count == 1 ? "1 photograph matches" : "\(count) photographs match"
             }
             if !rolls.isEmpty { results.append(Result(project: project, rolls: rolls, reasons: reasons)) }
         }
@@ -206,6 +239,29 @@ private struct ProjectSection: View {
         if total > 0 { parts.append(total == 1 ? "1 frame" : "\(total) frames") }
         if picks > 0 { parts.append("\(picks) picked") }
         return parts.joined(separator: " · ")
+    }
+}
+
+/// Over the library's results: how many photographs of the catalogue the search finds, to see them on the contact
+/// sheet or keep the search as a Smart Roll.
+private struct FoundStrip: View {
+    let model: EditorModel
+    let query: String
+    let count: Int
+    let rules: RuleGroup
+    private var lab: LabState { model.lab }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "photo.on.rectangle.angled").font(.system(size: 14)).foregroundStyle(Theme.accent)
+            Text(count == 1 ? "1 photograph matches" : "\(count) photographs match").font(Theme.title(15)).foregroundStyle(Theme.paper)
+            Spacer()
+            Button("Show on the Contact Sheet") { lab.openFound(query) }.buttonStyle(QPrimaryButtonStyle())
+            Button { lab.newSmartRoll(rules: rules, name: query) } label: { Label("Save as Smart Roll…", systemImage: SmartRollEditor.symbol) }
+                .buttonStyle(QPillButtonStyle())
+        }
+        .padding(.horizontal, 16).frame(height: 52)
+        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.white.opacity(0.05)))
     }
 }
 

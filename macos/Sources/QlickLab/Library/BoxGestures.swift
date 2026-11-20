@@ -44,7 +44,7 @@ extension LabState {
         let views = projects.directory.appendingPathComponent("Views", isDirectory: true).standardizedFileURL.path
         guard directory.path.hasPrefix(views + "/") else { return }
         if let open = projects.view(of: directory) {
-            if let holder = open.holder, projects.frames(of: holder).isEmpty { model.closeFolder(); show(.library); return }
+            if let holder = open.holder, !projects.isSmart(holder), projects.frames(of: holder).isEmpty { model.closeFolder(); show(.library); return }
             projects.viewFolder(for: open)
             model.library.refreshNow()
             return
@@ -58,7 +58,7 @@ extension LabState {
         show(.library)
     }
 
-    private func note(_ text: String, _ detail: String) {
+    func note(_ text: String, _ detail: String) {
         model.libraryNote = EditorModel.LibraryNote(text: text, detail: detail, serial: (model.libraryNote?.serial ?? 0) + 1)
     }
 
@@ -144,7 +144,7 @@ extension LabState {
 
     /// ⌘V, or Paste in a Box's menu: the photographs copied are added (never moved: they stay where they were too).
     func pastePhotos(into holder: Holder? = nil) {
-        guard let holder = holder ?? pasteTarget, !copiedPhotos.isEmpty else { return }
+        guard let holder = holder ?? pasteTarget, !copiedPhotos.isEmpty, !projects.isSmart(holder) else { return }
         let inside = Set(projects.frames(of: holder))
         let new = copiedPhotos.filter { !inside.contains($0.standardizedFileURL.path) }
         guard !new.isEmpty else { return note("Already There", "in “\(projects.shortName(holder) ?? "")”") }
@@ -157,6 +157,7 @@ extension LabState {
 
     func add(_ frames: [URL], to holder: Holder) {
         guard !frames.isEmpty else { return }
+        guard !projects.isSmart(holder) else { return note("Not Added", "a Smart Roll is filled by its rules") }
         let inside = Set(projects.frames(of: holder))
         let new = frames.filter { !inside.contains($0.photoFile.standardizedFileURL.path) }
         guard !new.isEmpty else { return note("Already There", "in “\(projects.shortName(holder) ?? "")”") }

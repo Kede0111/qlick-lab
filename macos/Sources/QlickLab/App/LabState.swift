@@ -124,6 +124,19 @@ struct SheetOptions: Codable, Equatable, Sendable {
     var copiedPhotos: [URL] = []
     /// The undo target of the Boxes' and Archives' changes (`undoable`).
     @ObservationIgnored let libraryEdits = LibraryEditsUndoTarget()
+    /// Qlick Lab: every photograph of the catalogue, indexed: All Photographs, Picks, By Date, Smart Rolls, the search.
+    let catalog = CatalogIndex()
+    /// What's worked out from the index until it changes (`FindingCache`).
+    @ObservationIgnored var finding = FindingCache()
+    @ObservationIgnored var catalogDirectory: String?
+    /// Moves when an import ends, for Last Import.
+    var lastImportStamp = 0
+    /// The Smart Roll being made or changed in the rule editor.
+    var smartRollDraft: SmartRollDraft?
+    /// The library's search whose photographs are open on the sheet (`LabView.found`).
+    var foundQuery = ""
+    /// The library page's search, kept while the lab is open.
+    var libraryQuery = ""
 
     private(set) var workspace = Workspace.develop
     /// The adjustments float over the photograph on glass, instead of in a column beside it.
@@ -225,6 +238,7 @@ struct SheetOptions: Codable, Equatable, Sendable {
         if NSClassFromString("XCTestCase") == nil { projects.folders.start() }
         model.canvasScale.contextMenu = { [weak self] point in self?.developCommands.menu(at: point) }
         projects.removedChanged = { [weak self] in self?.followRemoved($0) }
+        setUpFinding()
     }
 
     // MARK: Rooms
@@ -262,8 +276,11 @@ struct SheetOptions: Codable, Equatable, Sendable {
     /// The list open on the sheet, if one is: a whole Archive, a Folder with those under it, a Box, a Roll.
     var openView: LabView? { projects.view(of: model.library.directory) }
 
-    /// The Box or Roll open on the sheet.
-    var openHolder: Holder? { openView?.holder }
+    /// The Box or Roll open on the sheet; a Smart Roll is none (its rules fill it, not the hand).
+    var openHolder: Holder? {
+        guard let holder = openView?.holder, !projects.isSmart(holder) else { return nil }
+        return holder
+    }
 
     /// The Folder being worked on, with its Archive: the folder open (or the Folder whose list is open), as the lab
     /// knows it (`ProjectStore.folder`).
@@ -310,6 +327,8 @@ struct SheetOptions: Codable, Equatable, Sendable {
             folder = path.map { Crumb(text: $0.name, target: .view(.box($0.id))) }
         } else if case .roll(let id, let boxID)? = view, let path = projects.boxPath(boxID), let roll = path.last?.rolls.first(where: { $0.id == id }) {
             folder = path.map { Crumb(text: $0.name, target: .view(.box($0.id))) } + [Crumb(text: roll.name, target: .view(.roll(id, box: boxID)))]
+        } else if let view, let fixed = fixedCrumbs(view) {
+            folder = fixed
         } else if let directory = model.library.directory, !PhotoFolder.isList(directory) {
             folder = [Crumb(text: directory.lastPathComponent)]
         }
@@ -449,7 +468,20 @@ struct SheetOptions: Codable, Equatable, Sendable {
         case .box, .roll:
             guard let holder = view.holder, let name = projects.name(of: holder) else { return }
             guard !projects.frames(of: holder).isEmpty else {
-                model.error = "“\(name)” is empty. Put photographs in it from a contact sheet: right-click › Add to Box."
+                model.error = projects.isSmart(holder)
+                    ? (catalog.ready ? "No photographs meet the rules of “\(projects.shortName(holder) ?? name)” yet." : "The lab is still reading the catalog's photographs. Try again in a moment.")
+                    : "“\(name)” is empty. Put photographs in it from a contact sheet: right-click › Add to Box."
+                return
+            }
+        case .all:
+            guard projects.projects.contains(where: { !$0.rolls.isEmpty }) else { return show(.library) }
+        case .lastImport, .picks, .day, .found:
+            guard !listedFrames(view).isEmpty else {
+                model.error = !catalog.ready && view != .lastImport ? "The lab is still reading the catalog's photographs. Try again in a moment."
+                    : view == .lastImport ? "Nothing has been imported into this catalog yet."
+                    : view == .picks ? "No photographs are picked yet. Ring them with the pencil on the contact sheet."
+                    : view == .found ? "No photograph matches “\(foundQuery)”."
+                    : "No photographs were taken then."
                 return
             }
         }
@@ -595,7 +627,9 @@ struct SheetOptions: Codable, Equatable, Sendable {
             }
         }
         set {
-            var filter = LibraryFilter()
+            // The search, the period, film, camera and lens stay: they're not marks.
+            let old = model.library.filter
+            var filter = LibraryFilter(search: old.search, period: old.period, film: old.film, camera: old.camera, lens: old.lens)
             switch newValue {
             case .all, .other: break
             case .picks: filter.flags = [.pick]

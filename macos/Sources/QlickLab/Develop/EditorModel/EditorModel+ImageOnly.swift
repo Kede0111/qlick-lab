@@ -275,6 +275,12 @@ extension EditorModel {
     func notePresetApplied(_ preset: URL, to item: URL? = nil) {
         guard let item = item ?? sourceItem else { return }
         appliedPresets[item] = preset
+        // Qlick Lab: its name goes in the sidecar too, so Smart Rolls and the search find the photographs a recipe was
+        // applied to, later and in other folders.
+        guard sidecarsEnabled, let sidecars, sidecars.writes, PhotoLibrary.canWrite(beside: item.photoFile) else { return }
+        sidecars.enqueue(SidecarPatch(variant: item.variantID ?? SidecarRestore.newVariantID(), primary: item.variantID == nil,
+                                      recipe: .some(preset.deletingPathExtension().lastPathComponent),
+                                      defaultsVersion: SidecarDefaults.latest, app: Self.appVersion), for: item.photoFile)
     }
 
     func forgetApplied(_ preset: URL) {

@@ -178,8 +178,71 @@ import AppKit
             case "archive": if let archive = lab.projects.project(named: argument) { lab.sidebarFold.unfold(.archive(archive.id)) }
             case "folder": lab.sidebarFold.unfold(.folder(URL(fileURLWithPath: argument, isDirectory: true).standardizedFileURL.path))
             case "box": if let box = box(argument.split(separator: "|").map(String.init)) { lab.sidebarFold.unfold(.box(box.id)) }
+            case "date": lab.sidebarFold.unfold(.date(argument))
             default: break
             }
+        // Qlick Lab, R5. fixed all|lastimport|picks | day <2026-09-19>: the sidebar's fixed entries.
+        case "fixed":
+            switch rest {
+            case "all": lab.open(.all)
+            case "lastimport": lab.open(.lastImport)
+            case "picks": lab.open(.picks)
+            default: break
+            }
+        case "day": lab.open(.day(rest))
+        // search <query>: the find bar's search; findfilter period|film|camera|lens <value|off>; savesmart: Save as Smart Roll….
+        case "search": model.library.filter.search = rest
+        case "findfilter":
+            let value = words.dropFirst().joined(separator: " ")
+            let set: String? = value == "off" || value.isEmpty ? nil : value
+            switch words.first {
+            case "period": model.library.filter.period = set
+            case "film": model.library.filter.film = set
+            case "camera": model.library.filter.camera = set
+            case "lens": model.library.filter.lens = set
+            default: break
+            }
+        case "savesmart": lab.saveFilterAsSmartRoll()
+        // libsearch <query>: the library page's search. found <query>: its photographs on the sheet.
+        case "libsearch": lab.libraryQuery = rest
+        case "found": lab.openFound(rest)
+        // smartroll new <box path>|<name>|<query> | ask [<box path>] | query <query> | edit <box path>|<roll> | open … | done | cancel
+        case "smartroll":
+            let fields = words.dropFirst().joined(separator: " ").split(separator: "|", omittingEmptySubsequences: false).map(String.init)
+            switch words.first {
+            case "new":
+                guard fields.count >= 3 else { break }
+                let boxPath = fields.dropLast(2).flatMap { $0.split(separator: "/").map(String.init) }
+                guard let box = box(boxPath) else { break }
+                lab.projects.createSmartRoll(named: fields[fields.count - 2], in: box.id, rules: PhotoQuery.parse(fields.last!, label: LabState.labelWord))
+            case "ask": lab.newSmartRoll(in: fields.first.flatMap { $0.isEmpty ? nil : box($0.split(separator: "/").map(String.init))?.id })
+            case "query":
+                let query = words.dropFirst().joined(separator: " ")
+                lab.newSmartRoll(rules: PhotoQuery.parse(query, label: LabState.labelWord), name: query)
+            case "edit", "open":
+                guard fields.count >= 2, let box = box(fields.dropLast().flatMap { $0.split(separator: "/").map(String.init) }),
+                      let roll = box.rolls.first(where: { $0.name == fields.last! }) else { break }
+                if words.first == "edit" { lab.editSmartRoll(roll.id, in: box.id) } else { lab.open(.roll(roll.id, box: box.id)) }
+            case "done": if let draft = lab.smartRollDraft { lab.finishSmartRoll(draft) }
+            case "cancel": lab.smartRollDraft = nil
+            default: break
+            }
+        // rollsbyday archive:<name> | folder:<path> | box:<path>: New Rolls by Day.
+        case "rollsbyday":
+            switch sidebarTarget(rest) {
+            case .archive(let id)?: lab.newRollsByDay(for: .archive(id))
+            case .folder(let path, let archive)?: lab.newRollsByDay(for: .folder(path, archive: archive))
+            case .box(let id)?: lab.newRollsByDay(for: .box(id))
+            default: note("rollsbyday: \(rest)")
+            }
+        // indexinfo <file>: what the catalogue's index holds, for a check.
+        case "indexinfo":
+            let tree = lab.dateTree.years.map { "\($0.key) \($0.count): " + $0.children.map { "\($0.key)=\($0.count)" }.joined(separator: " ") }
+            let lines = ["photos \(lab.catalog.order.count) ready \(lab.catalog.ready) building \(lab.catalog.building)",
+                         "picks \(lab.picksCount ?? -1) lastimport \(lab.lastImportCount)"] + tree
+                + lab.allRecords().prefix(5).map { "\($0.name) \($0.camera ?? "-") \($0.lens ?? "-") iso \($0.iso ?? 0) f \($0.aperture ?? 0) \($0.captured.map { "\($0)" } ?? "-") film \($0.filmLoaded) dev \($0.filmNames)" }
+                + ["shown \(model.shownPhotos.count) of \(model.library.items.count)"]
+            try? lines.joined(separator: "\n").write(toFile: rest.isEmpty ? "/tmp/qlick-index.txt" : rest, atomically: true, encoding: .utf8)
         // drop <what> ; <row> [; alt show at=0.2]: the drop the sidebar's delegate makes (`LabState.perform`), without
         // the mouse. <what>: sel (the photographs selected, from the Box or Roll open), box:<path>, roll:<box path>|<roll>,
         // archive:<name>, folder:<path>, finder. <row>: box:, roll:, archive:, folder:. `show` only shows the label and

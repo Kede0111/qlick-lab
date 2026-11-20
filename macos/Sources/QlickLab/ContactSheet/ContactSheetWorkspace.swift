@@ -24,7 +24,11 @@ struct ContactSheetWorkspace: View {
                 }
             }
             if library.directory != nil, lab.filterBarVisible {
-                LibraryFilterBar(model: model).padding(.bottom, 14)
+                VStack(spacing: 8) {
+                    LibraryFindBar(model: model)
+                    LibraryFilterBar(model: model)
+                }
+                .padding(.bottom, 14)
             }
             if lab.sheet.showInfo, lab.loupe == nil, let current = model.selection.current {
                 FrameInfoPanel(model: model, item: current)

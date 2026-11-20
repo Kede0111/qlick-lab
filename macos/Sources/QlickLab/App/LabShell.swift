@@ -24,6 +24,9 @@ struct WorkspaceOverlay: View {
         .sheet(item: Binding(get: { lab.naming }, set: { lab.naming = $0 })) { naming in
             NamingSheet(lab: lab, naming: naming)
         }
+        .sheet(item: Binding(get: { lab.smartRollDraft }, set: { lab.smartRollDraft = $0 })) { draft in
+            SmartRollEditor(lab: lab, draft: draft)
+        }
         .sheet(isPresented: Binding(get: { lab.printing }, set: { lab.printing = $0 })) {
             SheetPrintDialog(model: model)
         }

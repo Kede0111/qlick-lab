@@ -290,6 +290,8 @@ struct SidecarPatch: Equatable, Sendable {
     /// The new title and caption (empty: none); nil leaves them.
     var title: String? = nil
     var caption: String? = nil
+    /// Qlick Lab: the name of the recipe applied last (`.some(nil)` forgets it); nil leaves it.
+    var recipe: String?? = nil
     /// What the writer's own version knows of each stored group (`params`,
     /// `crop`, `border`): the defaults table, and for the parameters also the
     /// engine's defaults. Stored values outside them are a newer version's
@@ -308,7 +310,7 @@ struct SidecarPatch: Equatable, Sendable {
     /// Whether the change gives a variant something to hold.
     private var adds: Bool {
         (edits ?? nil) != nil || (rating ?? 0) > 0 || (flag ?? nil) != nil || (label ?? nil) != nil || !(keywords ?? []).isEmpty
-            || !(title ?? "").isEmpty || !(caption ?? "").isEmpty
+            || !(title ?? "").isEmpty || !(caption ?? "").isEmpty || (recipe ?? nil) != nil
     }
 
     /// The file after this change, or nil to remove it: a single variant with
@@ -359,6 +361,7 @@ struct SidecarPatch: Equatable, Sendable {
             let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
             fields[key] = trimmed.isEmpty ? nil : .string(trimmed)
         }
+        if let recipe { fields["recipe"] = recipe.map { .string($0) } }
         variants[index!] = .object(fields)
         top["variants"] = .array(variants)
         let plain = variants.count == 1 && Set(fields.keys) == ["id"] && Set(top.keys).isSubset(of: ["qlick", "app", "defaultsVersion", "variants"])

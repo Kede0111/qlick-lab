@@ -30,6 +30,11 @@ struct BoxRoll: Codable, Identifiable, Hashable, Sendable {
     var name: String
     var frames: [String] = []
     var createdAt = Date()
+    /// Qlick Lab: a Smart Roll's rules. Its photographs are those of the catalogue that meet them, found when it's
+    /// shown (`ProjectStore.smartFrames`); none are kept in `frames`.
+    var rules: RuleGroup? = nil
+
+    var isSmart: Bool { rules != nil }
 }
 
 /// A Box: photographs chosen from any Archive (a portfolio, a trip, an edit for a client), held directly, in its Rolls,
@@ -153,6 +158,14 @@ enum LabView: Hashable, Sendable {
     case folder(String, archive: UUID)
     case box(UUID)
     case roll(UUID, box: UUID)
+    /// Qlick Lab: the sidebar's fixed entries: every photograph of every Archive, the last import's, the picks, and
+    /// those of a year, month or day (`2026`, `2026-09`, `2026-09-19`).
+    case all
+    case lastImport
+    case picks
+    case day(String)
+    /// The photographs the library's search found (`LabState.foundQuery`).
+    case found
 
     var holder: Holder? {
         switch self {
@@ -217,7 +230,7 @@ struct RollStats: Equatable, Sendable {
         decoder.dateDecodingStrategy = .iso8601
         // The folders of links whole projects were shown through before 0.3: lists need none now. Only the links go.
         try? FileManager.default.removeItem(at: directory.appendingPathComponent("Views", isDirectory: true))
-        projects = files.filter { $0.pathExtension == "json" && ![SavedImportSettings.fileName, BoxesFile.fileName, RemovedFile.fileName].contains($0.lastPathComponent) }
+        projects = files.filter { $0.pathExtension == "json" && ![SavedImportSettings.fileName, BoxesFile.fileName, RemovedFile.fileName, LastImportFile.fileName].contains($0.lastPathComponent) }
             .compactMap { try? decoder.decode(LabProject.self, from: Data(contentsOf: $0)) }
             // A newer schema is left alone, never written over.
             .filter { $0.schema <= LabProject.schema }
@@ -389,11 +402,49 @@ struct RollStats: Equatable, Sendable {
 
     func exists(_ holder: Holder) -> Bool { name(of: holder) != nil }
 
-    /// What a holder shows: a Box's own photographs and everything inside it, or a Roll's.
+    /// What a holder shows: a Box's own photographs and everything inside it (its Smart Rolls' too), or a Roll's.
     func frames(of holder: Holder) -> [String] {
         switch holder {
-        case .box(let id): return box(id)?.allFrames ?? []
-        case .roll(let id, let boxID): return boxRoll(id, in: boxID)?.roll.frames ?? []
+        case .box(let id):
+            guard let box = box(id) else { return [] }
+            let smart = box.all.flatMap(\.rolls).compactMap(\.rules)
+            guard !smart.isEmpty, let smartFrames else { return box.allFrames }
+            var seen: Set<String> = []
+            return (box.allFrames + smart.flatMap { smartFrames($0) }).filter { seen.insert($0).inserted }
+        case .roll(let id, let boxID):
+            guard let roll = boxRoll(id, in: boxID)?.roll else { return [] }
+            if let rules = roll.rules { return smartFrames?(rules) ?? [] }
+            return roll.frames
+        }
+    }
+
+    /// Qlick Lab: the photographs of the catalogue that meet a Smart Roll's rules, by path (`LabState`, from the index).
+    @ObservationIgnored var smartFrames: ((RuleGroup) -> [String])?
+    /// Qlick Lab: the photographs of Last Import, Picks and a day, by path (`LabState`, from the index).
+    @ObservationIgnored var listedFrames: ((LabView) -> [String])?
+
+    /// Whether the holder is a Smart Roll: filled by its rules, never by hand.
+    func isSmart(_ holder: Holder?) -> Bool {
+        guard case .roll(let id, let box)? = holder else { return false }
+        return boxRoll(id, in: box)?.roll.isSmart == true
+    }
+
+    /// A new Smart Roll in a Box.
+    @discardableResult func createSmartRoll(named name: String, in boxID: UUID, rules: RuleGroup) -> BoxRoll? {
+        guard let box = box(boxID) else { return nil }
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let roll = BoxRoll(name: Self.unique(trimmed.isEmpty ? "Smart Roll" : trimmed, taken: box.rolls.map(\.name)), rules: rules)
+        changeBox(boxID) { $0.rolls.append(roll) }
+        return roll
+    }
+
+    /// A Smart Roll's rules and name, changed.
+    func changeSmartRoll(_ id: UUID, in boxID: UUID, name: String, rules: RuleGroup) {
+        let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        changeBox(boxID) { box in
+            guard let index = box.rolls.firstIndex(where: { $0.id == id }), box.rolls[index].isSmart else { return }
+            box.rolls[index].rules = rules
+            if !name.isEmpty { box.rolls[index].name = name }
         }
     }
 
@@ -755,6 +806,20 @@ struct RollStats: Equatable, Sendable {
         case .roll(let id, let box):
             folder = views.appendingPathComponent("roll/\(box.uuidString)/\(id.uuidString)", isDirectory: true)
             sources = frames(of: .roll(id, box: box)).map { URL(fileURLWithPath: $0, isDirectory: false) }
+        case .all:
+            folder = views.appendingPathComponent("all", isDirectory: true)
+            var seen: Set<String> = []
+            sources = projects.flatMap(photoFolders(of:)).filter { seen.insert($0.standardizedFileURL.path).inserted }
+        case .lastImport, .picks, .day, .found:
+            let name: String = switch view {
+            case .found: "found"
+            case .lastImport: "last-import"
+            case .picks: "picks"
+            case .day(let key): "date/\(key)"
+            default: ""
+            }
+            folder = views.appendingPathComponent(name, isDirectory: true)
+            sources = (listedFrames?(view) ?? []).map { URL(fileURLWithPath: $0, isDirectory: false) }
         }
         PhotoFolder.register(list: folder, sources: sources)
         return folder
@@ -771,6 +836,11 @@ struct RollStats: Equatable, Sendable {
         guard path.hasPrefix(base + "/") else { return nil }
         let parts = path.dropFirst(base.count + 1).split(separator: "/").map(String.init)
         switch parts.first {
+        case "all" where parts.count == 1: return .all
+        case "last-import" where parts.count == 1: return .lastImport
+        case "picks" where parts.count == 1: return .picks
+        case "found" where parts.count == 1: return .found
+        case "date" where parts.count == 2: return SmartRule.period(parts[1]) != nil ? .day(parts[1]) : nil
         case "box" where parts.count == 2:
             return UUID(uuidString: parts[1]).flatMap { box($0) != nil ? .box($0) : nil }
         case "roll" where parts.count == 3:

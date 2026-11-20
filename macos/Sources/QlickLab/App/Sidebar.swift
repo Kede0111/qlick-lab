@@ -33,11 +33,11 @@ struct LabSidebar: View {
             .padding(.horizontal, 10)
             .padding(.top, 6)
 
-            // Room is kept here for the fixed entries (All Photographs, Last Import…), to come.
             // One drop target for the whole list (`SidebarDropDelegate`): photographs on a Box or a Roll, rows among
             // rows, a folder on a Box, folders from the Finder; the label over the list says what a drop does.
             ScrollView(.vertical) {
                 VStack(alignment: .leading, spacing: 1) {
+                    FindingSection(model: model).padding(.top, 12)
                     ArchivesSection(model: model)
                     BoxesSection(model: model)
                 }

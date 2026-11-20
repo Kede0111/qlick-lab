@@ -24,7 +24,24 @@ extension LabState {
             heading.subtitle = (["Box"] + path.dropLast().map(\.name)).joined(separator: "  ·  ")
         } else if case .roll(let id, let box)? = view, let path = projects.boxPath(box), let roll = path.last?.rolls.first(where: { $0.id == id }) {
             heading.title = roll.name
-            heading.subtitle = (["Roll"] + path.map(\.name)).joined(separator: "  ·  ")
+            heading.subtitle = ([roll.isSmart ? "Smart Roll" : "Roll"] + path.map(\.name)).joined(separator: "  ·  ")
+        } else if let view, let title = Self.fixedTitle(view) {
+            heading.title = title
+            switch view {
+            case .day(let key):
+                heading.title = SmartRule.period(key).map { start in
+                    switch key.split(separator: "-").count {
+                    case 1: return key
+                    case 2: return start.start.formatted(.dateTime.month(.wide).year().locale(Locale(identifier: "en_GB")))
+                    default: return start.start.formatted(.dateTime.weekday(.wide).day().month(.wide).year().locale(Locale(identifier: "en_GB")))
+                    }
+                } ?? key
+                heading.subtitle = "By Date"
+            case .lastImport: heading.subtitle = lastImportDate.map { "Imported " + $0.formatted(.dateTime.day().month(.wide).year().hour().minute().locale(Locale(identifier: "en_GB"))) } ?? "The last import"
+            case .picks: heading.subtitle = "Every picked photograph of every Archive"
+            case .found: heading.title = "“\(foundQuery)”"; heading.subtitle = "Found in the catalog"
+            default: heading.subtitle = "Every photograph of every Archive"
+            }
         }
         return heading
     }
@@ -85,7 +102,7 @@ extension LabState {
         let menu = NSMenu(title: "Add to Box")
         menu.appearance = NSAppearance(named: .darkAqua)
         let open = openHolder
-        for choice in holderChoicesAll {
+        for choice in holderChoicesAll where !projects.isSmart(choice.holder) {
             let name = projects.shortName(choice.holder) ?? choice.name
             let item = ClosureMenuItem(name) { [weak self] in self?.add(frames, to: choice.holder) }
             item.indentationLevel = min(choice.depth, 15)
@@ -131,7 +148,7 @@ struct BoxMenuItems: View {
 
     var body: some View {
         let several = frames.count > 1 ? " (\(frames.count) photos)" : ""
-        let choices = lab.holderChoicesAll
+        let choices = lab.holderChoicesAll.filter { !lab.projects.isSmart($0.holder) }
         let open = lab.openHolder
         Menu("Add to Box" + several) {
             ForEach(Array(choices.enumerated()), id: \.offset) { _, choice in
@@ -161,6 +178,8 @@ struct SidebarFold: Equatable {
         case archive(UUID)
         case folder(String)
         case box(UUID)
+        /// Qlick Lab: By Date (empty), a year or a month.
+        case date(String)
     }
     private(set) var opened: Set<Row> = []
     private(set) var folded: Set<Row> = []

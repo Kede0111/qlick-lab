@@ -32,6 +32,7 @@ struct ArchivesSection: View {
                     Button("Show All Its Photographs") { lab.open(.archive(archive.id)) }
                     Button("Add a Folder…") { lab.importPanel(into: archive.id) }
                     Button("Rename…") { lab.naming = .init(kind: .renameArchive(archive.id), name: archive.name) }
+                    Button("New Rolls by Day") { lab.newRollsByDay(for: .archive(archive.id)) }
                     let removed = lab.projects.removed(in: archive).count
                     if removed > 0 {
                         Divider()
@@ -112,6 +113,7 @@ struct ArchivesSection: View {
             if let roll = lab.projects.folderEntry(path, in: archive.id) { editing = (archive.id, roll) }
         }
         Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([url]) }
+        Button("New Rolls by Day") { lab.newRollsByDay(for: .folder(path, archive: archive.id)) }
         if let entry, lab.projects.roots(of: archive).contains(url) {
             RollMoveMenu(lab: lab, project: archive, roll: entry)
             Divider()
@@ -126,7 +128,10 @@ struct BoxesSection: View {
     private var lab: LabState { model.lab }
 
     var body: some View {
-        SidebarHeading(title: "Boxes", help: "New Box") { lab.newBox() }
+        SidebarMenuHeading(title: "Boxes", help: "New Box or Smart Roll") {
+            Button("New Box…") { lab.newBox() }
+            Button("New Smart Roll…") { lab.newSmartRoll() }
+        }
         if lab.projects.boxes.isEmpty {
             SidebarHint("Gather photographs from any Archive: make a Box with +, then drag photographs onto it.")
         }
@@ -145,13 +150,14 @@ struct BoxesSection: View {
         let unfolded = lab.sidebarFold.isOpen(row, leadsToOpen: leads)
         let inside = !box.boxes.isEmpty || !box.rolls.isEmpty
         return AnyView(Group {
-            SidebarRow(symbol: "shippingbox", name: box.name, depth: depth, count: box.allFrames.count, on: view == .box(box.id),
+            SidebarRow(symbol: "shippingbox", name: box.name, depth: depth, count: lab.projects.frames(of: .box(box.id)).count, on: view == .box(box.id),
                        strong: depth == 0, unfoldable: inside, unfolded: unfolded,
                        toggle: { lab.sidebarFold.toggle(row, leadsToOpen: leads) },
                        action: { lab.open(.box(box.id)); if !unfolded && inside { lab.sidebarFold.unfold(row) } },
                        adding: {
                            Button("New Box Inside…") { lab.newBox(in: box.id) }
                            Button("New Roll…") { lab.newRoll(in: box.id) }
+                           Button("New Smart Roll…") { lab.newSmartRoll(in: box.id) }
                        })
                 .sidebarDrop(lab, .box(box.id), depth: depth, folded: !unfolded && inside ? row : nil, drags: .box(box.id),
                              symbol: "shippingbox", name: box.name)
@@ -161,6 +167,8 @@ struct BoxesSection: View {
                     Divider()
                     Button("New Box Inside…") { lab.newBox(in: box.id) }
                     Button("New Roll…") { lab.newRoll(in: box.id) }
+                    Button("New Smart Roll…") { lab.newSmartRoll(in: box.id) }
+                    Button("New Rolls by Day") { lab.newRollsByDay(for: .box(box.id)) }
                     Button("Rename…") { lab.naming = .init(kind: .renameBox(box.id), name: box.name) }
                     Divider()
                     Button("Delete the Box…") { lab.deleteBox(box.id) }
@@ -168,16 +176,23 @@ struct BoxesSection: View {
             if unfolded {
                 ForEach(box.boxes) { inner in rows(inner, depth: depth + 1, open: view) }
                 ForEach(box.rolls) { roll in
-                    SidebarRow(symbol: "film", name: roll.name, depth: depth + 1, count: roll.frames.count, on: view == .roll(roll.id, box: box.id),
+                    let symbol = roll.isSmart ? SmartRollEditor.symbol : "film"
+                    SidebarRow(symbol: symbol, name: roll.name, depth: depth + 1, count: lab.projects.frames(of: .roll(roll.id, box: box.id)).count,
+                               on: view == .roll(roll.id, box: box.id),
                                action: { lab.open(.roll(roll.id, box: box.id)) })
+                        .help(roll.isSmart ? "Smart Roll: the photographs that meet its rules, found again as they change" : "")
                         .sidebarDrop(lab, .roll(roll.id, box: box.id), depth: depth + 1, drags: .roll(roll.id, box: box.id),
-                                     symbol: "film", name: roll.name)
+                                     symbol: symbol, name: roll.name)
                         .contextMenu {
                             Button("Open on the Contact Sheet") { lab.open(.roll(roll.id, box: box.id)) }
-                            PasteItem(lab: lab, holder: .roll(roll.id, box: box.id))
+                            if roll.isSmart {
+                                Button("Edit Rules…") { lab.editSmartRoll(roll.id, in: box.id) }
+                            } else {
+                                PasteItem(lab: lab, holder: .roll(roll.id, box: box.id))
+                            }
                             Button("Rename…") { lab.naming = .init(kind: .renameRoll(roll.id, box: box.id), name: roll.name) }
                             Divider()
-                            Button("Delete the Roll…") { lab.deleteRoll(roll.id, in: box.id) }
+                            Button(roll.isSmart ? "Delete the Smart Roll…" : "Delete the Roll…") { lab.deleteRoll(roll.id, in: box.id) }
                         }
                 }
             }
@@ -214,6 +229,77 @@ struct SidebarHeading: View {
         }
         .padding(.leading, 10).padding(.trailing, 2)
         .padding(.top, 18).padding(.bottom, 4)
+    }
+}
+
+/// A section's heading whose + opens a menu.
+struct SidebarMenuHeading<Items: View>: View {
+    let title: String
+    let help: String
+    @ViewBuilder let items: () -> Items
+
+    var body: some View {
+        HStack {
+            CapsLabel(title)
+            Spacer()
+            Menu { items() } label: {
+                Image(systemName: "plus").font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.dim)
+            }
+            .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
+            .frame(width: 22, height: 22)
+            .help(help)
+        }
+        .padding(.leading, 10).padding(.trailing, 2)
+        .padding(.top, 18).padding(.bottom, 4)
+    }
+}
+
+/// The sidebar's fixed entries, above the Archives: All Photographs, Last Import, Picks and By Date (years, months,
+/// days). Each opens on the contact sheet; drawn from the catalogue's index.
+struct FindingSection: View {
+    let model: EditorModel
+    private var lab: LabState { model.lab }
+
+    var body: some View {
+        let view = lab.openView
+        let reading = lab.catalog.building && !lab.catalog.ready
+        VStack(alignment: .leading, spacing: 1) {
+            SidebarRow(symbol: "photo.on.rectangle.angled", name: "All Photographs", depth: 0, count: lab.allCount, on: view == .all, strong: true,
+                       action: { lab.open(.all) })
+                .help(reading ? "Reading the catalog's photographs…" : "Every photograph of every Archive")
+            let imports = lab.lastImportCount
+            SidebarRow(symbol: "square.and.arrow.down", name: "Last Import", depth: 0, count: imports > 0 ? imports : nil, on: view == .lastImport,
+                       strong: true, dim: imports == 0, action: { lab.open(.lastImport) })
+                .help(lab.lastImportDate.map { "Imported " + $0.formatted(date: .abbreviated, time: .shortened) } ?? "The photographs of the last import")
+            SidebarRow(symbol: "circle", name: "Picks", depth: 0, count: lab.picksCount, on: view == .picks, strong: true,
+                       action: { lab.open(.picks) })
+                .help("Every picked photograph of every Archive")
+            let tree = lab.dateTree
+            let leads: Bool = { if case .day? = view { return true }; return false }()
+            let open = lab.sidebarFold.isOpen(.date(""), leadsToOpen: leads)
+            SidebarRow(symbol: "calendar", name: "By Date", depth: 0, on: false, strong: true, unfoldable: !tree.years.isEmpty, unfolded: open,
+                       toggle: { lab.sidebarFold.toggle(.date(""), leadsToOpen: leads) },
+                       action: { lab.sidebarFold.toggle(.date(""), leadsToOpen: leads) })
+                .help(tree.years.isEmpty ? "The days the photographs were taken, once they're read" : "The days the photographs were taken")
+            if open {
+                ForEach(tree.years) { year in dateRows(year, depth: 1, open: view) }
+            }
+        }
+    }
+
+    private func dateRows(_ node: DateTree.Node, depth: Int, open view: LabView?) -> AnyView {
+        let row = SidebarFold.Row.date(node.key)
+        let leads: Bool = { if case .day(let key)? = view { return key.hasPrefix(node.key + "-") }; return false }()
+        let unfolded = lab.sidebarFold.isOpen(row, leadsToOpen: leads)
+        return AnyView(Group {
+            SidebarRow(symbol: depth == 1 ? "calendar" : "", name: node.title, depth: depth, count: node.count, on: view == .day(node.key),
+                       unfoldable: !node.children.isEmpty, unfolded: unfolded,
+                       toggle: { lab.sidebarFold.toggle(row, leadsToOpen: leads) },
+                       action: { lab.open(.day(node.key)) })
+            if unfolded {
+                ForEach(node.children) { child in dateRows(child, depth: depth + 1, open: view) }
+            }
+        })
     }
 }
 
