@@ -60,6 +60,8 @@ struct SheetToolbar: View {
     var body: some View {
         @Bindable var lab = model.lab
         HStack(spacing: 10) {
+            // Qlick Lab: in the Lab, back to Develop in one click (or G).
+            if lab.part == .lab { LabSheetToggle(lab: lab) }
             // The pointer selects, the pencil marks at a click, the loupe looks closer.
             QSegmented(options: [(SheetOptions.Tool.pointer, "Pointer", "Click selects; the keys mark (\(ShortcutStore.display(lab.keys.key(.pencil))) switches to the pencil)"),
                                  (SheetOptions.Tool.pencil, "Pencil", "Click draws the mark chosen beside it, ⌥-click the other one; drag across frames to mark a run"),

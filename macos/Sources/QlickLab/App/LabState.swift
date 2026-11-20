@@ -339,6 +339,12 @@ struct SheetOptions: Codable, Equatable, Sendable {
         seenMode = model.mode
         if next == .library { projects.sidecars = model.sidecarLookup?.store; projects.countAll() }
         if next == .importer { importer.refreshVolumes() }
+        // Qlick Lab: Compare opened from anywhere (its sidebar row, the menu, a key) takes the photographs selected,
+        // as the sheet's Compare does; with one or none selected, what it compared before stays.
+        if next == .compare, workspace != .compare, compare.kind == .photographs {
+            let selected = comparedSelection()
+            if selected.count >= 2 && (model.selection.selected.count >= 2 || compare.items.isEmpty) { compare.items = selected }
+        }
         if workspace != next { workspace = next }
         // The contact sheet stays in the part it was opened from (the Library's or the Lab's); from Print, the Library's.
         let nextPart = LabPart.of(next) ?? chosen ?? (part == .print ? .library : part)
@@ -765,13 +771,18 @@ struct SheetOptions: Codable, Equatable, Sendable {
 
     /// Lays the selected photographs side by side; with one or none, the current one beside the next.
     func compareSelection() {
+        compare = CompareSetup(kind: .photographs, items: comparedSelection())
+        show(.compare)
+    }
+
+    /// The photographs Compare lays side by side: those selected, or the one in hand and the next.
+    func comparedSelection() -> [URL] {
         let order = model.shownPhotos.map(\.url)
         var items = model.selection.ordered(order)
         if items.count < 2, let current = model.selection.current ?? model.sourceItem, let index = order.firstIndex(of: current) {
             items = [current] + (order.indices.contains(index + 1) ? [order[index + 1]] : [])
         }
-        compare = CompareSetup(kind: .photographs, items: Array(items.prefix(CompareSetup.most)))
-        show(.compare)
+        return Array(items.prefix(CompareSetup.most))
     }
 
     // MARK: The Lab's shelf

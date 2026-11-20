@@ -118,6 +118,7 @@ import AppKit
             if let event = NSEvent.mouseEvent(with: .leftMouseDown, location: point, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
                                               windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1) { window.sendEvent(event) }
         case "togglesheet": lab.toggleSheet()
+        case "strip": if (rest == "off") == model.filmstripVisible { model.toggleFilmstrip() }
         // gamut on|off, outspace <name>, proof on|off: Print's colour.
         case "gamut": lab.showGamut = rest != "off"
         case "outspace": model.choosePreviewSpace(rest)

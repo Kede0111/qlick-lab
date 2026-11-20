@@ -160,3 +160,18 @@ struct ShelfSearch: View {
         .background(Capsule().fill(Color.white.opacity(0.07)))
     }
 }
+
+/// The Lab's switch between Develop and the contact sheet, the same photographs either way: one click, or G.
+struct LabSheetToggle: View {
+    let lab: LabState
+
+    var body: some View {
+        let key = "G"
+        QSegmented(options: [(false, "Develop", "Develop the photograph (\(key))"), (true, "Contact Sheet", "The contact sheet of the same photographs (\(key))")],
+                   selection: Binding(get: { lab.workspace == .contactSheet }, set: { sheet in
+                       if sheet != (lab.workspace == .contactSheet) { lab.toggleSheet() }
+                   }))
+            .fixedSize()
+            .accessibilityLabel("Develop or contact sheet")
+    }
+}
