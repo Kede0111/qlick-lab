@@ -327,7 +327,7 @@ Steps (one local commit each, tests, `scripts/drive.sh` screenshots checked, Dev
   holder, twins, unreadable, example. Tests: 548 (`ImportOptionsTests`).
   Left: an unreadable file is still imported if left checked (on purpose: a damaged file from a card is better copied);
   the template field's cursor is kept from the last edit, a click elsewhere in it without typing isn't noted.
-- [x] R7 Finishing (HASH7): **Custom Order** (`LibrarySort.Key.custom`, offered only while a Box or Roll is open,
+- [x] R7 Finishing (85d4ab3): **Custom Order** (`LibrarySort.Key.custom`, offered only while a Box or Roll is open,
   `Key.offered(manual:)`): Boxes and Rolls have their own sort (`LabState.boxSort`, key `qlick.boxSort`, Custom Order by
   default; `sort` reads/writes it while a Box/Roll is open, `listSort` elsewhere; File Name now really sorts a Box).
   Dragging photographs of the open Box/Roll on its contact sheet (`ContactSheetView` is a dragging destination) or its
