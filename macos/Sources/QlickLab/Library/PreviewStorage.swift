@@ -212,6 +212,8 @@ struct PreviewStorageSection: View {
                 guard let mode = PreviewStorage.ProxyMode(rawValue: tag) else { return }
                 proxies = mode
                 UserDefaults.standard.set(tag, forKey: PreviewStorage.proxiesKey)
+                // Qlick Lab: the helpers read it when they start: those running start again with it.
+                EngineClient.settingsChanged()
                 switch mode {
                 case .all: model.lab.previewBuilder.folderChanged()
                 // Never: those already made would never be read again, so they go.

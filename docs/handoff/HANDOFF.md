@@ -549,8 +549,21 @@ Lots, in order:
 - 13 Drops: a folder (sidebar or Finder) on the Archives' heading → a new Archive of it, in place; photographs, a
   folder or a Roll on the Boxes' heading or the space under them → a new Box named after it (`SidebarTarget.archives`
   / `.boxes`, `DropAction.newArchive/newBox/newBoxForRoll`). Catalogue only. Test in `BoxMovesTests`.
-- Not done: merging feature/speed-redlamp into this branch (the coordinator asked; the permission check stopped the
-  merge, it needs Quentin's own go).
+- Merged: feature/speed-redlamp (22862c9) into this branch (Quentin, 2026-11-21); Qlick Lab Dev built from it.
+
+### Speed, RedLamp's ideas (branch `feature/speed-redlamp`, from `feature/lab-structure`; a test branch, to drop if not convincing)
+
+Quentin, 2026-11-20: lot H on a branch of its own, a second test app "Qlick Lab Dev Speed" to try beside Qlick Lab Dev,
+and speed/memory/disk comparisons. Measures and what changed: `docs/performance/speed-redlamp.md`.
+- `scripts/build_app.sh --speed` builds `dist/qlick-lab-dev-speed/Qlick Lab Dev Speed.app` (`be.jackfrom.qlicklab.devspeed`);
+  `--benchmark` (with --dev or --speed) compiles the benchmarks in. `SPEKTRAFILM_BENCHMARK_SPEED=<folder>` runs the
+  comparison (`Diagnostics/SpeedBenchmark.swift`). Careful: `CFFIXED_USER_HOME` doesn't separate preferences; measure
+  under a bundle identifier of its own.
+- Done: `RenderAhead` (next two kept develops in the direction of travel, one behind, the one left, in memory),
+  walking order for proxies / thumbnails / previews, `MachineState` (Low Power Mode or hot = only what's needed soon),
+  launch frame written after 3 s of rest or at quit. Not done: render cancellation in Rust (measured: little to gain).
+- Result: stepping shows the photograph developed in 5 ms instead of 46 ms (every step in the first frame), app memory
+  peak −29 %; settled frames, films, sliders, export and disk unchanged.
 
 ## Current state
 
@@ -558,6 +571,10 @@ Lots, in order:
   (local, nothing pushed, `main` untouched). Swift tests: 555 (24 skipped), all pass (561 after R8); the Rust side wasn't changed.
   Qlick Lab Dev is built from it (`dist/qlick-lab-dev/Qlick Lab Dev.app`).
 - Phase: **lab structure** on `feature/lab-structure` (from `feature/import-library`, local). Lots A to I done, G but the recipes' door (question to Quentin); J and the recipes' door done. Next: waiting for Quentin to try Qlick Lab Dev; decision 4 (a recipe format shared with QLab) is for the very end.
+- Phase: **speed kept** (Quentin, 2026-11-21): `feature/speed-redlamp` = `feature/lab-structure` at 64547fc + speed +
+  settings respected (c56d3b7: helpers relaunched when Make proxies changes, no previews on disk with Build previews
+  ahead off, Settings › Upkeep › Develop thumbnails ahead). Qlick Lab Dev is now built from it. To do: merge it into
+  `feature/lab-structure` once the UX work there is committed (it's checked out in `.worktrees/lab-structure`).
 
 ## Build and test
 

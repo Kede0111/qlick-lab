@@ -62,10 +62,14 @@ extension EditorModel {
         onScreen.isEmpty ? open ?? 0 : onScreen[onScreen.count / 2]
     }
 
-    /// `items` nearest `centre` first; of two as near, the one before.
-    nonisolated static func outward<Item>(_ items: [(index: Int, item: Item)], from centre: Int) -> [Item] {
-        items.sorted { (abs($0.index - centre), $0.index) < (abs($1.index - centre), $1.index) }.map(\.item)
+    /// `items` nearest `centre` first; of two as near, the one before. Qlick Lab: with a `direction` (a photograph
+    /// open in Develop, walked through forward or back), those ahead first (`RenderAhead.walkOrder`).
+    nonisolated static func outward<Item>(_ items: [(index: Int, item: Item)], from centre: Int, direction: Int? = nil) -> [Item] {
+        RenderAhead.walkOrder(items, from: centre, direction: direction)
     }
+
+    /// Qlick Lab: the direction the work done ahead leans: the walk's in Develop, none in the grid (scrolled either way).
+    var aheadDirection: Int? { mode == .grid || source == nil ? nil : walkDirection }
 
     /// A strip or grid cell came on screen or left it.
     func thumbnailShown(_ file: PhotoFile, _ visible: Bool) {
@@ -118,7 +122,7 @@ extension EditorModel {
         let grid = mode == .grid
         guard grid || (stripShown && source != nil), !library.filtering else { return [] }
         let size = grid ? gridThumbnailSize : .strip
-        let shown = shownPhotos, onScreen = thumbnailsOnScreen, current = grid ? selection.current : sourceItem
+        let shown = shownPhotos, onScreen = thumbnailsOnScreen, current = grid ? selection.current : sourceItem, direction = aheadDirection
         let near = await Task.detached(priority: .utility) { () -> [PhotoFile] in
             guard !shown.isEmpty else { return [] }
             var visible: [Int] = [], currentIndex: Int?
@@ -128,7 +132,7 @@ extension EditorModel {
             }
             let centre = Self.thumbnailCentre(onScreen: visible, open: currentIndex)
             let reach = max(0, centre - Self.prefetchReach)...min(shown.count - 1, centre + Self.prefetchReach)
-            return Self.outward(reach.filter { !onScreen.contains(shown[$0].url) }.map { ($0, shown[$0]) }, from: centre)
+            return Self.outward(reach.filter { !onScreen.contains(shown[$0].url) }.map { ($0, shown[$0]) }, from: centre, direction: direction)
         }.value
         return near.map { ($0, size, editedThumbnail(for: $0.url)) }
     }
@@ -292,10 +296,15 @@ extension EditorModel {
               library.looks[item] != nil || Self.uneditedLook(of: state) == look,
               let file = library.items.first(where: { $0.url == item }), let key = renderArchive.key(for: file, look: look) else { return }
         let archive = renderArchive, size = imageSize, shown = surface, loose = archive.looseKey(for: file, look: look), photo = archive.photoKey(for: file)
+        // Qlick Lab: held in memory too (`RenderAhead`), so stepping back to it shows it at once. On disk only while
+        // previews are built ahead (Settings › Upkeep): off, the lab keeps no preview there.
+        let ahead = renderAhead, keepOnDisk = lab.previewBuilder.automatic
         Task.detached(priority: .utility) {
-            guard !archive.contains(key),
+            let onDisk = archive.contains(key)
+            guard !onDisk || !ahead.contains(key),
                   let frame = ThumbnailComposer.image(of: shown, maxPixels: EditedThumbnailStore.renderLongSide) else { return }
-            try? archive.save(frame, as: key, loose: loose, photo: photo, photoSize: size)
+            ahead.keep(frame, photoSize: size, as: key)
+            if !onDisk, keepOnDisk { try? archive.save(frame, as: key, loose: loose, photo: photo, photoSize: size) }
         }
     }
 
@@ -332,8 +341,8 @@ extension EditorModel {
             // Qlick Lab: on the contact sheet the open photograph isn't developed, so the pump makes its thumbnail too.
             let items = self.library.items, open = self.mode == .grid ? nil : self.sourceItem, onScreen = self.thumbnailsOnScreen, looks = self.thumbnailLooks
             let failures = self.thumbnailFailures, checked = self.thumbnailsChecked, emptied = self.thumbnailsEmptied
-            let developing = Set(self.thumbnailsDeveloping.values.map(\.item)), onlyOnScreen = self.lowPowerMode || self.thumbnailsHeld
-            let wanted = self.thumbnailsWanted, wantedSet = Set(wanted)
+            let developing = Set(self.thumbnailsDeveloping.values.map(\.item)), onlyOnScreen = self.lowPowerMode || self.thumbnailsHeld || !self.thumbnailsAhead
+            let wanted = self.thumbnailsWanted, wantedSet = Set(wanted), direction = self.aheadDirection
             // Qlick Lab: with proxies made ahead, a RAW's thumbnail waits for its proxy (the camera's JPEG shows
             // meanwhile): developed from it, it takes milliseconds instead of seconds.
             let pendingProxies = PreviewStorage.buildsProxiesAhead ? self.lab.proxyMaker.pending : []
@@ -360,7 +369,7 @@ extension EditorModel {
                 }
                 let centre = Self.thumbnailCentre(onScreen: onScreenIndices, open: openIndex)
                 // Qlick Lab: on screen first, then those asked for, in the order asked, then outward.
-                let ordered = shown + wanted.compactMap { asked[$0] } + Self.outward(rest.map { ($0.index, (file: $0.file, look: $0.look)) }, from: centre)
+                let ordered = shown + wanted.compactMap { asked[$0] } + Self.outward(rest.map { ($0.index, (file: $0.file, look: $0.look)) }, from: centre, direction: direction)
                 var present: [(URL, String)] = [], next: [(file: PhotoFile, look: String)] = [], missing = 0
                 // Every one is looked at, to count those still missing for the sidebar.
                 for (file, look) in ordered {

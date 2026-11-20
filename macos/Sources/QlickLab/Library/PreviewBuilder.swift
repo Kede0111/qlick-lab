@@ -49,6 +49,7 @@ import Observation
     /// The folder's photographs or their edits changed: what's missing is built, if that's on.
     func folderChanged() {
         guard NSClassFromString("XCTestCase") == nil else { return }
+        EngineTrace.log("folder changed: \(model.library.items.count) photographs, previews ahead \(automatic), held \(held)")
         // Their proxies, first, whatever the previews setting: the thumbnails wait for them.
         proxies.make(model.library.items.map(\.url))
         guard automatic, !held else { return }
@@ -144,17 +145,26 @@ import Observation
         return !failed.contains(key) && !model.renderArchive.contains(key)
     }
 
-    /// The next to build: the nearest to the open photograph.
+    /// The next to build: the soonest reached walking on from the open photograph in the direction of travel (those
+    /// behind count as three times as far).
     private func next() -> URL? {
         guard !queue.isEmpty else { return nil }
         if let index = queue.firstIndex(where: urgent.contains) { return queue.remove(at: index) }
         var order: [URL: Int] = [:]
         for (index, file) in model.library.items.enumerated() where order[file.url] == nil { order[file.url] = index }
         let centre = model.sourceItem.flatMap { order[$0] } ?? 0
-        let index = queue.indices.min { a, b in
-            abs((order[queue[a]] ?? .max / 2) - centre) < abs((order[queue[b]] ?? .max / 2) - centre)
-        } ?? 0
-        return queue.remove(at: index)
+        let ranked = RenderAhead.walkOrder(queue.indices.map { (order[queue[$0]] ?? .max / 4, $0) }, from: centre,
+                                           direction: model.sourceItem == nil ? nil : model.walkDirection)
+        return queue.remove(at: ranked.first ?? 0)
+    }
+
+    /// Qlick Lab: the Mac saves energy or runs hot (`MachineState`): only the photographs the next steps open are
+    /// built ahead; the rest waits.
+    private func soon() -> Set<URL> {
+        guard let open = model.sourceItem else { return [] }
+        let shown = model.shownPhotos
+        guard let index = shown.firstIndex(where: { $0.url == open }) else { return [] }
+        return Set(RenderAhead.neighbours(of: index, count: shown.count, direction: model.walkDirection).map { shown[$0].url })
     }
 
     private func start() {
@@ -184,12 +194,20 @@ import Observation
             var deferred = false
             // Qlick Lab: the contact sheet's thumbnails go first, as they show the change, and the proxies before
             // them: the previews are developed from those.
-            while !Task.isCancelled, !urgent.contains(item),
-                  !model.backgroundMayRun || model.thumbnailsLeft > 0 || model.backgroundWork != nil || proxies.busy {
+            func held() -> Bool {
+                guard MachineState.shared.saving else { return false }
+                let soon = soon()
+                // Another photograph may now be the one wanted soon: it goes first.
+                if !soon.contains(item), queue.contains(where: soon.contains) { deferred = true }
+                return !soon.contains(item)
+            }
+            while !Task.isCancelled, !urgent.contains(item), !deferred,
+                  !model.backgroundMayRun || model.thumbnailsLeft > 0 || model.backgroundWork != nil || proxies.busy || held() {
                 if !urgent.isEmpty { deferred = true; break }
+                if deferred { break }
                 try? await Task.sleep(for: .milliseconds(300))
             }
-            if deferred { queue.insert(item, at: 0); continue }
+            if deferred { queue.append(item); continue }
             defer { finished(item) }
             guard !Task.isCancelled else { return }
             guard let key = key(item), !failed.contains(key), !model.renderArchive.contains(key),
@@ -204,6 +222,8 @@ import Observation
             if let image {
                 let archive = model.renderArchive, loose = archive.looseKey(for: file, look: look), photo = archive.photoKey(for: file)
                 await Task.detached(priority: .utility) { try? archive.save(image, as: key, loose: loose, photo: photo, photoSize: size) }.value
+                // Qlick Lab: one the next steps open is read into memory now.
+                model.prepareAhead()
             } else {
                 failed.insert(key)
             }

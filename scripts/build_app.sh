@@ -6,6 +6,10 @@
 #   scripts/build_app.sh --dev        a test copy, "Qlick Lab Dev.app" in dist/qlick-lab-dev/, with its own bundle
 #                                     identifier (be.jackfrom.qlicklab.dev), so its settings and its Application
 #                                     Support folder never touch the installed Qlick Lab's
+#   scripts/build_app.sh --speed      a second test copy, "Qlick Lab Dev Speed.app" in dist/qlick-lab-dev-speed/
+#                                     (be.jackfrom.qlicklab.devspeed), to try a test branch beside Qlick Lab Dev
+#   scripts/build_app.sh --benchmark  with the timing benchmarks compiled in (-DSPEKTRAFILM_BENCHMARK, see
+#                                     macos/Sources/QlickLab/Diagnostics); with --dev or --speed, never to ship
 #
 # Needs Xcode and Rust (rustup; ~/.cargo/bin is added to PATH here). The app is ad-hoc signed, not notarized.
 set -euo pipefail
@@ -16,15 +20,19 @@ export MACOSX_DEPLOYMENT_TARGET=14.0
 version="$(sed -n 's/^QLICK_LAB_VERSION=//p' scripts/version)"
 build="$(sed -n 's/^QLICK_LAB_BUILD=//p' scripts/version)"
 target_dir="${BUILD_TARGET_DIR:-target}"
-universal=false; dev=false
+universal=false; dev=false; speed=false; benchmark=false
 for arg in "$@"; do
     case "$arg" in
         --universal) universal=true ;;
         --dev) dev=true ;;
+        --speed) dev=true; speed=true ;;
+        --benchmark) benchmark=true ;;
         *) echo "Unknown option: $arg" >&2; exit 1 ;;
     esac
 done
-if $dev; then
+if $speed; then
+    name="Qlick Lab Dev Speed"; bundle_id="be.jackfrom.qlicklab.devspeed"; dist="${DIST_DIR:-dist/qlick-lab-dev-speed}"
+elif $dev; then
     name="Qlick Lab Dev"; bundle_id="be.jackfrom.qlicklab.dev"; dist="${DIST_DIR:-dist/qlick-lab-dev}"
 else
     name="Qlick Lab"; bundle_id="be.jackfrom.qlicklab"; dist="${DIST_DIR:-dist/qlick-lab}"
@@ -36,6 +44,11 @@ if $universal; then
     swift_archs=(--arch arm64 --arch x86_64)
 else
     rust_targets=(); swift_archs=()
+fi
+swift_flags=(); swift_scratch="$target_dir/swift-release"
+if $benchmark; then
+    $dev || { echo "--benchmark goes with --dev or --speed: a benchmark build is never the app that ships" >&2; exit 1; }
+    swift_flags=(-Xswiftc -DSPEKTRAFILM_BENCHMARK); swift_scratch="$target_dir/swift-release-benchmark"
 fi
 
 command -v cargo >/dev/null || { echo "Rust is missing: install it from https://rustup.rs" >&2; exit 1; }
@@ -58,8 +71,8 @@ fi
 cargo build --locked --release -p spektrafilm-native ${rust_targets[@]+"${rust_targets[@]}"} --target-dir "$target_dir"
 cargo build --locked --release -p spektrafilm-cli --bin spektrafilm ${rust_targets[@]+"${rust_targets[@]}"} --target-dir "$target_dir"
 cargo build --locked --release -p spektrafilm-cli --bin spektrafilm-f64 --features precision-f64 ${rust_targets[@]+"${rust_targets[@]}"} --target-dir "$target_dir"
-swift build --package-path macos --scratch-path "$target_dir/swift-release" -c release ${swift_archs[@]+"${swift_archs[@]}"}
-swift_bin="$(swift build --package-path macos --scratch-path "$target_dir/swift-release" -c release ${swift_archs[@]+"${swift_archs[@]}"} --show-bin-path)"
+swift build --package-path macos --scratch-path "$swift_scratch" -c release ${swift_archs[@]+"${swift_archs[@]}"} ${swift_flags[@]+"${swift_flags[@]}"}
+swift_bin="$(swift build --package-path macos --scratch-path "$swift_scratch" -c release ${swift_archs[@]+"${swift_archs[@]}"} ${swift_flags[@]+"${swift_flags[@]}"} --show-bin-path)"
 
 rm -rf "$app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources/Fonts" "$app/Contents/Frameworks"

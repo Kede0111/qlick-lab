@@ -559,10 +559,8 @@ import UserNotifications
             self.pumpThumbnails()
             self.aspects.read(self.library.items, around: self.sourceItem)
         }
-        // Posted on any thread; delivered on the main queue.
-        powerStateObserver = NotificationCenter.default.addObserver(forName: .NSProcessInfoPowerStateDidChange, object: nil, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.lowPowerMode = ProcessInfo.processInfo.isLowPowerModeEnabled }
-        }
+        // Posted on any thread; delivered on the main queue. Qlick Lab: running hot counts as saving energy.
+        powerStateObservers = MachineState.observe { [weak self] in self?.lowPowerMode = MachineState.shared.saving }
     }
 
     /// Starts the helper and asks for its catalog at once, so both load while
@@ -786,6 +784,10 @@ import UserNotifications
     @ObservationIgnored var renderArchive = EditedThumbnailStore.renders {
         didSet { if let thumbnailStamp { renderArchive.engineStamp = thumbnailStamp } }
     }
+    /// Qlick Lab: the kept develops of the next photographs in the direction of travel, read into memory ahead.
+    @ObservationIgnored let renderAhead = RenderAhead()
+    /// Qlick Lab: the way the photographs are being walked through, 1 forward or -1 back (`noteWalk`).
+    @ObservationIgnored var walkDirection = 1
     /// The engine's identity, once read: until then only embedded previews show.
     var thumbnailStamp: String?
     /// Moves when an item's edited thumbnail is made, so its cells read it.
@@ -799,13 +801,22 @@ import UserNotifications
     /// Low Power Mode is on: only the thumbnails on screen are developed, in
     /// one helper; the rest of the folder waits until it's off. Follows the
     /// Mac's setting (tests set it).
-    @ObservationIgnored var lowPowerMode = ProcessInfo.processInfo.isLowPowerModeEnabled {
+    @ObservationIgnored var lowPowerMode = MachineState.shared.saving {
         didSet {
             guard lowPowerMode != oldValue else { return }
             if lowPowerMode { stopSpareThumbnailEngines() } else { pumpThumbnails() }
         }
     }
-    @ObservationIgnored var powerStateObserver: NSObjectProtocol?
+    @ObservationIgnored var powerStateObservers: [NSObjectProtocol] = []
+    /// Qlick Lab: Settings › Upkeep › Develop thumbnails ahead. Off, only those on screen are developed, as in Low
+    /// Power Mode; the rest show the camera's picture until they're shown.
+    var thumbnailsAhead = UserDefaults.standard.object(forKey: "qlick.thumbnailsAhead") as? Bool ?? true {
+        didSet {
+            guard thumbnailsAhead != oldValue else { return }
+            UserDefaults.standard.set(thumbnailsAhead, forKey: "qlick.thumbnailsAhead")
+            pumpThumbnails()
+        }
+    }
     /// The background helpers, started while there's work, by slot.
     @ObservationIgnored var thumbnailEngines: [Int: EngineClient] = [:]
     /// Each slot's thumbnail developing now, and its job.

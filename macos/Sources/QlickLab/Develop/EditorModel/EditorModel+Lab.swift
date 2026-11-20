@@ -181,7 +181,8 @@ extension EditorModel {
                 // Their large previews after, each replacing the one before.
                 guard !Task.isCancelled else { return }
                 self.backgroundWork = nil
-                let stale = items.filter(self.lab.previewBuilder.needs)
+                // Qlick Lab: only while previews are built ahead (Settings › Upkeep).
+                let stale = self.lab.previewBuilder.automatic ? items.filter(self.lab.previewBuilder.needs) : []
                 if !stale.isEmpty { self.lab.previewBuilder.build(stale) }
             } catch {
                 self.report(error)
@@ -217,7 +218,7 @@ extension EditorModel {
                                            serial: (self.libraryNote?.serial ?? 0) + 1)
             guard !Task.isCancelled else { return }
             self.backgroundWork = nil
-            let stale = items.filter(self.lab.previewBuilder.needs)
+            let stale = self.lab.previewBuilder.automatic ? items.filter(self.lab.previewBuilder.needs) : []
             if !stale.isEmpty { self.lab.previewBuilder.build(stale) }
         }
     }

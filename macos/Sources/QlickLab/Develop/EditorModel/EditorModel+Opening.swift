@@ -97,6 +97,8 @@ extension EditorModel {
             error = "“\(url.lastPathComponent)” can’t be opened. It may have been moved or deleted."
             return
         }
+        // Qlick Lab: forward or back through the photographs shown: what's read ahead follows.
+        noteWalk(to: item)
         // A stock being tried is kept, as by a click outside the tray.
         endTray(keep: true)
         trialImage = nil
@@ -163,9 +165,14 @@ extension EditorModel {
         // SwiftUI has updated it for this photograph (~180 ms on an M1 Pro):
         // that frame shows it rather than an empty canvas. A restored
         // session tries its saved frame first, off the main actor.
-        let standIn = developedThumbnail(of: item), kept = keptRender(of: item)
+        // Qlick Lab: read into memory ahead (`RenderAhead`): its kept develop shows in this very frame.
+        let shownAhead = session == nil && renderKey(of: item).flatMap { renderAhead.take($0) }
+            .map { showKept($0.image, size: $0.photoSize, generation: generation) } == true
+        let standIn = shownAhead ? nil : developedThumbnail(of: item), kept = shownAhead ? nil : keptRender(of: item)
         if session == nil, let image = standIn?() { self.standIn = image }
+        EngineTrace.log("opened \(url.lastPathComponent) ahead=\(shownAhead)")
         Task { [weak self] in
+            if shownAhead { return }
             if let cachedFrame, let cached = await cachedFrame.value {
                 guard let self else { return }
                 if self.showCached(cached, generation: generation, rendered: snapshot.rendered) { return }
@@ -182,6 +189,7 @@ extension EditorModel {
             if let (thumbnail, size) = thumbnail { self?.showPlaceholder(thumbnail, size: size, generation: generation) }
         }
         changed(invalidateCache: session == nil)
+        prepareAhead()
     }
     /// Ends launch, before the window is shown: a restore at launch is no
     /// longer undone by an open, and its saved frame is shown now if it's
