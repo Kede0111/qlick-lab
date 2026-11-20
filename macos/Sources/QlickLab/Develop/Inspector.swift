@@ -700,23 +700,15 @@ extension AdjustmentInspector {
 
 // MARK: The panel
 
-/// The top of the inspector column: Adjustments · Presets as words, then
-/// the edit count and Reset, or New and Import… beside the presets (§4.8).
+/// The top of the inspector column: Adjustments, then the edit count and Reset (§4.8).
 struct PaneHeader: View {
     let model: EditorModel
 
     var body: some View {
-        let presets = model.inspectorPane == .presets
         HStack(alignment: .firstTextBaseline, spacing: 16) {
             paneWord("Adjustments", pane: .adjustments, help: "Show the adjustments (⌥⌘I)")
-            paneWord("Recipes", pane: .presets, help: "Show the recipes (⌥⌘P)")
             Spacer(minLength: 0)
-            if presets {
-                WordButton(title: "New", help: "Save the film, paper and Lab settings as a recipe (⇧⌘S)", action: { model.newPreset() })
-                    .disabled(!model.canChangePresets)
-                WordButton(title: "Import…", help: "Import recipes (⇧⌘O)", action: model.importPresetsPanel)
-                    .disabled(!model.canChangePresets)
-            } else if model.source != nil {
+            if model.source != nil {
                 // Emulsion counts the aberration (Effects) already.
                 let edits = [InspectorTab.prep, .lab, .output].map { InspectorEdits.count($0, model) }.reduce(0, +)
                 if edits > 0 {

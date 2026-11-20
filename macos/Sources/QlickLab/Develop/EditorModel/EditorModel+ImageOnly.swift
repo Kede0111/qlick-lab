@@ -112,7 +112,6 @@ extension EditorModel {
         asking { [weak self] name, groups in
             guard let self, let name else { return }
             DevelopGroup.saved = groups
-            self.showPane(.presets)
             Task {
                 do {
                     let (_, result) = try await engine.request(["command": EngineCommand.presetExport.json, "film": .string(snapshot.film),
@@ -202,7 +201,6 @@ extension EditorModel {
     /// or before the preset at `position` (a drop between rows).
     func importPresets(_ urls: [URL], at position: Int? = nil) {
         guard canChangePresets, let engine, !urls.isEmpty else { return }
-        showPane(.presets)
         Task {
             var failures: [String] = [], added: [URL] = [], starred: [String] = []
             // Identifiers already on the shelf: a bundle brought in twice gives its copies new ones.

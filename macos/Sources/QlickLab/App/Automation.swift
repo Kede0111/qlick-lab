@@ -618,7 +618,7 @@ import AppKit
                 }
                 model.endInteraction()
             }
-        case "pane": model.inspectorPane = rest == "presets" ? .presets : .adjustments
+        case "pane": model.inspectorPane = .adjustments
         case "applypreset": if let preset = model.presets.first(where: { $0.name == rest }) { model.applyPreset(preset) }
         // applyselected <name>: the preset on every selected frame, as the right-click menu does.
         case "applyselected": if let preset = model.presets.first(where: { $0.name == rest }) { model.labApply(preset, to: model.ratingTargets) }

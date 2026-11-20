@@ -621,34 +621,25 @@ struct TabPills: View {
     }
 }
 
-/// The preset, in the film card: the one applied to this photograph, a click away from all of them, and + to save
-/// this development as a new one.
+/// The recipe, in the film card: the one applied to this photograph, and + to save this development as a new one.
+/// Qlick Lab: the recipes themselves are the Lab's Recipes room's (one door), applied there or from the caption's menu.
 private struct PresetRow: View {
     let model: EditorModel
-    @State private var hovered = false
 
     var body: some View {
         let name = model.appliedPreset.map { $0.deletingPathExtension().lastPathComponent }
         HStack(spacing: 0) {
-            Button { model.inspectorPane = .presets } label: {
-                HStack(spacing: 10) {
-                    Image(systemName: "square.stack.3d.up.fill").font(.system(size: 13)).foregroundStyle(Theme.accent)
-                        .frame(width: 22)
-                    Text("Recipe").font(.system(size: 11)).foregroundStyle(Theme.dim).fixedSize()
-                    Text(name ?? "None").font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(name == nil ? Color(white: 0.6) : Color(white: 0.9)).lineLimit(1)
-                    Spacer(minLength: 4)
-                    Text("Browse").font(.system(size: 11, weight: .medium)).foregroundStyle(hovered ? Theme.paper : Theme.dim)
-                    Image(systemName: "chevron.right").font(.system(size: 9, weight: .semibold)).foregroundStyle(hovered ? Theme.paper : Theme.dim)
-                }
-                .padding(.leading, 12).padding(.trailing, 6)
-                .frame(height: 36)
-                .background(Color.white.opacity(hovered ? 0.04 : 0))
-                .contentShape(Rectangle())
+            HStack(spacing: 10) {
+                Image(systemName: "square.stack.3d.up.fill").font(.system(size: 13)).foregroundStyle(Theme.accent)
+                    .frame(width: 22)
+                Text("Recipe").font(.system(size: 11)).foregroundStyle(Theme.dim).fixedSize()
+                Text(name ?? "None").font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(name == nil ? Color(white: 0.6) : Color(white: 0.9)).lineLimit(1)
+                Spacer(minLength: 4)
             }
-            .buttonStyle(.plain)
-            .onHover { hovered = $0 }
-            .help("The recipes: a film, a paper and their settings, saved together (⌥⌘P)")
+            .padding(.leading, 12).padding(.trailing, 6)
+            .frame(height: 36)
+            .accessibilityElement(children: .combine)
             Button { model.newPreset() } label: {
                 Image(systemName: "plus").font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.dim)
                     .frame(width: 30, height: 36).contentShape(Rectangle())
@@ -658,36 +649,5 @@ private struct PresetRow: View {
             .help("Save this development as a new recipe (⇧⌘S)")
             .padding(.trailing, 4)
         }
-    }
-}
-
-/// The presets pane's head: back to Develop, and New and Import.
-struct PresetsHeader: View {
-    let model: EditorModel
-
-    var body: some View {
-        HStack(spacing: 10) {
-            Button { model.inspectorPane = .adjustments } label: {
-                HStack(spacing: 4) {
-                    Image(systemName: "chevron.left").font(.system(size: 10, weight: .semibold))
-                    Text("Develop").font(.system(size: 12, weight: .medium))
-                }
-                .fixedSize()
-                .foregroundStyle(Theme.paper)
-                .padding(.horizontal, 10).frame(height: 24)
-                .background(Capsule().fill(Color.white.opacity(0.07)))
-                .contentShape(Capsule())
-            }
-            .buttonStyle(.plain)
-            .help("Back to the settings (⌥⌘I)")
-            Text("Recipes").font(.system(size: 13, weight: .semibold)).foregroundStyle(Color.white).lineLimit(1)
-            Spacer(minLength: 0)
-            Button("New") { model.newPreset() }.buttonStyle(QPillButtonStyle()).disabled(!model.canChangePresets)
-                .help("Save the film, paper and settings as a recipe (⇧⌘S)")
-            Button("Import…") { model.importPresetsPanel() }.buttonStyle(QPillButtonStyle()).disabled(!model.canChangePresets)
-                .help("Import recipes (⇧⌘O)")
-        }
-        .padding(.horizontal, Theme.Size.gutter - 4)
-        .frame(height: 46)
     }
 }

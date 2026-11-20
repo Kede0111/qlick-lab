@@ -355,11 +355,8 @@ struct InspectorPanel: View {
             else if model.lab.workspace == .print { PrintPanel(model: model) }
             else {
                 VStack(spacing: 0) {
-                    // Qlick Lab: no Adjustments · Presets header: the presets open from the film card, and come
-                    // back to Develop from their own header.
-                    if model.inspectorPane == .presets { PresetsHeader(model: model); PresetInspector(model: model) }
-                    // The sections aren't built until a photograph opens.
-                    else if model.source == nil { InspectorEmptyLine() }
+                    // The sections aren't built until a photograph opens. Qlick Lab: the recipes are the Lab's Recipes room's.
+                    if model.source == nil { InspectorEmptyLine() }
                     else { AdjustmentInspector(model: model) }
                 }
             }

@@ -195,7 +195,7 @@ enum ShelfFilter: String, CaseIterable, Sendable {
 
 /// The order of the recipes on the shelf.
 enum RecipeSort: String, CaseIterable, Sendable {
-    /// The photographer's own order, as dragged in Develop's recipes.
+    /// The photographer's own order, as dragged in the Recipes room.
     case custom, name, film, date
     var title: String {
         switch self {

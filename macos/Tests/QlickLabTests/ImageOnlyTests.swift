@@ -89,10 +89,10 @@ extension CALayer {
         XCTAssertTrue(model.stripShown)
         XCTAssertFalse(model.inspectorShown)
         model.toggleImageOnly()
-        model.togglePane(.presets)
+        model.togglePane(.adjustments)
         XCTAssertFalse(model.imageOnly)
         XCTAssertTrue(model.inspectorShown)
-        XCTAssertEqual(model.inspectorPane, .presets)
+        XCTAssertEqual(model.inspectorPane, .adjustments)
     }
 
     func testTheGridEndsImageOnlyAndFOpensItsPhotographInImageOnly() throws {

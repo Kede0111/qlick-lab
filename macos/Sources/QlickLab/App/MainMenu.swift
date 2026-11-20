@@ -102,7 +102,6 @@ import SwiftUI
         // A plain key too: the photograph with only its caption and label.
         // Esc leaves it first: `EditorWindowController.escapeToGrid`.
         command(view, "Image Only", #selector(toggleImageOnly), "f", [])
-        command(view, "Show Recipes", #selector(togglePresets), "p", [.command, .option])
         // Every control in every module, as the Lab's Advanced controls switch did.
         command(view, "Show All Controls", #selector(toggleAllControls), "")
         view.addItem(.separator())
@@ -283,7 +282,6 @@ import SwiftUI
     @objc private func toggleImageOnly() { model.toggleImageOnly() }
     @objc private func toggleFilmstrip() { model.toggleFilmstrip() }
     @objc private func toggleAdjustments() { model.togglePane(.adjustments) }
-    @objc private func togglePresets() { model.togglePane(.presets) }
     @objc private func newPreset() { model.newPreset() }
     @objc private func importPresets() { model.importPresetsPanel() }
     @objc private func showPresetsFolder() { model.showPresetsFolder() }
@@ -387,8 +385,6 @@ import SwiftUI
             return model.mode == .photo
         case #selector(toggleAdjustments):
             item.state = model.inspectorShown && model.inspectorPane == .adjustments ? .on : .off; return model.mode == .photo
-        case #selector(togglePresets):
-            item.state = model.inspectorShown && model.inspectorPane == .presets ? .on : .off; return model.mode == .photo
         case #selector(newPreset): return model.canChangePresets && model.mode == .photo
         case #selector(importPresets): return model.canChangePresets
         case #selector(showPresetsFolder): return true

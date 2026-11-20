@@ -2,8 +2,8 @@ import AppKit
 import XCTest
 @testable import QlickLab
 
-/// The Presets pane as tiles (§4.12): what each tile says, the ring on the
-/// preset applied last, sorting by drag, and the delete key on a tile.
+/// The recipes: sorting by drag in the Recipes room, the ring on the recipe applied last, and the delete key on a
+/// tile.
 @MainActor final class PresetPaneTests: XCTestCase {
     private func paths() -> EnginePaths {
         let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
@@ -24,40 +24,12 @@ import XCTest
         return url
     }
 
-    /// Under the name: the film, then "printed on" and the paper, or that
-    /// the film is scanned, in the label's words.
-    func testWhatATileSays() {
-        let film = Stock(.object(["id": .string("kodak_gold_200"), "name": .string("Kodak Gold 200"), "paper": .bool(false)]))
-        let paper = Stock(.object(["id": .string("kodak_portra_endura"), "name": .string("Kodak Professional Portra Endura"), "paper": .bool(true)]))
-        let printed = PresetStatus.valid(film: "kodak_gold_200", paper: "kodak_portra_endura", scan: false)
-        XCTAssertEqual(PresetTileRules.film(printed, films: [film]), "Kodak Gold 200")
-        XCTAssertEqual(PresetTileRules.paper(printed, papers: [paper])?.lead, "printed on")
-        XCTAssertEqual(PresetTileRules.paper(printed, papers: [paper])?.name, "Kodak Professional Portra Endura")
-        let scanned = PresetStatus.valid(film: "kodak_gold_200", paper: "kodak_portra_endura", scan: true)
-        XCTAssertEqual(PresetTileRules.paper(scanned, papers: [paper])?.lead, "not printed · film scan")
-        XCTAssertEqual(PresetTileRules.paper(scanned, papers: [paper])?.name, "")
-        // An id the app doesn't list is shown as it is.
-        XCTAssertEqual(PresetTileRules.film(.valid(film: "mystery", paper: "x", scan: false), films: [film]), "mystery")
-        XCTAssertNil(PresetTileRules.film(.invalid("Its film isn’t in this version of Qlick Lab."), films: [film]))
-        XCTAssertNil(PresetTileRules.paper(nil, papers: [paper]))
-
-        XCTAssertEqual(PresetTileRules.foot(dropping: false), "click to apply · drag to sort · drop files to import")
-        XCTAssertEqual(PresetTileRules.foot(dropping: true), "drop to import")
-    }
-
-    /// A dragged tile carries its own file, marked as the pane's, and lands
-    /// on the tile it's over, gaps included.
-    func testDraggingFindsTheTileUnderThePointer() throws {
-        let file = URL(fileURLWithPath: "/tmp/Presets/Warm Portra.json")
-        XCTAssertEqual(PresetsDrop.preset(in: PresetsDrop.marker(file)), file)
-        XCTAssertNil(PresetsDrop.preset(in: "/tmp/Presets/Warm Portra.json"), "plain text isn't a dragged tile")
-
-        let left = URL(fileURLWithPath: "/a.json"), right = URL(fileURLWithPath: "/b.json")
-        let frames = [left: CGRect(x: 22, y: 18, width: 141, height: 140), right: CGRect(x: 177, y: 18, width: 141, height: 140)]
-        XCTAssertEqual(PresetsDrop.tile(at: CGPoint(x: 80, y: 60), in: frames), left)
-        XCTAssertEqual(PresetsDrop.tile(at: CGPoint(x: 166, y: 60), in: frames), left, "the gap counts as the nearer tile")
-        XCTAssertEqual(PresetsDrop.tile(at: CGPoint(x: 173, y: 60), in: frames), right)
-        XCTAssertNil(PresetsDrop.tile(at: CGPoint(x: 80, y: 400), in: frames))
+    /// A recipe dragged onto another in the Recipes room (Custom Order) takes its place.
+    func testARecipeDraggedTakesTheOthersPlace() {
+        let urls = ["a", "b", "c", "d"].map { URL(fileURLWithPath: "/tmp/Presets/\($0).json") }
+        XCTAssertEqual(RecipeReorderDrop.move(urls[0], onto: urls[2], in: urls).map { [$0.from, $0.to] }, [0, 3], "down: after it")
+        XCTAssertEqual(RecipeReorderDrop.move(urls[3], onto: urls[1], in: urls).map { [$0.from, $0.to] }, [3, 1], "up: before it")
+        XCTAssertNil(RecipeReorderDrop.move(urls[1], onto: urls[1], in: urls))
     }
 
     /// ⌫ on a focused tile deletes the preset, not the photograph: the

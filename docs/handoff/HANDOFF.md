@@ -469,7 +469,7 @@ Lots, in order:
   Develop · Emulsion · Effects (`InspectorTab.inDevelop`; a stored Output tab opens Develop). The provisional
   PrintWorkspace is gone. Esc/G from Print go to the Library's contact sheet. Tests: 577 (`PrintFormatTests`).
   Left for G (one door per function): Develop's toolbar still has its Export button and File › Export ⇧⌘E stays.
-- [~] G Simplifications (done but the recipes' door, asked to Quentin):
+- [x] G Simplifications:
   - Effects folded into Emulsion: the chromatic aberration section (`EffectsTab`) sits after Camera in the Emulsion
     tab, its edits counted there; Develop's tabs are Develop · Emulsion (`InspectorTab.inDevelop`; a stored Effects
     or Output tab opens Emulsion or Develop).
@@ -484,9 +484,14 @@ Lots, in order:
   - Smart Rolls on one level: no "Add a Group"; groups from before are still shown and removable.
   - The sort bar at the sheet's (and grid's) foot: All, Picks, Rejects (⊖), Unmarked, stars, Sort; Developed, colour
     labels and Keyword moved to the find bar over it (search 240 pt).
-  - Left: the recipes' doors (Develop's ⌥⌘P panel and the film card's "Browse", or the Recipes room); the lab words
-    for Scanner / Color Management (audit 2.3, "one by one with Quentin"); the sidebar's Picks entry stays (a
-    catalogue-wide place, not the sheet's filter).
+  - The recipes' door (Quentin chose option 1, 2026-11-20): the Lab's Recipes room and the caption's menu. Gone:
+    Develop's recipes panel (`PresetInspector`, View › Show Recipes ⌥⌘P, the panel's "Recipes" word; `InspectorPane`
+    is `.adjustments` only, in Develop/InspectorPane.swift) and the film card's "Browse": the card keeps the applied
+    recipe's name and its + (New Recipe). Custom Order is dragged in the Recipes room (`RecipeReorderDrop`, only in
+    Custom Order with nothing filtered or searched; `movePresets` keeps `.order.json`). New Recipe and Import no longer
+    open a panel. `Previews.presetsShown` stays false (its tile code is the preview pipeline's, left alone).
+  - Kept as they are (Quentin): "Scanner" and "Color Management". The sidebar's Picks entry stays (a catalogue-wide
+    place, not the sheet's filter).
 - [x] I Fine-line pictograms (`Design/LabGlyphs.swift`): every `LabGlyph` redrawn as one stroke, no fill, on a
   24-unit grid; the line is 1.5 units, at least 1 pt and at most 1.75 pt (`LabGlyph.lineWidth`); micro-text in
   condensed capitals only from 44 pt up ("135" on the cartridge, "RC" on the paper, "24" by the frame arrow). New:
@@ -525,7 +530,7 @@ Lots, in order:
 - Phase: **0.4 is done** (R1–R8; R8 from Quentin's first try of Dev). `feature/import-library` holds architecture waves 1–3, 0.1.5, 0.2, 0.3 and 0.4
   (local, nothing pushed, `main` untouched). Swift tests: 555 (24 skipped), all pass (561 after R8); the Rust side wasn't changed.
   Qlick Lab Dev is built from it (`dist/qlick-lab-dev/Qlick Lab Dev.app`).
-- Phase: **lab structure** on `feature/lab-structure` (from `feature/import-library`, local). Lots A to I done, G but the recipes' door (question to Quentin); J done; next: the recipes' door (Quentin chose option 1).
+- Phase: **lab structure** on `feature/lab-structure` (from `feature/import-library`, local). Lots A to I done, G but the recipes' door (question to Quentin); J and the recipes' door done. Next: waiting for Quentin to try Qlick Lab Dev; decision 4 (a recipe format shared with QLab) is for the very end.
 
 ## Build and test
 

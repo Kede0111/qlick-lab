@@ -15,6 +15,8 @@ struct RecipesWorkspace: View {
     /// The recipes chosen with ⌘-click, to export together.
     @State private var chosen: Set<URL> = []
     @State private var dropping = false
+    /// The recipe being dragged to another place (Custom Order).
+    @State private var dragged: URL?
     @State private var name = ""
 
     private var lab: LabState { model.lab }
@@ -80,6 +82,13 @@ struct RecipesWorkspace: View {
                                     model.renamePreset(preset, to: name); renaming = nil
                                 }
                                 .contextMenu { menu(preset) }
+                                // Custom Order, everything shown: drag a recipe to its place.
+                                .onDrag {
+                                    dragged = preset.url
+                                    return NSItemProvider(object: preset.url.absoluteString as NSString)
+                                } preview: { Text(preset.name).font(.system(size: 12.5, weight: .semibold)).foregroundStyle(Theme.paper).padding(8) }
+                                .onDrop(of: [.text], delegate: RecipeReorderDrop(model: model, target: preset.url, dragged: $dragged,
+                                                                                 enabled: sort == .custom && filter == .all && query.isEmpty))
                             }
                         }
                         .padding(20)
@@ -278,5 +287,30 @@ private struct RecipeDetail: View {
             CapsLabel(label, size: 9.5).frame(width: 80, alignment: .leading)
             Text(value).font(Theme.value(12)).foregroundStyle(Color(white: 0.86)).fixedSize(horizontal: false, vertical: true)
         }
+    }
+}
+
+/// A recipe dragged onto another, in Custom Order with nothing filtered: it takes that one's place, and the order is
+/// kept (`.order.json`), as everywhere the recipes are listed.
+struct RecipeReorderDrop: DropDelegate {
+    let model: EditorModel
+    let target: URL
+    @Binding var dragged: URL?
+    let enabled: Bool
+
+    func validateDrop(info: DropInfo) -> Bool { enabled && dragged != nil && dragged != target }
+    func dropUpdated(info: DropInfo) -> DropProposal? { DropProposal(operation: validateDrop(info: info) ? .move : .forbidden) }
+
+    func performDrop(info: DropInfo) -> Bool {
+        defer { dragged = nil }
+        guard enabled, let dragged, let move = Self.move(dragged, onto: target, in: model.presets.map(\.url)) else { return false }
+        model.movePresets(from: [move.from], to: move.to)
+        return true
+    }
+
+    /// Where `dragged` goes when dropped on `target`: before it going up, after it going down.
+    static func move(_ dragged: URL, onto target: URL, in order: [URL]) -> (from: Int, to: Int)? {
+        guard dragged != target, let from = order.firstIndex(of: dragged), let to = order.firstIndex(of: target) else { return nil }
+        return (from, to > from ? to + 1 : to)
     }
 }
