@@ -15,8 +15,8 @@ struct ArchivesSection: View {
     @AppStorage("qlick.sidebar.archivesOpen") private var listOpen = true
 
     var body: some View {
-        // Qlick Lab: a large entry over the list; a click folds or unfolds it, + makes a new Archive.
-        SidebarBigRow(symbol: LabGlyph.archive.symbol, title: "Archives", action: { withAnimation(Theme.quick) { listOpen.toggle() } }) {
+        // Qlick Lab: an entry over the list; a click folds or unfolds it, + makes a new Archive.
+        SidebarEntry(symbol: LabGlyph.archive.symbol, title: "Archives", action: { withAnimation(Theme.quick) { listOpen.toggle() } }) {
             SidebarAddButton(help: "New Archive") { lab.newArchive() }
         }
         // A folder dropped here (from an Archive or the Finder) becomes an Archive of its own.
@@ -138,23 +138,35 @@ struct ArchivesSection: View {
 /// The sidebar's Boxes: photographs gathered from any Archive, in Boxes inside Boxes to any depth, and Rolls.
 struct BoxesSection: View {
     let model: EditorModel
+    /// In the Library, an entry over the list (as the Archives); in the Lab and Print, a small heading.
+    var asEntry = true
     private var lab: LabState { model.lab }
 
     var body: some View {
-        SidebarBigRow(symbol: LabGlyph.box.symbol, title: "Boxes", action: { withAnimation(Theme.quick) { listOpen.toggle() } }) {
-            Menu {
-                Button("New Box…") { lab.newBox() }
-                Button("New Smart Roll…") { lab.newSmartRoll() }
-            } label: {
-                Image(systemName: "plus").font(.system(size: 12, weight: .semibold)).foregroundStyle(Theme.dim)
-            }
-            .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
-            .frame(width: 26, height: 26)
-            .help("New Box or Smart Roll")
+        if asEntry {
+            SidebarEntry(symbol: LabGlyph.box.symbol, title: "Boxes", action: { withAnimation(Theme.quick) { listOpen.toggle() } }) { addMenu }
+                .sidebarDrop(lab, .boxes, depth: 0)
+                .help(listOpen ? "Fold the Boxes" : "Show the Boxes")
+            if listOpen { list }
+        } else {
+            // Right under the hairline: no heading space on top of the hairline's own.
+            SidebarSectionHeading("Boxes", first: true) { addMenu }
+                .sidebarDrop(lab, .boxes, depth: 0)
+            list
         }
-        .sidebarDrop(lab, .boxes, depth: 0)
-        .help(listOpen ? "Fold the Boxes" : "Show the Boxes")
-        if listOpen { list }
+    }
+
+    private var addMenu: some View {
+        Menu {
+            Button("New Box…") { lab.newBox() }
+            Button("New Smart Roll…") { lab.newSmartRoll() }
+        } label: {
+            Image(systemName: "plus").font(.system(size: 11, weight: .regular)).foregroundStyle(Theme.dim)
+                .frame(width: 22, height: 22).contentShape(Rectangle())
+        }
+        // As a plain button, so the + keeps the dim ink of the Archives' one.
+        .menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden).fixedSize()
+        .help("New Box or Smart Roll")
     }
 
     /// The Boxes' list shown under their entry.
@@ -265,18 +277,6 @@ struct SidebarHeading: View {
     }
 }
 
-/// The + beside a large entry of the sidebar.
-struct SidebarAddButton: View {
-    let help: String
-    let action: () -> Void
-    var body: some View {
-        Button(action: action) {
-            Image(systemName: "plus").font(.system(size: 12, weight: .semibold)).foregroundStyle(Theme.dim).frame(width: 26, height: 26).contentShape(Rectangle())
-        }
-        .buttonStyle(.plain).help(help)
-    }
-}
-
 /// A section's heading whose + opens a menu.
 struct SidebarMenuHeading<Items: View>: View {
     let title: String
@@ -355,7 +355,7 @@ struct SidebarHint: View {
     var body: some View {
         Text(text).font(.system(size: 11.5)).foregroundStyle(Theme.dim)
             .fixedSize(horizontal: false, vertical: true)
-            .padding(.horizontal, 10).padding(.top, 2).padding(.bottom, 4)
+            .padding(.leading, SidebarMetrics.textLeading).padding(.trailing, 8).padding(.top, 2).padding(.bottom, 4)
     }
 }
 
@@ -386,16 +386,17 @@ struct SidebarRow<Adding: View>: View {
                 Image(systemName: "chevron.right").font(.system(size: 8, weight: .bold)).foregroundStyle(Theme.dim)
                     .rotationEffect(.degrees(unfolded ? 90 : 0))
                     .opacity(unfoldable ? 1 : 0)
-                    .frame(width: 14, height: 26)
+                    .frame(width: 14, height: SidebarMetrics.rowHeight)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .disabled(!unfoldable)
             Button(action: action) {
-                HStack(spacing: 5) {
-                    LabSymbol(symbol: symbol, points: 11, color: on ? Theme.accent : dim ? Theme.faint : Theme.dim).frame(width: 16)
-                    Text(name).font(.system(size: 12.5, weight: on ? .semibold : strong ? .medium : .regular))
-                        .foregroundStyle(on ? Theme.paper : dim ? Theme.dim : strong ? Color(white: 0.86) : Color(white: 0.76))
+                // Qlick Lab: a list row of the sidebar (`SidebarMetrics`): 13 pt, a smaller icon, indented by the icon column.
+                HStack(spacing: 6) {
+                    LabSymbol(symbol: symbol, points: 9.5, color: SidebarMetrics.icon(selected: on, dim: dim)).frame(width: 14)
+                    Text(name).font(SidebarMetrics.font(selected: on))
+                        .foregroundStyle(SidebarMetrics.text(selected: on, dim: dim))
                         .lineLimit(1).truncationMode(.middle)
                     Spacer(minLength: 2)
                     if let count, !(hovered && Adding.self != EmptyView.self) {
@@ -403,7 +404,7 @@ struct SidebarRow<Adding: View>: View {
                     }
                 }
                 .padding(.trailing, 8)
-                .frame(height: 26)
+                .frame(height: SidebarMetrics.rowHeight)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -419,8 +420,10 @@ struct SidebarRow<Adding: View>: View {
             }
         }
         // A deep tree stays readable in a narrow sidebar: each level steps in a little less than the one above.
-        .padding(.leading, SidebarRowIndent.of(depth))
-        .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(Color.white.opacity(dropping ? 0.12 : on ? 0.08 : hovered ? 0.05 : 0)))
+        // The chevron in the entries' icon column, the icon and the word one column in.
+        .padding(.leading, SidebarMetrics.inset + SidebarMetrics.iconColumn - 14 + SidebarRowIndent.of(depth))
+        .background(RoundedRectangle(cornerRadius: SidebarMetrics.radius, style: .continuous)
+            .fill(Color.white.opacity(dropping ? 0.12 : on ? SidebarMetrics.selectedFill : hovered ? SidebarMetrics.hoverFill : 0)))
         .onHover { hovered = $0 }
         .accessibilityAddTraits(on ? .isSelected : [])
     }

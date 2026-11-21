@@ -556,6 +556,14 @@ Lots, in order:
   (a click folds them, + makes one; drops on them as before). Lab: Develop, Compare, Recipes, Stocks, then Boxes.
   Print: Export, then Boxes; Print with nothing open opens the frame in hand. Sidebar 248 pt (220 at least).
   Selector 28 pt on the window buttons' line (05e1402).
+- Then compact again (Quentin, 2026-11-21: too big, too bold): one sidebar component, `Design/SidebarMetrics.swift`
+  (`SidebarMetrics`, `SidebarEntry`, `SidebarSectionHeading`, `SidebarHairline`, `SidebarAddButton`): 13 pt entries
+  (Medium when selected; only "Qlick Lab" bold), 11 pt spaced capital headings, 30 pt rows, 20 pt icon column, 0.5 pt
+  hairlines inset to the words, radius 7 at 8 %, red only on what's open, 220 pt wide; list rows (`SidebarRow`) on the
+  same measures, one column in. The active part only: Library = LIBRARY, Import, Contact Sheet + its list, Archives +
+  list, Boxes + list; Lab = LAB, Develop, Compare, Recipes, Stocks; Print = PRINT, Export. Archives, Boxes and Rolls
+  in the Library only (Quentin: chosen there, worked on in the Lab and Print, the film strip the one thing shared).
+  Selector: a 30 pt glass capsule with a hairline, 13 pt icons, 12 pt semibold capitals (tracking 1), red when active.
 
 ### Speed, RedLamp's ideas (branch `feature/speed-redlamp`, from `feature/lab-structure`; a test branch, to drop if not convincing)
 

@@ -16,7 +16,8 @@ struct LabSidebar: View {
             HStack(spacing: 9) {
                 QMark(size: 20)
                 VStack(alignment: .leading, spacing: 1) {
-                    Text("Qlick Lab").font(.system(size: 13.5, weight: .semibold)).foregroundStyle(Theme.paper)
+                    // The app's name: the one bold word of the sidebar.
+                    Text("Qlick Lab").font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.paper)
                     CatalogMenu(lab: lab)
                 }
                 Spacer()
@@ -30,24 +31,24 @@ struct LabSidebar: View {
             // Library its Archives and Boxes; in the Lab and in Print the Boxes alone, the film strip being enough
             // there and sorting the Library's.
             ScrollView(.vertical) {
-                VStack(alignment: .leading, spacing: 2) {
-                    // The part's rooms as large entries (the Contact Sheet with its own list: All Photographs, Last
-                    // Import, Picks, By Date), then in the Library the Archives, and everywhere the Boxes, each a large
-                    // entry over its own list.
+                VStack(alignment: .leading, spacing: 1) {
+                    // Qlick Lab: the active part only (the selector is the main way round), under its small heading;
+                    // one set of measures for every part (`SidebarMetrics`). The Library lists Import, the Contact
+                    // Sheet with its list, then the Archives and the Boxes with theirs; the Lab and Print their rooms.
+                    SidebarSectionHeading(lab.part.title, first: true)
                     ForEach(lab.part.rooms) { room in
-                        SidebarBigRow(symbol: room.symbol, title: room == .print ? "Export" : room.title, on: lab.workspace.listed(as: room),
-                                      trailing: room == .importer ? lab.importer.cards.first?.name : nil) { lab.show(room) }
+                        SidebarEntry(symbol: room.symbol, title: room == .print ? "Export" : room.title, on: lab.workspace.listed(as: room),
+                                     trailing: room == .importer ? lab.importer.cards.first?.name : nil) { lab.show(room) }
                             .help(room == .print ? "Print: the photograph as printed, and its export" : "\(room.title) (⌥⌘\(room.key))")
-                        if room == .contactSheet {
-                            FindingSection(model: model).padding(.leading, 12).padding(.bottom, 4)
-                        }
+                        if room == .contactSheet { FindingSection(model: model) }
                     }
+                    // Archives, Boxes and Rolls are chosen in the Library only (Quentin, 2026-11-21): the Lab and
+                    // Print work on what's chosen there, the film strip being the one thing the parts share.
                     if lab.part == .library {
                         SidebarHairline()
                         ArchivesSection(model: model)
+                        BoxesSection(model: model, asEntry: true)
                     }
-                    SidebarHairline()
-                    BoxesSection(model: model)
                 }
                 .padding(.horizontal, 10)
                 .padding(.bottom, 10)
@@ -64,11 +65,9 @@ struct LabSidebar: View {
             Spacer(minLength: 0)
             ImportSidebarProgress(model: model)
             SidebarWork(model: model)
-            Divider().overlay(Color.white.opacity(0.06))
-            RoomButton(symbol: "gearshape", title: "Settings", on: false) {
-                lab.openSettings()
-            }
-            .padding(.horizontal, 10).padding(.vertical, 8)
+            SidebarHairline().padding(.horizontal, 10)
+            SidebarEntry(symbol: "gearshape", title: "Settings") { lab.openSettings() }
+                .padding(.horizontal, 10).padding(.bottom, 8)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .overlay {
@@ -89,62 +88,6 @@ private struct RoomRow: View {
     var body: some View {
         RoomButton(symbol: room.symbol, title: room.title, on: on, trailing: trailing, action: action)
             .help("\(room.title) (⌥⌘\(room.key))")
-    }
-}
-
-/// A part's heading in the sidebar (LIBRARY, LAB, PRINT): small spaced capitals, as the places' headings.
-struct SidebarPartHeading: View {
-    let title: String
-    var body: some View {
-        CapsLabel(title)
-            .padding(.leading, 10).padding(.top, 8).padding(.bottom, 6)
-            .accessibilityAddTraits(.isHeader)
-    }
-}
-
-/// A large entry of the sidebar (a room, or the Archives and the Boxes over their lists): its pictogram, red when it's
-/// the one open, and its name, on a rounded grey highlight.
-struct SidebarBigRow<Accessory: View>: View {
-    let symbol: String
-    let title: String
-    var on = false
-    var trailing: String? = nil
-    var action: () -> Void
-    @ViewBuilder var accessory: () -> Accessory
-    @State private var hovered = false
-
-    init(symbol: String, title: String, on: Bool = false, trailing: String? = nil, action: @escaping () -> Void,
-         @ViewBuilder accessory: @escaping () -> Accessory = { EmptyView() }) {
-        self.symbol = symbol; self.title = title; self.on = on; self.trailing = trailing; self.action = action; self.accessory = accessory
-    }
-
-    var body: some View {
-        HStack(spacing: 0) {
-            Button(action: action) {
-                HStack(spacing: 12) {
-                    LabSymbol(symbol: symbol, points: 16, color: on ? Theme.accent : Theme.label).frame(width: 24)
-                    Text(title).font(.system(size: 17, weight: .semibold)).foregroundStyle(on ? Theme.paper : Color(white: 0.86)).lineLimit(1)
-                    Spacer(minLength: 4)
-                    if let trailing { Text(trailing).font(Theme.value(11)).foregroundStyle(Theme.dim).lineLimit(1).truncationMode(.tail).layoutPriority(-1) }
-                }
-                .padding(.leading, 12).padding(.trailing, 8)
-                .frame(height: 44)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            accessory().padding(.trailing, 6)
-        }
-        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.white.opacity(on ? 0.1 : hovered ? 0.05 : 0)))
-        .onHover { hovered = $0 }
-        .accessibilityAddTraits(on ? .isSelected : [])
-    }
-}
-
-/// The hairline between the sidebar's sections.
-struct SidebarHairline: View {
-    var body: some View {
-        Rectangle().fill(Color.white.opacity(0.1)).frame(height: 1).padding(.horizontal, 6).padding(.top, 12)
-            .accessibilityHidden(true)
     }
 }
 
