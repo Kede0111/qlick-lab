@@ -25,7 +25,7 @@ enum Gamut {
         /// The share of the picture out of the space, 0…1.
         var fraction: Double
         /// The picture's colours on the xy diagram, a few thousand at most.
-        var cloud: [CGPoint]
+        var cloud: [Gamut.Dot]
         static func == (a: Check, b: Check) -> Bool { a.fraction == b.fraction && a.cloud == b.cloud && (a.marks == nil) == (b.marks == nil) }
     }
 
@@ -69,12 +69,20 @@ enum Gamut {
     }
 
     /// The picture's colours as xy chromaticities, on a grid of at most `most` points; black and near-black left out.
-    nonisolated static func cloud(_ image: CGImage, most: Int = 2500) -> [CGPoint] {
+    /// A colour of the photograph on the diagram: where it lies (xy), and its own colour at full brightness, in linear
+    /// Rec. 2020 (so a dark red is drawn red, readable on the panel).
+    struct Dot: Equatable, Sendable {
+        var x: CGFloat, y: CGFloat
+        var r: Float, g: Float, b: Float
+        var point: CGPoint { CGPoint(x: x, y: y) }
+    }
+
+    nonisolated static func cloud(_ image: CGImage, most: Int = 2500) -> [Dot] {
         // Linear Rec. 2020, unclipped, then to XYZ by its matrix (D65).
         guard let linear = CGColorSpace(name: CGColorSpace.extendedLinearITUR_2020), let floats = pixels(image, in: linear) else { return [] }
         let count = image.width * image.height
         let step = max(1, count / most)
-        var points: [CGPoint] = []
+        var points: [Dot] = []
         for i in stride(from: 0, to: count, by: step) {
             let o = i * 4
             let (r, g, b) = (Double(floats[o]), Double(floats[o + 1]), Double(floats[o + 2]))
@@ -83,7 +91,8 @@ enum Gamut {
             let z = 0.0281 * g + 1.0610 * b
             let sum = x + y + z
             guard y > 0.01, sum > 0 else { continue }
-            points.append(CGPoint(x: x / sum, y: y / sum))
+            let peak = max(r, g, b, 1e-6)
+            points.append(Dot(x: x / sum, y: y / sum, r: Float(max(r, 0) / peak), g: Float(max(g, 0) / peak), b: Float(max(b, 0) / peak)))
         }
         return points
     }
@@ -140,10 +149,10 @@ enum Gamut {
 }
 
 /// The CIE 1931 xy diagram, in a fine line: the horseshoe of the colours an eye sees, the output space's triangle (in
-/// paper), the screen's (Display P3, dashed), and the photograph's colours as a faint cloud.
+/// paper), the screen's (Display P3, dashed), and the photograph's colours as a cloud of their own colours.
 struct GamutDiagram: View {
     let space: String
-    let cloud: [CGPoint]
+    let cloud: [Gamut.Dot]
 
     var body: some View {
         Canvas { context, size in
@@ -158,8 +167,13 @@ struct GamutDiagram: View {
                 return path
             }
             context.stroke(polygon(Gamut.locus), with: .color(Theme.dim), lineWidth: 1)
-            for point in cloud {
-                context.fill(Path(ellipseIn: CGRect(x: p(point).x - 0.6, y: p(point).y - 0.6, width: 1.2, height: 1.2)), with: .color(Theme.label.opacity(0.35)))
+            // Qlick Lab: each colour of the photograph in its own colour (wide colours as far as the screen shows),
+            // under the outlines, which stay readable over it.
+            let wide = CGColorSpace(name: CGColorSpace.extendedLinearITUR_2020)!
+            for dot in cloud {
+                let at = p(dot.point)
+                let colour = CGColor(colorSpace: wide, components: [CGFloat(dot.r), CGFloat(dot.g), CGFloat(dot.b), 0.9]) ?? CGColor(gray: 0.7, alpha: 0.5)
+                context.fill(Path(ellipseIn: CGRect(x: at.x - 1, y: at.y - 1, width: 2, height: 2)), with: .color(Color(cgColor: colour)))
             }
             if let screen = Gamut.primaries("Display P3") {
                 context.stroke(polygon(screen), with: .color(Theme.faint), style: StrokeStyle(lineWidth: 1, dash: [3, 3]))

@@ -121,6 +121,32 @@ import AppKit
             if let event = NSEvent.mouseEvent(with: .leftMouseDown, location: point, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
                                               windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1) { window.sendEvent(event) }
         case "togglesheet": lab.toggleSheet()
+        // stripclick <index> [cmd|shift]: what a click on the film strip's frame does (`model.click`), modifiers given.
+        case "stripclick":
+            guard let index = words.first.flatMap(Int.init), model.shownPhotos.indices.contains(index) else { break }
+            model.click(model.shownPhotos[index].url, command: words.contains("cmd"), shift: words.contains("shift"))
+        // clickmod <cmd|shift|alt…> <x> <y>: a click with modifiers, through the window.
+        case "clickmod":
+            guard words.count == 3, let x = Double(words[1]), let y = Double(words[2]), let window else { break }
+            let flags = modifiers(words[0].split(separator: "+").map(String.init))
+            for type in [NSEvent.EventType.leftMouseDown, .leftMouseUp] {
+                if let event = NSEvent.mouseEvent(with: type, location: CGPoint(x: x, y: y), modifierFlags: flags, timestamp: ProcessInfo.processInfo.systemUptime,
+                                                  windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1) { window.sendEvent(event) }
+            }
+        // dragfrom <x> <y>: the mouse goes down there and moves 40 pt away, through the window, as a drag would start;
+        // `state` then says what the lab is dragging (`dragging=`). The drop itself needs the window server.
+        case "dragfrom":
+            guard words.count == 2, let x = Double(words[0]), let y = Double(words[1]), let window else { break }
+            lab.dragging = nil
+            var events: [NSEvent] = []
+            if let down = NSEvent.mouseEvent(with: .leftMouseDown, location: CGPoint(x: x, y: y), modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                                             windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1) { events.append(down) }
+            for step in 1...8 {
+                if let drag = NSEvent.mouseEvent(with: .leftMouseDragged, location: CGPoint(x: x + Double(step) * 5, y: y - Double(step) * 2),
+                                                 modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber,
+                                                 context: nil, eventNumber: 0, clickCount: 1, pressure: 1) { events.append(drag) }
+            }
+            for event in events { window.sendEvent(event) }
         case "strip": if (rest == "off") == model.filmstripVisible { model.toggleFilmstrip() }
         // gamut on|off, outspace <name>, proof on|off: Print's colour.
         case "gamut": lab.showGamut = rest != "off"
@@ -718,7 +744,7 @@ import AppKit
             try? text.write(toFile: rest, atomically: true, encoding: .utf8)
         case "state":
             let counts = lab.counts
-            let text = "previews=\(lab.previewBuilder.done)/\(lab.previewBuilder.total)\(lab.previewBuilder.running ? "+" : "") proxies=\(lab.proxyMaker.done)/\(lab.proxyMaker.total)\(lab.proxyMaker.busy ? "+" : "") leftout=\(lab.proxyMaker.leftOut.count) thumbnails=\(model.thumbnailsAsked.done)/\(model.thumbnailsAsked.total) left=\(model.thumbnailsLeft) work=[\(BackgroundWork.tasks(model).map { "\($0.kind.rawValue):\($0.figure.replacingOccurrences(of: " ", with: "_"))" }.joined(separator: ","))] kept=\(model.showsKeptRender) catalog=\(lab.catalogName) archives=\(lab.projects.projects.count) boxes=\(lab.projects.allBoxes.count) gamut=\(lab.gamutCheck.map { String(format: "%.4f/%d", $0.fraction, $0.cloud.count) } ?? "-") shelf=\(lab.shelf.favourites.count)/\(lab.shelf.hidden.count) room=\(lab.workspace.rawValue) strip=\(model.stripShown)/\(model.filmstripVisible)/\(model.mode) part=\(lab.part.rawValue) frames=\(lab.frames.count) picks=\(counts.picks) rejects=\(counts.rejects) selected=\(model.selection.selected.count) "
+            let text = "previews=\(lab.previewBuilder.done)/\(lab.previewBuilder.total)\(lab.previewBuilder.running ? "+" : "") proxies=\(lab.proxyMaker.done)/\(lab.proxyMaker.total)\(lab.proxyMaker.busy ? "+" : "") leftout=\(lab.proxyMaker.leftOut.count) thumbnails=\(model.thumbnailsAsked.done)/\(model.thumbnailsAsked.total) left=\(model.thumbnailsLeft) work=[\(BackgroundWork.tasks(model).map { "\($0.kind.rawValue):\($0.figure.replacingOccurrences(of: " ", with: "_"))" }.joined(separator: ","))] kept=\(model.showsKeptRender) catalog=\(lab.catalogName) archives=\(lab.projects.projects.count) boxes=\(lab.projects.allBoxes.count) gamut=\(lab.gamutCheck.map { String(format: "%.4f/%d", $0.fraction, $0.cloud.count) } ?? "-") shelf=\(lab.shelf.favourites.count)/\(lab.shelf.hidden.count) current=\(model.selection.current?.lastPathComponent ?? "-") dragging=\(lab.dragging.map { String(describing: $0).replacingOccurrences(of: " ", with: "_") } ?? "-") compared=\(lab.compare.items.count) overview=\(lab.overview.map { "\($0)" } ?? "-") room=\(lab.workspace.rawValue) strip=\(model.stripShown)/\(model.filmstripVisible)/\(model.mode) part=\(lab.part.rawValue) frames=\(lab.frames.count) picks=\(counts.picks) rejects=\(counts.rejects) selected=\(model.selection.selected.count) "
                 + "current=\(model.selection.current?.lastPathComponent ?? "-") order=\(lab.frames.map { $0.url.lastPathComponent }.joined(separator: ",")) sort=\(lab.sort.key.rawValue) stacks=\(lab.projects.stacks.map { "\($0.frames.count)\($0.open ? "o" : "c")" }.joined(separator: ",")) advance=\(model.advanceAfterRating) mode=\(model.mode) ready=\(model.ready) preview=\(model.previewCurrent) "
                 + "status=[\(model.status)] film=\(model.film) panes=\(lab.compareModel.panes.count) images=\(lab.compareModel.images.values.map { "\($0.width)x\($0.height)" }.joined(separator: ",")) undo=\(window?.undoManager?.canUndo ?? false) "
                 + "presets=[\(model.presets.map(\.name).joined(separator: "|"))] wb=\(model.value("io.raw_white_balance.mode").string)/\(Int(model.value("io.raw_white_balance.temperature").double))/\(model.value("io.raw_white_balance.tint").double) match=\(model.state.brightnessMatch?.ev.map { String(format: "%.2f", $0) } ?? (model.state.brightnessMatch == nil ? "off" : "pending")) renaming=\(model.renamingPreset?.lastPathComponent ?? "-") pane=\(model.inspectorPane) responder=\(window.map { w in (w.firstResponder as? NSTextView).flatMap { $0.delegate as? NSTextField }.map { "field:\($0.stringValue.replacingOccurrences(of: " ", with: "_")):hidden=\($0.isHiddenOrHasHiddenAncestor)" } ?? String(describing: w.firstResponder.map { Swift.type(of: $0) }) } ?? "-")\n"

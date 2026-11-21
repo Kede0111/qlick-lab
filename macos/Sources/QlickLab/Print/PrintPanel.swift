@@ -7,6 +7,8 @@ import SwiftUI
 /// export itself, whose panel holds the file's format, quality and size.
 struct PrintPanel: View {
     let model: EditorModel
+    /// Moves as a file choice changes, so the line over Export says it.
+    @State private var fileRevision = 0
 
     var body: some View {
         let count = model.exportsSingle ? (model.source == nil ? 0 : 1) : model.exportTargets.count
@@ -20,6 +22,7 @@ struct PrintPanel: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     if model.source != nil {
+                        PrintFileSection(revision: $fileRevision)
                         PrintColourSection(model: model)
                         ImageSizeSection(model: model)
                         PrintFrameSection(model: model)
@@ -51,7 +54,8 @@ struct PrintPanel: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
             .scrollIndicators(.automatic)
-            ExportFoot(model: model)
+            // The line over the button says what the export makes, from the choices above.
+            ExportFoot(model: model).id(fileRevision)
         }
         .disabled(!model.hasCatalog)
     }
@@ -190,5 +194,60 @@ extension LabState {
         }
         guard model.sourceItem == item, model.previewSpace == space else { return }
         gamutCheck = check
+    }
+}
+
+/// The print's file, chosen here and remembered for the next export (no presets): its format, its bit depth (PNG and
+/// TIFF), its quality (JPEG and HEIF), its size. The export's save panel opens on these.
+struct PrintFileSection: View {
+    @Binding var revision: Int
+    @State private var format = OutputFormat.last
+    @State private var depth = SaveSettings.bitDepth(for: OutputFormat.last)
+    @State private var quality = SaveSettings.lastQuality
+    @State private var size = ExportSize.last
+
+    static let qualities = [100, 95, 90, 85, 80, 70, 60]
+    static let pixels = [1080, 1600, 2048, 2560, 3000, 4096, 6000]
+
+    var body: some View {
+        InkSection(title: "File") {
+            ChoiceRow(title: "Format", items: OutputFormat.allCases.map { .option(Self.name($0), tag: $0.rawValue) }, selection: format.rawValue,
+                      help: "The file the export makes") { tag in
+                guard let next = OutputFormat(rawValue: tag) else { return }
+                format = next; OutputFormat.last = next; depth = SaveSettings.bitDepth(for: next); revision += 1
+            }
+            if format == .png || format == .tiff {
+                ChoiceRow(title: "Bit depth", items: [.option("8 bits", tag: "8"), .option("16 bits", tag: "16")], selection: "\(depth)",
+                          help: "16 bits keep the finest tones; 8 bits are smaller") { tag in
+                    let next = Int(tag) ?? 8
+                    depth = next; SaveSettings.setBitDepth(next, for: format); revision += 1
+                }
+            } else {
+                ChoiceRow(title: "Quality", items: Self.qualities.map { .option("\($0)", tag: "\($0)") }, selection: "\(quality)",
+                          help: "Higher keeps more detail, in a larger file") { tag in
+                    let next = Int(tag) ?? 95
+                    quality = next; SaveSettings.lastQuality = next; revision += 1
+                }
+            }
+            ChoiceRow(title: "Size", items: ExportSize.Edge.allCases.map { .option($0.title, tag: $0.rawValue) }, selection: size.edge.rawValue,
+                      help: "Full size, or fitted to a number of pixels on the long or the short edge, border included") { tag in
+                guard let edge = ExportSize.Edge(rawValue: tag) else { return }
+                size.edge = edge; ExportSize.last = size; revision += 1
+            }
+            if size.edge != .full {
+                ChoiceRow(title: "Pixels", items: Self.pixels.map { .option("\($0) px", tag: "\($0)") }, selection: "\(size.pixels)") { tag in
+                    size.pixels = Int(tag) ?? size.pixels; ExportSize.last = size; revision += 1
+                }
+            }
+        }
+    }
+
+    static func name(_ format: OutputFormat) -> String {
+        switch format {
+        case .jpeg: "JPEG"
+        case .tiff: "TIFF"
+        case .png: "PNG"
+        case .heif: "HEIF"
+        }
     }
 }

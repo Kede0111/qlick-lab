@@ -1185,7 +1185,8 @@ struct ExportFoot: View {
 
     /// "3984 × 2656 · JPEG 95 · sRGB": the photograph's size, then the
     /// format and colour space the save panel will offer first.
-    static func summary(photo: CGSize, format: OutputFormat = .last, quality: Int = SaveSettings.lastQuality, chosenSpace: Int = SaveSettings.chosenSpace) -> String {
+    static func summary(photo: CGSize, format: OutputFormat = .last, quality: Int = SaveSettings.lastQuality, chosenSpace: Int = SaveSettings.chosenSpace,
+                        fit: ExportSize = .last) -> String {
         let depth = SaveSettings.bitDepth(for: format)
         let kind = switch format {
         case .jpeg: "JPEG \(quality)"
@@ -1194,7 +1195,14 @@ struct ExportFoot: View {
         case .heif: "HEIF 10-bit \(quality)"
         }
         let space = SaveSettings.colorSpaces[SaveSettings.effectiveSpace(chosenSpace, bitDepth: format == .jpeg ? 8 : depth)]
-        let size = photo == .zero ? nil : "\(Int(photo.width)) × \(Int(photo.height))"
+        // Qlick Lab: the size the export fits it to (Print's File › Size), never enlarged.
+        var fitted = photo
+        if photo != .zero, fit.edge != .full {
+            let edge = fit.edge == .long ? max(photo.width, photo.height) : min(photo.width, photo.height)
+            let scale = min(1, CGFloat(fit.pixels) / max(edge, 1))
+            fitted = CGSize(width: (photo.width * scale).rounded(), height: (photo.height * scale).rounded())
+        }
+        let size = photo == .zero ? nil : "\(Int(fitted.width)) × \(Int(fitted.height))"
         return ([size, kind, space].compactMap { $0 }).joined(separator: " · ")
     }
 }

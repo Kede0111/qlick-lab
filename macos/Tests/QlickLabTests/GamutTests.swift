@@ -9,7 +9,10 @@ import XCTest
 final class GamutTests: XCTestCase {
     /// QLICK_GAMUT_SHEET=<file.png>: the diagram, to look at.
     @MainActor func testTheDiagramDraws() throws {
-        let cloud = Gamut.cloud(try picture()) + (0..<400).map { i in CGPoint(x: 0.3 + 0.1 * sin(Double(i)), y: 0.33 + 0.1 * cos(Double(i) * 1.3)) }
+        let extra: [Gamut.Dot] = (0..<400).map { (i: Int) -> Gamut.Dot in
+            Gamut.Dot(x: CGFloat(0.3 + 0.1 * sin(Double(i))), y: CGFloat(0.33 + 0.1 * cos(Double(i) * 1.3)), r: 1, g: Float(i % 7) / 7, b: Float(i % 5) / 5)
+        }
+        let cloud = Gamut.cloud(try picture()) + extra
         let renderer = ImageRenderer(content: GamutDiagram(space: "sRGB", cloud: cloud).frame(width: 240).padding(10).background(Theme.panel))
         renderer.scale = 2
         let image = try XCTUnwrap(renderer.cgImage)
@@ -50,6 +53,9 @@ final class GamutTests: XCTestCase {
         // The grey near the white point, the green near Rec. 2020's green primary (0.170, 0.797).
         XCTAssertTrue(cloud.contains { abs($0.x - 0.3127) < 0.01 && abs($0.y - 0.329) < 0.01 })
         XCTAssertTrue(cloud.contains { abs($0.x - 0.170) < 0.02 && abs($0.y - 0.797) < 0.02 })
+        // Each dot keeps its colour: the green is green at full brightness, the grey neutral.
+        XCTAssertTrue(cloud.contains { $0.g == 1 && $0.r < 0.05 && $0.b < 0.05 })
+        XCTAssertTrue(cloud.contains { abs($0.r - $0.g) < 0.02 && abs($0.g - $0.b) < 0.02 })
         for name in SaveSettings.colorSpaces { XCTAssertEqual(Gamut.primaries(name)?.count, 3, name); XCTAssertNotNil(Gamut.space(name), name) }
         XCTAssertGreaterThan(Gamut.locus.count, 30)
     }

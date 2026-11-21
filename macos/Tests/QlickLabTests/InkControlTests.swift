@@ -260,12 +260,12 @@ import XCTest
 
     func testExportSummary() {
         let photo = CGSize(width: 6048, height: 4024)
-        XCTAssertEqual(ExportFoot.summary(photo: photo, format: .jpeg, quality: 92, chosenSpace: 0), "6048 × 4024 · JPEG 92 · sRGB")
-        XCTAssertEqual(ExportFoot.summary(photo: photo, format: .jpeg, quality: 95, chosenSpace: SaveSettings.prophoto),
+        XCTAssertEqual(ExportFoot.summary(photo: photo, format: .jpeg, quality: 92, chosenSpace: 0, fit: .full), "6048 × 4024 · JPEG 92 · sRGB")
+        XCTAssertEqual(ExportFoot.summary(photo: photo, format: .jpeg, quality: 95, chosenSpace: SaveSettings.prophoto, fit: .full),
                        "6048 × 4024 · JPEG 95 · Adobe RGB (1998)", "JPEG is 8-bit, so ProPhoto gives way to Adobe RGB")
-        XCTAssertEqual(ExportFoot.summary(photo: .zero, format: .jpeg, quality: 80, chosenSpace: 1), "JPEG 80 · Display P3",
+        XCTAssertEqual(ExportFoot.summary(photo: .zero, format: .jpeg, quality: 80, chosenSpace: 1, fit: .full), "JPEG 80 · Display P3",
                        "No size before a photograph opens")
-        let summary = ExportFoot.summary(photo: photo, format: .tiff, chosenSpace: 0)
+        let summary = ExportFoot.summary(photo: photo, format: .tiff, chosenSpace: 0, fit: .full)
         XCTAssertTrue(summary == "6048 × 4024 · TIFF 16-bit · sRGB" || summary == "6048 × 4024 · TIFF 8-bit · sRGB", summary)
     }
 
