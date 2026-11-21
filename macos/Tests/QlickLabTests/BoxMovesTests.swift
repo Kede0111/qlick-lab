@@ -63,6 +63,25 @@ import XCTest
         XCTAssertEqual(try disk(), before, "the disk is untouched")
     }
 
+    /// A whole Archive dropped on a Box makes a Roll of its photographs; on the Boxes, a Box of them.
+    func testAWholeArchiveOnABoxMakesARoll() throws {
+        let a = try photos("Leica", ["L1.DNG", "L2.DNG"])
+        let store = ProjectStore(directory: catalogue)
+        let archive = store.create(named: "Leica M11")
+        store.addRolls([a], to: archive.id)
+        let voyage = try XCTUnwrap(store.createBox(named: "Voyage"))
+        let before = try disk()
+        let plan = try XCTUnwrap(store.plan(.archive(archive.id), onto: .box(voyage.id), at: 0.5, copying: false))
+        XCTAssertEqual(plan.label, "New Roll “Leica M11” in “Voyage”")
+        XCTAssertTrue(store.apply(try XCTUnwrap(plan.action)))
+        XCTAssertEqual(store.box(voyage.id)?.rolls.map(\.name), ["Leica M11"])
+        XCTAssertEqual(names(store.box(voyage.id)?.rolls.first?.frames ?? []), ["L1.DNG", "L2.DNG"])
+        let onBoxes = try XCTUnwrap(store.plan(.archive(archive.id), onto: .boxes, at: 0.5, copying: false))
+        XCTAssertTrue(store.apply(try XCTUnwrap(onBoxes.action)))
+        XCTAssertEqual(store.boxes.map(\.name), ["Voyage", "Leica M11"])
+        XCTAssertEqual(try disk(), before, "the disk is untouched")
+    }
+
     func testPhotographsFromAnArchiveAreAddedOnceWithTheCopyWording() throws {
         let a = try photos("A", ["A1.DNG", "A2.DNG", "A3.DNG"])
         let store = ProjectStore(directory: catalogue)

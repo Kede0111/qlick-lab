@@ -54,6 +54,12 @@ enum DropAction: Equatable, Sendable {
     case newBox(String, frames: [URL], folder: String?)
     /// A Roll dropped on the Boxes: a new Box named after it, holding it.
     case newBoxForRoll(UUID, from: UUID)
+    /// A whole Archive dropped on a Box: a Roll named after it, holding its photographs.
+    case rollFromArchive(UUID, in: UUID)
+    /// A whole Archive dropped on a Roll: its photographs added.
+    case addArchive(UUID, to: Holder)
+    /// A whole Archive dropped on the Boxes: a new Box named after it, holding its photographs.
+    case newBoxFromArchive(UUID)
 }
 
 /// What a drop on a row would do, said before it's done: the label under the row and the pointer's badge.
@@ -175,6 +181,15 @@ extension ProjectStore {
             }
 
         case .archive(let id):
+            // Qlick Lab: a whole Archive on a Box makes a Roll of its photographs there; on a Roll, they're added.
+            if let holder = target.holder, let source = archive(id) {
+                let name = shortName(holder) ?? ""
+                if isSmart(holder) { return .refused(Self.smartByRules(name)) }
+                if case .box(let boxID) = holder {
+                    return DropPlan(operation: .copy, verb: "New Roll", rest: "“\(source.name)” in “\(name)”", action: .rollFromArchive(id, in: boxID))
+                }
+                return DropPlan(operation: .copy, verb: "Copy", rest: "the photographs of “\(source.name)” to “\(name)”", action: .addArchive(id, to: holder))
+            }
             guard case .archive(let other) = target else { return nil }
             guard other != id, let moving = archive(id), let at = projects.firstIndex(where: { $0.id == other }) else { return nil }
             let index = at + (halves == .after ? 1 : 0)
@@ -250,6 +265,14 @@ extension ProjectStore {
         case .newBoxForRoll(let id, let from):
             guard let roll = boxRoll(id, in: from)?.roll, let box = createBox(named: roll.name) else { return false }
             moveBoxRoll(id, from: from, into: box.id, at: 0)
+        case .rollFromArchive(let id, let boxID):
+            guard let source = archive(id) else { return false }
+            createRoll(named: source.name, in: boxID, frames: archivePhotos(id))
+        case .addArchive(let id, let holder):
+            addFrames(archivePhotos(id), to: holder)
+        case .newBoxFromArchive(let id):
+            guard let source = archive(id) else { return false }
+            createBox(named: source.name, frames: archivePhotos(id))
         }
         return snapshot != before
     }
@@ -286,9 +309,17 @@ extension ProjectStore {
             return DropPlan(operation: .move, verb: "Move", rest: "“\(box(id)?.name ?? "")” to the top of the Boxes", action: .placeBox(id, in: nil, at: boxes.count))
         case .finder:
             return .refused("Drop the folder on Archives first")
-        case .archive:
-            return .refused("An Archive stays in the Archives")
+        case .archive(let id):
+            guard let source = archive(id) else { return nil }
+            return DropPlan(operation: .copy, verb: "New Box", rest: "“\(source.name)”", action: .newBoxFromArchive(id))
         }
+    }
+
+    /// The photographs of every Folder of an Archive.
+    func archivePhotos(_ id: UUID) -> [URL] {
+        guard let source = archive(id) else { return [] }
+        var seen = Set<String>()
+        return roots(of: source).flatMap { folderPhotos($0.path) }.filter { seen.insert($0.standardizedFileURL.path).inserted }
     }
 
     /// The photographs of a folder and of every folder under it, as its sheet shows them.

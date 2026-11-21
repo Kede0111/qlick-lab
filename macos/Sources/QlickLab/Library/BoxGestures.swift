@@ -98,7 +98,10 @@ extension LabState {
             note("Made", "the Roll " + (plan.rest.components(separatedBy: ",").first ?? ""))
         case .placeBox(_, let parent?, _): sidebarFold.unfold(.box(parent))
         case .newArchive: note("Made", "the Archive " + plan.rest)
-        case .newBox, .newBoxForRoll: note("Made", "the Box " + (plan.rest.components(separatedBy: ",").first ?? ""))
+        case .newBox, .newBoxForRoll, .newBoxFromArchive: note("Made", "the Box " + (plan.rest.components(separatedBy: ",").first ?? ""))
+        case .rollFromArchive(_, let box):
+            sidebarFold.unfold(.box(box))
+            note("Made", "the Roll " + plan.rest)
         case .placeRoll(_, _, let into, _): sidebarFold.unfold(.box(into))
         default: break
         }
@@ -116,7 +119,9 @@ extension LabState {
         case .moveFolder: plan.operation == .move ? "Move Folder" : "Add Folder"
         case .importFinder: "Import"
         case .newArchive: "New Archive"
-        case .newBox, .newBoxForRoll: "New Box"
+        case .newBox, .newBoxForRoll, .newBoxFromArchive: "New Box"
+        case .rollFromArchive: "New Roll"
+        case .addArchive: "Copy Photographs"
         }
     }
 
