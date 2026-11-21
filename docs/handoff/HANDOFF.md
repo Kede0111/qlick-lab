@@ -550,6 +550,12 @@ Lots, in order:
   folder or a Roll on the Boxes' heading or the space under them → a new Box named after it (`SidebarTarget.archives`
   / `.boxes`, `DropAction.newArchive/newBox/newBoxForRoll`). Catalogue only. Test in `BoxMovesTests`.
 - Merged: feature/speed-redlamp (22862c9) into this branch (Quentin, 2026-11-21); Qlick Lab Dev built from it.
+- Sidebar redone after Quentin tried it (ff77af6): large entries (`SidebarBigRow`: 17 pt semibold, 22 pt pictogram,
+  44 pt rows, rounded grey highlight, red pictogram when open), no small part headings. Library: Import, Contact Sheet
+  with its list (All Photographs, Last Import, Picks, By Date), Archives and Boxes as large entries over their lists
+  (a click folds them, + makes one; drops on them as before). Lab: Develop, Compare, Recipes, Stocks, then Boxes.
+  Print: Export, then Boxes; Print with nothing open opens the frame in hand. Sidebar 248 pt (220 at least).
+  Selector 28 pt on the window buttons' line (05e1402).
 
 ### Speed, RedLamp's ideas (branch `feature/speed-redlamp`, from `feature/lab-structure`; a test branch, to drop if not convincing)
 
