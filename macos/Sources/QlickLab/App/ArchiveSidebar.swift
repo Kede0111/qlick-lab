@@ -16,12 +16,14 @@ struct ArchivesSection: View {
 
     var body: some View {
         // Qlick Lab: an entry over the list; a click folds or unfolds it, + makes a new Archive.
-        SidebarEntry(symbol: LabGlyph.archive.symbol, title: "Archives", action: { withAnimation(Theme.quick) { listOpen.toggle() } }) {
+        // The word opens the overview of everything the Archives hold; the chevron folds the list.
+        SidebarEntry(symbol: LabGlyph.archive.symbol, title: "Archives", on: lab.workspace == .library && lab.overview == .archives,
+                     unfolded: $listOpen, action: { lab.showOverview(.archives) }) {
             SidebarAddButton(help: "New Archive") { lab.newArchive() }
         }
         // A folder dropped here (from an Archive or the Finder) becomes an Archive of its own.
         .sidebarDrop(lab, .archives, depth: 0)
-        .help(listOpen ? "Fold the Archives" : "Show the Archives")
+        .help("Every Archive, its folders and their photographs")
         if listOpen { list }
     }
 
@@ -144,9 +146,10 @@ struct BoxesSection: View {
 
     var body: some View {
         if asEntry {
-            SidebarEntry(symbol: LabGlyph.box.symbol, title: "Boxes", action: { withAnimation(Theme.quick) { listOpen.toggle() } }) { addMenu }
+            SidebarEntry(symbol: LabGlyph.box.symbol, title: "Boxes", on: lab.workspace == .library && lab.overview == .boxes,
+                         unfolded: $listOpen, action: { lab.showOverview(.boxes) }) { addMenu }
                 .sidebarDrop(lab, .boxes, depth: 0)
-                .help(listOpen ? "Fold the Boxes" : "Show the Boxes")
+                .help("Every Box, with its Boxes and Rolls")
             if listOpen { list }
         } else {
             // Right under the hairline: no heading space on top of the hairline's own.
@@ -391,7 +394,9 @@ struct SidebarRow<Adding: View>: View {
             }
             .buttonStyle(.plain)
             .disabled(!unfoldable)
-            Button(action: action) {
+            // Qlick Lab: a click by a tap, not a Button, so the row is also a real drag source (`sidebarDrop(drags:)`):
+            // a Button keeps the mouse to itself and no drag ever starts.
+            Group {
                 // Qlick Lab: a list row of the sidebar (`SidebarMetrics`): 13 pt, a smaller icon, indented by the icon column.
                 HStack(spacing: 6) {
                     LabSymbol(symbol: symbol, points: 9.5, color: SidebarMetrics.icon(selected: on, dim: dim)).frame(width: 14)
@@ -407,7 +412,9 @@ struct SidebarRow<Adding: View>: View {
                 .frame(height: SidebarMetrics.rowHeight)
                 .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+            .onTapGesture(perform: action)
+            .accessibilityAddTraits(.isButton)
+            .accessibilityAction(.default, action)
             .overlay(alignment: .trailing) {
                 if hovered && Adding.self != EmptyView.self {
                     Menu { adding() } label: {

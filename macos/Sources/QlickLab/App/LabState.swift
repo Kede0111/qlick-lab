@@ -273,6 +273,18 @@ struct SheetOptions: Codable, Equatable, Sendable {
     var compare = CompareSetup()
     /// The print dialog of the contact sheet.
     var printing = false
+    /// Qlick Lab: what the Library's overview (`LibraryHome`) shows first: the Archives, or the Boxes.
+    enum Overview: Sendable { case archives, boxes }
+    var overview: Overview?
+    /// Moves each time the overview is asked for, so it scrolls even to the part it shows already.
+    var overviewStamp = 0
+
+    /// The Archives' or the Boxes' entry: the overview of everything they hold, grouped into Rolls and Boxes.
+    func showOverview(_ part: Overview) {
+        overview = part
+        overviewStamp += 1
+        show(.library)
+    }
     /// Print › Show out-of-gamut: the photograph's colours the output space can't hold, marked in cyan (`Gamut`).
     var showGamut = UserDefaults.standard.bool(forKey: "qlick.showGamut") {
         didSet { UserDefaults.standard.set(showGamut, forKey: "qlick.showGamut") }

@@ -7,6 +7,7 @@ import UniformTypeIdentifiers
 struct LabSidebar: View {
     let model: EditorModel
     @State private var dropping = false
+    @AppStorage("qlick.sidebar.libraryOpen") private var libraryOpen = true
 
     private var lab: LabState { model.lab }
 
@@ -40,13 +41,19 @@ struct LabSidebar: View {
                         SidebarEntry(symbol: room.symbol, title: room == .print ? "Export" : room.title, on: lab.workspace.listed(as: room),
                                      trailing: room == .importer ? lab.importer.cards.first?.name : nil) { lab.show(room) }
                             .help(room == .print ? "Print: the photograph as printed, and its export" : "\(room.title) (⌥⌘\(room.key))")
-                        if room == .contactSheet { FindingSection(model: model) }
                     }
                     // Archives, Boxes and Rolls are chosen in the Library only (Quentin, 2026-11-21): the Lab and
                     // Print work on what's chosen there, the film strip being the one thing the parts share.
                     if lab.part == .library {
+                        // The Library: every photograph, and the lists that sort them (Last Import, Picks, By Date).
+                        SidebarEntry(symbol: LabGlyph.prints.symbol, title: "Library", on: lab.openView == .all,
+                                     unfolded: $libraryOpen, action: { lab.open(.all) })
+                            .help("All the photographs of the catalogue, on the contact sheet")
+                        if libraryOpen { FindingSection(model: model) }
                         SidebarHairline()
                         ArchivesSection(model: model)
+                        // Archives (folders on the disk) and Boxes (gatherings of the catalogue) apart.
+                        SidebarHairline()
                         BoxesSection(model: model, asEntry: true)
                     }
                 }

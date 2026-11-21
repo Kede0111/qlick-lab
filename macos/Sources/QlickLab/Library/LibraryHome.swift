@@ -57,15 +57,21 @@ struct LibraryHome: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                ScrollView(.vertical) {
-                    LazyVStack(alignment: .leading, spacing: 34) {
-                        if !found.isEmpty { FoundStrip(model: model, query: query, count: found.count, rules: parsed) }
-                        ForEach(results) { result in
-                            ProjectSection(model: model, project: result.project, rolls: result.rolls, reasons: result.reasons, whole: query.isEmpty)
+                // Qlick Lab: the sidebar's Archives and Boxes open here, on their part (`LabState.showOverview`).
+                ScrollViewReader { scroller in
+                    ScrollView(.vertical) {
+                        LazyVStack(alignment: .leading, spacing: 34) {
+                            Color.clear.frame(height: 0).id("archives")
+                            if !found.isEmpty { FoundStrip(model: model, query: query, count: found.count, rules: parsed) }
+                            ForEach(results) { result in
+                                ProjectSection(model: model, project: result.project, rolls: result.rolls, reasons: result.reasons, whole: query.isEmpty)
+                            }
+                            if !boxes.isEmpty { BoxesShelf(model: model, boxes: boxes).id("boxes") }
                         }
-                        if !boxes.isEmpty { BoxesShelf(model: model, boxes: boxes) }
+                        .padding(.horizontal, 28).padding(.vertical, 26)
                     }
-                    .padding(.horizontal, 28).padding(.vertical, 26)
+                    .onAppear { scroll(scroller) }
+                    .onChange(of: lab.overviewStamp) { _, _ in scroll(scroller) }
                 }
             }
         }
@@ -77,6 +83,11 @@ struct LibraryHome: View {
         }
         .onDrop(of: [.fileURL], isTargeted: $dropping) { providers in LabDrop.load(providers) { lab.importFolders($0) } }
         .environment(\.colorScheme, .dark)
+    }
+
+    private func scroll(_ scroller: ScrollViewProxy) {
+        guard let part = lab.overview else { return }
+        DispatchQueue.main.async { scroller.scrollTo(part == .boxes ? "boxes" : "archives", anchor: .top) }
     }
 }
 

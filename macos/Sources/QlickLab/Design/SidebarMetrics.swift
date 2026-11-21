@@ -50,13 +50,16 @@ struct SidebarEntry<Accessory: View>: View {
     let title: String
     var on = false
     var trailing: String? = nil
+    /// Its list shown under it, if it has one: the chevron (only the chevron) folds and unfolds it.
+    var unfolded: Binding<Bool>? = nil
     var action: () -> Void
     @ViewBuilder var accessory: () -> Accessory
     @State private var hovered = false
 
-    init(symbol: String, title: String, on: Bool = false, trailing: String? = nil, action: @escaping () -> Void,
-         @ViewBuilder accessory: @escaping () -> Accessory = { EmptyView() }) {
-        self.symbol = symbol; self.title = title; self.on = on; self.trailing = trailing; self.action = action; self.accessory = accessory
+    init(symbol: String, title: String, on: Bool = false, trailing: String? = nil, unfolded: Binding<Bool>? = nil,
+         action: @escaping () -> Void, @ViewBuilder accessory: @escaping () -> Accessory = { EmptyView() }) {
+        self.symbol = symbol; self.title = title; self.on = on; self.trailing = trailing; self.unfolded = unfolded
+        self.action = action; self.accessory = accessory
     }
 
     var body: some View {
@@ -76,7 +79,18 @@ struct SidebarEntry<Accessory: View>: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            accessory().padding(.trailing, 4)
+            accessory()
+            if let unfolded {
+                Button { withAnimation(Theme.quick) { unfolded.wrappedValue.toggle() } } label: {
+                    Image(systemName: "chevron.right").font(.system(size: 9, weight: .semibold)).foregroundStyle(Theme.dim)
+                        .rotationEffect(.degrees(unfolded.wrappedValue ? 90 : 0))
+                        .frame(width: 22, height: SidebarMetrics.rowHeight).contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help(unfolded.wrappedValue ? "Fold the list" : "Show the list")
+                .accessibilityLabel(unfolded.wrappedValue ? "Fold \(title)" : "Unfold \(title)")
+            }
+            Spacer().frame(width: 4)
         }
         .background(RoundedRectangle(cornerRadius: SidebarMetrics.radius, style: .continuous)
             .fill(Color.white.opacity(on ? SidebarMetrics.selectedFill : hovered ? SidebarMetrics.hoverFill : 0)))
