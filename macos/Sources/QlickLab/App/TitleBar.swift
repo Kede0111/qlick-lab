@@ -278,7 +278,7 @@ final class PartSelector: NSView {
     private var plate: NSView?
     /// A segment pressed (or chosen by VoiceOver).
     var onChoose: ((LabPart) -> Void)?
-    static let height: CGFloat = 28
+    static let height: CGFloat = 30
     static let inset: CGFloat = 2
 
     var chosen: LabPart = .lab {
@@ -304,6 +304,12 @@ final class PartSelector: NSView {
             material.layer?.masksToBounds = true
             plate = material
         }
+        // A hairline round the capsule.
+        plate.wantsLayer = true
+        plate.layer?.cornerRadius = Self.height / 2
+        plate.layer?.cornerCurve = .continuous
+        plate.layer?.borderWidth = 0.5
+        plate.layer?.borderColor = NSColor.white.withAlphaComponent(0.14).cgColor
         addSubview(plate)
         self.plate = plate
         segments = LabPart.allCases.map { part in
@@ -349,10 +355,11 @@ final class PartSegment: NSView {
     var pressed: () -> Void = {}
     var on = false { didSet { if on != oldValue { needsDisplay = true; setAccessibilityValue(on) } } }
     private var hovered = false { didSet { if hovered != oldValue { needsDisplay = true } } }
-    static let padding: CGFloat = 14
-    static let size: CGFloat = 11.5
-    static let icon: CGFloat = 16
-    static let gap: CGFloat = 7
+    static let padding: CGFloat = 13
+    static let size: CGFloat = 12
+    static let icon: CGFloat = 13
+    static let tracking: CGFloat = 1
+    static let gap: CGFloat = 6
 
     /// Each part's pictogram, drawn once per ink.
     @MainActor private static var icons: [String: NSImage] = [:]
@@ -380,9 +387,9 @@ final class PartSegment: NSView {
 
     private func text(on: Bool) -> NSAttributedString {
         NSAttributedString(string: part.title.uppercased(), attributes: [
-            .font: NSFont.systemFont(ofSize: Self.size, weight: on ? .semibold : .medium),
-            .kern: Self.size * Theme.Caps.tracking,
-            .foregroundColor: on ? Theme.NS.onAccent : hovered ? Theme.NS.paper : Theme.NS.label,
+            .font: NSFont.systemFont(ofSize: Self.size, weight: .semibold),
+            .kern: Self.tracking,
+            .foregroundColor: on ? Theme.NS.onAccent : hovered ? Theme.NS.paper : Theme.NS.dim,
         ])
     }
 
@@ -397,7 +404,7 @@ final class PartSegment: NSView {
         let string = text(on: on), size = string.size()
         let whole = Self.icon + Self.gap + size.width
         let x = ((bounds.width - whole) / 2).rounded()
-        let ink = on ? Theme.NS.onAccent : hovered ? Theme.NS.paper : Theme.NS.label
+        let ink = on ? Theme.NS.onAccent : hovered ? Theme.NS.paper : Theme.NS.dim
         if let image = Self.icon(part, ink: ink, key: on ? "on" : hovered ? "hover" : "off") {
             image.draw(in: NSRect(x: x, y: ((bounds.height - Self.icon) / 2).rounded(), width: Self.icon, height: Self.icon))
         }
