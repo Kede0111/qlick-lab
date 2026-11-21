@@ -705,7 +705,8 @@ struct StripLeader: View {
     nonisolated static let slant: CGFloat = 28
 
     var body: some View {
-        Button { model.showGrid() } label: {
+        // Qlick Lab: the leader shows and hides the film strip (⌥⌘F); its arrow points the way it goes.
+        Button { model.toggleFilmstrip() } label: {
             LeaderShape()
                 .fill(Theme.film)
                 .frame(width: Self.width, height: hovered ? Self.raised : Self.height)
@@ -713,6 +714,7 @@ struct StripLeader: View {
                     LeaderArrow()
                         .stroke(hovered ? Theme.paper : Theme.label, style: StrokeStyle(lineWidth: 2, lineCap: .square, lineJoin: .miter))
                         .frame(width: 12.7, height: 6.4)
+                        .rotationEffect(.degrees(model.filmstripVisible ? 180 : 0))
                         // The arrow's box: 9 pt square, 22 pt from the right, 10 from the top.
                         .padding(.trailing, 22 + 4.5 - 6.35)
                         .padding(.top, 10 + 4.5 - 6.36 - (hovered ? 1 : 0))
@@ -724,8 +726,8 @@ struct StripLeader: View {
         .onHover { over in
             withAnimation(reduceMotion ? nil : .timingCurve(0.3, 1.5, 0.5, 1, duration: 0.28)) { hovered = over }
         }
-        .help("Show all photographs (G)")
-        .accessibilityLabel("Show all photographs")
+        .help(model.filmstripVisible ? "Hide the film strip (⌥⌘F)" : "Show the film strip (⌥⌘F)")
+        .accessibilityLabel(model.filmstripVisible ? "Hide the film strip" : "Show the film strip")
     }
 }
 

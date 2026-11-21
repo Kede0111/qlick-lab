@@ -364,11 +364,21 @@ struct CompareWorkspace: View {
                 }
                 if compare.panes.isEmpty { CompareEmpty(model: model, compare: compare) }
             }
+            // Qlick Lab: the film strip, the parts' shared way through the photographs: ⌘-click or ⇧-click frames in
+            // it and they're laid side by side; one chosen is the subject of Films, Recipes and Versions.
+            if !model.library.items.isEmpty { PhotoBrowser(model: model) }
         }
         .background(Color(white: 0.035))
         .environment(\.colorScheme, .dark)
         .onAppear { compare.refresh() }
         .onChange(of: lab.compare) { _, _ in compare.refresh() }
+        .onChange(of: model.selection.selected) { _, selected in
+            if lab.compare.kind == .photographs {
+                if selected.count >= 2 { lab.compare.items = lab.comparedSelection() }
+            } else {
+                compare.refresh()
+            }
+        }
         .onChange(of: model.thumbnailVersions) { _, _ in compare.invalidate() }
         .onChange(of: model.library.summaries) { _, _ in compare.push() }
     }
