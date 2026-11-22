@@ -40,7 +40,9 @@ jobs:
         run: cargo test --locked --release --workspace
 
       - name: Build the engine helper for the app's tests
-        run: cargo build --locked --release -p spektrafilm-native
+        run: |
+          cargo build --locked --release -p spektrafilm-native
+          cargo build --locked --release -p spektrafilm-cli --bin spektrafilm-f64 --features precision-f64
 
       - name: App tests (Swift)
         env:

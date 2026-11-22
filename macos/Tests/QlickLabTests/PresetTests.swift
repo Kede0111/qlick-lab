@@ -162,6 +162,8 @@ final class PresetLibraryTests: XCTestCase {
         try await waitUntil { model.presets.contains { $0.name == "Kodak Double-X 5222" } }
         let saved = try XCTUnwrap(model.presets.first { $0.name == "Kodak Double-X 5222" })
         XCTAssertNil(model.renamingPreset, "named before it's saved, so not renamed after")
+        // The engine checks the new recipe in the background: on a slower Mac its answer comes a moment later.
+        try await waitUntil { model.presetStatus[saved] != nil }
         guard case .valid("kodak_doublex", "kodak_2302", false) = model.presetStatus[saved] else { return XCTFail("\(String(describing: model.presetStatus[saved]))") }
         // Added at the end.
         XCTAssertEqual(model.presets.last, saved)

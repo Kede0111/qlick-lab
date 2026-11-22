@@ -36,7 +36,8 @@ final class VolumeReachTests: XCTestCase {
     /// gone while mounted: it's asked directly and never left aside, or its photographs would vanish from the lab.
     func testADiskPluggedInIsNeverLeftAside() throws {
         let local = (try FileManager.default.contentsOfDirectory(atPath: "/Volumes")).map { "/Volumes/" + $0 }.first(where: VolumeReach.isLocal)
-        let volume = try XCTUnwrap(local, "No disk under /Volumes on this Mac")
+        // A Mac with no disk plugged in (GitHub's runners) has nothing to look at: the test says so and is skipped.
+        guard let volume = local else { throw XCTSkip("No disk under /Volumes on this Mac") }
         let value = VolumeReach.look(volume + "/Photos", patience: 0.1) { Thread.sleep(forTimeInterval: 0.4); return true }
         XCTAssertEqual(value, true, "a slow look is waited for")
         XCTAssertFalse(VolumeReach.isSilent(volume))
