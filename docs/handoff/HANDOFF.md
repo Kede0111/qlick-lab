@@ -624,6 +624,10 @@ and speed/memory/disk comparisons. Measures and what changed: `docs/performance/
 - Phase: **lab structure** on `feature/lab-structure` (from `feature/import-library`, local). Lots A to I done, G but the recipes' door (question to Quentin); J and the recipes' door done. Next: waiting for Quentin to try Qlick Lab Dev; decision 4 (a recipe format shared with QLab) is for the very end.
 - Phase (2026-11-22): `feature/speed-redlamp` merged into `feature/lab-structure`, which now holds everything; Quentin
   asked for it installed in /Applications.
+- Phase (2026-11-22, evening): one catalogue at a time (see below) merged into `feature/lab-structure` (54af68a),
+  installed in /Applications, and **`main` moved to it** at Quentin's word ("commit sur le main comme le reste"):
+  local `main` was 0.1.4 (fc6cb1e), it now holds everything (fast-forward, nothing pushed). Work goes on from `main`
+  or `feature/lab-structure` (same commit); `feature/speed-redlamp` is merged and done.
 - Phase: **speed kept** (Quentin, 2026-11-21): `feature/speed-redlamp` = `feature/lab-structure` at 64547fc + speed +
   settings respected (c56d3b7: helpers relaunched when Make proxies changes, no previews on disk with Build previews
   ahead off, Settings › Upkeep › Develop thumbnails ahead). Qlick Lab Dev is now built from it. To do: merge it into
