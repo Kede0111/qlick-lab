@@ -1,5 +1,37 @@
 # Changelog
 
+## 0.2.0 — the lab in three parts
+
+A new version of the whole lab. Your `.qlick` sidecars and catalogues from 0.1.x are read and converted once, with
+nothing moved on the disk.
+
+- **Library · Lab · Print**: a switch at the top of the window (⌘1, ⌘2, ⌘3) chooses the part; the sidebar shows only
+  what it needs. G goes from Develop to the contact sheet and back.
+- **Catalogues, one at a time**: File › New, Open and Close Catalog (⌥⇧⌘W). Opening another closes everything of the
+  one before; closing leaves the lab empty without quitting.
+- **Archives**: your folders exactly as they are on the disk, at every depth, kept up to date. Nothing is sorted
+  there and nothing is ever moved. Locate Folder… finds a folder that moved; a disk unplugged or a network share
+  that stops answering is set aside without freezing the lab.
+- **Boxes and Rolls**: Boxes gather photographs from any Archive and nest to any depth; Rolls hold frames in your own
+  order and can carry a film or a recipe; Smart Rolls fill themselves from rules. Sorted by drag and drop (⌥ copies),
+  every gesture undone with ⌘Z. A Box shows its Boxes and Rolls on a shelf, as archive boxes and film cartridges.
+- **Import**: Copy, Move or Leave in Place; always into an Archive, optionally a Box or a Roll; folders and file names
+  by pattern, with an example; duplicates and unreadable files flagged; a folder card (film, camera, notes).
+- **Finding photographs**: All Photographs, Last Import, Picks, By Date; search by field (`film:portra iso:>800`),
+  filters, keywords, title and caption, burst stacks, Auto Advance.
+- **Remove…**: one dialog to take photographs out of a Box or of the catalogue. Deleting files from the disk is a
+  separate choice that asks twice. Move to Trash is gone.
+- **Develop**: the film card (film, paper, recipe) folds to one line; Develop and Emulsion tabs, sections that fold;
+  Auto Straighten in the engine (plumb lines, then the horizon).
+- **Recipes and Stocks**: favourites and hidden films, papers and recipes; several recipes shared as one
+  `.qlickrecipes` file.
+- **Print**: the photograph as it will be printed, the output colour space with a soft proof, out-of-gamut marks and a
+  gamut diagram, image size and border. The printable contact sheet keeps your red pencil marks.
+- **The look**: the lab's own fine-line pictograms, QLab's red, Liquid Glass panels, or Settings › Interface ›
+  Solid surfaces for solid black. Every selected frame wears the red pencil; View › Pencil Marks hides them.
+- **Speed**: the next frames are developed ahead as you step through a roll (a frame shows in 5 ms instead of 46 ms),
+  and less memory is used.
+
 ## 0.1.4
 
 - **Halation from the highlights**: only bright lights feed it now, leaving a red rim on the darker side of their

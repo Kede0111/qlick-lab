@@ -5,8 +5,8 @@
 <h1 align="center">Qlick Lab</h1>
 
 <p align="center">
-  <b>Develop your digital photographs as if they were film.</b><br>
-  A free, open-source darkroom for macOS.
+  <b>A film lab for your digital photographs.</b><br>
+  Free and open source, for macOS.
 </p>
 
 <p align="center">
@@ -17,65 +17,145 @@
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/develop.webp" alt="Qlick Lab developing a Leica M11 DNG on Kodak Portra 400, with the roll's marked frames in the film strip below">
+  <img src="docs/screenshots/develop.webp" alt="Qlick Lab developing a Leica M11 DNG on Kodak Portra 400, printed on Kodak Portra Endura paper">
 </p>
 
-Qlick Lab treats each digital photograph like a frame of film. It doesn't lay a filter on top. It
-**develops the picture**: the light goes through a simulated film stock (its dyes, grain and halation), is printed on a
-simulated paper, and comes out looking printed, not "filtered to look like it".
+Qlick Lab develops your digital photographs the way a film lab develops negatives. It doesn't lay a filter over
+the picture: the light of each RAW file goes through a simulated film stock (its dyes, its grain, its halation), is
+printed on a simulated paper, and comes out looking like a print. The simulation is spectral, built from the
+manufacturers' published data, and runs on the Mac's GPU.
 
-The film simulation is [spektrafilm](https://github.com/andreavolpato/spektrafilm), Andrea Volpato's spectral model of
-film and paper, running on the GPU. Around it, Qlick Lab is built like a real lab: you load rolls, mark the contact
-sheet with a red grease pencil, compare frames, develop the keepers and print.
+Around that engine, the app is organised like a real lab, from the roll that comes in to the print that goes out:
+you load your rolls, mark the contact sheet with a red grease pencil, develop the keepers and print.
 
-## What it does
+**What it is not:** a general photo editor. There are no layers, no masks and no retouching brushes. Qlick Lab does
+one thing, turning digital RAW files into film, and keeps the gestures of a physical lab while doing it.
+
+## Three parts: Library, Lab, Print
+
+Everything in the app belongs to one of three parts, chosen with the switch at the top of the window
+(**⌘1**, **⌘2**, **⌘3**). The sidebar shows only what the part needs, and each part comes back to where you left it.
+
+| Part | What happens there |
+|---|---|
+| **Library** | Import, the contact sheet, the Archives and the Boxes: bringing photographs in, sorting and marking them. |
+| **Lab** | Develop, Compare, Recipes and Stocks: choosing a film and a paper, and developing. |
+| **Print** | Export: the photograph as it will be printed, its colour space, its size, and the file. |
+
+From Develop, **G** (or the toggle at the top of the toolbar) switches to the contact sheet of what you're working
+on, and back.
+
+<p align="center">
+  <img src="docs/screenshots/contact-sheet.webp" width="32%" alt="Library: the roll Road 66 as a contact sheet, frames circled and crossed out in red pencil">
+  <img src="docs/screenshots/develop.webp" width="32%" alt="Lab: developing a frame on Kodak Portra 400">
+  <img src="docs/screenshots/print.webp" width="32%" alt="Print: the export panel with the colour space, the gamut and the image size">
+</p>
+
+## The Library: catalogues, Archives, Boxes and Rolls
+
+Your photographs stay where they are on your disks. The Library is a way of looking at them and sorting them, and
+**the app never moves, renames or deletes a photograph** on its own. The two exceptions are both explicit: an import
+that you ask to copy or move, and "Delete from Disk", which asks twice.
+
+- **A catalogue** (`.qlicklab`) holds one body of work: its Archives, its Boxes, its Rolls and its settings. One
+  catalogue is open at a time. **File › New Catalog**, **Open Catalog** and **Close Catalog** (⌥⇧⌘W) switch between
+  them, and closing one leaves the lab empty without quitting.
+- **Archives** are where the photographs live. An Archive is one subject you imported ("Voyage USA", "Leica M11"), and
+  it shows its folders exactly as they are on the disk, at every depth, kept up to date as the disk changes. It's a
+  read-only view: you never sort inside an Archive, you look at it. A disk that is unplugged or a network share that
+  stops answering is set aside without freezing the lab, and **Locate Folder…** points a folder that moved to its new place.
+- **Boxes** are where you sort. A Box gathers photographs from any Archive, and Boxes nest to any depth
+  ("USA 2026" › "Road 66"). Nothing is copied: a photograph can sit in as many Boxes as you like.
+- **Rolls** live inside Boxes and hold a sequence of frames, in your own order. A Roll can carry a film stock or a
+  recipe for all its frames. A **Smart Roll** fills itself from rules (rating, film, camera, lens, ISO, dates,
+  keywords…).
+
+Everything is sorted by drag and drop. Photographs dragged from one Box to another move, and **⌥** copies them. A
+folder of an Archive dropped on a Box becomes a Roll. Each gesture says what it will do while you drag and is undone
+with one ⌘Z.
+
+<p align="center">
+  <img src="docs/screenshots/boxes.webp" alt="The Box USA 2026, with the Smart Roll Leica M11 and the Roll Road 66 as film cartridges">
+</p>
+
+### Import
+
+- From a memory card, a disk or a network share. Choose to **Copy**, **Move** or **Leave in Place**: in place, the
+  folders simply join an Archive as they are.
+- Every import goes into an Archive (an existing one or a new one), and can also go into a Box or a Roll.
+- Folders by day, month, year or your own pattern, file names from the camera or your own pattern, with an example
+  line before anything is written. Duplicates and unreadable files are flagged.
+- A recipe can be applied as the photographs come in. They are there at once, and their previews are made in the
+  background.
+- A journal keeps the import safe if it's interrupted.
+
+<p align="center">
+  <img src="docs/screenshots/import.webp" width="49%" alt="Import: 3,202 photographs left in place, joining the Archive Voyage USA with a recipe">
+  <img src="docs/screenshots/import-boxes.webp" width="49%" alt="The same import, with the Boxes USA 2026, Leica M11 and Road 66 in the sidebar">
+</p>
 
 ### The contact sheet
-- Your folder becomes a **roll of 135 film**: strips with sprocket holes, frame numbers and the stock's name on the edge.
-- **Mark it like a photographer does**: click to circle a frame in red pencil, ⌥-click to cross it out, drag to mark a
-  series. Rate 0–5, filter by picks, rejects or unrated.
-- Three layouts (film strips, tight strips, large frames with their facts), a light table, a loupe.
-- **Print it**: the sheet as a vector PDF, paginated (A4, A3, Letter, 8 × 10, 24 × 30), with or without your marks.
+
+- Each folder, Box or Roll becomes **135 film**: strips with sprocket holes, frame numbers and file names on the edge.
+- **Mark it as a photographer does**: click to circle a frame in red pencil, ⌥-click to cross it out, drag across a
+  series. P / X / U to pick, reject or unmark, 0–5 to rate, ⇧ with a key to mark and move on.
+- Search by field (`rating:>=3 film:portra camera:m11 iso:>800 date:2026-09`), filters by period, film, camera and lens,
+  keywords, titles and captions, stacks of bursts.
+- Four layouts (Classic, Compact, Detail, Grid), a light table and a loupe.
+- **Print the sheet**: a vector PDF on A4, A3, Letter, 8 × 10 or 24 × 30, black or white paper, with your pencil marks.
+- **Remove…** takes photographs out of a Box or out of the catalogue. Files are deleted from the disk only if you say
+  so, twice.
 
 <p align="center">
-  <img src="docs/screenshots/contact-sheet.webp" width="49%" alt="A roll as a contact sheet, frames circled and crossed out in red pencil">
-  <img src="docs/screenshots/print.webp" width="49%" alt="Printing the contact sheet to PDF">
+  <img src="docs/screenshots/print-contact-sheet.webp" alt="A printable contact sheet of the roll Road 66, with its red pencil marks">
 </p>
 
-### Development
-- **[62 film stocks and papers](#film-stocks-and-papers)**: Portra, Ektar, Gold, Tri-X, Velvia, CineStill and more, each with its own
-  measured curves, where it comes from and how far it can be trusted. Every stock shows a preview developed on *your*
-  photograph.
-- Exposure, grain, halation, glare, DIR couplers, the print and the scan, crop, straighten, 35 mm borders.
-- **Every slider is live**: the GPU redraws as you move it.
-- **Recipes**: a look saved once, applied to a whole selection in one step. They use spektrafilm's own preset format.
-- **Versions**: several interpretations of one photograph, side by side. None replaces the others.
-- **Compare**: neighbouring frames, stocks, recipes, versions or before/after, with linked zoom and pan. Each view is
-  a real development, not an approximation.
+## The Lab: developing
+
+- **[62 film stocks and papers](#film-stocks-and-papers)**: Portra, Ektar, Gold, Tri-X, Velvia, CineStill and more,
+  each with its measured curves, where it comes from and how far it can be trusted. Every stock shows a preview
+  developed on *your* photograph.
+- **The film card** at the top of the panel: the film, the paper it's printed on, the recipe.
+- **Develop**: white balance, brightness matched to the camera, tone, colour, detail, crop and Auto Straighten.
+- **Emulsion**: the film's curves and couplers, grain, halation from the highlights, diffusion, chromatic aberration.
+  Grain and halation have their own presets.
+- **Every slider is live**: the GPU redraws as you move it, and the next frames are developed ahead as you step through
+  a roll.
+- **Recipes**: a look saved once, applied to a whole selection, a Roll or an import in one step. Share them as a
+  `.qlickrecipes` bundle.
+- **Versions** of one photograph side by side, and **Compare** across frames, stocks, recipes or before/after, with
+  linked zoom.
 
 <p align="center">
-  <img src="docs/screenshots/develop-inspector.webp" alt="Developing on Kodak Portra 400: white balance, brightness, tone and colour in a Liquid Glass panel">
+  <img src="docs/screenshots/emulsion-grain.webp" alt="The Emulsion tab at 53 %: Kodak Portra 400's grain on an old car">
 </p>
 
-### Library, import and export
-- **Catalogues, Archives and Boxes**: an Archive shows its folders as they are on the disk; Boxes gather photographs
-  from any Archive. Nothing is copied and no original is ever changed.
-- **Import** from a memory card, with a journal that survives an interruption.
-- RAW files from most cameras (Apple's RAW decoder and rawler), including Leica DNG, plus JPEG, TIFF and PNG.
-- Export 8- or 16-bit JPEG, TIFF or PNG with an ICC profile, one at a time or in batches. The rating goes into the
-  file's XMP. Film looks can also go out as a `.cube` LUT.
+## Print
+
+Print shows the photograph as it will be printed. You choose the file (JPEG, TIFF or PNG, 8 or 16 bits), the colour
+space (sRGB, Display P3, Adobe RGB, ProPhoto RGB) with a soft proof and a gamut chart, the size and the border.
+The rating goes into the file's XMP. A film look can also go out as a `.cube` LUT.
+
+## Liquid Glass or solid black
+
+On macOS 26 the panels, the sidebar and the part switch are made of **Liquid Glass**, so the photograph shows
+through. If you'd rather see nothing but the picture, **Settings › Interface › Solid surfaces** puts them on the
+lab's black with a hairline edge.
 
 <p align="center">
-  <img src="docs/screenshots/library.webp" width="49%" alt="The library: a project of twenty rolls, each shown as a strip of film">
-  <img src="docs/screenshots/import.webp" width="49%" alt="Importing 3,202 photographs with a recipe, as rolls of a project">
+  <img src="docs/screenshots/develop-glass.webp" width="49%" alt="Liquid Glass: the sidebar and the panel let the photograph show through">
+  <img src="docs/screenshots/develop.webp" width="49%" alt="Solid surfaces: the sidebar and the panel on solid black">
 </p>
+<p align="center"><sub>Left: Liquid Glass. Right: solid surfaces.</sub></p>
 
-### A Mac app
-- Native AppKit and SwiftUI, with **Liquid Glass** panels on macOS 26.
-- Keyboard first: P / X / U to mark, 0–5 to rate, Space for a large view, C to compare. Every key can be changed
-  in Settings › Shortcuts.
+## A Mac app
+
+- Native AppKit and SwiftUI over a Rust engine, on the GPU through Metal.
+- Keyboard first, and every key can be changed in **Settings › Shortcuts**.
+- Long work (thumbnails, previews, recipes on thousands of frames) runs in the background, with its progress in the
+  sidebar and a Stop button.
 - **Your photos stay on your Mac.** No account, no cloud, no tracking, no analytics. The app opens the network only
-  when you click a link (GitHub, PayPal).
+  when you click a link (GitHub, PayPal) or check for updates.
 
 ## Film stocks and papers
 
@@ -139,9 +219,10 @@ New versions are announced on the [releases page](https://github.com/Kede0111/ql
 
 - Each photograph's marks, rating and development live in a small `.qlick` file beside it (`IMG_0412.CR3.qlick`).
   They travel with the folder, and your originals are never written to.
-- A catalogue is a `.qlicklab` package: the Archives and Boxes, as small JSON files. The photographs stay where
-  they are.
-- Both are plain, documented JSON. They belong to Qlick Lab, but nothing is locked in.
+- Each folder of an Archive can carry a `Roll.qlickroll` card (film, camera, notes), so it keeps them if you move it.
+- A catalogue is a `.qlicklab` package: the Archives, Boxes, Rolls and their order, as small JSON files. The
+  photographs stay where they are.
+- All of them are plain, documented JSON. They belong to Qlick Lab, but nothing is locked in.
 
 ## Support the project
 
@@ -193,7 +274,7 @@ The details are in [docs/architecture.md](docs/architecture.md); how to propose 
 
 | Folder | What's in it |
 |---|---|
-| `macos/Sources/QlickLab` | The app, one folder per role: `App`, `Library`, `Import`, `ContactSheet`, `Develop`, `Compare`, `Recipes`, `Export`, `Engine`, `Files`, `Design` |
+| `macos/Sources/QlickLab` | The app, one folder per role: `App`, `Library`, `Import`, `ContactSheet`, `Develop`, `Compare`, `Recipes`, `Print`, `Export`, `Engine`, `Files`, `Design` |
 | `crates/` | The engine in Rust: spektrafilm's model, its GPU pipeline (wgpu/Metal), RAW and colour I/O |
 | `data/` | Film and paper profiles, spectral tables, borders |
 | `vendor/rawler` | A patched copy of rawler, the RAW decoder |
@@ -225,10 +306,20 @@ owners. Qlick Lab is not affiliated with any of them: the names only say which p
 <details>
 <summary><b>En français</b></summary>
 
-Qlick Lab est un laboratoire argentique pour Mac, libre et gratuit. Il développe vos photos numériques comme des
-négatifs : la lumière traverse un film simulé (colorants, grain, halo), elle est tirée sur un papier simulé, et le
-résultat a l'air tiré, pas filtré. Vous chargez vos dossiers comme des rouleaux et marquez la planche-contact au
-crayon gras rouge. Ensuite vous comparez, vous développez et vous imprimez.
+Qlick Lab est un laboratoire argentique pour Mac, libre et gratuit. Il développe vos photos numériques comme un
+labo développe des négatifs : la lumière de chaque fichier RAW traverse un film simulé (colorants, grain, halo), elle
+est tirée sur un papier simulé, et le résultat a l'air d'un tirage, pas d'un filtre. La simulation est spectrale,
+construite à partir des données publiées par les fabricants.
+
+L'application est organisée en trois parties, comme un vrai labo :
+
+- **Library** : l'import, la planche-contact, les Archives (vos dossiers tels qu'ils sont sur le disque, jamais
+  déplacés) et les Boxes (où vous triez, avec des Rolls et des Smart Rolls). Un catalogue ouvert à la fois.
+- **Lab** : le développement, la comparaison, les recettes et les films.
+- **Print** : l'export, avec l'espace colorimétrique, l'épreuvage et la taille.
+
+Vous marquez la planche-contact au crayon gras rouge, vous développez les meilleures images et vous les tirez. Les
+panneaux sont en Liquid Glass sur macOS 26, ou en noir plein avec **Réglages › Interface › Solid surfaces**.
 
 Téléchargez le DMG dans les [Releases](https://github.com/Kede0111/qlick-lab/releases/latest). Au premier lancement,
 autorisez l'app dans **Réglages Système › Confidentialité et sécurité › Ouvrir quand même**. Si elle vous plaît, vous
