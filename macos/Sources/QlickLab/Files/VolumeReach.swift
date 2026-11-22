@@ -37,7 +37,7 @@ enum VolumeReach {
 
     /// The disk's name, as the Finder shows it under /Volumes.
     static func volumeName(of path: String) -> String {
-        volume(of: path).map { URL(fileURLWithPath: $0).lastPathComponent } ?? "the startup disk"
+        volume(of: path).map { URL(fileURLWithPath: $0, isDirectory: true).lastPathComponent } ?? "the startup disk"
     }
 
     /// Whether the disk under `path` is left aside now, without looking.

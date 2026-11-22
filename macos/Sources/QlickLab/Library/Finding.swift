@@ -233,7 +233,7 @@ extension LabState {
         var best: (archive: LabProject, entry: LabRoll, folder: String)?
         for archive in projects.projects {
             for roll in archive.rolls {
-                let folder = URL(fileURLWithPath: roll.folder).standardizedFileURL.path
+                let folder = URL(fileURLWithPath: roll.folder, isDirectory: true).standardizedFileURL.path
                 guard folder == path || path.hasPrefix(folder + "/"), best.map({ folder.count > $0.folder.count }) ?? true else { continue }
                 best = (archive, roll, folder)
             }
@@ -242,7 +242,7 @@ extension LabState {
             facts.archive = best.archive.name
             facts.added = best.entry.addedAt
             // The Folder's own card, or the card of the Folder holding it.
-            let own = best.archive.rolls.first { URL(fileURLWithPath: $0.folder).standardizedFileURL.path == path }
+            let own = best.archive.rolls.first { URL(fileURLWithPath: $0.folder, isDirectory: true).standardizedFileURL.path == path }
             facts.film = (own ?? best.entry).film
         }
         memo[path] = facts
@@ -405,7 +405,7 @@ extension LabState {
         var byDay: [String: [String]] = [:]
         var undated: [String] = []
         for path in paths {
-            guard let date = catalog.photos[path]?.day ?? facts.known(URL(fileURLWithPath: path))?.date else { undated.append(path); continue }
+            guard let date = catalog.photos[path]?.day ?? facts.known(URL(fileURLWithPath: path, isDirectory: false))?.date else { undated.append(path); continue }
             let parts = calendar.dateComponents([.year, .month, .day], from: date)
             byDay[String(format: "%04d-%02d-%02d", parts.year ?? 0, parts.month ?? 0, parts.day ?? 0), default: []].append(path)
         }
@@ -414,9 +414,9 @@ extension LabState {
             guard let box = projects.createBox(named: name, in: parent) else { return false }
             for day in byDay.keys.sorted() {
                 let title = SmartRule.period(day).map { $0.start.formatted(.dateTime.day().month(.abbreviated).year().locale(Locale(identifier: "en_GB"))) } ?? day
-                projects.createRoll(named: title, in: box.id, frames: (byDay[day] ?? []).map { URL(fileURLWithPath: $0) })
+                projects.createRoll(named: title, in: box.id, frames: (byDay[day] ?? []).map { URL(fileURLWithPath: $0, isDirectory: false) })
             }
-            if !undated.isEmpty { projects.createRoll(named: "Undated", in: box.id, frames: undated.map { URL(fileURLWithPath: $0) }) }
+            if !undated.isEmpty { projects.createRoll(named: "Undated", in: box.id, frames: undated.map { URL(fileURLWithPath: $0, isDirectory: false) }) }
             made = box.id
             return true
         }
@@ -436,7 +436,7 @@ extension LabState {
             let folders = Set(projects.photoFolders(of: archive).map(\.standardizedFileURL.path))
             return catalog.order.filter { folders.contains(($0 as NSString).deletingLastPathComponent) }
         case .folder(let path, _):
-            let folder = URL(fileURLWithPath: path).standardizedFileURL.path
+            let folder = URL(fileURLWithPath: path, isDirectory: true).standardizedFileURL.path
             return catalog.order.filter { $0.hasPrefix(folder + "/") }
         default: return []
         }

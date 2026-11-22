@@ -139,7 +139,7 @@ enum BatchNames {
     /// `name.ext`, then `name 2.ext`, `name 3.ext`… until `taken` says no.
     static func numbered(_ fileName: String, taken: (String) -> Bool) -> String {
         guard taken(fileName) else { return fileName }
-        let url = URL(fileURLWithPath: fileName)
+        let url = URL(fileURLWithPath: fileName, isDirectory: false)
         let base = url.deletingPathExtension().lastPathComponent, ext = url.pathExtension
         var n = 2
         while taken("\(base) \(n).\(ext)") { n += 1 }

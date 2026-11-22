@@ -540,7 +540,7 @@ import UserNotifications
         self.sidecars = sidecars
         let enabled = UserDefaults.standard.object(forKey: "sidecars") as? Bool ?? true
         library = PhotoLibrary(store: enabled ? sidecars : nil)
-        recentFiles = (UserDefaults.standard.stringArray(forKey: "recentFiles") ?? []).map { URL(fileURLWithPath: $0) }
+        recentFiles = (UserDefaults.standard.stringArray(forKey: "recentFiles") ?? []).map { URL(fileURLWithPath: $0, isDirectory: false) }
         library.sidecarChanged = { [weak self] photo in self?.sidecarChangedOnDisk(photo) }
         canvasScale.changed = { [weak self] in
             guard let self else { return }

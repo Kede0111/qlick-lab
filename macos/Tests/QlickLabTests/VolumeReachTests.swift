@@ -36,4 +36,26 @@ final class VolumeReachTests: XCTestCase {
         XCTAssertTrue(VolumeReach.exists(NSTemporaryDirectory()))
         XCTAssertTrue(VolumeReach.answers("/Users"))
     }
+
+    /// `URL(fileURLWithPath:)` without `isDirectory:` asks the disk whether the path is a folder. For a photograph or a
+    /// folder on a NAS that doesn't answer, that question never returns, and done at launch it kept the lab from
+    /// opening (the recent files, 2026-11-22). The lab's code says which it is; only these files, whose paths are
+    /// the lab's own or a developer's, may leave it out.
+    func testNoPathAsksTheDiskWhetherItIsAFolder() throws {
+        let sources = URL(fileURLWithPath: #filePath, isDirectory: false).deletingLastPathComponent()
+            .appendingPathComponent("../../Sources/QlickLab", isDirectory: true).standardizedFileURL
+        let allowed: Set<String> = ["Automation.swift", "Engine.swift", "Theme.swift", "Main.swift", "RecipeBundle.swift", "AutoStraighten.swift",
+                                    "PhotoFolderWatcher.swift", "ImportLoupe.swift", "ImportRun.swift", "InteractionBenchmark.swift", "GridBenchmark.swift",
+                                    "SpeedBenchmark.swift", "LaunchBenchmark.swift"]
+        let pattern = try NSRegularExpression(pattern: #"URL\(fileURLWithPath: [^,()]*(\([^()]*\))?[^,()]*\)"#)
+        var found: [String] = []
+        for case let file as URL in FileManager.default.enumerator(at: sources, includingPropertiesForKeys: nil)! where file.pathExtension == "swift" {
+            guard !allowed.contains(file.lastPathComponent) else { continue }
+            let text = try String(contentsOf: file, encoding: .utf8)
+            for match in pattern.matches(in: text, range: NSRange(text.startIndex..., in: text)) {
+                found.append("\(file.lastPathComponent): \((text as NSString).substring(with: match.range))")
+            }
+        }
+        XCTAssertEqual(found, [], "say isDirectory: true or false")
+    }
 }

@@ -208,7 +208,7 @@ extension LabState {
         projects.changeBox(box) { b in
             if let i = b.rolls.firstIndex(where: { $0.id == id }) { b.rolls[i].look = look }
         }
-        let photos = projects.frames(of: holder).map { URL(fileURLWithPath: $0) }
+        let photos = projects.frames(of: holder).map { URL(fileURLWithPath: $0, isDirectory: false) }
         model.labApplyLook(look, to: photos)
     }
 

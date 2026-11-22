@@ -27,7 +27,7 @@ import UniformTypeIdentifiers
     var initial: URL {
         if let path = defaults.string(forKey: Self.currentKey) {
             if VolumeReach.exists(path, patience: 1.5) { return URL(fileURLWithPath: path, isDirectory: true) }
-            if URL(fileURLWithPath: path).standardizedFileURL != Self.defaultDirectory.standardizedFileURL {
+            if URL(fileURLWithPath: path, isDirectory: true).standardizedFileURL != Self.defaultDirectory.standardizedFileURL {
                 Self.missed = (URL(fileURLWithPath: path, isDirectory: true), silent: VolumeReach.isSilent(path))
             }
         }

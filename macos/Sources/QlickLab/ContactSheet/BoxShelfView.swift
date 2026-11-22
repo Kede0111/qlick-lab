@@ -476,7 +476,7 @@ struct CanisterArt: View {
 
     private func load() async {
         for path in item.leader.prefix(2) where images[path] == nil {
-            let file = PhotoFile(url: URL(fileURLWithPath: path))
+            let file = PhotoFile(url: URL(fileURLWithPath: path, isDirectory: false))
             let image = await Task.detached(priority: .utility) { await PhotoThumbnails.shared.image(for: file, size: .medium) }.value
             guard !Task.isCancelled else { return }
             if let image { images[path] = image }
