@@ -28,7 +28,7 @@ struct ImportSource: Identifiable, Hashable, Sendable {
 enum ImportVolumes {
     static func mounted() -> [ImportSource] {
         let keys: [URLResourceKey] = [.volumeNameKey, .volumeIsRemovableKey, .volumeIsEjectableKey, .volumeIsInternalKey, .volumeUUIDStringKey,
-                                      .volumeIsRootFileSystemKey, .volumeIsBrowsableKey]
+                                      .volumeIsRootFileSystemKey, .volumeIsBrowsableKey, .volumeIsLocalKey]
         // Qlick Lab: the list without asking the disks; a disk that doesn't answer (a NAS gone away) is left out.
         let volumes = FileManager.default.mountedVolumeURLs(includingResourceValuesForKeys: nil, options: [.skipHiddenVolumes]) ?? []
         return volumes.compactMap { volume in
@@ -37,7 +37,9 @@ enum ImportVolumes {
             let external = values.volumeIsInternal != true || values.volumeIsRemovable == true || values.volumeIsEjectable == true
             guard external else { return nil }
             let name = values.volumeName ?? volume.lastPathComponent
-            if let dcim = cardFolder(of: volume) {
+            // Qlick Lab: a share on the network (a NAS) is never a camera's card, and listing it is what hangs when
+            // its server has gone; a local disk is listed with a time limit all the same.
+            if values.volumeIsLocal != false, let dcim = VolumeReach.look(volume.path, { cardFolder(of: volume) }) ?? nil {
                 return ImportSource(root: dcim, volume: volume, name: name, kind: .card, uuid: values.volumeUUIDString)
             }
             return ImportSource(root: volume, volume: volume, name: name, kind: .disk, uuid: values.volumeUUIDString)

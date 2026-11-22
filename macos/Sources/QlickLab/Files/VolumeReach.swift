@@ -40,6 +40,13 @@ enum VolumeReach {
         volume(of: path).map { URL(fileURLWithPath: $0, isDirectory: true).lastPathComponent } ?? "the startup disk"
     }
 
+    /// Offline: the disk `path` is on isn't connected (its /Volumes entry is gone) or doesn't answer. A folder missing
+    /// from a disk that's there is not offline: it was moved or removed.
+    static func offline(_ path: String) -> Bool {
+        guard let volume = volume(of: path) else { return false }
+        return isSilent(path) || !FileManager.default.fileExists(atPath: volume)
+    }
+
     /// Whether the disk under `path` is left aside now, without looking.
     static func isSilent(_ path: String) -> Bool {
         guard let volume = volume(of: path) else { return false }
@@ -56,7 +63,7 @@ enum VolumeReach {
         queue.async { simulateSilence(volume); box.value = look(); done.signal() }
         // The semaphore orders the write before this read.
         if done.wait(timeout: .now() + patience) == .success { return box.value }
-        leaveAside(volume)
+        leaveAside(volume, probe: path)
         return nil
     }
 
@@ -93,7 +100,10 @@ enum VolumeReach {
 
     // MARK: The watch
 
-    private static func leaveAside(_ volume: String) {
+    /// `probe`: the path that didn't answer, which the watch keeps asking about (a share may answer for its top and not
+    /// for what's under it).
+    private static func leaveAside(_ volume: String, probe: String? = nil) {
+        let probe = probe ?? volume
         state.lock.lock()
         let new = state.silent.insert(volume).inserted
         state.lock.unlock()
@@ -107,14 +117,14 @@ enum VolumeReach {
             state.lock.unlock()
             if tell { MainActor.assumeIsolated { stoppedAnswering?(URL(fileURLWithPath: volume, isDirectory: true)) } }
         }
-        // One thread per silent disk, looking at its top until a look comes back quickly (the server is back, or the
-        // share was let go and its path is simply not there).
+        // One thread per silent disk, asking again about the path that didn't answer until a look comes back quickly
+        // (the server is back, or the share was let go and its path is simply not there).
         Thread.detachNewThread {
             while true {
                 let start = Date()
                 simulateSilence(volume)
                 var info = stat()
-                _ = lstat(volume, &info)
+                _ = lstat(probe, &info)
                 if Date().timeIntervalSince(start) < 2 { break }
                 Thread.sleep(forTimeInterval: 3)
             }

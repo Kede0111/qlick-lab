@@ -38,7 +38,7 @@ struct ArchivesSection: View {
             let open = lab.sidebarFold.isOpen(.archive(archive.id), leadsToOpen: current?.project.id == archive.id)
             let roots = lab.projects.roots(of: archive)
             SidebarRow(symbol: LabGlyph.archive.symbol, name: archive.name, depth: 0, count: count(archive, roots: roots), on: view == .archive(archive.id),
-                       strong: true, unfoldable: !roots.isEmpty, unfolded: open,
+                       strong: true, offline: !roots.isEmpty && roots.allSatisfy { VolumeReach.offline($0.path) }, unfoldable: !roots.isEmpty, unfolded: open,
                        toggle: { lab.sidebarFold.toggle(.archive(archive.id), leadsToOpen: current?.project.id == archive.id) },
                        action: { lab.open(.archive(archive.id)); if !open { lab.sidebarFold.unfold(.archive(archive.id)) } })
                 .sidebarDrop(lab, .archive(archive.id), depth: 0, folded: !open && !roots.isEmpty ? .archive(archive.id) : nil,
@@ -62,11 +62,13 @@ struct ArchivesSection: View {
                         rows(tree, depth: 1, archive: archive, current: current?.roll.folder)
                     } else {
                         let entry = lab.projects.folder(root.path, in: archive)
-                        let missing = !VolumeReach.exists(root.path)
+                        let offline = VolumeReach.offline(root.path)
+                        let missing = offline || !VolumeReach.exists(root.path)
                         SidebarRow(symbol: missing ? "questionmark.folder" : "folder", name: entry.name, depth: 1,
-                                   count: missing ? nil : lab.projects.stats[entry.id]?.total, on: current?.roll.folder == root.path,
+                                   count: missing ? nil : lab.projects.stats[entry.id]?.total, on: current?.roll.folder == root.path, dim: offline, offline: offline,
                                    action: { lab.open(.folder(root.path, archive: archive.id)) })
-                            .help(missing ? (VolumeReach.isSilent(root.path) ? "Its disk isn’t answering" : "Folder not found: its disk may not be connected") : root.path)
+                            .help(offline ? "Offline: “\(VolumeReach.volumeName(of: root.path))” \(VolumeReach.isSilent(root.path) ? "isn’t answering" : "isn’t connected"). Its photographs come back when it is."
+                                  : missing ? "Folder not found: it may have been moved or renamed" : root.path)
                             .sidebarDrop(lab, .folder(root.path, archive: archive.id), depth: 1, drags: .folder(root.path, archive: archive.id),
                                          symbol: "folder", name: entry.name)
                             .contextMenu { folderMenu(root.path, archive: archive) }
@@ -101,9 +103,11 @@ struct ArchivesSection: View {
         let leads = current.map { $0.hasPrefix(node.id + "/") } ?? false
         let unfolded = lab.sidebarFold.isOpen(row, leadsToOpen: leads)
         let entry = lab.projects.folder(node.id, in: archive)
+        // Qlick Lab: a Folder on top whose disk went away keeps its tree, marked Offline.
+        let offline = depth == 1 && VolumeReach.offline(node.id)
         return AnyView(Group {
             SidebarRow(symbol: "folder", name: entry.name, depth: depth, count: node.total > 0 ? node.total : nil, on: node.id == current,
-                       dim: node.total == 0, unfoldable: !node.children.isEmpty, unfolded: unfolded,
+                       dim: node.total == 0 || offline, offline: offline, unfoldable: !node.children.isEmpty, unfolded: unfolded,
                        toggle: { lab.sidebarFold.toggle(row, leadsToOpen: leads) },
                        action: {
                            if node.total > 0 { lab.open(.folder(node.id, archive: archive.id)) }
@@ -378,6 +382,8 @@ struct SidebarRow<Adding: View>: View {
     var strong = false
     /// No photographs in it: shown, but quieter.
     var dim = false
+    /// Qlick Lab: its disk isn't connected or doesn't answer: "Offline" in place of its count.
+    var offline = false
     var unfoldable = false
     var unfolded = false
     var dropping = false
@@ -409,7 +415,9 @@ struct SidebarRow<Adding: View>: View {
                         .foregroundStyle(SidebarMetrics.text(selected: on, dim: dim))
                         .lineLimit(1).truncationMode(.middle)
                     Spacer(minLength: 2)
-                    if let count, !(hovered && Adding.self != EmptyView.self) {
+                    if offline, !(hovered && Adding.self != EmptyView.self) {
+                        OfflineTag()
+                    } else if let count, !(hovered && Adding.self != EmptyView.self) {
                         Text("\(count)").font(Theme.value(11)).foregroundStyle(Theme.faint)
                     }
                 }
@@ -443,8 +451,9 @@ struct SidebarRow<Adding: View>: View {
 
 extension SidebarRow where Adding == EmptyView {
     init(symbol: String, name: String, depth: Int, count: Int? = nil, on: Bool = false, strong: Bool = false, dim: Bool = false,
-         unfoldable: Bool = false, unfolded: Bool = false, dropping: Bool = false, toggle: @escaping () -> Void = {}, action: @escaping () -> Void) {
-        self.init(symbol: symbol, name: name, depth: depth, count: count, on: on, strong: strong, dim: dim, unfoldable: unfoldable,
+         offline: Bool = false, unfoldable: Bool = false, unfolded: Bool = false, dropping: Bool = false, toggle: @escaping () -> Void = {},
+         action: @escaping () -> Void) {
+        self.init(symbol: symbol, name: name, depth: depth, count: count, on: on, strong: strong, dim: dim, offline: offline, unfoldable: unfoldable,
                   unfolded: unfolded, dropping: dropping, toggle: toggle, action: action, adding: { EmptyView() })
     }
 }
@@ -473,5 +482,15 @@ struct RollLookMenu: View {
             }
             if model.listedPresets.isEmpty { Text("No Recipes Yet") }
         }
+    }
+}
+
+/// Qlick Lab: a Folder whose disk isn't connected or doesn't answer, in place of its count.
+struct OfflineTag: View {
+    var body: some View {
+        Text("OFFLINE").font(.system(size: 8.5, weight: .semibold)).tracking(0.6).foregroundStyle(Theme.dim)
+            .padding(.horizontal, 5).padding(.vertical, 1.5)
+            .overlay(Capsule().strokeBorder(Theme.dim.opacity(0.6), lineWidth: 0.75))
+            .accessibilityLabel("Offline")
     }
 }
