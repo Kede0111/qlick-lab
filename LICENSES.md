@@ -35,6 +35,7 @@ Main changes from Negs 0.15.0:
 | **spektrafilm**: spectral model | © Andrea Volpato | GPL-3.0 | algorithms ported in `crates/` | none |
 | Mathematics ported from numpy, scipy, scikit-image, colour-science | their authors | BSD-3-Clause | `crates/spektrafilm-math` | none |
 | Lens corrections ported from darktable | darktable contributors | GPL-3.0-or-later | `crates/spektrafilm-io` | none |
+| Auto Straighten (segments, vanishing points, horizon), ported from **LightCraft** | © 2026 ArtCraft Team and the LightCraft contributors | MIT or Apache-2.0 (MIT chosen; notice below) | `crates/spektrafilm-io/src/straighten.rs` | ported from Rust to Rust: own picture type and blur, cue reported |
 | **rawler** 0.8.0 (RAW decoding), patched copy | dnglab | LGPL-2.1 | `vendor/rawler` (`vendor/README.md` lists the patches) | none by Qlick Lab |
 | **Sparkle** 2.10.0 (updates) | Sparkle Project | MIT | SwiftPM dependency, copied into the app | none; inactive without a release feed |
 | Rust dependencies (wgpu, image, rayon, serde, clap…) | their authors | MIT / Apache-2.0 / BSD mostly | `Cargo.lock` | none; exact list: `cargo tree --format "{p} {l}"` |
@@ -82,3 +83,23 @@ and never presents itself as Negs.
 - **LGPL-2.1** (rawler): source of the patched copy in `vendor/`.
 - **OFL**: licence texts ship with the fonts.
 - **Credits**: in the About window, in the README and in this file.
+
+## LightCraft's notice (MIT)
+
+`crates/spektrafilm-io/src/straighten.rs` is ported from LightCraft (<https://github.com/storytold/lightcraft>,
+`crates/pipeline/src/straighten.rs` and `upright.rs`):
+
+> Copyright (c) 2026 ArtCraft Team and the LightCraft contributors
+>
+> Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+> documentation files (the "Software"), to deal in the Software without restriction, including without limitation the
+> rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit
+> persons to whom the Software is furnished to do so, subject to the following conditions:
+>
+> The above copyright notice and this permission notice shall be included in all copies or substantial portions of the
+> Software.
+>
+> THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
+> WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+> COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+> OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.

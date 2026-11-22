@@ -76,6 +76,14 @@ enum Command {
         paper: String,
         params: Box<RuntimeParams>,
     },
+    /// Qlick Lab: Auto Straighten. The angle (degrees, clockwise on screen) that levels a photograph, read from
+    /// `input`, a file of `width` × `height` bytes of grey (what the canvas shows, rows from the top), written by
+    /// the app (`spektrafilm_io::straighten`). `{"degrees": null}` when nothing can be trusted.
+    Level {
+        input: PathBuf,
+        width: usize,
+        height: usize,
+    },
     /// The colour space a RAW's camera preview says it's in, for the Mac's
     /// Match camera brightness reference (`spektrafilm_io::brightness::
     /// preview_colour_space`): "srgb", "adobe_rgb", "other" or null.
@@ -1167,6 +1175,15 @@ impl Session {
             Command::ReleaseFilmCache => {
                 let bytes = self.backend.as_ref().map_or(0, |backend| backend.release_film_cache());
                 Ok(json!({"released_bytes": bytes}))
+            }
+            Command::Level { input, width, height } => {
+                let bytes = std::fs::read(&input)?;
+                let gray = spektrafilm_io::straighten::Gray::from_bytes(width, height, &bytes)
+                    .ok_or_else(|| anyhow::anyhow!("The picture to level is {} bytes, not {width} × {height}", bytes.len()))?;
+                Ok(match spektrafilm_io::straighten::level(&gray) {
+                    Some((degrees, cue)) => json!({ "degrees": degrees, "cue": cue.name() }),
+                    None => json!({ "degrees": null }),
+                })
             }
             Command::PreviewColourSpace { input } => Ok(json!({ "colour_space": declared_preview_colour_space(&input)? })),
             Command::PrepareBalance { input, source_generation, params, read_long_side } => {

@@ -29,9 +29,11 @@ enum ImportVolumes {
     static func mounted() -> [ImportSource] {
         let keys: [URLResourceKey] = [.volumeNameKey, .volumeIsRemovableKey, .volumeIsEjectableKey, .volumeIsInternalKey, .volumeUUIDStringKey,
                                       .volumeIsRootFileSystemKey, .volumeIsBrowsableKey]
-        let volumes = FileManager.default.mountedVolumeURLs(includingResourceValuesForKeys: keys, options: [.skipHiddenVolumes]) ?? []
+        // Qlick Lab: the list without asking the disks; a disk that doesn't answer (a NAS gone away) is left out.
+        let volumes = FileManager.default.mountedVolumeURLs(includingResourceValuesForKeys: nil, options: [.skipHiddenVolumes]) ?? []
         return volumes.compactMap { volume in
-            guard let values = try? volume.resourceValues(forKeys: Set(keys)), values.volumeIsRootFileSystem != true, values.volumeIsBrowsable != false else { return nil }
+            guard VolumeReach.answers(volume.path), let values = try? volume.resourceValues(forKeys: Set(keys)),
+                  values.volumeIsRootFileSystem != true, values.volumeIsBrowsable != false else { return nil }
             let external = values.volumeIsInternal != true || values.volumeIsRemovable == true || values.volumeIsEjectable == true
             guard external else { return nil }
             let name = values.volumeName ?? volume.lastPathComponent

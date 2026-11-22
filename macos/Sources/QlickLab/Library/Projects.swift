@@ -935,11 +935,13 @@ struct RollStats: Equatable, Sendable {
 
     /// A Folder, found again by its bookmark if it moved; the path is then brought up to date.
     func resolve(_ roll: LabRoll, in project: UUID) -> URL? {
-        if FileManager.default.fileExists(atPath: roll.folder) { return roll.url }
+        if VolumeReach.exists(roll.folder) { return roll.url }
+        // A disk that doesn't answer isn't searched; nor is a disk mounted, or a question asked, to find a Folder.
+        guard !VolumeReach.isSilent(roll.folder) else { return nil }
         var stale = false
         guard let bookmark = roll.bookmark,
-              let url = try? URL(resolvingBookmarkData: bookmark, options: [], relativeTo: nil, bookmarkDataIsStale: &stale),
-              FileManager.default.fileExists(atPath: url.path) else { return nil }
+              let url = try? URL(resolvingBookmarkData: bookmark, options: [.withoutUI, .withoutMounting], relativeTo: nil, bookmarkDataIsStale: &stale),
+              VolumeReach.exists(url.path) else { return nil }
         updateRoll(roll.id, in: project) { $0.folder = url.standardizedFileURL.path }
         return url
     }
@@ -955,7 +957,10 @@ struct RollStats: Equatable, Sendable {
         counting[roll.id]?.cancel()
         let store = sidecars, url = roll.url, id = roll.id
         counting[id] = Task { [weak self] in
-            let (counted, card) = await Task.detached(priority: .utility) { (Self.stats(of: url, store: store), RollCardFile.read(in: url)) }.value
+            let (counted, card) = await Task.detached(priority: .utility) {
+                let counted = Self.stats(of: url, store: store)
+                return (counted, counted.missing ? nil : RollCardFile.read(in: url))
+            }.value
             guard !Task.isCancelled, let self else { return }
             if self.stats[id] != counted { self.stats[id] = counted }
             if !counted.missing { self.reconcile(id, card: card) }
@@ -964,6 +969,8 @@ struct RollStats: Equatable, Sendable {
 
     /// A folder's photographs and those of every folder under it.
     nonisolated static func stats(of folder: URL, store: SidecarStore?) -> RollStats {
+        // Qlick Lab: a disk that doesn't answer isn't waited for; it's counted again when it answers (`VolumeReach`).
+        guard VolumeReach.answers(folder.path, patience: 3) else { return RollStats(missing: true) }
         guard let listing = try? PhotoFolder.listing(in: folder) else { return RollStats(missing: true) }
         var stats = RollStats()
         func add(_ listing: (photos: [PhotoFile], sidecars: [String: PhotoFile]), prefix: String) {

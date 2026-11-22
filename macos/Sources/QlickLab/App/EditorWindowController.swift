@@ -457,7 +457,7 @@ final class EdgeSplitView: NSSplitView {
         case 36, 76: model.endCrop(apply: true)
         case 53: model.endCrop(apply: false)
         // Qlick Lab: A levels the photograph by its lines.
-        case 0: session.autoStraighten(model.image)
+        case 0: session.autoStraighten(model.image, engine: model.engine)
         default: return false
         }
         return true

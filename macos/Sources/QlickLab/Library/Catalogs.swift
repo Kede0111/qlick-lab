@@ -17,15 +17,25 @@ import UniformTypeIdentifiers
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
+        // A catalogue on a disk that doesn't answer stays in the list: it's away, not gone.
         recent = (defaults.stringArray(forKey: Self.recentKey) ?? []).map { URL(fileURLWithPath: $0, isDirectory: true) }
-            .filter { FileManager.default.fileExists(atPath: $0.path) }
+            .filter { VolumeReach.exists($0.path) || VolumeReach.isSilent($0.path) }
     }
 
-    /// The catalog to open at launch: the last one, while it's there.
+    /// The catalogue to open at launch: the last one, while it's there and its disk answers. Otherwise the Default
+    /// Catalog opens, and `missed` says which one couldn't (the lab says so; the next launch tries it again).
     var initial: URL {
-        if let path = defaults.string(forKey: Self.currentKey), FileManager.default.fileExists(atPath: path) { return URL(fileURLWithPath: path, isDirectory: true) }
+        if let path = defaults.string(forKey: Self.currentKey) {
+            if VolumeReach.exists(path, patience: 1.5) { return URL(fileURLWithPath: path, isDirectory: true) }
+            if URL(fileURLWithPath: path).standardizedFileURL != Self.defaultDirectory.standardizedFileURL {
+                Self.missed = (URL(fileURLWithPath: path, isDirectory: true), silent: VolumeReach.isSilent(path))
+            }
+        }
         return Self.defaultDirectory
     }
+
+    /// The catalogue `initial` couldn't open: not there (its disk not connected) or its disk not answering.
+    static var missed: (url: URL, silent: Bool)?
 
     func remember(_ url: URL) {
         let url = url.standardizedFileURL
@@ -51,6 +61,11 @@ extension LabState {
         if directory.pathExtension.lowercased() != CatalogList.fileExtension, directory != CatalogList.defaultDirectory.standardizedFileURL,
            (try? directory.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory != true { return }
         if directory.path == projects.directory.standardizedFileURL.path { return show(.library) }
+        // A disk that doesn't answer isn't waited for: the catalogue open stays.
+        guard VolumeReach.answers(directory.path, patience: 1.5) else {
+            model.error = "The catalog “\(CatalogList.name(of: directory))” can’t be opened: its disk, “\(VolumeReach.volumeName(of: directory.path))”, isn’t answering."
+            return
+        }
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         directory = directory.standardizedFileURL
         projects.open(directory: directory)

@@ -49,7 +49,7 @@ extension EditorModel {
         // A photograph of the library listed keeps it; anything else lets it go.
         if libraryRoot != nil, !library.items.contains(where: { $0.url == url || $0.url.photoFile == url.photoFile }) { libraryRoot = nil }
         // A folder opens on its first photograph, in the grid.
-        if (try? url.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory == true {
+        if VolumeReach.isFolder(url) {
             guard let first = Self.firstPhotograph(in: url) else {
                 error = "“\(url.lastPathComponent)” has no photographs Qlick Lab can open."
                 return
@@ -92,7 +92,12 @@ extension EditorModel {
         let item = session?.variant.map { item.photoFile.variant($0) } ?? item
         let url = item.photoFile
         guard !closing, url.isFileURL else { return }
-        guard FileManager.default.isReadableFile(atPath: url.path) else {
+        guard VolumeReach.readable(url.path) else {
+            // Qlick Lab: a photograph on a disk that doesn't answer is away, not gone: it stays in Open Recent.
+            if VolumeReach.isSilent(url.path) {
+                error = "“\(url.lastPathComponent)” can’t be opened now: its disk, “\(VolumeReach.volumeName(of: url.path))”, isn’t answering."
+                return
+            }
             recentFiles.removeAll { $0 == url }; saveRecents()
             error = "“\(url.lastPathComponent)” can’t be opened. It may have been moved or deleted."
             return

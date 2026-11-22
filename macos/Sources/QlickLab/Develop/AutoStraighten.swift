@@ -6,6 +6,10 @@ import Vision
 
 /// Finds how far a photograph leans, to level it at a click in the crop tool.
 ///
+/// Qlick Lab: the engine levels it first (`spektrafilm_io::straighten`, after Lightcraft): plumb lines by their
+/// vanishing point, a horizon across the whole width, then the long lines' consensus, never past 5°. What follows
+/// here is the lab's own look, kept for when the engine can't be asked.
+///
 /// The straight edges of a photograph (a horizon, a roof line, the side of a wall) mostly lie along its two axes
 /// when it's level. So every strong edge votes for the small angle that separates it from the nearest axis, the
 /// near-horizontal ones and the near-vertical ones apart; the angle most of them agree on is the lean. Texture
@@ -18,7 +22,7 @@ enum AutoStraighten {
         /// How much the peak stands over the other angles: about 1 is no agreement at all.
         var strength: Double
         var source: Source
-        enum Source: String, Sendable { case horizontals, verticals, both, horizon }
+        enum Source: String, Sendable { case horizontals, verticals, both, horizon, plumb }
     }
 
     /// The largest lean looked for: further than this, what is level and what is upright can't be told apart.
@@ -198,8 +202,10 @@ enum AutoStraighten {
     }
 
     /// The picture in grey, `longSide` at most, rows from the top.
-    nonisolated static func luminance(_ image: CGImage) -> (gray: [Float], width: Int, height: Int)? {
-        let scale = min(1, Double(longSide) / Double(max(image.width, image.height, 1)))
+    /// `enlarging`: drawn at `longSide` even when the picture is smaller (the engine's thresholds are set for it).
+    nonisolated static func luminance(_ image: CGImage, longSide: Int = longSide, enlarging: Bool = false) -> (gray: [Float], width: Int, height: Int)? {
+        let fit = Double(longSide) / Double(max(image.width, image.height, 1))
+        let scale = enlarging ? fit : min(1, fit)
         let width = max(Int((Double(image.width) * scale).rounded()), 1), height = max(Int((Double(image.height) * scale).rounded()), 1)
         var bytes = [UInt8](repeating: 0, count: width * height)
         let drawn = bytes.withUnsafeMutableBytes { buffer -> Bool in
@@ -215,8 +221,42 @@ enum AutoStraighten {
 
     private nonisolated static let context = CIContext(options: [.cacheIntermediates: false])
 
+    /// The long side the engine reads the picture at (`ANALYSIS_LONG` in `spektrafilm_io::straighten`).
+    static let engineLongSide = 1024
+
+    /// The lean of what the canvas shows: the engine's answer, or the lab's own look when the engine can't be asked.
+    /// Nil when nothing can be trusted.
+    nonisolated static func find(in shown: AnyObject, engine: EngineClient?) async -> Estimate? {
+        if let engine, let image = image(from: shown, longSide: engineLongSide), let (gray, width, height) = luminance(image, longSide: engineLongSide, enlarging: true) {
+            let file = engine.directory.appendingPathComponent("level-\(UUID().uuidString).gray")
+            defer {
+                // QLICK_LEVEL_KEEP=<folder>: the grey picture the engine read is kept there, to see what it saw.
+                if let keep = ProcessInfo.processInfo.environment["QLICK_LEVEL_KEEP"] {
+                    try? FileManager.default.copyItem(at: file, to: URL(fileURLWithPath: keep).appendingPathComponent("\(width)x\(height)-\(file.lastPathComponent)"))
+                }
+                try? FileManager.default.removeItem(at: file)
+            }
+            do {
+                try Data(gray.map { UInt8(max(0, min(255, $0))) }).write(to: file)
+                let (_, answer) = try await engine.request(["command": EngineCommand.level.json, "input": .string(file.path),
+                                                            "width": .number(Double(width)), "height": .number(Double(height))])
+                guard case .number(let degrees) = answer["degrees"] else { return nil }
+                let source: Estimate.Source = switch answer["cue"].string {
+                case "plumb": .plumb
+                case "horizon": .horizon
+                default: .both
+                }
+                // The engine gives the turn that levels it; the lean is the other way.
+                return Estimate(lean: -degrees, strength: 1, source: source)
+            } catch {
+                FileHandle.standardError.write(Data("level: \(error.localizedDescription)\n".utf8))
+            }
+        }
+        return image(from: shown).flatMap(estimate)
+    }
+
     /// What the canvas shows (a developed frame's surface, or an image), as an image to read.
-    nonisolated static func image(from shown: AnyObject) -> CGImage? {
+    nonisolated static func image(from shown: AnyObject, longSide: Int = longSide) -> CGImage? {
         if CFGetTypeID(shown) == CGImage.typeID { return (shown as! CGImage) }
         guard let surface = shown as? IOSurface else { return nil }
         let picture = CIImage(ioSurface: surface)

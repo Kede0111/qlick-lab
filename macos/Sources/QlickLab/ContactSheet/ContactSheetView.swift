@@ -238,8 +238,10 @@ import SwiftUI
     private var edgeLabel: String { lab.current?.roll.film ?? "" }
 
     private var renderer: ContactSheetRenderer {
-        ContactSheetRenderer(layout: layout, palette: options.lightTable ? .lightTable : .dark, sidewaysVerticals: options.sidewaysVerticals,
-                             edgeLabel: edgeLabel)
+        var renderer = ContactSheetRenderer(layout: layout, palette: options.lightTable ? .lightTable : .dark, sidewaysVerticals: options.sidewaysVerticals,
+                                            edgeLabel: edgeLabel)
+        renderer.showsMarks = options.showMarks
+        return renderer
     }
 
     /// Lays the sheet out for the view's width. True if the layout changed.

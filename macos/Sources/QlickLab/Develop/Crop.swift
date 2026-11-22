@@ -407,13 +407,13 @@ enum CropGeometry {
 
     /// Levels the photograph by the lines it finds in `shown` (what the canvas shows, before the straightening):
     /// a horizon, a roof, a wall. The crop shrinks to stay on it, as when the dial is turned.
-    func autoStraighten(_ shown: AnyObject?) {
+    func autoStraighten(_ shown: AnyObject?, engine: EngineClient? = nil) {
         guard !levelling, let shown else { return }
         levelling = true; levelNote = nil
         // Read off the main actor; the surface is only looked at.
         nonisolated(unsafe) let picture = shown
         Task { [weak self] in
-            let found = await Task.detached(priority: .userInitiated) { AutoStraighten.image(from: picture).flatMap(AutoStraighten.estimate) }.value
+            let found = await Task.detached(priority: .userInitiated) { await AutoStraighten.find(in: picture, engine: engine) }.value
             guard let self else { return }
             self.levelling = false
             guard let found else { self.levelNote = "No clear horizon or straight line to go by."; return }
@@ -433,6 +433,7 @@ enum CropGeometry {
         case .verticals: "the upright lines"
         case .both: "the level and upright lines"
         case .horizon: "the horizon"
+        case .plumb: "the upright lines"
         }
     }
 
@@ -504,7 +505,7 @@ struct CropEditor: View {
                                ended: session.endStraightening, turn: model.turn(clockwise:))
                     .offset(x: (frame.midX - StraightenDial.width / 2).rounded(), y: frame.maxY + 10)
                 // Qlick Lab: Auto, beside the dial it turns.
-                Button { session.autoStraighten(model.image) } label: {
+                Button { session.autoStraighten(model.image, engine: model.engine) } label: {
                     HStack(spacing: 5) {
                         if session.levelling { ProgressView().controlSize(.mini) } else { Image(systemName: "level").font(.system(size: 11, weight: .medium)) }
                         Text("Auto").font(.system(size: 11.5, weight: .semibold))
@@ -831,7 +832,7 @@ struct CropInspector: View {
                             if session.levelling { ProgressView().controlSize(.small) }
                             else if let note = session.levelNote { Text(note).font(Theme.ui(11.5)).foregroundStyle(Theme.dim).lineLimit(2) }
                         } button: {
-                            Button("Auto") { session.autoStraighten(model.image) }
+                            Button("Auto") { session.autoStraighten(model.image, engine: model.engine) }
                                 .buttonStyle(OutlinedButtonStyle())
                                 .inkDisabled(session.levelling || model.image == nil)
                                 .help("Levels the photograph by its horizon or its straight lines (A)")

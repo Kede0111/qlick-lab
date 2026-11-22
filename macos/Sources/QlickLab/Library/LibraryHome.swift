@@ -458,7 +458,7 @@ private struct RollCard: View {
                 }
                 if let stats {
                     if stats.missing {
-                        Text("Folder not found").font(.system(size: 11.5)).foregroundStyle(Theme.warn)
+                        Text(VolumeReach.isSilent(roll.folder) ? "Its disk isn’t answering" : "Folder not found").font(.system(size: 11.5)).foregroundStyle(Theme.warn)
                     } else {
                         HStack(spacing: 9) {
                             Text(stats.total == 1 ? "1 frame" : "\(stats.total) frames").font(Theme.value(11.5)).foregroundStyle(Theme.dim)

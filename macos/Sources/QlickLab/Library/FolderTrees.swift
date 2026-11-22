@@ -46,7 +46,16 @@ struct FolderNode: Identifiable, Equatable, Sendable {
     func start() {
         started = true
         for root in roots { watch(root) }
+        // Qlick Lab: a Folder whose disk didn't answer is read and followed once it does (`VolumeReach`).
+        reach = NotificationCenter.default.addObserver(forName: VolumeReach.changed, object: nil, queue: .main) { [weak self] note in
+            guard let volume = note.userInfo?["volume"] as? String else { return }
+            MainActor.assumeIsolated {
+                guard let self, !VolumeReach.isSilent(volume) else { return }
+                for root in self.roots where root.path.hasPrefix(volume + "/") && self.watchers[root] == nil { self.watch(root) }
+            }
+        }
     }
+    @ObservationIgnored private var reach: NSObjectProtocol?
 
     /// The Folders to read and follow now: the new ones are read, those gone are let go.
     func follow(_ wanted: Set<URL>) {
@@ -64,7 +73,9 @@ struct FolderNode: Identifiable, Equatable, Sendable {
 
     private func watch(_ root: URL) {
         rescan(root)
-        watchers[root]?.stop()
+        watchers[root]?.stop(); watchers[root] = nil
+        // Not followed while its disk doesn't answer: read again when it does.
+        guard VolumeReach.answers(root.path) else { return }
         watchers[root] = FolderWatcher(root: root) { [weak self] in
             MainActor.assumeIsolated { self?.rescan(root) }
         }
@@ -94,7 +105,7 @@ struct FolderNode: Identifiable, Equatable, Sendable {
     /// app) are passed by.
     nonisolated static func read(_ root: URL) -> FolderNode? {
         var budget = limit
-        guard FileManager.default.fileExists(atPath: root.path) else { return nil }
+        guard VolumeReach.answers(root.path, patience: Thread.isMainThread ? VolumeReach.patience : 3), FileManager.default.fileExists(atPath: root.path) else { return nil }
         return read(root.standardizedFileURL, depth: depth, budget: &budget, excluded: PhotoFolder.excluded)
     }
 

@@ -14,7 +14,7 @@ extension EditorModel {
     /// Opens the crop tool if it isn't, and levels the photograph by its lines there, to keep or to cancel.
     func autoStraighten() {
         if !cropping { beginCrop() }
-        cropSession?.autoStraighten(image)
+        cropSession?.autoStraighten(image, engine: engine)
     }
 }
 

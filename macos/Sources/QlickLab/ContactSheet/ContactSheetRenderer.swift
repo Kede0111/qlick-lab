@@ -351,46 +351,18 @@ struct ContactSheetRenderer {
     /// The pencil that boxes the frame the keys act on: the lab's red, as the Grid draws its box in the accent.
     static let boxColour = SheetPalette.pencilRed
 
-    /// The frame the keys act on is boxed by hand in red pencil, round the picture itself, so the eye finds it at
-    /// once; other selected frames wear a thin line.
+    /// Every selected frame is boxed by hand in red pencil, round the picture itself, so the eye finds the selection
+    /// at once; the frame the keys act on has the heavier line, the others a finer one of the same pencil.
     func drawSelection(_ context: CGContext, index: Int, _ content: SheetFrameContent) {
         guard content.current || content.selected else { return }
-        if content.current {
-            let picture = pictureRect(index, content)
-            let weight = min(max(layout.frame.width / 70, 1.6), 3.4)
-            for stroke in GreasePencil.box(in: picture.insetBy(dx: -weight * 1.6, dy: -weight * 1.6), seed: content.name, weight: weight) {
-                context.setFillColor(Self.boxColour.copy(alpha: CGFloat(stroke.opacity)) ?? Self.boxColour)
-                context.addPath(stroke.path())
-                context.fillPath()
-            }
-            return
+        let picture = pictureRect(index, content)
+        let full = min(max(layout.frame.width / 70, 1.6), 3.4)
+        let weight = content.current ? full : max(full * 0.5, 1)
+        for stroke in GreasePencil.box(in: picture.insetBy(dx: -full * 1.6, dy: -full * 1.6), seed: content.name, weight: weight) {
+            context.setFillColor(Self.boxColour.copy(alpha: CGFloat(stroke.opacity)) ?? Self.boxColour)
+            context.addPath(stroke.path())
+            context.fillPath()
         }
-        let rect = layout.picture(index).insetBy(dx: -3.5, dy: -3.5)
-        context.setStrokeColor(palette.cursor)
-        if content.selected && !content.current {
-            context.setAlpha(0.6)
-            context.setLineWidth(1)
-            context.stroke(rect.insetBy(dx: 0.5, dy: 0.5))
-            context.setAlpha(1)
-            return
-        }
-        if content.selected {
-            context.setAlpha(0.45)
-            context.setLineWidth(1)
-            context.stroke(rect.insetBy(dx: 0.5, dy: 0.5))
-            context.setAlpha(1)
-        }
-        let arm = max(min(rect.width, rect.height) * 0.16, 7), line: CGFloat = 2
-        context.setLineWidth(line)
-        context.setLineCap(.square)
-        let r = rect.insetBy(dx: line / 2, dy: line / 2)
-        for (corner, dx, dy) in [(CGPoint(x: r.minX, y: r.minY), 1.0, 1.0), (CGPoint(x: r.maxX, y: r.minY), -1.0, 1.0),
-                                 (CGPoint(x: r.minX, y: r.maxY), 1.0, -1.0), (CGPoint(x: r.maxX, y: r.maxY), -1.0, -1.0)] {
-            context.move(to: CGPoint(x: corner.x + arm * dx, y: corner.y))
-            context.addLine(to: corner)
-            context.addLine(to: CGPoint(x: corner.x, y: corner.y + arm * dy))
-        }
-        context.strokePath()
     }
 
     // MARK: Helpers

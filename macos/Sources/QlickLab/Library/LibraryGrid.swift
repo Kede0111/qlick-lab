@@ -405,10 +405,11 @@ private struct SheetGrid: View {
     private func box(_ file: PhotoFile, frame: CGRect, selection layer: Bool) -> some View {
         let url = file.url
         let waiting = model.sheetWaiting.contains(url)
-        let picked = model.library.summary(for: url).flag == .pick, selected = SheetLayout.drawnSelected(url, selection: model.selection)
+        let picked = model.lab.sheet.showMarks && model.library.summary(for: url).flag == .pick
+        let selected = SheetLayout.drawnSelected(url, selection: model.selection)
         return ZStack {
             if layer ? selected : picked {
-                BoxInk(name: file.name, picked: !layer, selected: layer)
+                BoxInk(name: file.name, picked: !layer, selected: layer, current: url == model.selection.current)
             }
         }
         .frame(width: frame.width, height: frame.height)
@@ -698,7 +699,7 @@ private struct SheetCell: View {
                     .allowsHitTesting(false)
             }
         }
-        .overlay { PhotoMarks(summary: summary, name: file.name, stack: lab.projects.stackBadge(file.url)) }
+        .overlay { PhotoMarks(summary: lab.sheet.showMarks ? summary : summary.unmarked, name: file.name, stack: lab.projects.stackBadge(file.url)) }
         .modifier(PlaceReport(image: image, placed: placed))
         .opacity(waiting ? 0 : 1)
         .offset(y: waiting ? 14 : 0)

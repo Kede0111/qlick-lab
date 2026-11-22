@@ -10,8 +10,11 @@ struct BoxInk: View {
     let name: String
     /// A pick: the cream box.
     let picked: Bool
-    /// Selected or current, in the grid: the yellow box, over the cream one.
+    /// Selected or current, in the grid: the selection's box, over the pick's.
     var selected = false
+    /// Qlick Lab: the frame the keys act on: its selection box is the heavier one; the rest of the selection wears a
+    /// finer line of the same red pencil, as on the contact sheet.
+    var current = true
     /// The strip's box: a little closer to the picture, with shorter overshoots.
     var inStrip = false
 
@@ -26,7 +29,7 @@ struct BoxInk: View {
                 context.fill(box.path(in: picture), with: .color(Theme.accent))
             }
             if selected {
-                context.fill(PickBox.selection(in: picture, name: name).path(in: picture), with: .color(Theme.paper))
+                context.fill(PickBox.selection(in: picture, name: name, weight: current ? 4 / 2.6 : 2 / 2.6).path(in: picture), with: .color(Theme.accent))
             }
         }
         .padding(-PickBox.reach)
@@ -83,8 +86,8 @@ enum PickBox {
     static func strip(in size: CGSize, name: String) -> Box { box(in: size, outset: 2, name: name, tight: true) }
     /// Selection in the grid: a second box, 8 pt out, in a 4 pt yellow line
     /// (the page's "Yellow line" over its 2.6 pt stroke).
-    static func selection(in size: CGSize, name: String) -> Box {
-        box(in: size, outset: 8, name: name + "\u{00B7}second", weight: 4 / 2.6)
+    static func selection(in size: CGSize, name: String, weight: CGFloat = 4 / 2.6) -> Box {
+        box(in: size, outset: 8, name: name + "\u{00B7}second", weight: weight)
     }
 
     static func seed(_ name: String) -> UInt32 { RejectCross.hash(name + "\u{00B7}box") }

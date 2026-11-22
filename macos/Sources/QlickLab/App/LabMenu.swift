@@ -34,6 +34,7 @@ import AppKit
         menu.addItem(.separator())
         add("Red Pencil", #selector(togglePencil), "")
         add("Light Table", #selector(toggleLightTable), "l", [.command, .shift, .option])
+        add("Pencil Marks", #selector(toggleMarks), "m", [.command, .shift, .option])
         add("Frame Information", #selector(toggleInfo), "i", [.command, .control])
     }
 
@@ -121,6 +122,7 @@ import AppKit
     /// Qlick Lab: the large previews of the photographs selected, built now (whatever Settings › Upkeep says).
     @objc private func buildPreviews() { lab.previewBuilder.build(lab.selectionTargets) }
     @objc private func toggleInfo() { lab.sheet.showInfo.toggle() }
+    @objc private func toggleMarks() { lab.sheet.showMarks.toggle() }
     @objc private func toggleSidebar() { lab.sidebarVisible.toggle() }
 
     func validateMenuItem(_ item: NSMenuItem) -> Bool {
@@ -142,6 +144,7 @@ import AppKit
         case #selector(togglePencil): item.state = lab.sheet.tool == .pencil ? .on : .off; return sheet
         case #selector(toggleLightTable): item.state = lab.sheet.lightTable ? .on : .off; return sheet || lab.workspace == .develop
         case #selector(toggleInfo): item.state = lab.sheet.showInfo ? .on : .off; return sheet
+        case #selector(toggleMarks): item.state = lab.sheet.showMarks ? .on : .off; return sheet
         case #selector(toggleSidebar): item.state = lab.sidebarVisible ? .on : .off; return true
         case #selector(togglePhotoInfo):
             item.state = lab.infoVisible ? .on : .off
