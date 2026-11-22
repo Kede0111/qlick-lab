@@ -149,6 +149,7 @@ struct FolderNode: Identifiable, Equatable, Sendable {
 /// Follows a folder and everything under it (FSEvents, by folder): a folder made, renamed or removed, photographs
 /// copied in. The events come in bursts; the tree is read once a burst is over.
 final class FolderWatcher: @unchecked Sendable {
+    private static let queue = DispatchQueue(label: "be.jackfrom.qlicklab.folder-trees-events", qos: .utility)
     private var stream: FSEventStreamRef?
     private let changed: @Sendable () -> Void
 
@@ -161,7 +162,9 @@ final class FolderWatcher: @unchecked Sendable {
         }, &context, [root.path] as CFArray, FSEventStreamEventId(kFSEventStreamEventIdSinceNow), 1.0,
             FSEventStreamCreateFlags(kFSEventStreamCreateFlagWatchRoot))
         guard let stream else { return nil }
-        FSEventStreamSetDispatchQueue(stream, .main)
+        // Qlick Lab: on a queue of its own, never the main one: FSEvents looks at the folder's path when events come
+        // (`process_dir_events`), and on a NAS that answers slowly or not at all that froze the lab.
+        FSEventStreamSetDispatchQueue(stream, Self.queue)
         guard FSEventStreamStart(stream) else { stop(); return nil }
     }
 

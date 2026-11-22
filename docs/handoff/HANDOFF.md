@@ -662,6 +662,18 @@ unplugging: `QLICK_SILENT_VOLUME=/Volumes/Name QLICK_SILENT_SECONDS=20`. Launch 
 - Branches: `feature/speed-redlamp` (NAS, selection, marks, straighten) and the other thread's uncommitted UX passes
   (committed as 0ebe9ed at Quentin's request) are merged into `feature/lab-structure`; installed in /Applications.
 
+### Locate Folder (2026-11-22, after LightCraft's Locate Missing Files)
+
+A Folder of an Archive offline or not found is pointed at where it is now (`Library/LocateFolder.swift`): the Folder's
+menu (Locate Folder…), the Archive card's "Locate…", the question when an offline Folder is opened. The panel opens on
+/Volumes (never inside the old place). The folder chosen is checked against the photographs the lab knows there
+(`ProjectStore.knownPhotographs`, names, sub-folders included); none found asks again; then `ProjectStore.relocate`
+moves every path under it (Folders, Boxes, Rolls, orders, stacks, removed), one ⌘Z. Not done: LightCraft's Find
+Missing Photos (a whole disk searched by name and size), Smart Roll rules naming a folder. Tests: `LocateFolderTests`.
+Its first version froze the Mac (Quentin reset it, and the Data SSD lost the unflushed commits): the folder trees'
+FSEvents streams ran on the main queue, and FSEvents lstats the folder when events come; on a slow NAS that blocked the
+main thread. They run on their own queue now. After a commit on this disk, `sync`.
+
 ## Build and test
 
 ```bash
