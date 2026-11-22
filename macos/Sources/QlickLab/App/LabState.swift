@@ -423,7 +423,7 @@ struct SheetOptions: Codable, Equatable, Sendable {
         let nextPart = LabPart.of(next) ?? chosen ?? (part == .print ? .library : part)
         if part != nextPart { part = nextPart }
         lastRoom[nextPart] = next
-        notePlace(Place(workspace: next, folder: model.library.directory?.standardizedFileURL))
+        notePlace(Place(workspace: next, folder: model.library.directory?.labStandardized))
     }
 
     /// The selector's segments (and ⌘1, ⌘2, ⌘3): the part's room as it was left. Lab again, when it's already
@@ -481,7 +481,7 @@ struct SheetOptions: Codable, Equatable, Sendable {
     var current: (project: LabProject, roll: LabRoll)? {
         let path: String
         if case .folder(let folder, _)? = openView { path = folder }
-        else if let directory = model.library.directory, !PhotoFolder.isList(directory) { path = directory.standardizedFileURL.path }
+        else if let directory = model.library.directory, !PhotoFolder.isList(directory) { path = directory.labStandardized.path }
         else { return nil }
         guard let place = projects.place(of: path) else { return nil }
         return (place.archive, projects.folder(path, in: place.archive))
@@ -566,7 +566,7 @@ struct SheetOptions: Codable, Equatable, Sendable {
     /// Moves when Back or Forward become possible or not, for the menus.
     private(set) var placesChanged = 0
 
-    var place: Place { Place(workspace: workspace, folder: model.library.directory?.standardizedFileURL) }
+    var place: Place { Place(workspace: workspace, folder: model.library.directory?.labStandardized) }
     var canGoBack: Bool { placeIndex > 0 }
     var canGoForward: Bool { placeIndex >= 0 && placeIndex < places.count - 1 }
 
@@ -589,7 +589,7 @@ struct SheetOptions: Codable, Equatable, Sendable {
         let target = places[index]
         walking = true
         defer { walking = false }
-        if let folder = target.folder, folder != model.library.directory?.standardizedFileURL {
+        if let folder = target.folder, folder != model.library.directory?.labStandardized {
             // A list is listed again (its Box may have changed since); a list whose Box went is skipped.
             if let view = projects.view(of: folder) { projects.viewFolder(for: view) }
             let gone = folder.path.hasPrefix(projects.directory.appendingPathComponent("Views").path + "/") && projects.view(of: folder) == nil
@@ -620,7 +620,7 @@ struct SheetOptions: Codable, Equatable, Sendable {
                 buttons: [.init(title: "Cancel", role: .cancel), .init(title: "Remove", role: .destructive)]))
             guard answer.button == 1, projects.projects.contains(where: { $0.id == project.id }) else { return }
             let others = Set(projects.projects.filter { $0.id != project.id }.flatMap { $0.rolls.map(\.folder) })
-            let folders = projects.photoFolders(of: project).filter { !others.contains($0.standardizedFileURL.path) }
+            let folders = projects.photoFolders(of: project).filter { !others.contains($0.labStandardized.path) }
             // What's open of it closes: its contact sheet, its photograph.
             let showing = workingArchive?.id == project.id
             if showing { model.closeFolder() }
@@ -628,7 +628,7 @@ struct SheetOptions: Codable, Equatable, Sendable {
             projects.remove(project.id)
             if showing || workspace == .contactSheet || workspace == .develop { show(.library) }
             // The cache and the import's memory, off the main thread: a disk on the network answers slowly.
-            importer.ledger.forget(folders: Set(folders.map { $0.standardizedFileURL.path }))
+            importer.ledger.forget(folders: Set(folders.map { $0.labStandardized.path }))
             let archive = model.renderArchive
             Task.detached(priority: .utility) {
                 for folder in folders {
@@ -684,7 +684,7 @@ struct SheetOptions: Codable, Equatable, Sendable {
         }
         let folder = projects.viewFolder(for: view)
         // Listed again, in case the Archive's folders or the Box's photographs changed since.
-        if model.library.directory?.standardizedFileURL.path == folder.standardizedFileURL.path { model.library.refreshNow() }
+        if model.library.directory?.labStandardized.path == folder.labStandardized.path { model.library.refreshNow() }
         open(folder: folder)
     }
 
@@ -702,7 +702,7 @@ struct SheetOptions: Codable, Equatable, Sendable {
     func open(folder: URL) {
         guard !model.cropping else { NSSound.beep(); return }
         loupe = nil
-        if model.library.directory?.standardizedFileURL.path != folder.standardizedFileURL.path || model.source == nil {
+        if model.library.directory?.labStandardized.path != folder.labStandardized.path || model.source == nil {
             // A whole project or a selection is a list of photographs, not a folder on disk.
             if PhotoFolder.isList(folder) {
                 // A Box opens even with no photographs of its own: its shelf shows what it holds.
@@ -716,7 +716,7 @@ struct SheetOptions: Codable, Equatable, Sendable {
         }
         seenMode = model.mode
         workspace = .contactSheet
-        notePlace(Place(workspace: .contactSheet, folder: folder.standardizedFileURL))
+        notePlace(Place(workspace: .contactSheet, folder: folder.labStandardized))
     }
 
     /// Folders dropped on the window or chosen in the panel: Folders of `project`, or of a new Archive that asks its name.

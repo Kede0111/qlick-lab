@@ -58,7 +58,7 @@ struct ArchivesSection: View {
                 }
             if open {
                 ForEach(roots, id: \.self) { root in
-                    if let tree = lab.projects.folders.trees[root.standardizedFileURL.path] {
+                    if let tree = lab.projects.folders.trees[root.labStandardized.path] {
                         rows(tree, depth: 1, archive: archive, current: current?.roll.folder)
                     } else {
                         let entry = lab.projects.folder(root.path, in: archive)
@@ -91,7 +91,7 @@ struct ArchivesSection: View {
     private func count(_ archive: LabProject, roots: [URL]) -> Int? {
         var total = 0
         for root in roots {
-            if let tree = lab.projects.folders.trees[root.standardizedFileURL.path] { total += tree.total }
+            if let tree = lab.projects.folders.trees[root.labStandardized.path] { total += tree.total }
             else if let stats = lab.projects.stats[lab.projects.folder(root.path, in: archive).id] { total += stats.total }
             else { return nil }
         }

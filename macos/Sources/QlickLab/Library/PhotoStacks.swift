@@ -133,7 +133,7 @@ extension ProjectStore {
     /// The badge a photograph shown carries: its stack's size and whether it's open, on the photograph standing for
     /// a closed stack (the only one of it shown) and on an open stack's top.
     func stackBadge(_ url: URL) -> (count: Int, open: Bool)? {
-        let path = url.photoFile.standardizedFileURL.path
+        let path = url.photoFile.labStandardized.path
         guard let stack = stack(holding: path) else { return nil }
         if stack.open, stack.frames.first.map(ManualOrder.canonical) != ManualOrder.canonical(path) { return nil }
         return (stack.frames.count, stack.open)
@@ -145,7 +145,7 @@ extension LabState {
     func stacked(_ items: [PhotoFile]) -> [PhotoFile] {
         let stacks = projects.stacks
         guard !stacks.isEmpty else { return items }
-        let paths = items.map { $0.url.photoFile.standardizedFileURL.path }
+        let paths = items.map { $0.url.photoFile.labStandardized.path }
         let kept = Set(Stacking.collapsed(paths, stacks: stacks))
         return zip(items, paths).filter { kept.contains($0.1) }.map(\.0)
     }
@@ -159,7 +159,7 @@ extension LabState {
 
     /// Whether the photographs selected hold a stack, and whether it's open.
     var selectionStack: PhotoStack? {
-        stackTargets.lazy.compactMap { self.projects.stack(holding: $0.standardizedFileURL.path) }.first
+        stackTargets.lazy.compactMap { self.projects.stack(holding: $0.labStandardized.path) }.first
     }
 
     /// Photo › Stack (⌘G): the photographs selected become one stack, the first shown on top, closed.
@@ -168,7 +168,7 @@ extension LabState {
         guard targets.count >= 2 else { return note("Not Stacked", "select two photographs or more") }
         if undoable("Stack \(Self.title(targets.count))", { projects.makeStack(targets) != nil }) {
             // The stack stands for its photographs by its top: that's the one selected now.
-            selectShown(targets[0].standardizedFileURL.path)
+            selectShown(targets[0].labStandardized.path)
             note("Stacked", "\(photographs(targets.count)), under the first")
         }
     }
@@ -194,7 +194,7 @@ extension LabState {
     /// Selects the photograph shown at `path` alone (whatever its spelling).
     private func selectShown(_ path: String) {
         let key = ManualOrder.canonical(path)
-        if let shown = model.shownPhotos.first(where: { ManualOrder.canonical($0.url.photoFile.standardizedFileURL.path) == key }) { model.click(shown.url) }
+        if let shown = model.shownPhotos.first(where: { ManualOrder.canonical($0.url.photoFile.labStandardized.path) == key }) { model.click(shown.url) }
     }
 
     /// Photo › Stack Bursts: the photographs shown taken less than 2 seconds apart with the same camera, each run a
@@ -205,7 +205,7 @@ extension LabState {
             let facts = await Task.detached(priority: .userInitiated) {
                 photos.map { url -> (path: String, time: TimeInterval?, camera: String?) in
                     let read = FrameFacts.read(url)
-                    return (url.standardizedFileURL.path, read.date?.timeIntervalSinceReferenceDate, read.camera)
+                    return (url.labStandardized.path, read.date?.timeIntervalSinceReferenceDate, read.camera)
                 }
             }.value
             guard let self else { return }

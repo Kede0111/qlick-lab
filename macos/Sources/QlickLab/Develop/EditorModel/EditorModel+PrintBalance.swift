@@ -136,7 +136,7 @@ extension EditorModel {
     /// Path comparison misses case-only differences on case-insensitive
     /// volumes and hard links, so compare file identity when both exist.
     nonisolated static func sameFile(_ a: URL, _ b: URL) -> Bool {
-        if a.resolvingSymlinksInPath().standardizedFileURL == b.resolvingSymlinksInPath().standardizedFileURL { return true }
+        if a.resolvingSymlinksInPath().labStandardized == b.resolvingSymlinksInPath().labStandardized { return true }
         let key: Set<URLResourceKey> = [.fileResourceIdentifierKey]
         guard let x = try? a.resourceValues(forKeys: key).fileResourceIdentifier,
               let y = try? b.resourceValues(forKeys: key).fileResourceIdentifier else { return false }

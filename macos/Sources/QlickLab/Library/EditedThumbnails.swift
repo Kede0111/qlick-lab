@@ -54,7 +54,7 @@ final class EditedThumbnailStore: @unchecked Sendable {
         func stamp(_ url: URL) throws -> String {
             let a = try FileManager.default.attributesOfItem(atPath: url.path)
             let modified = (a[.modificationDate] as? Date)?.timeIntervalSince1970 ?? 0
-            return "\(url.standardizedFileURL.path)|\(a[.size] ?? "")|\(modified)"
+            return "\(url.labStandardized.path)|\(a[.size] ?? "")|\(modified)"
         }
         do {
             var files = try [stamp(paths.helper)]
@@ -74,7 +74,7 @@ final class EditedThumbnailStore: @unchecked Sendable {
     /// listed (path, size, date), the duplicate, the edits and the engine.
     func key(for file: PhotoFile, look: String) -> String? {
         guard let engine = engineStamp, let modified = file.modified else { return nil }
-        let photo = file.url.photoFile.standardizedFileURL.path
+        let photo = file.url.photoFile.labStandardized.path
         return Self.digest(Data("1|\(photo)|\(file.size ?? -1)|\(modified.timeIntervalSince1970)|\(file.url.variantID ?? "")|\(look)|\(engine)".utf8))
     }
 
@@ -84,7 +84,7 @@ final class EditedThumbnailStore: @unchecked Sendable {
     /// thumbnails are named by the photograph alone).
     func looseKey(for file: PhotoFile, look: String) -> String? {
         guard let modified = file.modified else { return nil }
-        let photo = file.url.photoFile.standardizedFileURL.path
+        let photo = file.url.photoFile.labStandardized.path
         return Self.digest(Data("loose|1|\(photo)|\(file.size ?? -1)|\(modified.timeIntervalSince1970)|\(file.url.variantID ?? "")|\(look)".utf8))
     }
 
@@ -100,7 +100,7 @@ final class EditedThumbnailStore: @unchecked Sendable {
     /// Qlick Lab: the name of `file`'s one kept preview, whatever its edits: a new one replaces the one before,
     /// so changed edits (a preset on many photographs) don't leave their old previews filling the disk.
     func photoKey(for file: PhotoFile) -> String {
-        let photo = file.url.photoFile.standardizedFileURL.path
+        let photo = file.url.photoFile.labStandardized.path
         return Self.digest(Data("photo|1|\(photo)|\(file.url.variantID ?? "")".utf8))
     }
 

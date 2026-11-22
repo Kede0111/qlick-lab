@@ -59,7 +59,7 @@ struct FolderNode: Identifiable, Equatable, Sendable {
 
     /// The Folders to read and follow now: the new ones are read, those gone are let go.
     func follow(_ wanted: Set<URL>) {
-        let wanted = Set(wanted.map(\.standardizedFileURL))
+        let wanted = Set(wanted.map(\.labStandardized))
         guard wanted != roots else { return }
         for gone in roots.subtracting(wanted) {
             watchers[gone]?.stop(); watchers[gone] = nil
@@ -102,7 +102,7 @@ struct FolderNode: Identifiable, Equatable, Sendable {
 
     /// Reads one Folder now, on this thread, when it's wanted at once (a folder just added, opened straight away).
     func rescanNow(_ root: URL) {
-        let root = root.standardizedFileURL
+        let root = root.labStandardized
         guard roots.contains(root) else { return }
         trees[root.path] = Self.read(root)
     }
@@ -115,7 +115,7 @@ struct FolderNode: Identifiable, Equatable, Sendable {
     nonisolated static func read(_ root: URL) -> FolderNode? {
         var budget = limit
         guard VolumeReach.answers(root.path, patience: Thread.isMainThread ? VolumeReach.patience : 3), FileManager.default.fileExists(atPath: root.path) else { return nil }
-        return read(root.standardizedFileURL, depth: depth, budget: &budget, excluded: PhotoFolder.excluded)
+        return read(root.labStandardized, depth: depth, budget: &budget, excluded: PhotoFolder.excluded)
     }
 
     private nonisolated static func read(_ folder: URL, depth: Int, budget: inout Int, excluded: Set<String>) -> FolderNode {
@@ -131,7 +131,7 @@ struct FolderNode: Identifiable, Equatable, Sendable {
             if values?.isDirectory == true {
                 if values?.isPackage != true, values?.isSymbolicLink != true { folders.append(entry) }
             } else if PhotoFolder.extensions.contains(entry.pathExtension.lowercased()),
-                      excluded.isEmpty || !excluded.contains(folder.appendingPathComponent(entry.lastPathComponent).standardizedFileURL.path) {
+                      excluded.isEmpty || !excluded.contains(folder.appendingPathComponent(entry.lastPathComponent).labStandardized.path) {
                 photos += 1
             }
         }

@@ -106,11 +106,11 @@ import AppKit
     func menuNeedsUpdate(_ menu: NSMenu) {
         guard menu === recentCatalogs else { return }
         menu.removeAllItems()
-        let current = lab.projects.directory.standardizedFileURL
+        let current = lab.projects.directory.labStandardized
         for url in [CatalogList.defaultDirectory] + lab.catalogs.recent {
             let item = menu.addItem(withTitle: CatalogList.name(of: url), action: #selector(openRecentCatalog(_:)), keyEquivalent: "")
             item.representedObject = url; item.target = self
-            item.state = url.standardizedFileURL == current ? .on : .off
+            item.state = url.labStandardized == current ? .on : .off
             item.toolTip = url.path
         }
     }

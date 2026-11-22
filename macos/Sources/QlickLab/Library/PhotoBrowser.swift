@@ -51,11 +51,11 @@ enum PhotoFolder {
     private static let listsLock = NSLock()
     static func register(list: URL, sources: [URL]) {
         listsLock.lock(); defer { listsLock.unlock() }
-        lists[list.standardizedFileURL.path] = sources
+        lists[list.labStandardized.path] = sources
     }
     static func sources(ofList directory: URL) -> [URL]? {
         listsLock.lock(); defer { listsLock.unlock() }
-        return lists[directory.standardizedFileURL.path]
+        return lists[directory.labStandardized.path]
     }
     static func isList(_ directory: URL) -> Bool { sources(ofList: directory) != nil }
     /// The folders whose photographs a listing shows: the folder itself, or a list's sources' folders.
@@ -64,7 +64,7 @@ enum PhotoFolder {
         var seen: Set<String> = [], folders: [URL] = []
         for source in sources {
             let folder = source.hasDirectoryPath ? source : source.deletingLastPathComponent()
-            if seen.insert(folder.standardizedFileURL.path).inserted { folders.append(folder) }
+            if seen.insert(folder.labStandardized.path).inserted { folders.append(folder) }
         }
         return folders
     }
@@ -75,7 +75,7 @@ enum PhotoFolder {
         get { listsLock.lock(); defer { listsLock.unlock() }; return excludedPaths }
         set { listsLock.lock(); defer { listsLock.unlock() }; excludedPaths = newValue }
     }
-    static func isExcluded(_ photo: URL) -> Bool { excluded.contains(photo.photoFile.standardizedFileURL.path) }
+    static func isExcluded(_ photo: URL) -> Bool { excluded.contains(photo.photoFile.labStandardized.path) }
 
     /// A photograph's key for its sidecar in a listing: its path.
     static func sidecarKey(_ photo: URL) -> String { photo.path }
@@ -88,7 +88,7 @@ enum PhotoFolder {
         // connected) leaves its photographs out.
         var listed: [String: (photos: [PhotoFile], sidecars: [String: PhotoFile])] = [:]
         func folder(_ url: URL) throws -> (photos: [PhotoFile], sidecars: [String: PhotoFile]) {
-            let key = url.standardizedFileURL.path
+            let key = url.labStandardized.path
             if let known = listed[key] { return known }
             let read: (photos: [PhotoFile], sidecars: [String: PhotoFile])
             do { read = try listing(in: url, own: false) } catch is CancellationError { throw CancellationError() } catch { read = ([], [:]) }
@@ -99,8 +99,8 @@ enum PhotoFolder {
         for source in sources {
             let listing = try folder(source.hasDirectoryPath ? source : source.deletingLastPathComponent())
             // Both sides standardized: a path through a link (/private/tmp, /tmp) is still the photograph.
-            let wanted = source.standardizedFileURL.path
-            let chosen = source.hasDirectoryPath ? listing.photos : listing.photos.filter { $0.url.standardizedFileURL.path == wanted }
+            let wanted = source.labStandardized.path
+            let chosen = source.hasDirectoryPath ? listing.photos : listing.photos.filter { $0.url.labStandardized.path == wanted }
             for photo in chosen where seen.insert(photo.url.path).inserted {
                 photos.append(photo)
                 if let sidecar = listing.sidecars[sidecarKey(photo.url)] { sidecars[sidecarKey(photo.url)] = sidecar }
@@ -129,7 +129,7 @@ enum PhotoFolder {
         photos.sort { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
         // Qlick Lab: what was removed from the lab isn't listed (its file is still there).
         let excluded = excluded
-        if !excluded.isEmpty { photos.removeAll { excluded.contains($0.url.standardizedFileURL.path) } }
+        if !excluded.isEmpty { photos.removeAll { excluded.contains($0.url.labStandardized.path) } }
         // A DNG without a .qlick file may keep its ratings and edits inside it: it is read as its own sidecar.
         for photo in photos where DNGMetadata.isDNG(photo.url) && sidecars[sidecarKey(photo.url)] == nil { sidecars[sidecarKey(photo.url)] = photo }
         return (photos, sidecars)

@@ -163,9 +163,9 @@ enum LibrarySearch {
         for project in projects {
             var rolls: [LabRoll] = [], reasons: [UUID: String] = [:]
             for root in roots(project) {
-                let path = root.standardizedFileURL.path
+                let path = root.labStandardized.path
                 let count = paths.reduce(0) { $0 + ($1.hasPrefix(path + "/") ? 1 : 0) }
-                guard count > 0, let roll = project.rolls.first(where: { URL(fileURLWithPath: $0.folder, isDirectory: true).standardizedFileURL.path == path }) else { continue }
+                guard count > 0, let roll = project.rolls.first(where: { URL(fileURLWithPath: $0.folder, isDirectory: true).labStandardized.path == path }) else { continue }
                 rolls.append(roll)
                 reasons[roll.id] = count == 1 ? "1 photograph matches" : "\(count) photographs match"
             }

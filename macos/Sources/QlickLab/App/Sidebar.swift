@@ -248,7 +248,7 @@ private struct CatalogMenu: View {
             Button("Save Catalog As…") { lab.saveCatalogAsPanel() }
             Divider()
             ForEach([CatalogList.defaultDirectory] + lab.catalogs.recent, id: \.self) { url in
-                Button(CatalogList.name(of: url) + (url.standardizedFileURL == lab.projects.directory.standardizedFileURL ? "  ✓" : "")) { lab.openCatalog(url) }
+                Button(CatalogList.name(of: url) + (url.labStandardized == lab.projects.directory.labStandardized ? "  ✓" : "")) { lab.openCatalog(url) }
             }
         } label: {
             Text(lab.catalogName + "  ⌄").font(.system(size: 10.5)).foregroundStyle(Theme.dim).lineLimit(1)

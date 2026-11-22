@@ -112,7 +112,7 @@ final class ImportRunner: @unchecked Sendable {
         let fm = FileManager.default
         if let root = journal.sourceRoot, !fm.fileExists(atPath: root.path) { return journal.sourceName }
         for url in [journal.options.destination, journal.options.secondCopy].compactMap({ $0 }) {
-            let parts = url.standardizedFileURL.pathComponents
+            let parts = url.labStandardized.pathComponents
             // /Volumes/Name/…: the disk itself.
             if parts.count >= 3, parts[1] == "Volumes", !fm.fileExists(atPath: "/Volumes/\(parts[2])") { return parts[2] }
         }

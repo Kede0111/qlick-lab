@@ -73,9 +73,9 @@ enum RecipeBundle {
             throw EngineError(message: "“\(url.lastPathComponent)” isn’t a bundle of recipes.")
         }
         guard manifest.qlick <= 1 else { throw EngineError(message: "“\(url.lastPathComponent)” comes from a newer Qlick Lab.") }
-        let folder = work.appendingPathComponent("Recipes", isDirectory: true).standardizedFileURL
+        let folder = work.appendingPathComponent("Recipes", isDirectory: true).labStandardized
         return try manifest.recipes.prefix(most).map { entry in
-            let file = folder.appendingPathComponent(entry.file).standardizedFileURL
+            let file = folder.appendingPathComponent(entry.file).labStandardized
             // Never outside the archive's own folder.
             guard file.deletingLastPathComponent().path == folder.path, !entry.file.contains("/") else {
                 throw EngineError(message: "“\(url.lastPathComponent)” names a file outside its recipes.")

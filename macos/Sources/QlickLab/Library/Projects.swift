@@ -665,7 +665,7 @@ struct RollStats: Equatable, Sendable {
     /// The photographs' own paths, once each: a version (`#variant=`) is its photograph.
     static func paths(_ frames: [URL]) -> [String] {
         var seen: Set<String> = []
-        return frames.map { $0.photoFile.standardizedFileURL.path }.filter { seen.insert($0).inserted }
+        return frames.map { $0.photoFile.labStandardized.path }.filter { seen.insert($0).inserted }
     }
 
     // MARK: Folders
@@ -676,7 +676,7 @@ struct RollStats: Equatable, Sendable {
         var added: [LabRoll] = []
         update(id) { project in
             for folder in folders where Self.holdsPhotographs(folder) {
-                let path = folder.standardizedFileURL.path
+                let path = folder.labStandardized.path
                 guard !project.rolls.contains(where: { $0.folder == path }) else { continue }
                 let roll = Self.entry(for: folder)
                 project.rolls.append(roll)
@@ -689,7 +689,7 @@ struct RollStats: Equatable, Sendable {
 
     /// A new entry for a folder, with the card it brings (another catalogue, another Mac).
     private static func entry(for folder: URL) -> LabRoll {
-        let folder = folder.standardizedFileURL
+        let folder = folder.labStandardized
         var roll = LabRoll(name: folder.lastPathComponent, folder: folder.path,
                            bookmark: try? folder.bookmarkData(options: [], includingResourceValuesForKeys: nil, relativeTo: nil))
         RollCardFile.read(in: folder)?.apply(to: &roll)
@@ -761,12 +761,12 @@ struct RollStats: Equatable, Sendable {
                 let path = root.path
                 found = archive.rolls.filter { $0.folder == path || $0.folder.hasPrefix(path + "/") }.compactMap { resolve($0, in: archive.id) }
             }
-            for folder in found where seen.insert(folder.standardizedFileURL.path).inserted { folders.append(folder) }
+            for folder in found where seen.insert(folder.labStandardized.path).inserted { folders.append(folder) }
         }
         return folders
     }
 
-    private func tree(_ root: URL) -> FolderNode? { folders.trees[root.standardizedFileURL.path] }
+    private func tree(_ root: URL) -> FolderNode? { folders.trees[root.labStandardized.path] }
 
     /// The folders holding photographs at `path` and under it: from the tree read, or from the disk now if it isn't
     /// read yet (a Folder just added), so a folder whose photographs are all in folders under it still shows them.
@@ -787,7 +787,7 @@ struct RollStats: Equatable, Sendable {
 
     /// The trees follow every Archive's Folders on top.
     func followFolders() {
-        folders.follow(Set(projects.flatMap { roots(of: $0) }.map(\.standardizedFileURL)))
+        folders.follow(Set(projects.flatMap { roots(of: $0) }.map(\.labStandardized)))
     }
 
     func updateRoll(_ roll: UUID, in project: UUID, _ change: (inout LabRoll) -> Void) {
@@ -872,7 +872,7 @@ struct RollStats: Equatable, Sendable {
         case .all:
             folder = views.appendingPathComponent("all", isDirectory: true)
             var seen: Set<String> = []
-            sources = projects.flatMap(photoFolders(of:)).filter { seen.insert($0.standardizedFileURL.path).inserted }
+            sources = projects.flatMap(photoFolders(of:)).filter { seen.insert($0.labStandardized.path).inserted }
         case .lastImport, .picks, .day, .found:
             let name: String = switch view {
             case .found: "found"
@@ -894,8 +894,8 @@ struct RollStats: Equatable, Sendable {
     /// What the list named `directory` shows, if it's one of these.
     func view(of directory: URL?) -> LabView? {
         guard let directory else { return nil }
-        let base = self.directory.appendingPathComponent("Views", isDirectory: true).standardizedFileURL.path
-        let path = directory.standardizedFileURL.path
+        let base = self.directory.appendingPathComponent("Views", isDirectory: true).labStandardized.path
+        let path = directory.labStandardized.path
         guard path.hasPrefix(base + "/") else { return nil }
         let parts = path.dropFirst(base.count + 1).split(separator: "/").map(String.init)
         switch parts.first {
@@ -926,7 +926,7 @@ struct RollStats: Equatable, Sendable {
 
     /// The Archive and Folder whose folder is `directory`, exactly (an entry of the catalogue).
     func find(folder directory: URL?) -> (project: LabProject, roll: LabRoll)? {
-        guard let path = directory?.standardizedFileURL.path else { return nil }
+        guard let path = directory?.labStandardized.path else { return nil }
         for project in projects {
             if let roll = project.rolls.first(where: { $0.folder == path }) { return (project, roll) }
         }
@@ -942,7 +942,7 @@ struct RollStats: Equatable, Sendable {
         guard let bookmark = roll.bookmark,
               let url = try? URL(resolvingBookmarkData: bookmark, options: [.withoutUI, .withoutMounting], relativeTo: nil, bookmarkDataIsStale: &stale),
               VolumeReach.exists(url.path) else { return nil }
-        updateRoll(roll.id, in: project) { $0.folder = url.standardizedFileURL.path }
+        updateRoll(roll.id, in: project) { $0.folder = url.labStandardized.path }
         return url
     }
 
@@ -991,7 +991,7 @@ struct RollStats: Equatable, Sendable {
         add(listing, prefix: "")
         for sub in FolderTrees.read(folder)?.all.dropFirst() ?? [] where sub.photos > 0 {
             guard let inner = try? PhotoFolder.listing(in: sub.url) else { continue }
-            add(inner, prefix: String(sub.url.path.dropFirst(folder.standardizedFileURL.path.count + 1)) + "/")
+            add(inner, prefix: String(sub.url.path.dropFirst(folder.labStandardized.path.count + 1)) + "/")
         }
         return stats
     }

@@ -283,8 +283,8 @@ extension EditorModel {
     }
 
     func sidecarFailed(_ photo: URL, _ reason: String) {
-        if photoSidecar?.photo.standardizedFileURL == photo.standardizedFileURL { photoSidecar?.blocked = reason }
-        let folder = photo.deletingLastPathComponent().standardizedFileURL
+        if photoSidecar?.photo.labStandardized == photo.labStandardized { photoSidecar?.blocked = reason }
+        let folder = photo.deletingLastPathComponent().labStandardized
         guard !closing, unwritableFolders.insert(folder).inserted else { return }
         error = "Edits to photographs in “\(folder.lastPathComponent)” can’t be saved beside them: \(reason)"
     }

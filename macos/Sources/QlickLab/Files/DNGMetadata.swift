@@ -367,7 +367,7 @@ enum DNGMetadata {
         defer { close(fd) }
         var info = stat()
         guard fstat(fd, &info) == 0 else { return nil }
-        let key = photo.standardizedFileURL.path, signature = signature(info)
+        let key = photo.labStandardized.path, signature = signature(info)
         cache.lock.lock()
         if let cached = cache.entries[key], cached.signature == signature { cache.lock.unlock(); return try cached.value.get() }
         cache.lock.unlock()

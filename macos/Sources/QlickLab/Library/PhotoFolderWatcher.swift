@@ -13,7 +13,7 @@ final class PhotoFolderWatcher: @unchecked Sendable {
         let continuation: AsyncStream<Void>.Continuation
 
         init(directory: URL, continuation: AsyncStream<Void>.Continuation) {
-            self.directory = directory.resolvingSymlinksInPath().standardizedFileURL
+            self.directory = directory.resolvingSymlinksInPath().labStandardized
             self.continuation = continuation
         }
 
@@ -22,7 +22,7 @@ final class PhotoFolderWatcher: @unchecked Sendable {
             let rescan = FSEventStreamEventFlags(kFSEventStreamEventFlagMustScanSubDirs
                 | kFSEventStreamEventFlagRootChanged | kFSEventStreamEventFlagUnmount)
             for index in 0..<count {
-                let url = URL(fileURLWithPath: String(cString: paths[index])).standardizedFileURL
+                let url = URL(fileURLWithPath: String(cString: paths[index])).labStandardized
                 let ext = url.pathExtension.lowercased()
                 // Events may spell /var as /private/var even within one batch.
                 // Resolve the parent: a removed file itself no longer resolves.

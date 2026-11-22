@@ -201,7 +201,7 @@ extension ImportSession {
 
     /// The bursts among the photographs imported, each made a stack under its first frame (`Stacking.bursts`).
     private func stackImported(_ photos: [(photo: URL, captured: CaptureTime?, camera: String?)]) {
-        model.lab.projects.stackBursts(photos.map { ($0.photo.standardizedFileURL.path, $0.captured?.seconds, $0.camera) })
+        model.lab.projects.stackBursts(photos.map { ($0.photo.labStandardized.path, $0.captured?.seconds, $0.camera) })
     }
 
     /// Puts the imported photographs in the Box or Roll chosen, if any, after those it holds.
@@ -341,7 +341,7 @@ extension ImportSession {
         // Pins the Archive by identity once it's made, so a rename meanwhile doesn't make a second one.
         if self.options.projectID == nil, self.options.project.trimmingCharacters(in: .whitespaces) == name, !name.isEmpty { self.options.projectID = project.id }
         let held = project.rolls.map(\.folder)
-        let new = folders.map(\.standardizedFileURL).filter { folder in
+        let new = folders.map(\.labStandardized).filter { folder in
             !held.contains { folder.path == $0 || folder.path.hasPrefix($0 + "/") }
         }
         if !new.isEmpty {
@@ -350,7 +350,7 @@ extension ImportSession {
         }
         // The film card on the Folders this import made or filled, written into each folder (`Roll.qlickroll`).
         guard let card = options.card, let current = projects.archive(project.id) else { return }
-        for folder in folders.map(\.standardizedFileURL) {
+        for folder in folders.map(\.labStandardized) {
             guard let roll = current.rolls.first(where: { $0.folder == folder.path }) else { continue }
             projects.updateRoll(roll.id, in: project.id) { roll in
                 if !card.film.isEmpty { roll.film = card.film }
@@ -363,9 +363,9 @@ extension ImportSession {
     /// Leave in Place: the folder chosen is the Folder, with every folder under it at every depth, as the disk has
     /// it. From a disk (or a card), the deepest folder holding all the photographs added: a whole disk isn't added.
     nonisolated static func placeRoot(of photos: [URL], source: URL, sourceIsFolder: Bool) -> URL? {
-        let root = source.standardizedFileURL
-        if sourceIsFolder, !photos.isEmpty, photos.allSatisfy({ $0.standardizedFileURL.path.hasPrefix(root.path + "/") }) { return root }
-        let folders = Set(photos.map { $0.deletingLastPathComponent().standardizedFileURL.path })
+        let root = source.labStandardized
+        if sourceIsFolder, !photos.isEmpty, photos.allSatisfy({ $0.labStandardized.path.hasPrefix(root.path + "/") }) { return root }
+        let folders = Set(photos.map { $0.deletingLastPathComponent().labStandardized.path })
         guard var common = folders.first?.split(separator: "/", omittingEmptySubsequences: true).map(String.init) else { return nil }
         for folder in folders {
             let parts = folder.split(separator: "/", omittingEmptySubsequences: true).map(String.init)
@@ -472,7 +472,7 @@ extension ImportSession {
                     Task.detached(priority: .utility) { for photo in photos { metadata.write(beside: photo) } }
                 }
                 for frame in batch {
-                    let failure = failures[frame.id] ?? failures[frame.id.standardizedFileURL]
+                    let failure = failures[frame.id] ?? failures[frame.id.labStandardized]
                     run.added(frame.id, failure: failure)
                 }
                 // The Archive is there, and grows, while the photographs are taken in.

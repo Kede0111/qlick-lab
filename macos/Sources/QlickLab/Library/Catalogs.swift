@@ -27,7 +27,7 @@ import UniformTypeIdentifiers
     var initial: URL {
         if let path = defaults.string(forKey: Self.currentKey) {
             if VolumeReach.exists(path, patience: 1.5) { return URL(fileURLWithPath: path, isDirectory: true) }
-            if URL(fileURLWithPath: path, isDirectory: true).standardizedFileURL != Self.defaultDirectory.standardizedFileURL {
+            if URL(fileURLWithPath: path, isDirectory: true).labStandardized != Self.defaultDirectory.labStandardized {
                 Self.missed = (URL(fileURLWithPath: path, isDirectory: true), silent: VolumeReach.isSilent(path))
             }
         }
@@ -38,16 +38,16 @@ import UniformTypeIdentifiers
     static var missed: (url: URL, silent: Bool)?
 
     func remember(_ url: URL) {
-        let url = url.standardizedFileURL
+        let url = url.labStandardized
         defaults.set(url.path, forKey: Self.currentKey)
-        guard url != Self.defaultDirectory.standardizedFileURL else { return }
-        recent = [url] + recent.filter { $0.standardizedFileURL != url }
+        guard url != Self.defaultDirectory.labStandardized else { return }
+        recent = [url] + recent.filter { $0.labStandardized != url }
         recent = Array(recent.prefix(10))
         defaults.set(recent.map(\.path), forKey: Self.recentKey)
     }
 
     static func name(of url: URL) -> String {
-        url.standardizedFileURL == defaultDirectory.standardizedFileURL ? "Default Catalog" : url.deletingPathExtension().lastPathComponent
+        url.labStandardized == defaultDirectory.labStandardized ? "Default Catalog" : url.deletingPathExtension().lastPathComponent
     }
 }
 
@@ -57,17 +57,17 @@ extension LabState {
     /// Opens a catalog: its projects take the sidebar's and the library's place.
     func openCatalog(_ url: URL) {
         guard !model.cropping else { NSSound.beep(); return }
-        var directory = url.standardizedFileURL
-        if directory.pathExtension.lowercased() != CatalogList.fileExtension, directory != CatalogList.defaultDirectory.standardizedFileURL,
+        var directory = url.labStandardized
+        if directory.pathExtension.lowercased() != CatalogList.fileExtension, directory != CatalogList.defaultDirectory.labStandardized,
            (try? directory.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory != true { return }
-        if directory.path == projects.directory.standardizedFileURL.path { return show(.library) }
+        if directory.path == projects.directory.labStandardized.path { return show(.library) }
         // A disk that doesn't answer isn't waited for: the catalogue open stays.
         guard VolumeReach.answers(directory.path, patience: 1.5) else {
             model.error = "The catalog “\(CatalogList.name(of: directory))” can’t be opened: its disk, “\(VolumeReach.volumeName(of: directory.path))”, isn’t answering."
             return
         }
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        directory = directory.standardizedFileURL
+        directory = directory.labStandardized
         projects.open(directory: directory)
         projects.sidecars = model.sidecarLookup?.store
         projects.countAll()
@@ -107,7 +107,7 @@ extension LabState {
     /// Saves the open catalog. Projects are written as they change, so this flushes them and, for the default
     /// catalog, which has no file of its own to name, asks where to keep a copy.
     func saveCatalog() {
-        if projects.directory.standardizedFileURL == CatalogList.defaultDirectory.standardizedFileURL { return saveCatalogAsPanel() }
+        if projects.directory.labStandardized == CatalogList.defaultDirectory.labStandardized { return saveCatalogAsPanel() }
         projects.saveAll()
         catalogs.remember(projects.directory)
     }

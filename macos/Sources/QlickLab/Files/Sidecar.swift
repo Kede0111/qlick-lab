@@ -427,7 +427,7 @@ final class SidecarStore: Sendable {
     /// The file's JSON as it will be once queued changes are written; nil if
     /// there'll be none.
     func readPending(photo: URL) throws -> JSONValue? {
-        let patches = queue.patches(for: photo.standardizedFileURL)
+        let patches = queue.patches(for: photo.labStandardized)
         var raw = try Self.readRaw(photo: photo)
         for patch in patches { raw = try patch.applied(to: raw) }
         return raw
@@ -462,11 +462,11 @@ final class SidecarStore: Sendable {
     var pendingCount: Int { queue.all.count }
 
     /// Whether `photo` has changes still to write.
-    func isPending(_ photo: URL) -> Bool { !queue.patches(for: photo.standardizedFileURL).isEmpty }
+    func isPending(_ photo: URL) -> Bool { !queue.patches(for: photo.labStandardized).isEmpty }
 
     /// Queues `patch`; `flush` writes it.
     func enqueue(_ patch: SidecarPatch, for photo: URL) {
-        queue.add(patch, for: photo.standardizedFileURL)
+        queue.add(patch, for: photo.labStandardized)
     }
 
     /// Writes every queued change, oldest first, and returns the photos whose

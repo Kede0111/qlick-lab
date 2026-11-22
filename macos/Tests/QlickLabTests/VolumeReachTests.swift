@@ -58,4 +58,19 @@ final class VolumeReachTests: XCTestCase {
         }
         XCTAssertEqual(found, [], "say isDirectory: true or false")
     }
+
+    /// Paths are made standard by their words alone: Foundation's own asks whether the file can be reached.
+    func testPathsAreStandardizedWithoutTheDisk() throws {
+        XCTAssertEqual(URL.labStandardizing("/Volumes/NAS/a/./b/../c//d.DNG"), "/Volumes/NAS/a/c/d.DNG")
+        XCTAssertEqual(URL.labStandardizing("/private/tmp/x"), "/tmp/x")
+        XCTAssertEqual(URL.labStandardizing("/private/var/folders/x"), "/var/folders/x")
+        XCTAssertEqual(URL(fileURLWithPath: "/Volumes/NAS/a/", isDirectory: true).labStandardized.hasDirectoryPath, true)
+        let sources = URL(fileURLWithPath: #filePath, isDirectory: false).deletingLastPathComponent()
+            .appendingPathComponent("../../Sources/QlickLab", isDirectory: true).labStandardized
+        var found: [String] = []
+        for case let file as URL in FileManager.default.enumerator(at: sources, includingPropertiesForKeys: nil)! where file.pathExtension == "swift" && file.lastPathComponent != "LabPath.swift" {
+            if try String(contentsOf: file, encoding: .utf8).contains(".standardizedFileURL") { found.append(file.lastPathComponent) }
+        }
+        XCTAssertEqual(found, [], "use labStandardized")
+    }
 }

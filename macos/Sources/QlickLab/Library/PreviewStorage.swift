@@ -139,10 +139,10 @@ extension EditorModel {
         let old = renderArchive, oldProxies = PreviewStorage.proxyDirectory, oldThumbnails = editedThumbnails
         if let folder { UserDefaults.standard.set(folder.path, forKey: PreviewStorage.folderKey) }
         else { UserDefaults.standard.removeObject(forKey: PreviewStorage.folderKey) }
-        guard PreviewStorage.directory.standardizedFileURL != old.directory.standardizedFileURL else { return }
+        guard PreviewStorage.directory.labStandardized != old.directory.labStandardized else { return }
         renderArchive = PreviewStorage.store()
         // The grid's thumbnails go along: made again as the grid shows them.
-        if PreviewStorage.thumbnailsDirectory.standardizedFileURL != oldThumbnails.directory.standardizedFileURL {
+        if PreviewStorage.thumbnailsDirectory.labStandardized != oldThumbnails.directory.labStandardized {
             editedThumbnails = EditedThumbnailStore(directory: PreviewStorage.thumbnailsDirectory)
         }
         let newThumbnails = editedThumbnails

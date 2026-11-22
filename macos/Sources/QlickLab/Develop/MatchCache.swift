@@ -46,7 +46,7 @@ final class BrightnessMatchCache: @unchecked Sendable {
         let solved: JSONValue = .object(["film": .string(request.film), "paper": .string(request.paper), "params": request.params])
         let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys]
         guard let json = try? encoder.encode(solved) else { return nil }
-        var text = Data("1|\(file.standardizedFileURL.path)|\(size)|\(modified.timeIntervalSince1970)|\(engine)|".utf8)
+        var text = Data("1|\(file.labStandardized.path)|\(size)|\(modified.timeIntervalSince1970)|\(engine)|".utf8)
         text.append(json)
         return SHA256.hash(data: text).map { String(format: "%02x", $0) }.joined()
     }
@@ -55,11 +55,11 @@ final class BrightnessMatchCache: @unchecked Sendable {
     /// it is on disk, so a new build or release solves afresh. Its data
     /// ships with it.
     static func engineStamp(_ paths: EnginePaths) -> String {
-        let helper = paths.helper.standardizedFileURL
+        let helper = paths.helper.labStandardized
         let attributes = try? FileManager.default.attributesOfItem(atPath: helper.path)
         let size = (attributes?[.size] as? NSNumber)?.intValue ?? -1
         let modified = (attributes?[.modificationDate] as? Date)?.timeIntervalSince1970 ?? 0
-        return "\(EditorModel.appVersion)|\(helper.path)|\(size)|\(modified)|\(paths.data.standardizedFileURL.path)"
+        return "\(EditorModel.appVersion)|\(helper.path)|\(size)|\(modified)|\(paths.data.labStandardized.path)"
     }
 
     /// The solve kept for `key`, marked as used.

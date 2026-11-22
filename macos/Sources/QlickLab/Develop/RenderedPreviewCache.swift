@@ -64,7 +64,7 @@ final class RenderedPreviewCache: @unchecked Sendable {
             guard let modified = a[.modificationDate] as? Date, let created = a[.creationDate] as? Date else {
                 throw EngineError(message: "File identity unavailable")
             }
-            return "\(url.standardizedFileURL.path)|\(a[.systemNumber] ?? "")|\(a[.systemFileNumber] ?? "")|\(a[.size] ?? "")|\(modified.timeIntervalSince1970)|\(created.timeIntervalSince1970)"
+            return "\(url.labStandardized.path)|\(a[.systemNumber] ?? "")|\(a[.systemFileNumber] ?? "")|\(a[.size] ?? "")|\(modified.timeIntervalSince1970)|\(created.timeIntervalSince1970)"
         }
         do {
             var files = try [stamp(source), stamp(paths.helper), stamp(paths.data)]

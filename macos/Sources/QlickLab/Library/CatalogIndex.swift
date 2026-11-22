@@ -96,7 +96,7 @@ struct IndexedPhoto: Codable, Equatable, Sendable {
 
     /// The cache of a catalogue: in the app's caches, named after the catalogue's folder.
     nonisolated static func cacheFile(forCatalog directory: URL) -> URL {
-        let name = SHA256.hash(data: Data(directory.standardizedFileURL.path.utf8)).prefix(12).map { String(format: "%02x", $0) }.joined()
+        let name = SHA256.hash(data: Data(directory.labStandardized.path.utf8)).prefix(12).map { String(format: "%02x", $0) }.joined()
         return AppDataLocations.cachesDirectory.appendingPathComponent("Catalog Index", isDirectory: true).appendingPathComponent(name + ".json")
     }
 
@@ -166,7 +166,7 @@ struct IndexedPhoto: Codable, Equatable, Sendable {
     @discardableResult func adopt(_ summaries: [URL: LibrarySummary]) -> Bool {
         var changed = false
         for (item, summary) in summaries where item.variantID == nil && summary.problem == nil {
-            let path = item.standardizedFileURL.path
+            let path = item.labStandardized.path
             guard var photo = photos[path], photo.adopt(summary: summary) else { continue }
             photos[path] = photo
             changed = true
@@ -198,7 +198,7 @@ struct IndexedPhoto: Codable, Equatable, Sendable {
             if Task.isCancelled { return nil }
             guard let listing = try? PhotoFolder.listing(in: folder) else { continue }
             for file in listing.photos {
-                let path = file.url.standardizedFileURL.path
+                let path = file.url.labStandardized.path
                 guard photos[path] == nil else { continue }
                 let sidecar = listing.sidecars[PhotoFolder.sidecarKey(file.url)]
                 let stamp = sidecar.map { "\($0.modified?.timeIntervalSince1970 ?? 0)|\($0.size ?? 0)" } ?? ""
@@ -280,7 +280,7 @@ enum LastImportFile {
         encoder.dateEncodingStrategy = .iso8601
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
         var seen: Set<String> = []
-        let paths = photos.map { $0.photoFile.standardizedFileURL.path }.filter { seen.insert($0).inserted }
+        let paths = photos.map { $0.photoFile.labStandardized.path }.filter { seen.insert($0).inserted }
         let content = Content(date: date, photos: paths)
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         try? encoder.encode(File(qlick: content)).write(to: url(inCatalog: directory), options: .atomic)

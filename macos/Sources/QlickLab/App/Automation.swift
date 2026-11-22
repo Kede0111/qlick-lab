@@ -95,7 +95,7 @@ import AppKit
             return .roll(roll.id, box: box.id)
         case "archive": return lab.projects.project(named: parts[1]).map { .archive($0.id) }
         case "folder":
-            let folder = URL(fileURLWithPath: parts[1], isDirectory: true).standardizedFileURL.path
+            let folder = URL(fileURLWithPath: parts[1], isDirectory: true).labStandardized.path
             return lab.projects.place(of: folder).map { .folder(folder, archive: $0.archive.id) }
         default: return nil
         }
@@ -210,14 +210,14 @@ import AppKit
             }
         // folder <path>: a folder of an Archive, with those under it, as a click in the sidebar opens it.
         case "folder":
-            let path = URL(fileURLWithPath: rest, isDirectory: true).standardizedFileURL.path
+            let path = URL(fileURLWithPath: rest, isDirectory: true).labStandardized.path
             if let place = lab.projects.place(of: path) { lab.open(.folder(path, archive: place.archive.id)) }
         // unfold archive <name> | folder <path> | box <path>: a row of the sidebar.
         case "unfold":
             let argument = words.dropFirst().joined(separator: " ")
             switch words.first {
             case "archive": if let archive = lab.projects.project(named: argument) { lab.sidebarFold.unfold(.archive(archive.id)) }
-            case "folder": lab.sidebarFold.unfold(.folder(URL(fileURLWithPath: argument, isDirectory: true).standardizedFileURL.path))
+            case "folder": lab.sidebarFold.unfold(.folder(URL(fileURLWithPath: argument, isDirectory: true).labStandardized.path))
             case "box": if let box = box(argument.split(separator: "|").map(String.init)) { lab.sidebarFold.unfold(.box(box.id)) }
             case "date": lab.sidebarFold.unfold(.date(argument))
             default: break

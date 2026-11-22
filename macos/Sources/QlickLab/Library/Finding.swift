@@ -79,7 +79,7 @@ extension LabState {
         catalog.inputs = { [weak self] in
             guard let self else { return nil }
             var seen: Set<String> = []
-            let folders = projects.projects.flatMap { self.projects.photoFolders(of: $0) }.filter { seen.insert($0.standardizedFileURL.path).inserted }
+            let folders = projects.projects.flatMap { self.projects.photoFolders(of: $0) }.filter { seen.insert($0.labStandardized.path).inserted }
             return CatalogIndex.Inputs(folders: folders, store: model.sidecarLookup?.store ?? model.sidecars, imported: importer.ledger.importDates())
         }
         catalog.changed = { [weak self] in self?.indexChanged() }
@@ -101,15 +101,15 @@ extension LabState {
         } onChange: { [weak self] in
             Task { @MainActor in
                 guard let self else { return }
-                if self.catalogDirectory != self.projects.directory.standardizedFileURL.path {
-                    self.catalogDirectory = self.projects.directory.standardizedFileURL.path
+                if self.catalogDirectory != self.projects.directory.labStandardized.path {
+                    self.catalogDirectory = self.projects.directory.labStandardized.path
                     self.catalog.open(catalog: self.projects.directory, cache: NSClassFromString("XCTestCase") == nil)
                 }
                 self.catalog.refresh()
                 self.followCatalogue()
             }
         }
-        if catalogDirectory == nil { catalogDirectory = projects.directory.standardizedFileURL.path; catalog.refresh(after: .milliseconds(300)) }
+        if catalogDirectory == nil { catalogDirectory = projects.directory.labStandardized.path; catalog.refresh(after: .milliseconds(300)) }
     }
 
     /// The marks given on screen go to the index at once; what they don't say (films, edit dates) a moment after.
@@ -184,7 +184,7 @@ extension LabState {
     /// photograph outside every Archive, what its file says (read once, off the main thread).
     func record(for item: URL) -> PhotoRecord {
         let file = item.photoFile
-        let path = file.standardizedFileURL.path
+        let path = file.labStandardized.path
         var folders: [String: FolderFacts] = [:]
         var record = catalog.photos[path].map { record(of: $0, folders: &folders) } ?? {
             var record = PhotoRecord(path: path)
@@ -233,7 +233,7 @@ extension LabState {
         var best: (archive: LabProject, entry: LabRoll, folder: String)?
         for archive in projects.projects {
             for roll in archive.rolls {
-                let folder = URL(fileURLWithPath: roll.folder, isDirectory: true).standardizedFileURL.path
+                let folder = URL(fileURLWithPath: roll.folder, isDirectory: true).labStandardized.path
                 guard folder == path || path.hasPrefix(folder + "/"), best.map({ folder.count > $0.folder.count }) ?? true else { continue }
                 best = (archive, roll, folder)
             }
@@ -242,7 +242,7 @@ extension LabState {
             facts.archive = best.archive.name
             facts.added = best.entry.addedAt
             // The Folder's own card, or the card of the Folder holding it.
-            let own = best.archive.rolls.first { URL(fileURLWithPath: $0.folder, isDirectory: true).standardizedFileURL.path == path }
+            let own = best.archive.rolls.first { URL(fileURLWithPath: $0.folder, isDirectory: true).labStandardized.path == path }
             facts.film = (own ?? best.entry).film
         }
         memo[path] = facts
@@ -433,10 +433,10 @@ extension LabState {
         case .box(let id): return projects.frames(of: .box(id))
         case .archive(let id):
             guard let archive = projects.archive(id) else { return [] }
-            let folders = Set(projects.photoFolders(of: archive).map(\.standardizedFileURL.path))
+            let folders = Set(projects.photoFolders(of: archive).map(\.labStandardized.path))
             return catalog.order.filter { folders.contains(($0 as NSString).deletingLastPathComponent) }
         case .folder(let path, _):
-            let folder = URL(fileURLWithPath: path, isDirectory: true).standardizedFileURL.path
+            let folder = URL(fileURLWithPath: path, isDirectory: true).labStandardized.path
             return catalog.order.filter { $0.hasPrefix(folder + "/") }
         default: return []
         }

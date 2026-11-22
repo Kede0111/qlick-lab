@@ -40,8 +40,8 @@ extension LabState {
     /// The Boxes or the Archives changed: the list open on the sheet is listed again; a Roll moved to another Box is
     /// followed there; a list whose Box or Roll is gone or empty closes.
     func libraryChanged() {
-        guard let directory = model.library.directory?.standardizedFileURL else { return }
-        let views = projects.directory.appendingPathComponent("Views", isDirectory: true).standardizedFileURL.path
+        guard let directory = model.library.directory?.labStandardized else { return }
+        let views = projects.directory.appendingPathComponent("Views", isDirectory: true).labStandardized.path
         guard directory.path.hasPrefix(views + "/") else { return }
         if let open = projects.view(of: directory) {
             if let holder = open.holder, !projects.isSmart(holder) {
@@ -167,14 +167,14 @@ extension LabState {
     var pasteTarget: Holder? {
         guard let holder = openHolder, !copiedPhotos.isEmpty else { return nil }
         let inside = Set(projects.ownFrames(of: holder))
-        return copiedPhotos.contains { !inside.contains($0.standardizedFileURL.path) } ? holder : nil
+        return copiedPhotos.contains { !inside.contains($0.labStandardized.path) } ? holder : nil
     }
 
     /// ⌘V, or Paste in a Box's menu: the photographs copied are added (never moved: they stay where they were too).
     func pastePhotos(into holder: Holder? = nil) {
         guard let holder = holder ?? pasteTarget, !copiedPhotos.isEmpty, !projects.isSmart(holder) else { return }
         let inside = Set(projects.ownFrames(of: holder))
-        let new = copiedPhotos.filter { !inside.contains($0.standardizedFileURL.path) }
+        let new = copiedPhotos.filter { !inside.contains($0.labStandardized.path) }
         guard !new.isEmpty else { return note("Already There", "in “\(projects.shortName(holder) ?? "")”") }
         if undoable("Paste \(Self.title(new.count))", { projects.addFrames(new, to: holder); return true }) {
             note("Pasted", "\(photographs(new.count)) in “\(projects.shortName(holder) ?? "")”")
@@ -187,7 +187,7 @@ extension LabState {
         guard !frames.isEmpty else { return }
         guard !projects.isSmart(holder) else { return note("Not Added", "a Smart Roll is filled by its rules") }
         let inside = Set(projects.ownFrames(of: holder))
-        let new = frames.filter { !inside.contains($0.photoFile.standardizedFileURL.path) }
+        let new = frames.filter { !inside.contains($0.photoFile.labStandardized.path) }
         guard !new.isEmpty else { return note("Already There", "in “\(projects.shortName(holder) ?? "")”") }
         if undoable("Add \(Self.title(new.count)) to Box", { projects.addFrames(new, to: holder); return true }) {
             note("Added", "\(photographs(new.count)) to “\(projects.shortName(holder) ?? "")”")

@@ -30,7 +30,7 @@ enum EmbeddedThumbnails {
     /// The copy's file: named by the photograph's path, size and date, so a changed file is never found.
     static func file(for photo: PhotoFile) -> URL? {
         guard let modified = photo.modified else { return nil }
-        let path = photo.url.photoFile.standardizedFileURL.path
+        let path = photo.url.photoFile.labStandardized.path
         let name = SHA256.hash(data: Data("1|\(path)|\(photo.size ?? -1)|\(modified.timeIntervalSince1970)".utf8))
             .prefix(16).map { String(format: "%02x", $0) }.joined()
         return directory.appendingPathComponent(name + ".jpg")

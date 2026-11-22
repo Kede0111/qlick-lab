@@ -158,7 +158,7 @@ enum Theme {
                               resourceDir: URL? = Bundle.main.resourceURL,
                               workingDir: URL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)) -> URL? {
             let root = env["SPEKTRAFILM_ROOT"].map { URL(fileURLWithPath: $0) } ?? workingDir
-            let source = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("../../Fonts").standardizedFileURL
+            let source = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("../../Fonts").labStandardized
             let candidates = [resourceDir?.appendingPathComponent("Fonts"), root.appendingPathComponent("macos/Fonts"),
                               root.appendingPathComponent("Fonts"), source].compactMap { $0 }
             return candidates.first { FileManager.default.fileExists(atPath: $0.appendingPathComponent(upright).path) }

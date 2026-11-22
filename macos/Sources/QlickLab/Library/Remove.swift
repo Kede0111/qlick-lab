@@ -69,7 +69,7 @@ extension ProjectStore {
 
     /// The photographs removed from the lab that lie in an Archive's Folders (or in folders under them).
     func removed(in archive: LabProject) -> [String] {
-        let roots = archive.rolls.map { $0.url.standardizedFileURL.path }
+        let roots = archive.rolls.map { $0.url.labStandardized.path }
         return removed.filter { path in roots.contains { path.hasPrefix($0 + "/") } }.sorted()
     }
 }

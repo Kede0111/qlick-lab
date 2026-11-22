@@ -164,7 +164,7 @@ final class ImportLedger: @unchecked Sendable {
     func importDates() -> [String: Date] {
         lock.withLock {
             var dates: [String: Date] = [:]
-            for entry in entries.values { dates[URL(fileURLWithPath: entry.destination, isDirectory: false).standardizedFileURL.path] = entry.imported }
+            for entry in entries.values { dates[URL(fileURLWithPath: entry.destination, isDirectory: false).labStandardized.path] = entry.imported }
             return dates
         }
     }
@@ -177,7 +177,7 @@ final class ImportLedger: @unchecked Sendable {
         var paths: [String] = []
         for entry in sorted {
             guard previous.timeIntervalSince(entry.imported) < 1800 else { break }
-            paths.append(URL(fileURLWithPath: entry.destination, isDirectory: false).standardizedFileURL.path)
+            paths.append(URL(fileURLWithPath: entry.destination, isDirectory: false).labStandardized.path)
             previous = entry.imported
         }
         return paths.reversed()

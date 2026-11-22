@@ -108,7 +108,7 @@ extension ProjectStore {
                                 action: .movePhotos(urls, from: source, to: holder))
             }
             let inside = Set(ownFrames(of: holder))
-            let new = urls.filter { !inside.contains($0.photoFile.standardizedFileURL.path) }
+            let new = urls.filter { !inside.contains($0.photoFile.labStandardized.path) }
             guard !new.isEmpty else { return .refused(urls.count == 1 ? "Already in “\(name)”" : "All already in “\(name)”") }
             let already = urls.count - new.count
             return DropPlan(operation: .copy, verb: "Copy",
@@ -345,7 +345,7 @@ extension ProjectStore {
     func archivePhotos(_ id: UUID) -> [URL] {
         guard let source = archive(id) else { return [] }
         var seen = Set<String>()
-        return roots(of: source).flatMap { folderPhotos($0.path) }.filter { seen.insert($0.standardizedFileURL.path).inserted }
+        return roots(of: source).flatMap { folderPhotos($0.path) }.filter { seen.insert($0.labStandardized.path).inserted }
     }
 
     /// The photographs of a folder and of every folder under it, as its sheet shows them.

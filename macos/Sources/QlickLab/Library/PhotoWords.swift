@@ -152,9 +152,9 @@ extension ProjectStore {
 
     /// Counts again the Archives' Folders holding `photos`: after their keywords changed.
     func recount(holding photos: [URL]) {
-        let paths = Set(photos.map { $0.photoFile.standardizedFileURL.path })
+        let paths = Set(photos.map { $0.photoFile.labStandardized.path })
         for archive in projects {
-            for root in roots(of: archive) where paths.contains(where: { $0.hasPrefix(root.standardizedFileURL.path + "/") }) {
+            for root in roots(of: archive) where paths.contains(where: { $0.hasPrefix(root.labStandardized.path + "/") }) {
                 count(folder(root.path, in: archive))
             }
         }

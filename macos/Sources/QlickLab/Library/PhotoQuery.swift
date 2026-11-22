@@ -316,7 +316,7 @@ extension SmartRule {
         let values = Self.texts(field, of: record).map(Self.fold)
         if field == .folder, op == .is || op == .isNot {
             // A folder is the folder and those under it.
-            let path = URL(fileURLWithPath: value.trimmingCharacters(in: .whitespaces), isDirectory: false).standardizedFileURL.path
+            let path = URL(fileURLWithPath: value.trimmingCharacters(in: .whitespaces), isDirectory: false).labStandardized.path
             let inside = record.folder == path || record.folder.hasPrefix(path + "/")
             return op == .is ? inside : !inside
         }
