@@ -433,7 +433,7 @@ struct LibraryFilter: Codable, Equatable, Sendable {
         // Made off the main thread: a stream asks the disk for each folder's real path.
         let folders = PhotoFolder.folders(of: directory)
         let watchers = await Task.detached(priority: .userInitiated) {
-            folders.filter { VolumeReach.answers($0.path, patience: 3) }.compactMap { PhotoFolderWatcher(directory: $0) }
+            folders.filter { VolumeReach.answers($0.path) }.compactMap { PhotoFolderWatcher(directory: $0) }
         }.value
         let forwards = watchers.map { watcher in Task { for await _ in watcher.changes { continuation.yield(()) } } }
         defer {

@@ -1,8 +1,8 @@
 import XCTest
 @testable import QlickLab
 
-/// A disk that doesn't answer (a NAS gone away while mounted) never holds the lab up: the look gives up after its
-/// patience, the disk is left aside without waiting again, and it's taken back once it answers.
+/// A disk is away only when it truly is (not mounted, or the Mac says a share stopped answering), never because it's
+/// slow; and a slow disk never holds the window up.
 final class VolumeReachTests: XCTestCase {
     func testOnlyDisksUnderVolumesAreWatched() {
         XCTAssertEqual(VolumeReach.volume(of: "/Volumes/NAS QUENTIN/PHOTOS/2024/a.RAF"), "/Volumes/NAS QUENTIN")
@@ -11,37 +11,69 @@ final class VolumeReachTests: XCTestCase {
         XCTAssertEqual(VolumeReach.volumeName(of: "/Volumes/NAS QUENTIN/PHOTOS"), "NAS QUENTIN")
     }
 
-    func testADiskThatDoesNotAnswerIsLeftAsideThenTakenBack() {
-        // A path whose top isn't there: once left aside, the watch finds it answering at once.
-        let volume = "/Volumes/QlickLabNoSuchDisk-\(UUID().uuidString)"
-        let back = expectation(forNotification: VolumeReach.changed, object: nil) { note in
-            (note.userInfo?["volume"] as? String) == volume && !VolumeReach.isSilent(volume)
-        }
-        let start = Date()
-        // A look that would take ten seconds, as a share whose server has gone does.
-        let value = VolumeReach.look(volume + "/Photos", patience: 0.2) { Thread.sleep(forTimeInterval: 10); return true }
-        XCTAssertNil(value)
-        XCTAssertLessThan(Date().timeIntervalSince(start), 1)
-        // While it's aside, nothing waits on it.
-        if VolumeReach.isSilent(volume) {
-            let again = Date()
-            XCTAssertFalse(VolumeReach.exists(volume + "/Photos/a.RAF"))
-            XCTAssertLessThan(Date().timeIntervalSince(again), 0.1)
-        }
-        wait(for: [back], timeout: 5)
-        XCTAssertFalse(VolumeReach.isSilent(volume))
+    private func someMountedVolume() throws -> String {
+        let list = VolumeReach.mountList()
+        let mounted = (try FileManager.default.contentsOfDirectory(atPath: "/Volumes")).map { "/Volumes/" + $0 }.first { list[$0] != nil }
+        // A Mac with no disk plugged in (GitHub's runners) has nothing to look at: the test says so and is skipped.
+        guard let mounted else { throw XCTSkip("No disk under /Volumes on this Mac") }
+        return mounted
     }
 
-    /// A disk plugged into the Mac (an exFAT SSD busy with the lab's reading, 2026-11-22) is slow at worst, never
-    /// gone while mounted: it's asked directly and never left aside, or its photographs would vanish from the lab.
-    func testADiskPluggedInIsNeverLeftAside() throws {
-        let local = (try FileManager.default.contentsOfDirectory(atPath: "/Volumes")).map { "/Volumes/" + $0 }.first(where: VolumeReach.isLocal)
-        // A Mac with no disk plugged in (GitHub's runners) has nothing to look at: the test says so and is skipped.
-        guard let volume = local else { throw XCTSkip("No disk under /Volumes on this Mac") }
-        let value = VolumeReach.look(volume + "/Photos", patience: 0.1) { Thread.sleep(forTimeInterval: 0.4); return true }
-        XCTAssertEqual(value, true, "a slow look is waited for")
+    /// A NAS saturated by the lab's reading (1 Gb/s, 2026-11-22) answers in seconds: the window doesn't wait for it,
+    /// the disk never shows as away, and once the look comes back the lab is told to look again.
+    func testASlowDiskIsNeverAwayAndNeverHoldsTheWindow() throws {
+        let volume = try someMountedVolume()
+        let back = expectation(forNotification: VolumeReach.changed, object: nil) { ($0.userInfo?["volume"] as? String) == volume }
+        let start = Date()
+        let value = VolumeReach.look(volume + "/Photos", patience: 0.2) { Thread.sleep(forTimeInterval: 1.5); return true }
+        XCTAssertNil(value, "not known yet")
+        XCTAssertLessThan(Date().timeIntervalSince(start), 1)
+        XCTAssertFalse(VolumeReach.offline(volume + "/Photos"))
         XCTAssertFalse(VolumeReach.isSilent(volume))
-        XCTAssertFalse(VolumeReach.isLocal("/Volumes/QlickLabNoSuchDisk-\(UUID().uuidString)"), "a disk not mounted is watched as a share")
+        XCTAssertTrue(VolumeReach.answers(volume + "/Photos"))
+        // While its answer is out, the window doesn't wait on it again, and takes its files as there.
+        let again = Date()
+        XCTAssertTrue(VolumeReach.exists(volume + "/Photos/a.RAF"))
+        XCTAssertLessThan(Date().timeIntervalSince(again), 0.1)
+        wait(for: [back], timeout: 5)
+        XCTAssertFalse(VolumeReach.offline(volume + "/Photos"))
+    }
+
+    /// Off the main thread a look is made at the disk's speed, however slow.
+    func testOffTheMainThreadASlowLookIsWaitedFor() throws {
+        let volume = try someMountedVolume()
+        let done = expectation(description: "answered")
+        DispatchQueue.global().async {
+            let value = VolumeReach.look(volume + "/Photos", patience: 0.1) { Thread.sleep(forTimeInterval: 0.5); return 7 }
+            XCTAssertEqual(value, 7)
+            done.fulfill()
+        }
+        wait(for: [done], timeout: 5)
+    }
+
+    func testADiskNotMountedIsAway() {
+        let volume = "/Volumes/QlickLabNoSuchDisk-\(UUID().uuidString)"
+        XCTAssertTrue(VolumeReach.offline(volume + "/Photos"))
+        XCTAssertFalse(VolumeReach.answers(volume + "/Photos"))
+        XCTAssertFalse(VolumeReach.exists(volume + "/Photos/a.RAF"))
+        XCTAssertNil(VolumeReach.look(volume) { true })
+        XCTAssertFalse(VolumeReach.isLocal(volume))
+    }
+
+    /// A share the Mac says stopped answering is away until it answers again; nothing waits on it meanwhile.
+    func testAShareTheMacSaysIsSilentIsAwayThenBack() throws {
+        let volume = try someMountedVolume()
+        VolumeReach.testSetSilent(volume, true)
+        XCTAssertTrue(VolumeReach.offline(volume + "/Photos"))
+        let start = Date()
+        XCTAssertFalse(VolumeReach.exists(volume + "/Photos"))
+        XCTAssertLessThan(Date().timeIntervalSince(start), 0.1)
+        let back = expectation(forNotification: VolumeReach.changed, object: nil) {
+            ($0.userInfo?["volume"] as? String) == volume && !VolumeReach.isSilent(volume)
+        }
+        VolumeReach.testSetSilent(volume, false)
+        wait(for: [back], timeout: 5)
+        XCTAssertFalse(VolumeReach.offline(volume + "/Photos"))
     }
 
     func testTheStartupDiskIsAskedDirectly() {

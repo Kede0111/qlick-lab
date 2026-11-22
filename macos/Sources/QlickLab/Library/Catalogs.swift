@@ -26,9 +26,11 @@ import UniformTypeIdentifiers
     /// Catalog opens, and `missed` says which one couldn't (the lab says so; the next launch tries it again).
     var initial: URL {
         if let path = defaults.string(forKey: Self.currentKey) {
-            if VolumeReach.exists(path, patience: 1.5) { return URL(fileURLWithPath: path, isDirectory: true) }
+            // Opened whole on the main thread: its disk must answer, slowly at worst, within a few seconds.
+            let responds = VolumeReach.respondsWithin(path, patience: 5)
+            if responds, VolumeReach.exists(path, patience: 5) { return URL(fileURLWithPath: path, isDirectory: true) }
             if URL(fileURLWithPath: path, isDirectory: true).labStandardized != Self.defaultDirectory.labStandardized {
-                Self.missed = (URL(fileURLWithPath: path, isDirectory: true), silent: VolumeReach.isSilent(path))
+                Self.missed = (URL(fileURLWithPath: path, isDirectory: true), silent: VolumeReach.isSilent(path) || (!responds && !VolumeReach.offline(path)))
             }
         }
         return Self.defaultDirectory
@@ -60,8 +62,8 @@ extension LabState {
         if directory.pathExtension.lowercased() != CatalogList.fileExtension, directory != CatalogList.defaultDirectory.labStandardized,
            (try? directory.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory != true { return }
         if projects.isOpen, directory.path == projects.directory.labStandardized.path { return show(.library) }
-        // A disk that doesn't answer isn't waited for: the catalogue open stays.
-        guard VolumeReach.answers(directory.path, patience: 1.5) else {
+        // A disk that doesn't answer within a few seconds isn't waited for: the catalogue open stays.
+        guard VolumeReach.respondsWithin(directory.path, patience: 5) else {
             model.error = "The catalog “\(CatalogList.name(of: directory))” can’t be opened: its disk, “\(VolumeReach.volumeName(of: directory.path))”, isn’t answering."
             return
         }

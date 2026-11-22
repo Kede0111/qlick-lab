@@ -65,6 +65,12 @@ what's done and next, decisions. Update it at the end of each phase.
 - Red is the lab's mark colour; the Develop panel follows QLab (`Kede0111/QLab`): rounded red sliders, the film
   card, tabs as one pill, Liquid Glass panels.
 
+## Disks
+
+A disk under /Volumes is offline only when it isn't mounted or the Mac says a share stopped answering
+(`Files/VolumeReach.swift`): never because it's slow. Nothing on the main thread waits on a disk for more than a moment;
+off the main thread, work goes at the disk's speed. Try it with `QLICK_SLOW_VOLUME` / `QLICK_GONE_VOLUME` (debug builds).
+
 ## Building and testing
 
 - `scripts/build_app.sh` builds `dist/qlick-lab/Qlick Lab.app` and regenerates `QlickLab.xcodeproj` from `project.yml`

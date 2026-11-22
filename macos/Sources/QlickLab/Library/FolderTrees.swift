@@ -82,7 +82,7 @@ struct FolderNode: Identifiable, Equatable, Sendable {
         }
         Task { [weak self] in
             let watcher = await Task.detached(priority: .utility) { () -> FolderWatcher? in
-                guard VolumeReach.answers(root.path, patience: 3) else { return nil }
+                guard VolumeReach.answers(root.path) else { return nil }
                 return FolderWatcher(root: root, changed: changed)
             }.value
             guard let self, self.roots.contains(root), self.watchers[root] == nil else { watcher?.stop(); return }
@@ -114,7 +114,7 @@ struct FolderNode: Identifiable, Equatable, Sendable {
     /// app) are passed by.
     nonisolated static func read(_ root: URL) -> FolderNode? {
         var budget = limit
-        guard VolumeReach.answers(root.path, patience: Thread.isMainThread ? VolumeReach.patience : 3), FileManager.default.fileExists(atPath: root.path) else { return nil }
+        guard VolumeReach.answers(root.path), FileManager.default.fileExists(atPath: root.path) else { return nil }
         return read(root.labStandardized, depth: depth, budget: &budget, excluded: PhotoFolder.excluded)
     }
 

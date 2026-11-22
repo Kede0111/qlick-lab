@@ -357,7 +357,7 @@ struct SheetOptions: Codable, Equatable, Sendable {
         VolumeReach.stoppedAnswering = { [weak self] volume in
             self?.tellOnWindow(AppAlert(
                 title: "“\(volume.lastPathComponent)” isn’t answering",
-                detail: "Qlick Lab carries on without it: its Folders and photographs show as away until it answers again. Nothing on it is changed.",
+                detail: "The Mac says it has stopped answering: its server or the network is gone. Qlick Lab carries on without it, and its Folders and photographs show as away until it answers again. Nothing on it is changed.",
                 buttons: [.init(title: "OK")]))
         }
         reach = NotificationCenter.default.addObserver(forName: VolumeReach.changed, object: nil, queue: .main) { [weak self] note in

@@ -1067,7 +1067,7 @@ struct RollStats: Equatable, Sendable {
     /// A folder's photographs and those of every folder under it.
     nonisolated static func stats(of folder: URL, store: SidecarStore?) -> RollStats {
         // Qlick Lab: a disk that doesn't answer isn't waited for; it's counted again when it answers (`VolumeReach`).
-        guard VolumeReach.answers(folder.path, patience: 3) else { return RollStats(missing: true) }
+        guard VolumeReach.answers(folder.path) else { return RollStats(missing: true) }
         guard let listing = try? PhotoFolder.listing(in: folder) else { return RollStats(missing: true) }
         var stats = RollStats()
         func add(_ listing: (photos: [PhotoFile], sidecars: [String: PhotoFile]), prefix: String) {

@@ -646,7 +646,7 @@ watches it and posts `VolumeReach.changed` when it answers (Folders read and cou
 the next launch tries it first). Guarded: catalogue choice and recent list, `PhotoFolder` listings, folder trees and
 their FSEvents, counts and cards, the sidebar's missing check, Last Import, Folder resolution (bookmarks now
 `.withoutUI, .withoutMounting`), opening a photograph or folder, the Import's volumes. Try it in a debug build without
-unplugging: `QLICK_SILENT_VOLUME=/Volumes/Name QLICK_SILENT_SECONDS=20`. Launch with a silent NAS: 1.2 s (Folders),
+unplugging: `QLICK_GONE_VOLUME` / `QLICK_SLOW_VOLUME` (see “Slow disks” below; was `QLICK_SILENT_VOLUME`). Launch with a silent NAS: 1.2 s (Folders),
 2.4 s (catalogue). Tests: `VolumeReachTests`.
 
 ### Selection, pencil marks, Auto Straighten (2026-11-22, `feature/speed-redlamp`, not committed yet)
@@ -709,6 +709,29 @@ the watch, wanting an answer within 2 s under that load, never took it back. `Vo
 system's mount list without asking the disk (`getfsstat`, `MNT_NOWAIT`): a disk plugged into the Mac is asked
 directly, as the startup disk, and never left aside; only a share (smbfs, NAS) or a disk not in the list is watched.
 A share is taken back as soon as a look returns within 10 s (was 2 s). Test: `testADiskPluggedInIsNeverLeftAside`.
+
+### Slow disks are never offline (2026-11-22, branch `feature/slow-disks`, not committed yet)
+
+Quentin still saw his NAS (1 Gb/s, saturated by the lab's reading) go offline. The cause was the rule itself: a look
+slower than 0.8 s left the share aside. Studied: RedLamp (`VolumeIO`: a slow operation is never a gone volume; after a
+10 s timeout it asks the volume, and only a failure or no answer at all makes it unreachable) and LightCraft
+(`availability.rs`: an unknown answer is "assume it's there", only a real "not there" is offline). The lab now:
+- **Offline** = not in the Mac's mount list (`getfsstat`, `MNT_NOWAIT`, kept by the kernel's `EVFILT_FS` mount and
+  unmount events), or the Mac says a share stopped answering (`EVFILT_FS` `VQ_NOTRESP`/`VQ_DEAD`, the event behind
+  "Server connections interrupted"; smbfs sends it only when the server answers nothing, never for a slow one). The
+  event doesn't say which share: each share's top is asked; one that doesn't answer in 10 s or fails with a network
+  errno is silent until its question comes back. (`VFS_CTL_QUERY` would say directly but needs root.)
+- **Slow** is never offline. On the main thread a look waits `patience` (0.8 s); past it the answer is unknown and the
+  caller takes the file as there (`exists`/`readable` true, `isFolder` by its name); the disk is "busy" (never shown),
+  the main thread doesn't wait on it again until the look comes back, then `changed` is posted. Off the main thread a
+  look is made at the disk's speed. `answers()` no longer touches the disk. Local disks and shares behave the same.
+- A catalogue is still opened whole on the main thread: it needs its disk to answer within 5 s
+  (`respondsWithin`), else the Default Catalog opens meanwhile as before.
+- Debug builds: `QLICK_SLOW_VOLUME=/Volumes/Name QLICK_SLOW_SECONDS=3` (every look that slow; must never show away),
+  `QLICK_GONE_VOLUME=/Volumes/Name QLICK_GONE_SECONDS=20` (the Mac says it stopped answering, then it's back).
+  Tried with `drive.sh` on a scratch copy: archive opens in 1 s with 3 s looks, photo listed, no Offline; the gone
+  share shows Offline + the message, then comes back with its frame. Tests: `VolumeReachTests` (8).
+- Known unrelated failure: `testBatchExportsEachPhotographWithItsOwnEdits` (can't find `spektrafilm-f64`).
 
 ## Build and test
 
