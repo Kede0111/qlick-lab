@@ -18,12 +18,15 @@ installed="/Applications/Qlick Lab.app"
 [[ -d "$built" ]] || { echo "Nothing built at $built" >&2; exit 1; }
 
 # Quit the installed app if it runs, as a person would: it can refuse (a question still open), and then nothing is replaced.
+# Asked of Launch Services, not with pgrep: pgrep reads every process's arguments and can hang behind a process stuck
+# on a network disk that doesn't answer (a NAS gone away).
+running() { [[ -n "$(perl -e 'alarm 10; exec @ARGV' lsappinfo find bundleid=be.jackfrom.qlicklab 2>/dev/null)" ]]; }
 was_running=false
-if pgrep -xf "$installed/Contents/MacOS/Qlick Lab" >/dev/null; then
+if running; then
     was_running=true
     osascript -e 'tell application id "be.jackfrom.qlicklab" to quit' >/dev/null 2>&1 || true
-    for _ in $(seq 1 60); do pgrep -xf "$installed/Contents/MacOS/Qlick Lab" >/dev/null || break; sleep 0.5; done
-    if pgrep -xf "$installed/Contents/MacOS/Qlick Lab" >/dev/null; then
+    for _ in $(seq 1 60); do running || break; sleep 0.5; done
+    if running; then
         echo "Qlick Lab didn't quit (a question may be open in it): nothing was installed." >&2
         exit 1
     fi
