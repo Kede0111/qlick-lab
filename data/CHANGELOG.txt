@@ -40,6 +40,16 @@ Negs-only data, not from spektrafilm:
   papers (kodak_2302, ilford_mgrc_deluxe_grade2) have no colour to balance,
   so they get no entries and keep the C0 M50 Y50 fallback.
 
+Qlick Lab data, not from spektrafilm:
+
+- profiles/leica_monopan_50.json is a new preparation: spectral sensitivity
+  from Leica's Monopan 50 datasheet (June 2025), characteristic curve from
+  ADOX HR-50's (FX-39, Speed Boost), the film Monopan 50 is taken to be.
+  Both read from the PDFs' vector paths. Sources, method and assumptions:
+  profile-sources/leica-monopan-50/README.md.
+- presets/grain.toml: a leica_monopan_50 section (rms_granularity 5, an
+  assumption: no published figure).
+
 Fotufilm film profiles (CC BY-SA 4.0, by MUAStudio Inc., https://fotufilm.com;
 see FOTUFILM_LICENSE.txt):
 

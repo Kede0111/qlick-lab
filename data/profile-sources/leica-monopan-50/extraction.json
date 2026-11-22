@@ -1,0 +1,88 @@
+{
+  "leica": {
+    "document": "Leica Monopan 50 Technische gegevens, juni 2025 (pm-23344, NL)",
+    "url": "https://leica-camera.com/sites/default/files/pm-23344-Leica-Monopan50_Technical-Data_nl.pdf",
+    "sha256": "81d55277de23b8a2fb2fe61674bae9c2612ed6afe85df53fe5ea708aeda2097f",
+    "page_1based": 2,
+    "x_nm_per_pt": 1.8645870237444715,
+    "x_nm_at_pt0": -1.2692443554599593,
+    "x_label_centres_pt": [
+      161.56256103515625,
+      188.36396026611328,
+      215.18470001220703,
+      241.99575805664062,
+      268.88421630859375,
+      295.68560791015625,
+      322.5788879394531,
+      349.38995361328125,
+      375.9302062988281,
+      402.7315979003906,
+      429.86668395996094
+    ],
+    "y_logS_per_pt": -0.015130648306040466,
+    "y_logS_at_pt0": 8.750977207735348,
+    "y_grid_pt": [
+      479.3,
+      512.12,
+      545.39
+    ],
+    "segments": 25
+  },
+  "adox": {
+    "document": "ADOX HR-50 High Resolution Film, Technische Beschreibung, 20 Nov 2018 (ASC5011, EN)",
+    "url": "https://www.macodirect.de/media/pdf/c2/97/cf/ASC5011_Datenblatt_e.pdf",
+    "sha256": "4ba8752ecaca593ec3bd2857024db659945f341284fb82e7a698e96c7c9b2998",
+    "page_1based": 1,
+    "frame_pt": [
+      406.4018859863281,
+      469.8550109863281,
+      542.7996826171875,
+      562.99169921875
+    ],
+    "hgrid_pt": [
+      557.15,
+      551.56,
+      546.54,
+      535.05,
+      523.87,
+      513.32,
+      502.45,
+      490.97,
+      480.72
+    ],
+    "density_labels": [
+      0.1,
+      0.2,
+      0.3,
+      0.5,
+      0.7,
+      0.9,
+      1.1,
+      1.3,
+      1.5
+    ],
+    "y_D_per_pt": -0.01825470907296734,
+    "y_D_at_pt0": 10.271018548227323,
+    "vgrid_pt": [
+      422.82,
+      440.06,
+      457.3,
+      474.55,
+      491.79,
+      509.04,
+      526.28
+    ],
+    "grid_column_pt": 17.24333333333333,
+    "gamma_datasheet": 0.65,
+    "straight_part_net_density": [
+      0.55,
+      1.15
+    ],
+    "logE_per_grid_column_from_gamma": 0.4871035755795293,
+    "logE_per_pt": 0.028996713705780018,
+    "logE_per_grid_column": 0.5,
+    "implied_gamma": 0.6332346482533882,
+    "red_segments": 14,
+    "blue_segments": 4
+  }
+}

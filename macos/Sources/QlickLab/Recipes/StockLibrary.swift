@@ -56,7 +56,7 @@ struct StockProfile: Sendable {
 
 /// What a stock's name and catalog entry say of it.
 enum StockFacts {
-    static let makers = ["Kodak", "Fujifilm", "Fujicolor", "Fuji", "Ilford", "Agfa", "CineStill", "Lomography", "LomoChrome", "Harman"]
+    static let makers = ["Kodak", "Fujifilm", "Fujicolor", "Fuji", "Ilford", "Agfa", "CineStill", "Lomography", "LomoChrome", "Harman", "Leica"]
 
     static func maker(_ stock: Stock) -> String {
         let name = stock.name
@@ -125,6 +125,9 @@ enum StockFacts {
         }
         if ["kodak_trix400_d76_8min", "ilford_mgrc_deluxe_grade2"].contains(stock.id) {
             return "Profile made from Kodak's and Ilford's datasheets, in spektrafilm's format. Experimental."
+        }
+        if stock.id == "leica_monopan_50" {
+            return "Profile made from Leica's spectral sensitivity and ADOX HR-50's characteristic curve (the film it is taken to be), in spektrafilm's format. Experimental."
         }
         return "spektrafilm profile by Andrea Volpato (CC BY-SA 4.0), built on the maker's published datasheets."
     }
