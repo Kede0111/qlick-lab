@@ -697,6 +697,16 @@ Photographs, a day, Picks…); the session reopened the last photograph at launc
 - An empty sheet with nothing open says "Nothing open. Choose an Archive, a Box or a Roll in the sidebar."
 - Automation: `catalog close`; `state` has `open=`, `listed=`, `source=`. Tests: 596 (`CatalogIsolationTests`).
 
+### A disk plugged in is never "not answering" (2026-11-22, on `main` = `feature/lab-structure`)
+
+Quentin: the lab said “Samsung_SSD” wasn't answering and its photographs were gone, while the Finder read it. The
+exFAT SSD was only slow: the catalogue's index read every photograph's facts eight at a time while sidecars were
+written inside DNGs (a 65 MB copy and check each), so a look on it took more than 0.8 s, the disk was left aside, and
+the watch, wanting an answer within 2 s under that load, never took it back. `VolumeReach.isLocal` reads the
+system's mount list without asking the disk (`getfsstat`, `MNT_NOWAIT`): a disk plugged into the Mac is asked
+directly, as the startup disk, and never left aside; only a share (smbfs, NAS) or a disk not in the list is watched.
+A share is taken back as soon as a look returns within 10 s (was 2 s). Test: `testADiskPluggedInIsNeverLeftAside`.
+
 ## Build and test
 
 ```bash

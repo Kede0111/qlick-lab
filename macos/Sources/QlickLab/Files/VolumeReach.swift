@@ -58,6 +58,10 @@ enum VolumeReach {
     /// is left aside already: the look isn't made again until it answers.
     static func look<T: Sendable>(_ path: String, patience: TimeInterval = patience, _ look: @escaping @Sendable () -> T) -> T? {
         guard let volume = volume(of: path) else { return look() }
+        // A disk plugged into this Mac answers, slowly at worst (an exFAT disk busy reading for the lab, one waking
+        // up): it's asked directly, as the startup disk is, and never left aside. Unplugged, its /Volumes entry goes.
+        // Only a disk on the network can stay mounted and never answer.
+        if isLocal(volume) { return look() }
         if isSilent(path) { return nil }
         let box = LookResult<T>(), done = DispatchSemaphore(value: 0)
         queue.async { simulateSilence(volume); box.value = look(); done.signal() }
@@ -92,6 +96,28 @@ enum VolumeReach {
 
     private final class LookResult<T>: @unchecked Sendable { var value: T? }
 
+    /// Whether the disk mounted at `volume` is plugged into this Mac (not a network share), from the system's list of
+    /// mounts as it already knows it: the disk itself isn't asked (`MNT_NOWAIT`). A disk not in the list (gone, or
+    /// not yet mounted) isn't local: it's watched as before.
+    static func isLocal(_ volume: String) -> Bool {
+        #if DEBUG
+        // A disk made silent for a try (`QLICK_SILENT_VOLUME`) behaves as a share would.
+        if ProcessInfo.processInfo.environment["QLICK_SILENT_VOLUME"] == volume { return false }
+        #endif
+        let count = getfsstat(nil, 0, MNT_NOWAIT)
+        guard count > 0 else { return false }
+        var mounts = Array(repeating: Darwin.statfs(), count: Int(count) + 4)
+        let read = mounts.withUnsafeMutableBufferPointer { buffer in
+            getfsstat(buffer.baseAddress, Int32(MemoryLayout<Darwin.statfs>.stride * buffer.count), MNT_NOWAIT)
+        }
+        guard read > 0 else { return false }
+        for var mount in mounts.prefix(Int(read)) {
+            let path = withUnsafeBytes(of: &mount.f_mntonname) { String(decoding: $0.prefix { $0 != 0 }, as: UTF8.self) }
+            if path == volume { return mount.f_flags & UInt32(MNT_LOCAL) != 0 }
+        }
+        return false
+    }
+
     /// The lab has said already that this disk doesn't answer (the catalogue's own message): not said twice.
     static func said(_ path: String) {
         guard let volume = volume(of: path) else { return }
@@ -125,7 +151,9 @@ enum VolumeReach {
                 simulateSilence(volume)
                 var info = stat()
                 _ = lstat(probe, &info)
-                if Date().timeIntervalSince(start) < 2 { break }
+                // A share that answers at all comes back, even slowly (a NAS busy serving the lab's reading); one
+                // whose server has gone doesn't answer for far longer than this.
+                if Date().timeIntervalSince(start) < 10 { break }
                 Thread.sleep(forTimeInterval: 3)
             }
             state.lock.lock(); state.silent.remove(volume); state.lock.unlock()

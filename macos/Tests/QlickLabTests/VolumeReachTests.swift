@@ -32,6 +32,17 @@ final class VolumeReachTests: XCTestCase {
         XCTAssertFalse(VolumeReach.isSilent(volume))
     }
 
+    /// A disk plugged into the Mac (an exFAT SSD busy with the lab's reading, 2026-11-22) is slow at worst, never
+    /// gone while mounted: it's asked directly and never left aside, or its photographs would vanish from the lab.
+    func testADiskPluggedInIsNeverLeftAside() throws {
+        let local = (try FileManager.default.contentsOfDirectory(atPath: "/Volumes")).map { "/Volumes/" + $0 }.first(where: VolumeReach.isLocal)
+        let volume = try XCTUnwrap(local, "No disk under /Volumes on this Mac")
+        let value = VolumeReach.look(volume + "/Photos", patience: 0.1) { Thread.sleep(forTimeInterval: 0.4); return true }
+        XCTAssertEqual(value, true, "a slow look is waited for")
+        XCTAssertFalse(VolumeReach.isSilent(volume))
+        XCTAssertFalse(VolumeReach.isLocal("/Volumes/QlickLabNoSuchDisk-\(UUID().uuidString)"), "a disk not mounted is watched as a share")
+    }
+
     func testTheStartupDiskIsAskedDirectly() {
         XCTAssertTrue(VolumeReach.exists(NSTemporaryDirectory()))
         XCTAssertTrue(VolumeReach.answers("/Users"))
