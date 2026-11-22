@@ -134,6 +134,8 @@ struct ArchivesSection: View {
         Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([url]) }
         Button("New Rolls by Day") { lab.newRollsByDay(for: .folder(path, archive: archive.id)) }
         if let entry, lab.projects.roots(of: archive).contains(url) {
+            // Qlick Lab: where the Folder is now (another disk holding the copy, the disk under another name).
+            Button("Locate Folder…") { lab.locateFolderPanel(entry.folder, archive: archive.id) }
             RollMoveMenu(lab: lab, project: archive, roll: entry)
             Divider()
             Button("Remove the Folder from the Archive") { lab.projects.removeRoll(entry.id, from: archive.id) }

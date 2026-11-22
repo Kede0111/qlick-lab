@@ -213,6 +213,9 @@ import AppKit
             let path = URL(fileURLWithPath: rest, isDirectory: true).labStandardized.path
             if let place = lab.projects.place(of: path) { lab.open(.folder(path, archive: place.archive.id)) }
         // unfold archive <name> | folder <path> | box <path>: a row of the sidebar.
+        // locatefolder <path>: Locate Folder… on that Folder of its Archive, as from its menu.
+        case "locatefolder":
+            if let place = lab.projects.place(of: rest) { lab.locateFolderPanel(place.entry.folder, archive: place.archive.id) }
         case "unfold":
             let argument = words.dropFirst().joined(separator: " ")
             switch words.first {

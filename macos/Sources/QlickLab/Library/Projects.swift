@@ -44,6 +44,18 @@ struct BoxRoll: Codable, Identifiable, Hashable, Sendable {
 /// A Box: photographs chosen from any Archive (a portfolio, a trip, an edit for a client), held directly, in its Rolls,
 /// or in the Boxes inside it, to any depth. Kept in the catalogue only: a photograph stays where it is, and can be in
 /// any number of Boxes.
+extension LabBox {
+    /// The Box with every photograph's path passed through `move`, the Boxes and Rolls inside it too.
+    func moving(_ move: (String) -> String) -> LabBox {
+        var box = self
+        box.frames = frames.map(move)
+        box.order = order?.map(move)
+        box.boxes = boxes.map { $0.moving(move) }
+        box.rolls = rolls.map { roll in var roll = roll; roll.frames = roll.frames.map(move); return roll }
+        return box
+    }
+}
+
 struct LabBox: Codable, Identifiable, Hashable, Sendable {
     var id = UUID()
     var name: String
@@ -628,6 +640,55 @@ struct RollStats: Equatable, Sendable {
             save(ordered[index])
         }
         projects = ordered
+    }
+
+    // MARK: Locating a Folder
+
+    /// A path under `old` as it is under `new`: the Folder found elsewhere (another disk holding the same copy, a disk
+    /// mounted under another name).
+    nonisolated static func moved(_ path: String, from old: String, to new: String) -> String {
+        if path == old { return new }
+        guard path.hasPrefix(old + "/") else { return path }
+        return new + path.dropFirst(old.count)
+    }
+
+    /// Qlick Lab: Locate Folder. Every path the catalogue keeps under `old` (the Archives' Folders, the Boxes' and
+    /// Rolls' photographs, their orders, the stacks, the photographs removed from the lab) now reads under `new`.
+    /// Nothing on disk moves; the photographs' sidecars, beside them, come along with them.
+    func relocate(from old: String, to new: String) {
+        guard old != new else { return }
+        let move = { (path: String) in Self.moved(path, from: old, to: new) }
+        for index in projects.indices {
+            var project = projects[index], changed = false
+            for roll in project.rolls.indices where move(project.rolls[roll].folder) != project.rolls[roll].folder {
+                project.rolls[roll].folder = move(project.rolls[roll].folder)
+                project.rolls[roll].bookmark = nil
+                changed = true
+            }
+            if changed { projects[index] = project; save(project) }
+        }
+        replaceBoxes(boxes.map { $0.moving(move) })
+        replaceRemoved(Set(removed.map(move)))
+        replaceStacks(stacks.map { stack in var stack = stack; stack.frames = stack.frames.map(move); return stack })
+        followFolders()
+        countAll()
+    }
+
+    /// The photographs the catalogue knows under `folder`, by their paths: what a Folder found elsewhere should hold.
+    func knownPhotographs(under folder: String, also more: [String] = []) -> Set<String> {
+        let prefix = folder + "/"
+        var paths = Set(more.filter { $0.hasPrefix(prefix) })
+        func add(_ box: LabBox) {
+            paths.formUnion(box.frames.filter { $0.hasPrefix(prefix) })
+            for roll in box.rolls { paths.formUnion(roll.frames.filter { $0.hasPrefix(prefix) }) }
+            box.boxes.forEach(add)
+        }
+        boxes.forEach(add)
+        for roll in projects.flatMap(\.rolls) where roll.folder == folder || roll.folder.hasPrefix(prefix) {
+            let root = roll.folder
+            paths.formUnion((stats[roll.id]?.names ?? []).map { root + "/" + $0 })
+        }
+        return paths
     }
 
     // MARK: Undo

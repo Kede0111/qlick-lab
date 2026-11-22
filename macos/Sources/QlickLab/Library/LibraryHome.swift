@@ -458,7 +458,14 @@ private struct RollCard: View {
                 }
                 if let stats {
                     if stats.missing {
-                        Text(VolumeReach.offline(roll.folder) ? "Offline: “\(VolumeReach.volumeName(of: roll.folder))” \(VolumeReach.isSilent(roll.folder) ? "isn’t answering" : "isn’t connected")" : "Folder not found").font(.system(size: 11.5)).foregroundStyle(Theme.warn)
+                        HStack(spacing: 8) {
+                            Text(VolumeReach.offline(roll.folder) ? "Offline: “\(VolumeReach.volumeName(of: roll.folder))” \(VolumeReach.isSilent(roll.folder) ? "isn’t answering" : "isn’t connected")" : "Folder not found").font(.system(size: 11.5)).foregroundStyle(Theme.warn)
+                                .lineLimit(1)
+                            // Qlick Lab: where it is now (another disk holding the copy).
+                            Button("Locate…") { lab.locateFolderPanel(roll.folder, archive: project.id) }
+                                .buttonStyle(.plain).font(.system(size: 11.5, weight: .semibold)).foregroundStyle(Theme.paper)
+                                .help("Point the Archive at where this folder is now; its Boxes and Rolls follow")
+                        }
                     } else {
                         HStack(spacing: 9) {
                             Text(stats.total == 1 ? "1 frame" : "\(stats.total) frames").font(Theme.value(11.5)).foregroundStyle(Theme.dim)

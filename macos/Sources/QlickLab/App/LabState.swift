@@ -691,9 +691,18 @@ struct SheetOptions: Codable, Equatable, Sendable {
     /// Opens a Folder on its contact sheet.
     func open(_ roll: LabRoll, in project: LabProject) {
         guard let folder = projects.resolve(roll, in: project.id) else {
-            model.error = VolumeReach.isSilent(roll.folder)
-                ? "The folder “\(roll.name)” can’t be opened now: its disk, “\(VolumeReach.volumeName(of: roll.folder))”, isn’t answering."
-                : "The folder “\(roll.name)” can't be found. It may have moved, or its disk isn't connected."
+            // Qlick Lab: offered at once, where it can be put right: Locate Folder.
+            let offline = VolumeReach.offline(roll.folder)
+            let why = offline ? "Its disk, “\(VolumeReach.volumeName(of: roll.folder))”, \(VolumeReach.isSilent(roll.folder) ? "isn’t answering" : "isn’t connected")."
+                : "It may have been moved or renamed."
+            Task { [weak self] in
+                guard let self else { return }
+                let answer = await self.model.ask(AppAlert(
+                    title: "The folder “\(roll.name)” is \(offline ? "offline" : "not found")",
+                    detail: why + " If a copy of it is elsewhere, Locate Folder points the Archive there; its Boxes and Rolls follow.",
+                    buttons: [.init(title: "Locate Folder…"), .init(title: "Cancel", role: .cancel)]))
+                if answer.button == 0 { self.locateFolderPanel(roll.folder, archive: project.id) }
+            }
             return
         }
         open(folder: folder)
