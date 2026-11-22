@@ -289,7 +289,8 @@ extension LabState {
         let file = LastImportFile.read(inCatalog: projects.directory)
         let paths = file?.photos ?? importer.ledger.lastImport()
         let removed = projects.removed
-        let kept = paths.filter { !removed.contains($0) && FileManager.default.fileExists(atPath: $0) }
+        // A photograph on a disk that doesn't answer is kept: it's away, not gone.
+        let kept = paths.filter { !removed.contains($0) && (VolumeReach.exists($0) || VolumeReach.isSilent($0)) }
         cache.lastImport = kept
         cache.lastImportDate = file?.date ?? kept.compactMap { catalog.imported($0) }.max()
         finding = cache

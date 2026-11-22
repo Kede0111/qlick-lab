@@ -47,11 +47,11 @@ struct ArchivesSection: View {
                         rows(tree, depth: 1, archive: archive, current: current?.roll.folder)
                     } else {
                         let entry = lab.projects.folder(root.path, in: archive)
-                        let missing = !FileManager.default.fileExists(atPath: root.path)
+                        let missing = !VolumeReach.exists(root.path)
                         SidebarRow(symbol: missing ? "questionmark.folder" : "folder", name: entry.name, depth: 1,
                                    count: missing ? nil : lab.projects.stats[entry.id]?.total, on: current?.roll.folder == root.path,
                                    action: { lab.open(.folder(root.path, archive: archive.id)) })
-                            .help(missing ? "Folder not found: its disk may not be connected" : root.path)
+                            .help(missing ? (VolumeReach.isSilent(root.path) ? "Its disk isn’t answering" : "Folder not found: its disk may not be connected") : root.path)
                             .sidebarDrop(lab, .folder(root.path, archive: archive.id), depth: 1, drags: .folder(root.path, archive: archive.id),
                                          symbol: "folder", name: entry.name)
                             .contextMenu { folderMenu(root.path, archive: archive) }
