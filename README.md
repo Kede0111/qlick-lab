@@ -17,7 +17,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/develop.webp" alt="Qlick Lab developing a Leica M11 DNG on Kodak Portra 400, printed on Kodak Portra Endura paper">
+  <img src="docs/screenshots/develop-glass.webp" alt="Qlick Lab developing a Leica M11 DNG on Kodak Portra 400, with Liquid Glass panels">
 </p>
 
 Qlick Lab develops your digital photographs the way a film lab develops negatives. It doesn't lay a filter over
