@@ -186,7 +186,7 @@ extension LabState {
         let file = item.photoFile
         let path = file.labStandardized.path
         var folders: [String: FolderFacts] = [:]
-        var record = catalog.photos[path].map { record(of: $0, folders: &folders) } ?? {
+        var record = catalog.photos[path].map { self.record(of: $0, folders: &folders) } ?? {
             var record = PhotoRecord(path: path)
             if let facts = facts.get(file) { fill(&record, facts: facts) }
             let folder = folderFacts((path as NSString).deletingLastPathComponent, memo: &folders)
