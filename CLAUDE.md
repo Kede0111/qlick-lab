@@ -48,7 +48,7 @@ deleted by the app (import may create folders; the one exception is "Remove reje
 
 ## Architecture
 
-Two processes: the Swift app (`macos/Sources/QlickLab`, AppKit at the root, SwiftUI in `Lab/`) and the Rust engine
+Two processes: the Swift app (`macos/Sources/QlickLab`, one folder per role: App, Library, Import, ContactSheet, Develop, Compare, Recipes, Print, Export, Engine, Files, Design) and the Rust engine
 (`crates/`: math → model → core → gpu, io; `spektrafilm-native` is the helper the app talks to in JSON lines,
 `spektrafilm-cli` the export tools). Details in `docs/architecture.md`; the sidecar format in `docs/sidecar-format.md`;
 contributors' rules in `CONTRIBUTING.md`. Keep the engine in Rust and the interface in Swift: no rewrite of the app.
@@ -78,5 +78,7 @@ what's done and next, decisions. Update it at the end of each phase.
 - Commit or push only when the user says so. After each finished change that is committed, install it for the user to
   try (except during work tracked in `docs/handoff/HANDOFF.md`, which says to use the Dev copy): `scripts/install.sh` builds, puts `/Applications/Qlick Lab.app` in place (an open one is quit first and
   reopened behind) and links it as `Qlick Lab.app` in the working folder.
-- Releases: raise `scripts/version`, add the entry to `CHANGELOG.md`, `scripts/make_dmg.sh`, then attach
-  `dist/Qlick-Lab-<version>.dmg` to a GitHub release tagged `v<version>`.
+- Releases: raise `scripts/version`, add the entry to `CHANGELOG.md`, `scripts/make_dmg.sh` (it signs the DMG with the
+  update key in Quentin's Keychain and writes `dist/appcast.xml`), then attach **both** `dist/Qlick-Lab-<version>.dmg`
+  and `dist/appcast.xml` to a GitHub release tagged `v<version>`: the installed apps read the latest release's
+  appcast to offer the update. Never put the update feed in a Dev copy.

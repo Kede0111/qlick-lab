@@ -2,16 +2,19 @@
 
 Read this first, then `CLAUDE.md` and `docs/architecture.md`. Update it at the end of every phase (keep it short).
 
-## Ground rules (Quentin, 2026-11-19)
+## Where things stand (2026-11-22)
 
-- **Local only.** Nothing is pushed to GitHub until Quentin says so. `main` is never changed.
-- Work happens on local branches: `refactor/architecture` (from `main` at `fc6cb1e`, 0.1.4), then
-  `feature/import-library` branched from it. One local commit per phase.
-- **Never overwrite the installed app.** Don't run `scripts/install.sh` during this work. Test builds:
-  `scripts/build_app.sh --dev` → `dist/qlick-lab-dev/Qlick Lab Dev.app` (bundle id `be.jackfrom.qlicklab.dev`: its
-  own preferences and Application Support). Tell Quentin to open that one.
-- Talk to Quentin in French; the app's interface stays in English.
-- To go back: `git checkout main`.
+- **0.2.0 is released.** Everything below (architecture waves, 0.1.5 to 0.4, lab structure, speed, catalogues, NAS)
+  is on `main`, pushed to GitHub (PR Kede0111/qlick-lab#4, fast-forward) and tagged `v0.2.0`. The development
+  branches are gone; new work starts from `main`.
+- **Updates are on** (Sparkle 2.10, EdDSA): `scripts/build_app.sh` writes `SUFeedURL`
+  (`releases/latest/download/appcast.xml`), `SUPublicEDKey` and `SUEnableAutomaticChecks` into every build but the
+  Dev copies; `scripts/make_dmg.sh` signs the DMG with the private key in Quentin's login Keychain and writes
+  `dist/appcast.xml`. **Every release attaches both the DMG and appcast.xml**, or the apps out there see nothing new.
+- Talk to Quentin in French; the app's interface stays in English. Commit, push and release only when he says so.
+- `scripts/build_app.sh --dev` (Qlick Lab Dev, its own bundle id and data) stays the copy to try work in progress.
+
+The sections below are the history of how 0.2.0 was built: decisions and file names worth keeping.
 
 ## Sources
 
