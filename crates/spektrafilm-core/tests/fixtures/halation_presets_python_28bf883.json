@@ -1095,6 +1095,23 @@
    ]
   },
   {
+   "stock": "leica_monopan_50",
+   "use": "still",
+   "antihalation": "strong",
+   "is_film": true,
+   "is_bw": true,
+   "halation_first_sigma_um": [
+    65.0,
+    65.0,
+    65.0
+   ],
+   "halation_strength": [
+    0.015,
+    0.005,
+    0.0
+   ]
+  },
+  {
    "stock": "lomography_color_100",
    "use": "still",
    "antihalation": "strong",

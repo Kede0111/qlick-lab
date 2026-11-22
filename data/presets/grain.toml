@@ -137,6 +137,12 @@ rms_granularity = [8.0]
 [fujifilm_acros_100_ii]
 rms_granularity = [7.0]
 
+# Qlick Lab: neither Leica nor ADOX publishes an RMS granularity for Monopan 50
+# / HR-50 (a technical emulsion resolving 280 lp/mm). 5 is an assumption, finer
+# than Acros 100 II's 7; adjust by eye against real scans.
+[leica_monopan_50]
+rms_granularity = [5.0]
+
 # --- Negs only, not upstream: the colour films ported from Fotufilm (CC BY-SA
 # 4.0, MUAStudio Inc.), scaled to this table from the stocks both share (see
 # the upstream note handoff-fotufilm-grain.md (docs/README.md)). Where Fotufilm's grainStrength is the

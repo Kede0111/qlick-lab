@@ -1,0 +1,18 @@
+{
+  "source_exposure_origin": 1.9728497966698781,
+  "sensitivity_log_shift": -2.5372210379491356,
+  "base_plus_fog": 0.17184158092411836,
+  "max_source_density_error": 0.004795159602561605,
+  "minimum_sampled_net_density": 0.0016498226593395294,
+  "tolerance": 0.01,
+  "density_range_total": [
+    0.17349140358345788,
+    1.499675743901676
+  ],
+  "speed_point_logE_net_0_1": -1.3184568772757714,
+  "sensitivity_range_nm": [
+    331.302225463,
+    778.5831254
+  ],
+  "sha256": "a70af7f8bf134505b759f5f70693690deffc3aa72b0f0517dedcfe0bf86ba339"
+}
