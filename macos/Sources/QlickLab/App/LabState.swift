@@ -563,6 +563,12 @@ struct SheetOptions: Codable, Equatable, Sendable {
         placesChanged += 1
     }
 
+    /// Back and Forward start again: another catalogue's places lead nowhere in this one.
+    func forgetPlaces() {
+        places = []; placeIndex = -1
+        placesChanged += 1
+    }
+
     func goBack() { if canGoBack { walk(to: placeIndex - 1) } }
     func goForward() { if canGoForward { walk(to: placeIndex + 1) } }
 
@@ -603,11 +609,13 @@ struct SheetOptions: Codable, Equatable, Sendable {
             guard answer.button == 1, projects.projects.contains(where: { $0.id == project.id }) else { return }
             let others = Set(projects.projects.filter { $0.id != project.id }.flatMap { $0.rolls.map(\.folder) })
             let folders = projects.photoFolders(of: project).filter { !others.contains($0.standardizedFileURL.path) }
-            // What's open of it closes: its contact sheet, its photograph.
+            // What's open of it closes: its contact sheet, its photograph, and a list (All Photographs, a day…) left
+            // with nothing of the catalogue's in it.
             let showing = workingArchive?.id == project.id
             if showing { model.closeFolder() }
             previewBuilder.cancel(); proxyMaker.cancel()
             projects.remove(project.id)
+            closeWhatLeftTheCatalog(gone: project.rolls.map { URL(fileURLWithPath: $0.folder, isDirectory: true) })
             if showing || workspace == .contactSheet || workspace == .develop { show(.library) }
             // The cache and the import's memory, off the main thread: a disk on the network answers slowly.
             importer.ledger.forget(folders: Set(folders.map { $0.standardizedFileURL.path }))
@@ -621,6 +629,33 @@ struct SheetOptions: Codable, Equatable, Sendable {
                     }
                 }
             }
+        }
+    }
+
+    /// What's open that the catalogue no longer holds closes: a list of its own left empty or naming what's gone,
+    /// another catalogue's list, a folder (or a photograph open alone) of the Archive just removed (`gone`, its
+    /// folders) that no other Archive holds. A folder opened by hand from the disk stays.
+    func closeWhatLeftTheCatalog(gone: [URL] = []) {
+        let gonePaths = gone.map { $0.standardizedFileURL.path }
+        func wasGone(_ folder: URL) -> Bool {
+            let path = folder.standardizedFileURL.path, resolved = folder.standardizedFileURL.resolvingSymlinksInPath().path
+            guard projects.place(of: path) == nil, projects.place(of: resolved) == nil else { return false }
+            return !projects.isOpen || gonePaths.contains { path == $0 || path.hasPrefix($0 + "/") || resolved == $0 || resolved.hasPrefix($0 + "/") }
+        }
+        if let directory = (model.libraryRoot ?? model.library.directory)?.standardizedFileURL {
+            let views = projects.directory.appendingPathComponent("Views", isDirectory: true).standardizedFileURL.path
+            if PhotoFolder.isList(directory) || directory.path.hasPrefix(views + "/") {
+                guard projects.isOpen, directory.path.hasPrefix(views + "/"), let view = projects.view(of: directory) else {
+                    model.closeFolder(); return
+                }
+                if view.holder != nil { return libraryChanged() }
+                let sources = PhotoFolder.sources(ofList: projects.viewFolder(for: view)) ?? []
+                if sources.isEmpty { model.closeFolder() } else { model.library.refreshNow() }
+            } else if wasGone(directory) {
+                model.closeFolder()
+            }
+        } else if let source = model.source, wasGone(source.deletingLastPathComponent()) {
+            model.forgetPhotograph()
         }
     }
 
@@ -703,6 +738,8 @@ struct SheetOptions: Codable, Equatable, Sendable {
 
     /// Folders dropped on the window or chosen in the panel: Folders of `project`, or of a new Archive that asks its name.
     func importFolders(_ urls: [URL], into project: UUID? = nil) {
+        // No catalogue open: nothing can join one (the window asks for one first).
+        guard projects.isOpen else { return NSSound.beep() }
         let folders = urls.filter { (try? $0.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory == true }
         // A photograph dropped alone opens.
         guard !folders.isEmpty else {
@@ -759,9 +796,13 @@ struct SheetOptions: Codable, Equatable, Sendable {
         }
     }
 
-    func newArchive() { naming = Naming(kind: .archive, name: projects.uniqueName("New Archive")) }
+    func newArchive() {
+        guard projects.isOpen else { return NSSound.beep() }
+        naming = Naming(kind: .archive, name: projects.uniqueName("New Archive"))
+    }
 
     func importPanel(into project: UUID? = nil) {
+        guard projects.isOpen else { return NSSound.beep() }
         let panel = NSOpenPanel()
         panel.title = "Import a Folder"
         panel.message = "Choose a folder of photographs. Import opens on it: copy it, move it, or leave it where it is."

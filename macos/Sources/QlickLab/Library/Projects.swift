@@ -224,16 +224,52 @@ struct RollStats: Equatable, Sendable {
 
     // MARK: Files
 
-    /// Another catalog's Archives in place of these.
+    /// Another catalog's Archives in place of these. Nothing of the one before stays: its Archives, Boxes, removed
+    /// photographs, stacks, counts and the folders followed on disk all go first (one catalogue at a time).
     func open(directory: URL) {
+        forget()
+        self.directory = directory
+        isOpen = true
+        load()
+    }
+
+    /// Whether a catalogue is open. Closed (File › Close Catalog), the lab holds nothing: no Archive, no Box, and the
+    /// window asks which catalogue to open (`NoCatalogView`).
+    private(set) var isOpen = true
+
+    /// Where a closed lab points: an empty folder of its own in the temporary folder, never a catalogue, so nothing
+    /// written while closed can land in one.
+    nonisolated static var noCatalogDirectory: URL {
+        FileManager.default.temporaryDirectory.appendingPathComponent("Qlick Lab No Catalog", isDirectory: true)
+    }
+
+    /// Closes the catalogue: everything it held is forgotten (its files stay as they are).
+    func close() {
+        forget()
+        try? FileManager.default.removeItem(at: Self.noCatalogDirectory)
+        directory = Self.noCatalogDirectory
+        isOpen = false
+        followFolders()
+    }
+
+    private func forget() {
         counting.values.forEach { $0.cancel() }
+        projects = []
         boxes = []
         removed = []
         stacks = []
         counting = [:]
         stats = [:]
-        self.directory = directory
-        load()
+    }
+
+    /// Whether the photograph at `url` is one of this catalogue's: in a folder of one of its Archives, and not removed
+    /// from the lab. What the lab shows is always the open catalogue's (a photograph of another isn't reopened).
+    func holds(_ url: URL) -> Bool {
+        guard isOpen else { return false }
+        let file = url.standardizedFileURL
+        let paths = [file.path, file.resolvingSymlinksInPath().path]
+        if paths.contains(where: removed.contains) { return false }
+        return paths.contains { place(of: ($0 as NSString).deletingLastPathComponent) != nil }
     }
 
     func load() {

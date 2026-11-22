@@ -52,28 +52,75 @@ import UniformTypeIdentifiers
 }
 
 extension LabState {
-    var catalogName: String { CatalogList.name(of: projects.directory) }
+    var catalogName: String { projects.isOpen ? CatalogList.name(of: projects.directory) : "No Catalog" }
 
-    /// Opens a catalog: its projects take the sidebar's and the library's place.
+    /// Opens a catalog in place of the one open, which closes whole first: one catalogue at a time.
     func openCatalog(_ url: URL) {
-        guard !model.cropping else { NSSound.beep(); return }
         var directory = url.standardizedFileURL
         if directory.pathExtension.lowercased() != CatalogList.fileExtension, directory != CatalogList.defaultDirectory.standardizedFileURL,
            (try? directory.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory != true { return }
-        if directory.path == projects.directory.standardizedFileURL.path { return show(.library) }
+        if projects.isOpen, directory.path == projects.directory.standardizedFileURL.path { return show(.library) }
         // A disk that doesn't answer isn't waited for: the catalogue open stays.
         guard VolumeReach.answers(directory.path, patience: 1.5) else {
             model.error = "The catalog “\(CatalogList.name(of: directory))” can’t be opened: its disk, “\(VolumeReach.volumeName(of: directory.path))”, isn’t answering."
             return
         }
+        guard leaveCatalog() else { return }
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         directory = directory.standardizedFileURL
         projects.open(directory: directory)
         projects.sidecars = model.sidecarLookup?.store
         projects.countAll()
         importer.loadProfiles(inCatalog: directory)
+        followNewCatalog()
         catalogs.remember(directory)
         show(.library)
+    }
+
+    /// File › Close Catalog: the catalogue closes whole and the lab stays open, holding nothing, until another is
+    /// opened (`NoCatalogView`). The next launch opens the last catalogue open, as before.
+    func closeCatalog() {
+        guard projects.isOpen, leaveCatalog() else { return }
+        projects.close()
+        followNewCatalog()
+        show(.library)
+    }
+
+    /// Closes everything the open catalogue showed or was doing, before another takes its place: the photograph
+    /// and its folder or list, the loupe, the comparison, Back and Forward, the undo steps, the background work on
+    /// its photographs, what Import had chosen in it, its lists. False (and nothing changes) while that can't be done:
+    /// a crop under way, an import running.
+    @discardableResult func leaveCatalog() -> Bool {
+        if model.cropping { NSSound.beep(); return false }
+        if importer.isBusy {
+            model.error = "An import is under way in “\(catalogName)”. Let it finish, or stop it, before changing catalog."
+            return false
+        }
+        model.closeFolder()
+        // A photograph opened alone (not from a folder) closes too.
+        model.forgetPhotograph()
+        loupe = nil
+        compare = CompareSetup()
+        gamutCheck = nil
+        copiedPhotos = []
+        foundQuery = ""; libraryQuery = ""
+        naming = nil; smartRollDraft = nil
+        sidebarFold = SidebarFold()
+        forgetPlaces()
+        model.undoManager?.removeAllActions()
+        previewBuilder.cancel(); proxyMaker.cancel()
+        importer.forgetCatalog()
+        PhotoFolder.forgetLists()
+        return true
+    }
+
+    /// The index and what's worked out from it follow the catalogue now, not a moment later: nothing of the one
+    /// before is listed meanwhile (All Photographs, Picks, By Date, the search).
+    private func followNewCatalog() {
+        catalogDirectory = projects.directory.standardizedFileURL.path
+        catalog.open(catalog: projects.directory, cache: projects.isOpen && NSClassFromString("XCTestCase") == nil)
+        finding = FindingCache()
+        if projects.isOpen { catalog.refresh(after: .milliseconds(300)) }
     }
 
     func newCatalogPanel() {
@@ -107,6 +154,7 @@ extension LabState {
     /// Saves the open catalog. Projects are written as they change, so this flushes them and, for the default
     /// catalog, which has no file of its own to name, asks where to keep a copy.
     func saveCatalog() {
+        guard projects.isOpen else { return }
         if projects.directory.standardizedFileURL == CatalogList.defaultDirectory.standardizedFileURL { return saveCatalogAsPanel() }
         projects.saveAll()
         catalogs.remember(projects.directory)
@@ -127,6 +175,7 @@ extension LabState {
     }
 
     func saveCatalog(as url: URL) {
+        guard projects.isOpen else { return }
         let fm = FileManager.default
         do {
             if fm.fileExists(atPath: url.path) { try fm.removeItem(at: url) }

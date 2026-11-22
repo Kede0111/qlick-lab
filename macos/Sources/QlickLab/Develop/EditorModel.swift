@@ -589,6 +589,8 @@ import UserNotifications
     /// doesn't fit it; `start` then restores it as before.
     func restoreAtLaunch(_ session: EditorSession) -> Bool {
         guard hasCatalog, launching, !ready, !explicitOpenRequested, !closing, source == nil else { return false }
+        // Qlick Lab: a photograph of another catalogue (or one removed from this one) isn't reopened.
+        guard restores(session) else { return true }
         let before = LaunchRestoreBaseline(state: state, inspectorVisible: inspectorVisible, fitImage: fitImage, status: status, recentFiles: recentFiles)
         restoringAtLaunch = true
         defer { restoringAtLaunch = false }
@@ -676,7 +678,7 @@ import UserNotifications
             // parameters before ready/changed so no default render is wasted.
             if let restoration, !explicitOpenRequested {
                 do {
-                    if let session = try await restoration.value, !explicitOpenRequested, !closing {
+                    if let session = try await restoration.value, !explicitOpenRequested, !closing, restores(session) {
                         try restore(session)
                     }
                 } catch {

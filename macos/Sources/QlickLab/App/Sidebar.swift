@@ -245,10 +245,11 @@ private struct CatalogMenu: View {
         Menu {
             Button("New Catalog…") { lab.newCatalogPanel() }
             Button("Open Catalog…") { lab.openCatalogPanel() }
-            Button("Save Catalog As…") { lab.saveCatalogAsPanel() }
+            Button("Save Catalog As…") { lab.saveCatalogAsPanel() }.disabled(!lab.projects.isOpen)
+            Button("Close Catalog") { lab.closeCatalog() }.disabled(!lab.projects.isOpen)
             Divider()
             ForEach([CatalogList.defaultDirectory] + lab.catalogs.recent, id: \.self) { url in
-                Button(CatalogList.name(of: url) + (url.standardizedFileURL == lab.projects.directory.standardizedFileURL ? "  ✓" : "")) { lab.openCatalog(url) }
+                Button(CatalogList.name(of: url) + (lab.projects.isOpen && url.standardizedFileURL == lab.projects.directory.standardizedFileURL ? "  ✓" : "")) { lab.openCatalog(url) }
             }
         } label: {
             Text(lab.catalogName + "  ⌄").font(.system(size: 10.5)).foregroundStyle(Theme.dim).lineLimit(1)

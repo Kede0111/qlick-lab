@@ -50,6 +50,7 @@ extension LabState {
     var selectionTargets: [URL] { model.ratingTargets.map(\.photoFile) }
 
     func newBox(in parent: UUID? = nil, with frames: [URL] = []) {
+        guard projects.isOpen else { return NSSound.beep() }
         naming = Naming(kind: .box(in: parent), name: projects.uniqueBoxName("New Box", in: parent), frames: frames)
     }
 

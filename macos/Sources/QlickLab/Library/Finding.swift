@@ -339,6 +339,7 @@ extension LabState {
 
     /// The rule editor, for a new Smart Roll (in `box`, or in the Box “Smart Rolls”) or one to change.
     func newSmartRoll(in box: UUID? = nil, rules: RuleGroup? = nil, name: String = "Smart Roll") {
+        guard projects.isOpen else { return NSSound.beep() }
         let rules = rules ?? RuleGroup(match: .all, rules: [PhotoField.rating.startingRule])
         smartRollDraft = SmartRollDraft(editing: nil, name: name, rules: rules, box: box)
     }

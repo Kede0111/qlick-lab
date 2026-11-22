@@ -53,6 +53,11 @@ enum PhotoFolder {
         listsLock.lock(); defer { listsLock.unlock() }
         lists[list.standardizedFileURL.path] = sources
     }
+    /// Qlick Lab: every list forgotten, when a catalogue closes: its lists name its photographs only.
+    static func forgetLists() {
+        listsLock.lock(); defer { listsLock.unlock() }
+        lists = [:]
+    }
     static func sources(ofList directory: URL) -> [URL]? {
         listsLock.lock(); defer { listsLock.unlock() }
         return lists[directory.standardizedFileURL.path]
@@ -401,7 +406,7 @@ struct PhotoBrowser: View {
             // Only an active filter waits for the ratings.
             if library.loading || library.filtering { ProgressView().controlSize(.small) }
             else if library.failed { StripNote(text: "This folder couldn’t be read.") }
-            else if library.files.isEmpty { StripNote(text: "No supported photographs in this folder.") }
+            else if library.files.isEmpty { StripNote(text: library.directory == nil ? "Nothing open. Choose an Archive, a Box or a Roll in the sidebar." : "No supported photographs in this folder.") }
         }
         .disabled(model.cropping)
         .accessibilityLabel("Film Strip")

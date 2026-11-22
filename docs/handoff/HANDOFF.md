@@ -577,6 +577,25 @@ unplugging: `QLICK_SILENT_VOLUME=/Volumes/Name QLICK_SILENT_SECONDS=20`. Launch 
   PanelSection), Settings laid out as RedLamp's (About with "Check for updates automatically"), RedLamp's shortcut
   editor. They touch files the `feature/lab-structure` worktree changed without committing.
 
+### One catalogue at a time (2026-11-22, `feature/speed-redlamp`)
+
+Quentin: Archives all removed, yet the sheet, Develop and the strip still showed 1,519 photographs; "one catalogue
+loaded at a time, as in Lightroom, and a way to close it without quitting". Causes: `openCatalog` swapped the
+Archives but left the open folder or list, the photograph, Back/Forward, the undo steps, the background work, Import's
+choices and the registered lists of the catalogue before; removing an Archive closed only a Folder of it (not All
+Photographs, a day, Picks…); the session reopened the last photograph at launch whatever the catalogue.
+- `LabState.leaveCatalog()` (Library/Catalogs.swift) closes all of that before another catalogue opens; refused during
+  a crop or an import. The index follows at once (`followNewCatalog`).
+- File › Close Catalog (⌥⇧⌘W) and in the sidebar's catalogue menu: `ProjectStore.close()` (`isOpen` false, directory a
+  temporary empty folder), `NoCatalogView` covers every room (Open / New / recent catalogues); creating an Archive,
+  Box, Smart Roll or importing beeps while closed. The next launch opens the last catalogue open.
+- `closeWhatLeftTheCatalog(gone:)` after removing an Archive; `libraryChanged` closes a list of the catalogue left
+  empty. A folder opened by hand from the disk stays.
+- `EditorSession.catalog`: the photograph is reopened only in its catalogue (`EditorModel.restores`); sessions from
+  before need the photograph to be one of the open catalogue's (`ProjectStore.holds`).
+- An empty sheet with nothing open says "Nothing open. Choose an Archive, a Box or a Roll in the sidebar."
+- Automation: `catalog close`; `state` has `open=`, `listed=`, `source=`. Tests: 596 (`CatalogIsolationTests`).
+
 ## Build and test
 
 ```bash

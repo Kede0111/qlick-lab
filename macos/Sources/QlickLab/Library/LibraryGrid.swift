@@ -277,7 +277,7 @@ private struct SheetGrid: View {
         .overlay {
             if library.loading || library.filtering { ProgressView() }
             else if library.failed { SheetNote(text: "This folder couldn’t be read.") }
-            else if library.files.isEmpty { if shelf == nil { SheetNote(text: "No supported photographs in this folder.") } }
+            else if library.files.isEmpty { if shelf == nil { SheetNote(text: library.directory == nil ? "Nothing open. Choose an Archive, a Box or a Roll in the sidebar." : "No supported photographs in this folder.") } }
             else if shown.isEmpty { SheetNote(text: "No photographs match the filter.") }
         }
         .accessibilityLabel("Photographs")

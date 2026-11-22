@@ -47,6 +47,8 @@ import AppKit
         let recent = file.addItem(withTitle: "Open Recent Catalog", action: nil, keyEquivalent: "")
         recent.submenu = recentCatalogs
         recentCatalogs.delegate = self
+        let close = file.addItem(withTitle: "Close Catalog", action: #selector(closeCatalog), keyEquivalent: "w")
+        close.keyEquivalentModifierMask = [.command, .option, .shift]; close.target = self
         for (title, action, key, modifiers) in [("Save Catalog", #selector(saveCatalog), "s", NSEvent.ModifierFlags([.command, .option])),
                                                 ("Save Catalog As…", #selector(saveCatalogAs), "s", [.command, .option, .shift])] {
             let item = file.addItem(withTitle: title, action: action, keyEquivalent: key)
@@ -99,13 +101,14 @@ import AppKit
     @objc private func openCatalog() { lab.openCatalogPanel() }
     @objc private func saveCatalogAs() { lab.saveCatalogAsPanel() }
     @objc private func saveCatalog() { lab.saveCatalog() }
+    @objc private func closeCatalog() { lab.closeCatalog() }
     @objc private func openRecentCatalog(_ item: NSMenuItem) { if let url = item.representedObject as? URL { lab.openCatalog(url) } }
     private let recentCatalogs = NSMenu(title: "Open Recent Catalog")
 
     func menuNeedsUpdate(_ menu: NSMenu) {
         guard menu === recentCatalogs else { return }
         menu.removeAllItems()
-        let current = lab.projects.directory.standardizedFileURL
+        let current = lab.projects.isOpen ? lab.projects.directory.standardizedFileURL : nil
         for url in [CatalogList.defaultDirectory] + lab.catalogs.recent {
             let item = menu.addItem(withTitle: CatalogList.name(of: url), action: #selector(openRecentCatalog(_:)), keyEquivalent: "")
             item.representedObject = url; item.target = self
@@ -133,6 +136,9 @@ import AppKit
             let room = (item.representedObject as? String).flatMap(Workspace.init)
             item.state = room == lab.workspace ? .on : .off
             return !model.cropping || room == .develop
+        case #selector(closeCatalog), #selector(saveCatalog), #selector(saveCatalogAs):
+            return lab.projects.isOpen && !model.cropping && !lab.importer.isBusy
+        case #selector(newProject), #selector(newBox), #selector(importFolder): return lab.projects.isOpen
         case #selector(goBack): return lab.canGoBack && !model.cropping
         case #selector(goForward): return lab.canGoForward && !model.cropping
         case #selector(printSheet): return photo && !model.library.files.isEmpty
