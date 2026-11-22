@@ -155,7 +155,7 @@ lab's black with a hairline edge.
 - Long work (thumbnails, previews, recipes on thousands of frames) runs in the background, with its progress in the
   sidebar and a Stop button.
 - **Your photos stay on your Mac.** No account, no cloud, no tracking, no analytics. The app opens the network only
-  when you click a link (GitHub, PayPal) or check for updates.
+  when you click a link (GitHub, PayPal) and to look for a new version (which you can turn off).
 
 ## Film stocks and papers
 
@@ -212,8 +212,9 @@ Kodak Vision 2383 · Vision Premier 2393 · Print Film 2302 (black and white)
 **Requirements:** macOS 14 Sonoma or later, Apple silicon or Intel. Liquid Glass needs macOS 26. A Mac with 16 GB
 of memory is comfortable for 60-megapixel RAW files.
 
-New versions are announced on the [releases page](https://github.com/Kede0111/qlick-lab/releases). In the app,
-**Qlick Lab › Check for Updates…** opens it.
+**Updates.** From 0.2.0 on, Qlick Lab checks for a new version by itself and offers to install it (signed by the
+lab, checked before it's installed). **Qlick Lab › Check for Updates…** asks at once, and **Settings › About** turns
+the automatic check off. Coming from 0.1.x, install 0.2.0 once by hand; the next ones come by themselves.
 
 ## Your files
 

@@ -106,6 +106,16 @@ sed -e "s/\$(EXECUTABLE_NAME)/$name/" -e "s/\$(PRODUCT_BUNDLE_IDENTIFIER)/$bundl
     macos/QlickLab-Info.plist > "$app/Contents/Info.plist"
 plutil -lint "$app/Contents/Info.plist" >/dev/null
 
+# Updates: the app that ships reads the releases' feed (the appcast.xml attached to the latest GitHub release, written
+# by make_dmg.sh) and checks it by itself; an update is accepted only if signed with the private key kept in the
+# Keychain of whoever makes the releases (Sparkle's generate_keys). Never in a Dev copy: an update would replace it
+# with the app that ships.
+if ! $dev; then
+    plutil -insert SUFeedURL -string "https://github.com/Kede0111/qlick-lab/releases/latest/download/appcast.xml" "$app/Contents/Info.plist"
+    plutil -insert SUPublicEDKey -string "KbESBt5iDO7Y4xkZVsV/Cfj62CQniYMvSE4HDOy94FE=" "$app/Contents/Info.plist"
+    plutil -insert SUEnableAutomaticChecks -bool YES "$app/Contents/Info.plist"
+fi
+
 # Ad-hoc signatures: the helpers first, then the app. Sparkle keeps its own.
 for tool in spektrafilm-native spektrafilm spektrafilm-f64 "$name"; do codesign --force --sign - "$app/Contents/MacOS/$tool"; done
 codesign --force --sign - "$app"
