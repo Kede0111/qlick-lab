@@ -61,9 +61,11 @@ enum VolumeReach {
     }
 
     /// Whether the disk of `path` answers within `patience` (a look at its top).
+    /// The path itself is looked at, not only the disk's top: a share whose server has gone may still answer for its
+    /// top (kept by the Mac) and never for what's under it.
     static func answers(_ path: String, patience: TimeInterval = patience) -> Bool {
-        guard let volume = volume(of: path) else { return true }
-        return look(path, patience: patience) { var info = stat(); _ = lstat(volume, &info); return true } != nil
+        guard volume(of: path) != nil else { return true }
+        return look(path, patience: patience) { var info = stat(); _ = lstat(path, &info); return true } != nil
     }
 
     /// `fileExists` that never waits long: false on a disk that doesn't answer.

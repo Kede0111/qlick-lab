@@ -74,10 +74,19 @@ struct FolderNode: Identifiable, Equatable, Sendable {
     private func watch(_ root: URL) {
         rescan(root)
         watchers[root]?.stop(); watchers[root] = nil
-        // Not followed while its disk doesn't answer: read again when it does.
-        guard VolumeReach.answers(root.path) else { return }
-        watchers[root] = FolderWatcher(root: root) { [weak self] in
-            MainActor.assumeIsolated { self?.rescan(root) }
+        // Not followed while its disk doesn't answer: read again when it does. The stream is made off the main
+        // thread: making it asks the disk for the folder's real path, which a NAS gone away never answers.
+        guard !VolumeReach.isSilent(root.path) else { return }
+        let changed: @Sendable () -> Void = { [weak self] in
+            DispatchQueue.main.async { MainActor.assumeIsolated { self?.rescan(root) } }
+        }
+        Task { [weak self] in
+            let watcher = await Task.detached(priority: .utility) { () -> FolderWatcher? in
+                guard VolumeReach.answers(root.path, patience: 3) else { return nil }
+                return FolderWatcher(root: root, changed: changed)
+            }.value
+            guard let self, self.roots.contains(root), self.watchers[root] == nil else { watcher?.stop(); return }
+            self.watchers[root] = watcher
         }
     }
 

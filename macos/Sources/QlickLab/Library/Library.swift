@@ -430,7 +430,11 @@ struct LibraryFilter: Codable, Equatable, Sendable {
         // Armed before the first listing, so arrivals during it aren't missed.
         // Qlick Lab: a list (a whole project, a selection) follows each of its folders.
         // Qlick Lab: a folder on a disk that doesn't answer isn't followed (`VolumeReach`).
-        let watchers = PhotoFolder.folders(of: directory).filter { VolumeReach.answers($0.path) }.compactMap { PhotoFolderWatcher(directory: $0) }
+        // Made off the main thread: a stream asks the disk for each folder's real path.
+        let folders = PhotoFolder.folders(of: directory)
+        let watchers = await Task.detached(priority: .userInitiated) {
+            folders.filter { VolumeReach.answers($0.path, patience: 3) }.compactMap { PhotoFolderWatcher(directory: $0) }
+        }.value
         let forwards = watchers.map { watcher in Task { for await _ in watcher.changes { continuation.yield(()) } } }
         defer {
             watchers.forEach { $0.stop() }; forwards.forEach { $0.cancel() }; continuation.finish()

@@ -3,7 +3,7 @@ import Foundation
 
 /// FSEvents also reports writes to existing children (a directory DispatchSource
 /// alone cannot tell us when a newly copied photograph finishes writing).
-final class PhotoFolderWatcher {
+final class PhotoFolderWatcher: @unchecked Sendable {
     let changes: AsyncStream<Void>
     private let continuation: AsyncStream<Void>.Continuation
     private var stream: FSEventStreamRef?
