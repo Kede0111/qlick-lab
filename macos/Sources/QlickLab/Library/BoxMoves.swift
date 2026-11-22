@@ -60,6 +60,10 @@ enum DropAction: Equatable, Sendable {
     case addArchive(UUID, to: Holder)
     /// A whole Archive dropped on the Boxes: a new Box named after it, holding its photographs.
     case newBoxFromArchive(UUID)
+    /// Qlick Lab: a Roll at the top of the Boxes, in no Box (`ProjectStore.looseID`): one moved out of its Box, or a
+    /// new one named `name` holding `frames`, the photographs of `folder`, or those of an Archive.
+    case looseRoll(UUID, from: UUID)
+    case newLooseRoll(String, frames: [URL], folder: String?, archive: UUID?)
 }
 
 /// What a drop on a row would do, said before it's done: the label under the row and the pointer's badge.
@@ -89,7 +93,7 @@ extension ProjectStore {
     /// when ⌥ is held. Nil when it would do nothing worth saying (a row dropped where it already is).
     func plan(_ item: LabDragItem, onto target: SidebarTarget, at fraction: Double, copying: Bool) -> DropPlan? {
         if target == .archives { return planOntoArchives(item) }
-        if target == .boxes { return planOntoBoxes(item) }
+        if target == .boxes { return planOntoBoxes(item, alternate: copying) }
         let edges: DropZone = fraction < 0.25 ? .before : fraction > 0.75 ? .after : .on
         let halves: DropZone = fraction < 0.5 ? .before : .after
         switch item {
@@ -273,6 +277,12 @@ extension ProjectStore {
         case .newBoxFromArchive(let id):
             guard let source = archive(id) else { return false }
             createBox(named: source.name, frames: archivePhotos(id))
+        case .looseRoll(let id, let from):
+            let loose = looseBoxID()
+            moveBoxRoll(id, from: from, into: loose, at: box(loose)?.rolls.count ?? 0)
+        case .newLooseRoll(let name, let frames, let folder, let archiveID):
+            let photos = archiveID.map(archivePhotos) ?? folder.map(folderPhotos) ?? frames
+            createRoll(named: name, in: looseBoxID(), frames: photos)
         }
         return snapshot != before
     }
@@ -291,19 +301,32 @@ extension ProjectStore {
     }
 
     /// A drop on the Boxes' heading or under them: a new Box, named after the folder, holding what's dropped.
-    private func planOntoBoxes(_ item: LabDragItem) -> DropPlan? {
+    /// A drop on the Boxes' heading or the place under them: a new Box, or with ⌥ (`alternate`) a new Roll at the top,
+    /// in no Box. A Roll from a Box goes to the top as it is; with ⌥ a new Box is made round it.
+    private func planOntoBoxes(_ item: LabDragItem, alternate: Bool) -> DropPlan? {
         switch item {
         case .photos(let urls, _):
             guard let first = urls.first else { return nil }
             let name = first.photoFile.deletingLastPathComponent().lastPathComponent
-            return DropPlan(operation: .copy, verb: "New Box", rest: "“\(name)”, \(photographs(urls.count))", action: .newBox(name, frames: urls, folder: nil))
+            if alternate {
+                return DropPlan(operation: .copy, verb: "New Roll", rest: "“\(name)”, \(photographs(urls.count)) (⌥: a Roll, not a Box)",
+                                action: .newLooseRoll(name, frames: urls, folder: nil, archive: nil))
+            }
+            return DropPlan(operation: .copy, verb: "New Box", rest: "“\(name)”, \(photographs(urls.count)) (⌥ for a Roll)", action: .newBox(name, frames: urls, folder: nil))
         case .folder(let path, let archiveID):
             let name = archive(archiveID).map { folder(path, in: $0).name } ?? (path as NSString).lastPathComponent
             if node(path)?.total == 0 { return .refused("No photographs in “\(name)”") }
-            return DropPlan(operation: .copy, verb: "New Box", rest: "“\(name)”", action: .newBox(name, frames: [], folder: path))
+            if alternate {
+                return DropPlan(operation: .copy, verb: "New Roll", rest: "“\(name)” (⌥: a Roll, not a Box)", action: .newLooseRoll(name, frames: [], folder: path, archive: nil))
+            }
+            return DropPlan(operation: .copy, verb: "New Box", rest: "“\(name)” (⌥ for a Roll)", action: .newBox(name, frames: [], folder: path))
         case .roll(let id, let from):
             guard let roll = boxRoll(id, in: from)?.roll else { return nil }
-            return DropPlan(operation: .move, verb: "New Box", rest: "“\(roll.name)” holding the Roll", action: .newBoxForRoll(id, from: from))
+            if alternate {
+                return DropPlan(operation: .move, verb: "New Box", rest: "“\(roll.name)” holding the Roll", action: .newBoxForRoll(id, from: from))
+            }
+            if from == Self.looseID { return .refused("Already at the top of the Boxes") }
+            return DropPlan(operation: .move, verb: "Move", rest: "“\(roll.name)” to the top of the Boxes (⌥ for a Box round it)", action: .looseRoll(id, from: from))
         case .box(let id):
             guard let at = place(ofBox: id), at.parent != nil else { return .refused("Already in the Boxes") }
             return DropPlan(operation: .move, verb: "Move", rest: "“\(box(id)?.name ?? "")” to the top of the Boxes", action: .placeBox(id, in: nil, at: boxes.count))
@@ -311,7 +334,10 @@ extension ProjectStore {
             return .refused("Drop the folder on Archives first")
         case .archive(let id):
             guard let source = archive(id) else { return nil }
-            return DropPlan(operation: .copy, verb: "New Box", rest: "“\(source.name)”", action: .newBoxFromArchive(id))
+            if alternate {
+                return DropPlan(operation: .copy, verb: "New Roll", rest: "“\(source.name)” (⌥: a Roll, not a Box)", action: .newLooseRoll(source.name, frames: [], folder: nil, archive: id))
+            }
+            return DropPlan(operation: .copy, verb: "New Box", rest: "“\(source.name)” (⌥ for a Roll)", action: .newBoxFromArchive(id))
         }
     }
 

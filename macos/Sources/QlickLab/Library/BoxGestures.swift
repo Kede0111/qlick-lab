@@ -122,6 +122,8 @@ extension LabState {
         case .newBox, .newBoxForRoll, .newBoxFromArchive: "New Box"
         case .rollFromArchive: "New Roll"
         case .addArchive: "Copy Photographs"
+        case .looseRoll: "Move Roll"
+        case .newLooseRoll: "New Roll"
         }
     }
 
@@ -189,7 +191,25 @@ extension LabState {
         guard !new.isEmpty else { return note("Already There", "in “\(projects.shortName(holder) ?? "")”") }
         if undoable("Add \(Self.title(new.count)) to Box", { projects.addFrames(new, to: holder); return true }) {
             note("Added", "\(photographs(new.count)) to “\(projects.shortName(holder) ?? "")”")
+            // Qlick Lab: with "One film stock per Roll", what goes into a Roll takes its look.
+            if Self.oneStockPerRoll, case .roll(let id, let box) = holder, let look = projects.boxRoll(id, in: box)?.roll.look {
+                model.labApplyLook(look, to: new)
+            }
         }
+    }
+
+    /// Settings › Photographs › Rolls › "One film stock per Roll".
+    static let oneStockKey = "qlick.oneStockPerRoll"
+    static var oneStockPerRoll: Bool { UserDefaults.standard.bool(forKey: oneStockKey) }
+
+    /// A Roll's look chosen from its menu: kept on the Roll and given to its photographs.
+    func setRollLook(_ look: String, of holder: Holder) {
+        guard case .roll(let id, let box) = holder else { return }
+        projects.changeBox(box) { b in
+            if let i = b.rolls.firstIndex(where: { $0.id == id }) { b.rolls[i].look = look }
+        }
+        let photos = projects.frames(of: holder).map { URL(fileURLWithPath: $0) }
+        model.labApplyLook(look, to: photos)
     }
 
     /// Remove from Box: out of the Box or Roll open (a Box's own photographs: its Boxes' and Rolls' stay). The files stay.

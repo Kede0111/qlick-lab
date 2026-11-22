@@ -24,7 +24,7 @@ struct PrintPanel: View {
                     if model.source != nil {
                         PrintFileSection(revision: $fileRevision)
                         PrintColourSection(model: model)
-                        ImageSizeSection(model: model)
+                        ImageSizeSection(model: model, revision: $fileRevision)
                         PrintFrameSection(model: model)
                     } else {
                         HintText("Open a photograph in the Lab, or choose frames on the contact sheet: their size and border are set here.")
@@ -204,10 +204,8 @@ struct PrintFileSection: View {
     @State private var format = OutputFormat.last
     @State private var depth = SaveSettings.bitDepth(for: OutputFormat.last)
     @State private var quality = SaveSettings.lastQuality
-    @State private var size = ExportSize.last
 
     static let qualities = [100, 95, 90, 85, 80, 70, 60]
-    static let pixels = [1080, 1600, 2048, 2560, 3000, 4096, 6000]
 
     var body: some View {
         InkSection(title: "File") {
@@ -227,16 +225,6 @@ struct PrintFileSection: View {
                           help: "Higher keeps more detail, in a larger file") { tag in
                     let next = Int(tag) ?? 95
                     quality = next; SaveSettings.lastQuality = next; revision += 1
-                }
-            }
-            ChoiceRow(title: "Size", items: ExportSize.Edge.allCases.map { .option($0.title, tag: $0.rawValue) }, selection: size.edge.rawValue,
-                      help: "Full size, or fitted to a number of pixels on the long or the short edge, border included") { tag in
-                guard let edge = ExportSize.Edge(rawValue: tag) else { return }
-                size.edge = edge; ExportSize.last = size; revision += 1
-            }
-            if size.edge != .full {
-                ChoiceRow(title: "Pixels", items: Self.pixels.map { .option("\($0) px", tag: "\($0)") }, selection: "\(size.pixels)") { tag in
-                    size.pixels = Int(tag) ?? size.pixels; ExportSize.last = size; revision += 1
                 }
             }
         }

@@ -7,21 +7,21 @@ extension Theme {
     /// The colour tokens as sRGB 0xRRGGBB, for AppKit, the contrast tests and the hex lookups.
     enum Hex {
         /// The sheet the photograph lies on (canvas, grid).
-        static let bg: UInt32 = 0x0a0a0b
+        static let bg: UInt32 = 0x000000
         /// The inspector and the lab's surfaces, a shade lighter than the sheet; also the alert sheet.
-        static let panel: UInt32 = 0x131314
+        static let panel: UInt32 = 0x121212
         /// The film's black: the strip, the tray, the leader, the contact sheet.
         static let film: UInt32 = 0x000000
         /// Hairlines between sections and modules.
-        static let line: UInt32 = 0x28282a
+        static let line: UInt32 = 0x333333
         /// Slider track, outlines, separators, outlined buttons. Only on things whose words or shape already say what they are.
-        static let track: UInt32 = 0x444447
+        static let track: UInt32 = 0x474747
         /// The faintest words and marks: disabled hints, empty states.
         static let faint: UInt32 = 0x525252
         /// Values at their default, hints, secondary words, capital labels.
-        static let dim: UInt32 = 0x8a8a8f
+        static let dim: UInt32 = 0x808080
         /// Control labels.
-        static let label: UInt32 = 0xb9b9be
+        static let label: UInt32 = 0xbababa
         /// What's being read: names, changed values, the focus box.
         static let paper: UInt32 = 0xf0f0f0
         /// The lab's red, the pencil: the active, the selected, the main action. Never decoration. The sRGB value is the Display P3 red brought into sRGB.
@@ -31,7 +31,7 @@ extension Theme {
         /// Words on the red.
         static let onAccent: UInt32 = 0xffffff
         /// A tile not yet developed.
-        static let blank: UInt32 = 0x1a1a1c
+        static let blank: UInt32 = 0x1a1a1a
         /// A raised surface: a disabled main button, a lifted card.
         static let raised: UInt32 = 0x1d1d1d
     }

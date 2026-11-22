@@ -136,7 +136,7 @@ extension EditorModel {
     /// With `adapting`, each photograph also gets its own Auto white balance (RAW files) and its exposure matched
     /// to the camera's, Exposure at 0: the recipe's look on photographs taken in any light.
     func labApply(_ preset: PresetFile, to items: [URL], adapting: Bool = false) {
-        guard canChangePresets, canChangeEdits, !items.isEmpty, let engine else { return }
+        guard canChangePresets, canChangeOthers, !items.isEmpty, let engine else { return }
         // A new recipe replaces the one still being applied: it stops after its batch, and this one starts.
         applyTask?.cancel()
         let previous = applyTask
@@ -188,6 +188,27 @@ extension EditorModel {
                 self.report(error)
             }
         }
+    }
+
+    /// Qlick Lab: a film stock on several photographs (a Roll's look), as one undo step, those on screen first. Each
+    /// keeps its paper and every other setting; only the film changes.
+    func labApplyFilm(_ film: String, to items: [URL]) {
+        guard canChangeOthers, !items.isEmpty, films.contains(where: { $0.id == film }) else { return }
+        let name = films.first { $0.id == film }?.name ?? film
+        Task { [weak self] in
+            guard let self else { return }
+            let before = await self.changeEditsInBatches(items, title: "Loading “\(name)”") { _, base in
+                var next = base; next.film = film; return next
+            }
+            if !before.isEmpty { self.registerSidecarUndo(before, action: "Load “\(name)”") }
+            self.libraryNote = LibraryNote(text: "Loaded “\(name)”", detail: nil, count: items.count, serial: (self.libraryNote?.serial ?? 0) + 1)
+        }
+    }
+
+    /// Qlick Lab: a Roll's look (`BoxRoll.look`) on photographs: its film, or its recipe.
+    func labApplyLook(_ look: String, to items: [URL]) {
+        if look.hasPrefix("film:") { labApplyFilm(String(look.dropFirst(5)), to: items) }
+        else if look.hasPrefix("recipe:"), let preset = presets.first(where: { $0.name == String(look.dropFirst(7)) }) { labApply(preset, to: items) }
     }
 
     /// Qlick Lab: a Grain or Halation preset (`SectionPreset`) on the photographs given: only that section's settings
@@ -296,7 +317,7 @@ extension EditorModel {
     /// looks at once. Returns the sidecars as they were, for one undo; registers none itself. Stops between batches
     /// when cancelled. The open photograph changes as `changeEdits` changes it.
     func changeEditsInBatches(_ items: [URL], title: String?, each transform: @escaping (URL, EditState) -> EditState) async -> [URL: JSONValue?] {
-        guard canChangeEdits, sidecarsEnabled, let sidecars, sidecars.writes, let lookup = sidecarLookup else {
+        guard canChangeOthers, sidecarsEnabled, let sidecars, sidecars.writes, let lookup = sidecarLookup else {
             if let open = sourceItem, items.contains(open) { apply(transform(open, state), action: title ?? "Change Edits") }
             return [:]
         }

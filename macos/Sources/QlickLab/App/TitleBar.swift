@@ -285,11 +285,21 @@ final class PartSelector: NSView {
         didSet { if chosen != oldValue { segments.forEach { $0.on = $0.part == chosen } } }
     }
 
-    init() {
-        super.init(frame: .zero)
-        wantsLayer = true
+    private var solidObserver: NSObjectProtocol?
+    private var plateSolid = false
+
+    /// The capsule behind the segments: Liquid Glass (a material before macOS 26), or black with "Solid surfaces".
+    private func buildPlate() {
+        self.plate?.removeFromSuperview()
+        plateSolid = Theme.solid
         let plate: NSView
-        if #available(macOS 26.0, *) {
+        if Theme.solid {
+            // Settings' "Solid surfaces": the lab's black, nothing showing through.
+            let solid = NSView()
+            solid.wantsLayer = true
+            solid.layer?.backgroundColor = NSColor.black.cgColor
+            plate = solid
+        } else if #available(macOS 26.0, *) {
             let glass = NSGlassEffectView()
             glass.cornerRadius = Self.height / 2
             plate = glass
@@ -310,8 +320,19 @@ final class PartSelector: NSView {
         plate.layer?.cornerCurve = .continuous
         plate.layer?.borderWidth = 0.5
         plate.layer?.borderColor = NSColor.white.withAlphaComponent(0.14).cgColor
-        addSubview(plate)
+        addSubview(plate, positioned: .below, relativeTo: nil)
         self.plate = plate
+        needsLayout = true
+    }
+
+    init() {
+        super.init(frame: .zero)
+        wantsLayer = true
+        buildPlate()
+        // Settings' "Solid surfaces" changes the plate at once.
+        solidObserver = NotificationCenter.default.addObserver(forName: UserDefaults.didChangeNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { if let self, self.plateSolid != Theme.solid { self.buildPlate() } }
+        }
         segments = LabPart.allCases.map { part in
             let segment = PartSegment(part: part)
             segment.on = part == chosen

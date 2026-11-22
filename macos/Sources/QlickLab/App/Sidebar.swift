@@ -8,6 +8,7 @@ struct LabSidebar: View {
     let model: EditorModel
     @State private var dropping = false
     @AppStorage("qlick.sidebar.libraryOpen") private var libraryOpen = true
+    @AppStorage(Theme.solidKey) private var solid = false
 
     private var lab: LabState { model.lab }
 
@@ -38,7 +39,7 @@ struct LabSidebar: View {
                     // Sheet with its list, then the Archives and the Boxes with theirs; the Lab and Print their rooms.
                     SidebarSectionHeading(lab.part.title, first: true)
                     ForEach(lab.part.rooms) { room in
-                        SidebarEntry(symbol: room.symbol, title: room == .print ? "Export" : room.title, on: lab.workspace.listed(as: room),
+                        SidebarEntry(symbol: room.symbol, title: room == .print ? "Export" : room.title, on: lab.workspace.listed(as: room) && !(lab.part == .library && room == .contactSheet && lab.litView != nil),
                                      trailing: room == .importer ? lab.importer.cards.first?.name : nil) { lab.show(room) }
                             .help(room == .print ? "Print: the photograph as printed, and its export" : "\(room.title) (⌥⌘\(room.key))")
                     }
@@ -46,7 +47,7 @@ struct LabSidebar: View {
                     // Print work on what's chosen there, the film strip being the one thing the parts share.
                     if lab.part == .library {
                         // The Library: every photograph, and the lists that sort them (Last Import, Picks, By Date).
-                        SidebarEntry(symbol: LabGlyph.prints.symbol, title: "Library", on: lab.openView == .all,
+                        SidebarEntry(symbol: LabGlyph.prints.symbol, title: "Library", on: lab.litView == .all && !libraryOpen,
                                      unfolded: $libraryOpen, action: { lab.open(.all) })
                             .help("All the photographs of the catalogue, on the contact sheet")
                         if libraryOpen { FindingSection(model: model) }
@@ -77,6 +78,12 @@ struct LabSidebar: View {
                 .padding(.horizontal, 10).padding(.bottom, 8)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        // Settings › Photographs › Interface › "Solid surfaces": the sidebar on the lab's black, without the glass.
+        .background { if solid { Theme.film.ignoresSafeArea() } }
+        // With "Solid surfaces", a hairline between the sidebar and the work, as the panels have.
+        .overlay(alignment: .trailing) {
+            if solid { Rectangle().fill(Color.white.opacity(0.2)).frame(width: 1).ignoresSafeArea().allowsHitTesting(false) }
+        }
         .overlay {
             if dropping {
                 RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Theme.accent, lineWidth: 2).padding(6).allowsHitTesting(false)

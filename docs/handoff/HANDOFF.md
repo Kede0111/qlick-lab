@@ -565,6 +565,43 @@ Lots, in order:
   in the Library only (Quentin: chosen there, worked on in the Lab and Print, the film strip the one thing shared).
   Selector: a 30 pt glass capsule with a hairline, 13 pt icons, 12 pt semibold capitals (tracking 1), red when active.
 
+- Second UX pass (2026-11-21, not committed yet, checked in the app off screen): Compare's film strip follows
+  `filmstripVisible` with the leader's arrow and ⌥⌘F; the Boxes' entry shows only the Boxes with their Boxes and Rolls
+  under each (no Archives), the Archives' entry only the Archives (`LibraryHome`, `BoxesShelf.groups`), with "New Box"
+  in the bar; an empty cartridge drop place (`EmptyCanisterDrop`, target `.boxes`); one Image Size section in Print
+  (`ImageSizeSection`: Original / Long Edge / Short Edge + pixels = `ExportSize`, "Develop at this size" = the
+  photograph's `photo_long_side_px`); the File section has no size; the Archive's folder strips held to their card,
+  more space; the cartridge redrawn after Quentin's reference (one spool end on top, flanged caps, seam; the leader's lower half cut away) in `LabGlyph` and `CanisterArt`; the Boxes' drop place is that cartridge large, centred. Font trial: the capitals
+  (`Theme.caps`, the parts' selector) in Rajdhani Bold (already bundled, OFL), `qlick.capsFace` (on by default) turns it off.
+  Automation: `overview archives|boxes`.
+
+- Third pass (2026-11-21, not committed): the cartridge glyph traced from Quentin's own drawing (his, free to copy:
+  `LabGlyph.canister`, perforations as windows from 32 pt); the Boxes' overview draws the Boxes on top as archive boxes
+  (`ShelfObject`, a classic tree: what's inside shows when one is opened), chips only for a search; Box labels white
+  (`ShelfInk.paper = Theme.paper`); fonts as QLab's (the system face; the Rajdhani trial removed; `.rounded` gone);
+  colour tokens on QLab's neutral greys (bg #000, panel #121212, line #333, dim #808080…) and warm tints made neutral;
+  Settings › Photographs › Interface › "Solid surfaces" (`Theme.solidKey`): `glass()` (`GlassSurface`), the selector's
+  plate and the sidebar's pane on black, live; one sidebar entry lit (`LabState.litView`: no place lit under the
+  Archives/Boxes overview, Contact Sheet not lit when a place is, Library only when its list is folded).
+
+- Correction (Quentin, 2026-11-21): his traced cartridge is `LabGlyph.dropCanister`, ONLY for "Drop Rolls here";
+  Rolls keep the former cartridge (`LabGlyph.canister`, the hatched `CanisterArt`), with one spool end on top.
+
+- Fourth pass (2026-11-21, not committed): "Solid surfaces" draws a 1 pt white 20 % hairline on panels and the
+  sidebar's edge; the light table (⌥⇧⌘L, Develop's bar bulb) puts Develop's photograph on white (`ViewerSheet.paper`);
+  an Archive overview's folder card drags like its sidebar row; Add to Box (Boxes) and Add to Roll (Rolls, named with
+  their Boxes) apart in every frame menu and the Photo menu; Rolls in no Box (`ProjectStore.looseID`, a hidden Box
+  "Rolls": `listedBoxes`, `looseRolls`): a Roll dropped on the Boxes' heading goes there, ⌥ makes a Box round it;
+  photographs/folders/Archives dropped there make a Box, ⌥ a loose Roll (`DropAction.looseRoll/newLooseRoll`); a Roll's
+  look (`BoxRoll.look`, "film:<id>" or "recipe:<name>") from its menu (sidebar row, shelf) goes on its photographs
+  (`labApplyFilm`, `labApplyLook`, `canChangeOthers`: no photograph needs to be open), and with Settings › Rolls › "One
+  film stock per Roll" (`qlick.oneStockPerRoll`) photographs added later take it; Build Previews (frame menus, Lab ›
+  Build Previews of the Selection). Export freeze when changing the save panel's folder: NOT reproduced off screen
+  (the panel is out of process); asked Quentin for a `sample` while frozen. Automation: `rolllook`, `exportpanel`.
+
+- The Roll's film is as wide as its cartridge's body (`CanisterGeometry`: film = body height, lip as tall; fewer
+  frames on the leader rather than a narrower film); in the Boxes' overview a Roll takes two Boxes' width.
+
 ### Speed, RedLamp's ideas (branch `feature/speed-redlamp`, from `feature/lab-structure`; a test branch, to drop if not convincing)
 
 Quentin, 2026-11-20: lot H on a branch of its own, a second test app "Qlick Lab Dev Speed" to try beside Qlick Lab Dev,

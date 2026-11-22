@@ -95,6 +95,8 @@ struct SettingsView: View {
     var resize: (CGFloat) -> Void = { _ in }
     @AppStorage("settingsTab") private var tab = SettingsTab.photographs
     @AppStorage(ViewerSheet.key) private var sheet = ViewerSheet.darkroom
+    @AppStorage(Theme.solidKey) private var solid = false
+    @AppStorage(LabState.oneStockKey) private var oneStock = false
     @State private var thumbnailBytes: Int?
     @State private var emptyingThumbnails = false
 
@@ -172,6 +174,16 @@ struct SettingsView: View {
             ForEach(ColorLabel.allCases) { label in LabelNameRow(label: label) }
             HintText("Your own name for each colour (“To print”, “For the client”). Empty, the colour’s name. Photographs keep the colour, not the name.")
         } }
+        InkSection(title: "Rolls") {
+            TickRow(title: "One film stock per Roll", isOn: $oneStock,
+                    help: "A Roll keeps the film or recipe loaded from its menu, and every photograph put in it later takes it, as on a real roll.")
+            HintText("Right-click a Roll to load a film or a recipe on it. For a second look, put the photographs in another Roll.")
+        }
+        InkSection(title: "Interface") {
+            TickRow(title: "Solid surfaces", isOn: $solid,
+                    help: "The panels, the selector and the sidebar on black, without transparency.")
+            HintText("Nothing shows through the panels, the selector or the sidebar: they sit on the lab’s black.")
+        }
         InkSection(title: "Viewer") {
             ChoiceRow(title: "Sheet", items: ViewerSheet.allCases.map { .option($0.title, tag: $0.rawValue) },
                       selection: sheet.rawValue) { sheet = ViewerSheet(rawValue: $0) ?? .darkroom }

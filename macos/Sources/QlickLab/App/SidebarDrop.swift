@@ -185,7 +185,7 @@ private struct SidebarDropRowModifier: ViewModifier {
 }
 
 /// A row of the sidebar being dragged: its symbol and name on a dark pill.
-private struct SidebarDragPreview: View {
+struct SidebarDragPreview: View {
     let symbol: String
     let name: String
     var body: some View {

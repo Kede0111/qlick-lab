@@ -197,7 +197,7 @@ struct MenuShortcutsList: View {
             }
             Button { recording = on ? nil : command.id; problem = nil } label: {
                 Text(on ? "Press keys…" : shortcut.isNone ? "—" : shortcut.display)
-                    .font(.system(size: 11.5, weight: .semibold, design: .rounded))
+                    .font(.system(size: 11.5, weight: .semibold))
                     .foregroundStyle(on ? Color.white : shortcut.isNone ? Theme.dim : Theme.paper)
                     .padding(.horizontal, 9).frame(minWidth: 70, minHeight: 22)
                     .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(on ? Theme.accent : Color.white.opacity(store.isChanged(command) ? 0.16 : 0.07)))

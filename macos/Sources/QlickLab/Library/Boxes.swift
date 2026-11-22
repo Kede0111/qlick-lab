@@ -93,26 +93,29 @@ extension LabState {
             for inner in box.boxes { walk(inner, path: names) }
             for roll in box.rolls { choices.append((.roll(roll.id, box: box.id), (names + [roll.name]).joined(separator: " › "), path.count + 1)) }
         }
-        for box in projects.boxes { walk(box, path: []) }
+        for box in projects.listedBoxes { walk(box, path: []) }
+        // Qlick Lab: the Rolls at the top, in no Box, by their own names.
+        for roll in projects.looseRolls { choices.append((.roll(roll.id, box: ProjectStore.looseID), roll.name, 0)) }
         return choices.map { (holder: $0.0, name: $0.1, depth: $0.2) }
     }
 
     /// Add to Box's list: every Box and Roll as the sidebar nests them, the one open greyed (they're in it already).
-    func addToBoxMenu(for frames: [URL]) -> NSMenu {
-        let menu = NSMenu(title: "Add to Box")
+    /// Qlick Lab: `rolls` lists the Rolls alone (Add to Roll), each named with its Boxes; otherwise the Boxes alone.
+    func addToBoxMenu(for frames: [URL], rolls: Bool = false) -> NSMenu {
+        let menu = NSMenu(title: rolls ? "Add to Roll" : "Add to Box")
         menu.appearance = NSAppearance(named: .darkAqua)
         let open = openHolder
-        for choice in holderChoicesAll where !projects.isSmart(choice.holder) {
-            let name = projects.shortName(choice.holder) ?? choice.name
+        for choice in holderChoicesAll where !projects.isSmart(choice.holder) && choice.holder.isRoll == rolls {
+            let name = rolls ? choice.name : projects.shortName(choice.holder) ?? choice.name
             let item = ClosureMenuItem(name) { [weak self] in self?.add(frames, to: choice.holder) }
-            item.indentationLevel = min(choice.depth, 15)
+            item.indentationLevel = rolls ? 0 : min(choice.depth, 15)
             item.image = NSImage(systemSymbolName: { if case .roll = choice.holder { "film" } else { "shippingbox" } }(), accessibilityDescription: nil)
             item.toolTip = choice.name
             if choice.holder == open { item.action = nil }
             menu.addItem(item)
         }
         if menu.items.isEmpty {
-            menu.addItem(NSMenuItem(title: "No Boxes Yet", action: nil, keyEquivalent: ""))
+            menu.addItem(NSMenuItem(title: rolls ? "No Rolls Yet" : "No Boxes Yet", action: nil, keyEquivalent: ""))
         }
         return menu
     }
@@ -123,12 +126,15 @@ extension LabState {
         let several = frames.count > 1 ? " (\(frames.count) photos)" : ""
         let add = NSMenuItem(title: "Add to Box" + several, action: nil, keyEquivalent: "")
         add.submenu = addToBoxMenu(for: frames)
-        var items = [add, ClosureMenuItem("New Box from Selection…") { [weak self] in self?.newBox(with: frames) }]
+        let addRoll = NSMenuItem(title: "Add to Roll" + several, action: nil, keyEquivalent: "")
+        addRoll.submenu = addToBoxMenu(for: frames, rolls: true)
+        var items = [add, addRoll, ClosureMenuItem("New Box from Selection…") { [weak self] in self?.newBox(with: frames) }]
         if let open = openHolder, let name = projects.shortName(open) {
             items.append(ClosureMenuItem("Remove from “\(name)”" + several) { [weak self] in self?.removeFromOpenHolder(frames) })
         }
         // Qlick Lab: the stacks, on the photographs selected.
         items.append(.separator())
+        items.append(ClosureMenuItem("Build Previews" + several) { [weak self] in self?.previewBuilder.build(frames) })
         if frames.count > 1 { items.append(ClosureMenuItem("Stack" + several) { [weak self] in self?.stackSelection() }) }
         if let stack = selectionStack {
             items.append(ClosureMenuItem(stack.open ? "Close Stack" : "Open Stack") { [weak self] in self?.toggleStackOpen() })
@@ -157,25 +163,33 @@ struct BoxMenuItems: View {
     var body: some View {
         let several = frames.count > 1 ? " (\(frames.count) photos)" : ""
         let choices = lab.holderChoicesAll.filter { !lab.projects.isSmart($0.holder) }
+        let boxes = choices.filter { !$0.holder.isRoll }, rolls = choices.filter { $0.holder.isRoll }
         let open = lab.openHolder
         Menu("Add to Box" + several) {
-            ForEach(Array(choices.enumerated()), id: \.offset) { _, choice in
+            ForEach(Array(boxes.enumerated()), id: \.offset) { _, choice in
                 // Nested as in the sidebar: each level a step in.
                 let indent = String(repeating: "\u{2003}", count: min(choice.depth, 15))
-                Button {
-                    lab.add(frames, to: choice.holder)
-                } label: {
-                    if case .roll = choice.holder { Label(indent + (lab.projects.shortName(choice.holder) ?? ""), systemImage: "film") }
-                    else { Label(indent + (lab.projects.shortName(choice.holder) ?? ""), systemImage: "shippingbox") }
+                Button { lab.add(frames, to: choice.holder) } label: {
+                    Label(indent + (lab.projects.shortName(choice.holder) ?? ""), systemImage: "shippingbox")
                 }
                 .disabled(choice.holder == open)
             }
-            if choices.isEmpty { Text("No Boxes Yet") }
+            if boxes.isEmpty { Text("No Boxes Yet") }
+        }
+        // Qlick Lab: the Rolls on their own, each named with its Boxes.
+        Menu("Add to Roll" + several) {
+            ForEach(Array(rolls.enumerated()), id: \.offset) { _, choice in
+                Button { lab.add(frames, to: choice.holder) } label: { Label(choice.name, systemImage: "film") }
+                    .disabled(choice.holder == open)
+            }
+            if rolls.isEmpty { Text("No Rolls Yet") }
         }
         Button("New Box from Selection…") { lab.newBox(with: frames) }
         if let open, let name = lab.projects.shortName(open) {
             Button("Remove from “\(name)”" + several) { lab.removeFromOpenHolder(frames) }
         }
+        Divider()
+        Button("Build Previews" + several) { lab.previewBuilder.build(frames) }
         // Qlick Lab: the stacks, on the photographs selected.
         let stack = lab.selectionStack
         if frames.count > 1 || stack != nil { Divider() }

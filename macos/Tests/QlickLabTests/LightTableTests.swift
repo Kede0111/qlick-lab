@@ -18,7 +18,8 @@ final class LightTableTests: XCTestCase {
     /// On `bg` the light is about `blank`, as in the r24 mockup.
     func testLightOnTheDarkSheetIsAboutBlank() throws {
         let light = try XCTUnwrap(LightTable.light(sheet: sheet, edge: 0x000000))
-        XCTAssertLessThan(Theme.contrast(light, Theme.Hex.blank), 1.05)
+        // The sheet is QLab's black now (2026-11-21): the light stays within a shade of `blank`.
+        XCTAssertLessThan(Theme.contrast(light, Theme.Hex.blank), 1.1)
     }
 
     func testMatsFollowTheirColour() {

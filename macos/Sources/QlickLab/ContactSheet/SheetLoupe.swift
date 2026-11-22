@@ -122,7 +122,7 @@ private struct LoupeCaption: View {
     }
 
     private func key(_ key: String) -> some View {
-        Text(ShortcutStore.display(key)).font(.system(size: 10, weight: .semibold, design: .rounded)).foregroundStyle(Color(white: 0.8))
+        Text(ShortcutStore.display(key)).font(.system(size: 10, weight: .semibold)).foregroundStyle(Color(white: 0.8))
             .padding(.horizontal, 5).frame(minWidth: 18, minHeight: 18)
             .background(RoundedRectangle(cornerRadius: 4.5, style: .continuous).fill(Color.white.opacity(0.12)))
     }

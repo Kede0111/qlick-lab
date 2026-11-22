@@ -127,7 +127,14 @@ enum Theme {
     }
 
     /// Small capital labels, generous tracking (see `CapsLabel`), as QLab's.
-    static func caps(_ size: CGFloat = Caps.size, weight: Font.Weight = .medium) -> Font { .system(size: size, weight: weight) }
+    /// Settings › Interface › "Solid surfaces": the glass panels, the selector and the sidebar on the lab's black,
+    /// with nothing showing through (QLab's own panels, without their transparency).
+    static let solidKey = "qlick.solidSurfaces"
+    static var solid: Bool { UserDefaults.standard.bool(forKey: solidKey) }
+
+    static func caps(_ size: CGFloat = Caps.size, weight: Font.Weight = .medium) -> Font {
+        return .system(size: size, weight: weight)
+    }
     /// Numeric read-outs: monospaced figures, so they never jitter.
     static func value(_ size: CGFloat = 13, weight: Font.Weight = .regular) -> Font { .system(size: size, weight: weight).monospacedDigit() }
     static func title(_ size: CGFloat = 20) -> Font { .system(size: size, weight: .semibold) }

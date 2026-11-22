@@ -366,7 +366,16 @@ struct CompareWorkspace: View {
             }
             // Qlick Lab: the film strip, the parts' shared way through the photographs: ⌘-click or ⇧-click frames in
             // it and they're laid side by side; one chosen is the subject of Films, Recipes and Versions.
-            if !model.library.items.isEmpty { PhotoBrowser(model: model) }
+            // Shown and hidden as in Develop: the leader's arrow and ⌥⌘F (`filmstripVisible`).
+            if !model.library.items.isEmpty {
+                VStack(spacing: 0) {
+                    if model.filmstripVisible { PhotoBrowser(model: model) }
+                }
+                .frame(maxWidth: .infinity)
+                .overlay(alignment: .topTrailing) {
+                    StripLeader(model: model).offset(y: -StripLeader.raised)
+                }
+            }
         }
         .background(Color(white: 0.035))
         .environment(\.colorScheme, .dark)

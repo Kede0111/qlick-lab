@@ -700,6 +700,14 @@ import AppKit
                 scroll.contentView.scroll(to: point); scroll.reflectScrolledClipView(scroll.contentView)
             }
         case "sidebar": lab.sidebarVisible = rest != "off"
+        // rolllook <box path>|<roll> ; <film:id | recipe:name>: a Roll's look from its menu.
+        case "rolllook":
+            let fields = rest.split(separator: ";").map { $0.trimmingCharacters(in: .whitespaces) }
+            if fields.count == 2, case .roll(let id, let box)? = sidebarTarget("roll:" + fields[0]) { lab.setRollLook(fields[1], of: .roll(id, box: box)) }
+        // exportpanel: Export… as the button does; exportdir <path>: the open save panel moves to a folder.
+        case "exportpanel": model.exportPanel()
+        // overview archives | boxes: the sidebar's Archives or Boxes entry.
+        case "overview": lab.showOverview(rest == "boxes" ? .boxes : .archives)
         case "favourite": lab.toggleFavourite(rest)
         // hide|unhide <stock id> or recipe <name>: on the Lab's shelf.
         case "hide", "unhide":

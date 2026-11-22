@@ -396,7 +396,9 @@ struct CanvasArea: View {
     /// The pointer is over the photograph, which brightens the trim marks.
     @State private var overPrint = false
     /// Settings › Photographs › Viewer.
-    @AppStorage(ViewerSheet.key) private var sheet = ViewerSheet.darkroom
+    @AppStorage(ViewerSheet.key) private var chosenSheet = ViewerSheet.darkroom
+    /// Qlick Lab: the light table (⌥⇧⌘L) works in Develop too: the photograph on white; off, the sheet chosen in Settings.
+    private var sheet: ViewerSheet { model.lab.sheet.lightTable ? .paper : chosenSheet }
 
     /// Above the photograph, for the caption; below it, for the label's two rows (§2.3).
     nonisolated static let captionBand: CGFloat = 54

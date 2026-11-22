@@ -72,6 +72,8 @@ struct DevelopToolbar: View {
             group {
                 tool("sidebar.left", "Sidebar (Tab)", on: lab.sidebarVisible) { lab.sidebarVisible.toggle() }
                 tool("film", "Film Strip (⌥⌘F)", on: model.filmstripVisible) { model.toggleFilmstrip() }
+                // Qlick Lab: the light table, as on the contact sheet: the photograph on white, or back on black.
+                tool("lightbulb", "Light Table (⌥⇧⌘L)", on: model.lab.sheet.lightTable) { model.lab.sheet.lightTable.toggle() }
                 tool("sidebar.right", "Adjustments (⌥⌘I)", on: model.inspectorVisible) { model.togglePane(.adjustments) }
             }
         }

@@ -27,10 +27,15 @@ struct LibraryHome: View {
                 .help(LibraryFindBar.searchHelp)
                 .background(Capsule().fill(Color.white.opacity(0.07)))
                 Spacer()
-                Button { lab.importPanel() } label: { Label("Import a Folder…", systemImage: "square.and.arrow.down") }
-                    .buttonStyle(QPillButtonStyle())
-                Button { lab.newArchive() } label: { Label("New Archive", systemImage: "plus") }
-                    .buttonStyle(QPrimaryButtonStyle())
+                if lab.overview == .boxes {
+                    Button { lab.newBox() } label: { Label("New Box", systemImage: "plus") }
+                        .buttonStyle(QPrimaryButtonStyle())
+                } else {
+                    Button { lab.importPanel() } label: { Label("Import a Folder…", systemImage: "square.and.arrow.down") }
+                        .buttonStyle(QPillButtonStyle())
+                    Button { lab.newArchive() } label: { Label("New Archive", systemImage: "plus") }
+                        .buttonStyle(QPrimaryButtonStyle())
+                }
             }
             .padding(.horizontal, 16)
             .frame(height: 44)
@@ -63,10 +68,16 @@ struct LibraryHome: View {
                         LazyVStack(alignment: .leading, spacing: 34) {
                             Color.clear.frame(height: 0).id("archives")
                             if !found.isEmpty { FoundStrip(model: model, query: query, count: found.count, rules: parsed) }
-                            ForEach(results) { result in
-                                ProjectSection(model: model, project: result.project, rolls: result.rolls, reasons: result.reasons, whole: query.isEmpty)
+                            // Qlick Lab: the Boxes' entry shows the Boxes and their Rolls only, the Archives' the
+                            // Archives only; the Library's page (no entry chosen) shows both.
+                            if lab.overview != .boxes {
+                                ForEach(results) { result in
+                                    ProjectSection(model: model, project: result.project, rolls: result.rolls, reasons: result.reasons, whole: query.isEmpty)
+                                }
                             }
-                            if !boxes.isEmpty { BoxesShelf(model: model, boxes: boxes).id("boxes") }
+                            if lab.overview != .archives, !boxes.isEmpty || lab.overview == .boxes {
+                                BoxesShelf(model: model, boxes: boxes, drawn: query.isEmpty).id("boxes")
+                            }
                         }
                         .padding(.horizontal, 28).padding(.vertical, 26)
                     }
@@ -166,7 +177,7 @@ enum LibrarySearch {
     /// The Boxes and Rolls whose names (or their Boxes') hold every word; every Box on top without words.
     static func boxes(_ query: String, in choices: [(holder: Holder, name: String, depth: Int)]) -> [(holder: Holder, name: String, depth: Int)] {
         let words = query.split(whereSeparator: \.isWhitespace).map(String.init)
-        guard !words.isEmpty else { return choices.filter { $0.depth == 0 } }
+        guard !words.isEmpty else { return choices }
         return choices.filter { choice in words.allSatisfy { choice.name.localizedStandardContains($0) } }
     }
 }
@@ -222,7 +233,7 @@ private struct ProjectSection: View {
                 Text(project.notes).font(.system(size: 12.5)).foregroundStyle(Color(white: 0.62)).frame(maxWidth: 620, alignment: .leading)
                     .onTapGesture(count: 2) { notes = project.notes; editingNotes = true }
             }
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 264, maximum: 340), spacing: 16, alignment: .top)], alignment: .leading, spacing: 16) {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 264, maximum: 340), spacing: 28, alignment: .top)], alignment: .leading, spacing: 24) {
                 ForEach(rolls) { roll in
                     RollCard(model: model, project: project, roll: roll, reason: reasons[roll.id])
                 }
@@ -280,7 +291,23 @@ private struct FoundStrip: View {
 private struct BoxesShelf: View {
     let model: EditorModel
     let boxes: [(holder: Holder, name: String, depth: Int)]
+    /// Without a search, the Boxes on top drawn as on a shelf, as an open Box shows its own (a classic tree: what's
+    /// inside a Box is seen by opening it); with one, every match as a chip.
+    var drawn = true
     private var lab: LabState { model.lab }
+
+    /// The Boxes on top as shelf objects.
+    private var shelf: [BoxShelfItem] {
+        lab.projects.listedBoxes.map { box in
+            BoxShelfItem(kind: .box, target: .box(box.id), name: box.name, count: lab.projects.frames(of: .box(box.id)).count,
+                         boxes: box.boxes.count, rolls: box.rolls.count)
+        } + lab.projects.looseRolls.map { roll in
+            // The Rolls at the top, in no Box, as their canisters.
+            let list = lab.projects.frames(of: .roll(roll.id, box: ProjectStore.looseID))
+            return BoxShelfItem(kind: roll.isSmart ? .smartRoll : .roll, target: .roll(roll.id, box: ProjectStore.looseID), name: roll.name,
+                                count: list.count, leader: Array(list.prefix(2)))
+        }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -291,10 +318,85 @@ private struct BoxesShelf: View {
                 Button { lab.newBox() } label: { Image(systemName: "plus").font(.system(size: 12, weight: .semibold)).foregroundStyle(Theme.dim).frame(width: 28, height: 24).contentShape(Rectangle()) }
                     .buttonStyle(.plain).help("New Box")
             }
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 200, maximum: 280), spacing: 10, alignment: .leading)], alignment: .leading, spacing: 10) {
-                ForEach(Array(boxes.enumerated()), id: \.offset) { _, choice in BoxChip(lab: lab, holder: choice.holder, name: choice.name) }
+            if drawn {
+                let art = CGSize(width: 200, height: 150)
+                let boxes = shelf.filter { $0.kind == .box }, rolls = shelf.filter { $0.kind != .box }
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: art.width, maximum: art.width + 20), spacing: 28, alignment: .topLeading)],
+                          alignment: .leading, spacing: 22) {
+                    ForEach(boxes) { item in
+                        ShelfObject(lab: lab, item: item, size: CGSize(width: art.width, height: art.height + BoxShelfLayout.nameBand), art: art, ink: .dark)
+                    }
+                }
+                // A Roll is twice as wide as a Box: its film runs out of the cartridge, as wide as the cartridge's body.
+                if !rolls.isEmpty {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: art.width * 2 + 28, maximum: art.width * 2 + 48), spacing: 28, alignment: .topLeading)],
+                              alignment: .leading, spacing: 22) {
+                        ForEach(rolls) { item in
+                            ShelfObject(lab: lab, item: item, size: CGSize(width: art.width * 2 + 28, height: art.height + BoxShelfLayout.nameBand), art: art, ink: .dark)
+                        }
+                    }
+                }
+            } else if !boxes.isEmpty {
+                // Each Box on its line, what it holds (its Boxes and Rolls, at any depth) under it, one step in.
+                VStack(alignment: .leading, spacing: 18) {
+                    ForEach(Array(Self.groups(boxes).enumerated()), id: \.offset) { _, group in
+                        VStack(alignment: .leading, spacing: 8) {
+                            BoxChip(lab: lab, holder: group.top.holder, name: group.top.name).frame(maxWidth: 280)
+                            if !group.inside.isEmpty {
+                                LazyVGrid(columns: [GridItem(.adaptive(minimum: 200, maximum: 280), spacing: 10, alignment: .leading)], alignment: .leading, spacing: 10) {
+                                    ForEach(Array(group.inside.enumerated()), id: \.offset) { _, choice in
+                                        BoxChip(lab: lab, holder: choice.holder, name: lab.projects.shortName(choice.holder) ?? choice.name)
+                                    }
+                                }
+                                .padding(.leading, 22)
+                            }
+                        }
+                    }
+                }
+            }
+            EmptyCanisterDrop(lab: lab)
+        }
+    }
+}
+
+extension BoxesShelf {
+    typealias Choice = (holder: Holder, name: String, depth: Int)
+    /// The choices in tree order, gathered under each Box on top; a search's matches, at any depth, each stand alone.
+    static func groups(_ choices: [Choice]) -> [(top: Choice, inside: [Choice])] {
+        var groups: [(top: Choice, inside: [Choice])] = []
+        for choice in choices {
+            if choice.depth > 0, !groups.isEmpty, choice.depth > groups[groups.count - 1].top.depth {
+                groups[groups.count - 1].inside.append(choice)
+            } else {
+                groups.append((choice, []))
             }
         }
+        return groups
+    }
+}
+
+/// Qlick Lab: the place to drop Rolls, folders or photographs: an empty cartridge drawn in a hairline, waiting to be
+/// loaded. What's dropped makes a new Box, as on the Boxes' entry of the sidebar (`SidebarTarget.boxes`).
+private struct EmptyCanisterDrop: View {
+    let lab: LabState
+    @State private var plan: DropPlan?
+
+    var body: some View {
+        let lit = plan != nil && plan?.operation != .refused
+        VStack(spacing: 12) {
+            LabGlyphView(glyph: .dropCanister, size: 120, color: lit ? Theme.accent : Color(white: 0.62))
+            Text(plan.map { "\($0.verb) \($0.rest)" } ?? "Drop Rolls here")
+                .font(.system(size: 14, weight: .medium)).foregroundStyle(lit ? Theme.paper : Color(white: 0.72))
+            Text("A folder, a Roll or photographs dropped here make a new Box; with ⌥, a Roll in no Box. Nothing moves on the disk.")
+                .font(.system(size: 12)).foregroundStyle(Theme.dim)
+        }
+        .frame(maxWidth: .infinity, minHeight: 240)
+        .background(RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
+            .strokeBorder(lit ? Theme.accent : Color.white.opacity(0.1), style: StrokeStyle(lineWidth: 1, dash: [4, 4])))
+        .padding(.top, 14)
+        .contentShape(Rectangle())
+        .onDrop(of: [LabDragItem.type], delegate: ShelfDrop(lab: lab, target: .boxes, plan: $plan))
+        .accessibilityLabel("Drop Rolls here to make a new Box")
     }
 }
 
@@ -308,7 +410,7 @@ private struct BoxChip: View {
         let view: LabView = switch holder { case .box(let id): .box(id); case .roll(let id, let box): .roll(id, box: box) }
         Button { lab.open(view) } label: {
             HStack(spacing: 8) {
-                Image(systemName: { if case .box = holder { return "shippingbox" } else { return "film" } }()).font(.system(size: 12)).foregroundStyle(Theme.dim)
+                LabGlyphView(glyph: { if case .box = holder { return LabGlyph.box } else { return LabGlyph.canister } }(), size: 15, color: Theme.dim)
                 Text(name).font(.system(size: 12.5, weight: .medium)).foregroundStyle(Theme.paper).lineLimit(1).truncationMode(.middle)
                 Spacer(minLength: 4)
                 Text("\(lab.projects.frames(of: holder).count)").font(Theme.value(11.5)).foregroundStyle(Theme.dim)
@@ -372,6 +474,10 @@ private struct RollCard: View {
         }
         .contentShape(Rectangle())
         .onTapGesture { lab.open(.folder(roll.folder, archive: project.id)) }
+        // Qlick Lab: a folder card drags as its sidebar row does: onto a Box it makes a Roll, onto an Archive it joins it.
+        .onDrag { lab.provider(dragging: .folder(roll.folder, archive: project.id)) } preview: {
+            SidebarDragPreview(symbol: LabGlyph.archive.symbol, name: roll.name)
+        }
         .onHover { hovered = $0 }
         .contextMenu {
             Button("Open the Contact Sheet") { lab.open(.folder(roll.folder, archive: project.id)) }
@@ -429,6 +535,8 @@ private struct RollStrip: View {
                 }
                 .padding(.leading, gap).padding(.top, perforation)
             }
+            // Qlick Lab: held to the card's width, so a strip never runs into the next folder's.
+            .frame(width: geometry.size.width, height: geometry.size.height, alignment: .topLeading)
             .clipped()
         }
         .task(id: names) {

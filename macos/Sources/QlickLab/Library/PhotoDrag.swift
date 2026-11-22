@@ -26,7 +26,7 @@ struct PhotoDragPreview: View {
             .padding(12)
             if count > 1 {
                 Text("\(count)")
-                    .font(.system(size: 11.5, weight: .bold, design: .rounded)).monospacedDigit()
+                    .font(.system(size: 11.5, weight: .bold)).monospacedDigit()
                     .foregroundStyle(.white)
                     .padding(.horizontal, 6).frame(minWidth: 22, minHeight: 22)
                     .background(Capsule().fill(Theme.accent))

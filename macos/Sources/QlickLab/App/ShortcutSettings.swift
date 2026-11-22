@@ -56,7 +56,7 @@ private struct KeyCap: View {
     var body: some View {
         Button(action: action) {
             Text(recording ? "Press a key…" : ShortcutStore.display(key))
-                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(recording ? Color.white : Theme.paper)
                 .padding(.horizontal, 10).frame(minWidth: 44, minHeight: 24)
                 .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(recording ? Theme.accent : Color.white.opacity(changed ? 0.16 : 0.08)))

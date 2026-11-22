@@ -89,7 +89,7 @@ struct StackBadge: View {
     var body: some View {
         HStack(spacing: 3) {
             Image(systemName: "square.stack").font(.system(size: 8.5, weight: .semibold))
-            Text("\(count)").font(.system(size: 10, weight: .bold, design: .rounded)).monospacedDigit()
+            Text("\(count)").font(.system(size: 10, weight: .bold)).monospacedDigit()
         }
         .foregroundStyle(open ? Theme.paper : Color.black)
         .padding(.horizontal, 5).frame(height: 16)

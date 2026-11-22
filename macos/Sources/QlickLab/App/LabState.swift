@@ -417,6 +417,9 @@ struct SheetOptions: Codable, Equatable, Sendable {
 
     /// The list open on the sheet, if one is: a whole Archive, a Folder with those under it, a Box, a Roll.
     var openView: LabView? { projects.view(of: model.library.directory) }
+    /// Qlick Lab: the place the sidebar lights: the one open, unless the Library's overview of the Archives or the
+    /// Boxes is in front (then its entry is the one lit). One entry lit at a time.
+    var litView: LabView? { workspace == .library ? nil : openView }
 
     /// The Box or Roll open on the sheet; a Smart Roll is none (its rules fill it, not the hand).
     var openHolder: Holder? {

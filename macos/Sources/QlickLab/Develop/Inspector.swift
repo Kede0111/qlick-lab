@@ -334,11 +334,14 @@ struct RunningLine: View {
     }
 }
 
-/// Image Size, in Output: the photograph's resolution before the film
-/// develops it. Reads only its own parameters, the crop and the source's
-/// size, so other edits don't redraw it.
+/// Qlick Lab: the print's one size, in Print. The file's size (full, or so many pixels on the long or the short edge,
+/// border included: `ExportSize`), and, on the long edge, whether the film develops at that size, so grain and
+/// halation are laid at the print's scale (the photograph's `photo_long_side_px`). Reads only its own parameters, the
+/// crop and the source's size, so other edits don't redraw it.
 struct ImageSizeSection: View {
     let model: EditorModel
+    @Binding var revision: Int
+    @State private var size = ExportSize.last
     @State private var fieldError: String?
 
     var body: some View {
@@ -347,34 +350,49 @@ struct ImageSizeSection: View {
         let source = model.sourceSize
         let working = source == .zero ? CGSize.zero : ImageSize.working(source: source, params: params, crop: model.crop)
         let photograph = model.crop.size(of: working)
-        InkSection(title: "Image Size", edited: model.isModified(ImageSize.targetPath)) {
-            ChoiceRow(title: "Size", items: [.option("Original", tag: ImageSize.Mode.original.rawValue), .option("Longest side", tag: ImageSize.Mode.longestSide.rawValue)],
-                      selection: mode.rawValue, changed: mode != .original,
-                      help: "Original develops the photograph’s own pixels. Longest side enlarges or reduces it first, so the cropped photograph has that many pixels on its longest side.") {
+        InkSection(title: "Image Size", edited: model.isModified(ImageSize.targetPath) || size.edge != .full) {
+            ChoiceRow(title: "Size", items: ExportSize.Edge.allCases.map { .option($0 == .full ? "Original" : $0.title, tag: $0.rawValue) },
+                      selection: size.edge.rawValue, changed: size.edge != .full,
+                      help: "Original keeps the photograph’s own pixels. Long Edge and Short Edge fit the print to that many pixels, border included.") { tag in
+                guard let edge = ExportSize.Edge(rawValue: tag) else { return }
                 fieldError = nil
-                model.chooseImageSize(ImageSize.Mode(rawValue: $0) ?? .original)
+                size.edge = edge; ExportSize.last = size; revision += 1
+                // Developing at the print's size only makes sense on the long edge.
+                if edge != .long, mode != .original { model.chooseImageSize(.original) }
             }
-            if mode == .longestSide {
+            if size.edge != .full {
                 RevealedRows {
-                    NumberRow(title: "Longest side", unit: "px", error: fieldError != nil,
-                              help: "The cropped photograph’s longest side, before any border. Exports can still be reduced in the save panel.") {
-                        PixelField(title: "Longest side", value: ImageSize.target(of: params) ?? 0, error: fieldError != nil) { pixels in
-                            fieldError = model.setLongestSide(pixels)
+                    NumberRow(title: size.edge == .long ? "Long edge" : "Short edge", unit: "px", error: fieldError != nil,
+                              help: "The print's pixels on that edge, border included.") {
+                        PixelField(title: "Pixels", value: size.pixels, error: fieldError != nil) { pixels in
+                            guard ExportSize.pixelRange.contains(pixels) else {
+                                fieldError = "Enter a whole number from \(ExportSize.pixelRange.lowerBound) to \(ExportSize.pixelRange.upperBound.formatted()) px."
+                                return false
+                            }
+                            fieldError = nil
+                            size.pixels = pixels; ExportSize.last = size; revision += 1
+                            if mode == .longestSide { fieldError = model.setLongestSide(pixels) }
                             return fieldError == nil
                         }
+                    }
+                    if size.edge == .long {
+                        TickRow(title: "Develop at this size", isOn: Binding(get: { mode == .longestSide }, set: { on in
+                                    fieldError = on ? model.setLongestSide(size.pixels) : nil
+                                    if !on { model.chooseImageSize(.original) }
+                                }), changed: mode == .longestSide,
+                                help: "The film develops the photograph at the print’s size, so its grain and halation are laid at the scale they’ll be seen.")
                     }
                     if let fieldError { HintText(fieldError, warning: true) }
                 }
             }
             // Verbatim, so pixel counts read like the status bar's, without grouping.
-            ReadoutRow(title: "Photograph", value: photograph == .zero ? "—" : "\(Int(photograph.width)) × \(Int(photograph.height)) · \(ImageSize.megapixels(photograph)) MP",
-                       help: "The exported photograph, cropped, before rotation, the border, and any export size.")
+            ReadoutRow(title: "Developed", value: photograph == .zero ? "—" : "\(Int(photograph.width)) × \(Int(photograph.height)) · \(ImageSize.megapixels(photograph)) MP",
+                       help: "The photograph as the film develops it, cropped, before rotation and the border.")
             if ImageSize.exceedsLimit(working: working, source: source) {
                 HintText(ImageSize.limitMessage(working: working), warning: true)
             } else if model.previewScale < 1, model.image != nil {
                 HintText("The preview shows \(EditorModel.percent(model.previewScale)) of these pixels. Exports develop all of them; inspect grain in an exported file.")
             }
-            HintText("Resizes before film simulation, including halation and grain.")
         }
     }
 }

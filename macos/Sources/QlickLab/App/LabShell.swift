@@ -74,6 +74,11 @@ struct WorkspaceOverlay: View {
         overlay.autoresizingMask = [.width, .height]
         overlay.isHidden = true
         editorContent.addSubview(overlay, positioned: .above, relativeTo: nil)
+        applySolid()
+        // Settings' "Solid surfaces": the sidebar on black, at once.
+        solidObserver = NotificationCenter.default.addObserver(forName: UserDefaults.didChangeNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.applySolid() }
+        }
         collapsing = sidebarItem.observe(\.isCollapsed) { [weak self] item, _ in
             let collapsed = item.isCollapsed
             MainActor.assumeIsolated {
@@ -84,6 +89,27 @@ struct WorkspaceOverlay: View {
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+
+    private var solidObserver: NSObjectProtocol?
+    /// The sidebar's pane: the system's glass, or the lab's black with "Solid surfaces" (`Theme.solidKey`).
+    private func applySolid() {
+        let view = sidebarItem.viewController.view
+        view.wantsLayer = true
+        view.layer?.backgroundColor = Theme.solid ? NSColor.black.cgColor : nil
+        var parent = view.superview
+        // The pane the split view draws round the sidebar, up to the split view itself.
+        while let pane = parent, pane !== splitView {
+            pane.wantsLayer = true
+            pane.layer?.backgroundColor = Theme.solid ? NSColor.black.cgColor : nil
+            if let effect = pane as? NSVisualEffectView { effect.state = Theme.solid ? .inactive : .followsWindowActiveState; effect.isHidden = false }
+            parent = pane.superview
+        }
+    }
+
+    override func viewDidAppear() {
+        super.viewDidAppear()
+        applySolid()
+    }
 
     var sidebarWidthNow: CGFloat { sidebarItem.isCollapsed ? 0 : sidebarItem.viewController.view.frame.width }
 

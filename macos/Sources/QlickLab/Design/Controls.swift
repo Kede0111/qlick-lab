@@ -16,16 +16,32 @@ struct CapsLabel: View {
 
 // MARK: Liquid Glass
 
-extension View {
-    /// A floating Liquid Glass surface (macOS 26+); a dark material with a hairline edge before that.
-    /// Used for what floats over photographs or the sheet: bars, HUDs, panels. Never for the photographs themselves.
-    @ViewBuilder func glass(_ shape: some InsettableShape = Capsule(), interactive: Bool = false) -> some View {
-        if #available(macOS 26.0, *) {
-            self.glassEffect(interactive ? .regular.interactive() : .regular, in: shape)
+/// `glass(_:)`: Liquid Glass, or the solid black of "Solid surfaces" (`Theme.solidKey`).
+struct GlassSurface<S: InsettableShape>: ViewModifier {
+    let shape: S
+    var interactive = false
+    @AppStorage(Theme.solidKey) private var solid = false
+
+    func body(content: Content) -> some View {
+        if solid {
+            // Nothing shows through, so the edge carries the separation: a hairline marked enough to be seen on black.
+            content.background(shape.fill(Theme.film))
+                .overlay(shape.strokeBorder(Color.white.opacity(0.2), lineWidth: 1))
+        } else if #available(macOS 26.0, *) {
+            content.glassEffect(interactive ? .regular.interactive() : .regular, in: shape)
         } else {
-            self.background(shape.fill(.ultraThinMaterial).environment(\.colorScheme, .dark))
+            content.background(shape.fill(.ultraThinMaterial).environment(\.colorScheme, .dark))
                 .overlay(shape.strokeBorder(Color.white.opacity(0.1), lineWidth: 0.5))
         }
+    }
+}
+
+extension View {
+    /// A floating Liquid Glass surface (macOS 26+); a dark material with a hairline edge before that. With Settings'
+    /// "Solid surfaces", the lab's black with a hairline, as QLab draws its panels, and nothing shows through.
+    /// Used for what floats over photographs or the sheet: bars, HUDs, panels. Never for the photographs themselves.
+    func glass<S: InsettableShape>(_ shape: S = Capsule(), interactive: Bool = false) -> some View {
+        modifier(GlassSurface(shape: shape, interactive: interactive))
     }
 
     /// Groups neighbouring glass shapes so they blend as one material (macOS 26+).

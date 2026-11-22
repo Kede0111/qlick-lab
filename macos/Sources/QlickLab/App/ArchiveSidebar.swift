@@ -32,7 +32,7 @@ struct ArchivesSection: View {
         if archives.isEmpty {
             SidebarHint("Drop a folder of photographs here to make an Archive.")
         }
-        let view = lab.openView
+        let view = lab.litView
         let current = lab.current
         ForEach(archives) { archive in
             let open = lab.sidebarFold.isOpen(.archive(archive.id), leadsToOpen: current?.project.id == archive.id)
@@ -176,10 +176,12 @@ struct BoxesSection: View {
     @AppStorage("qlick.sidebar.boxesOpen") private var listOpen = true
 
     @ViewBuilder private var list: some View {
-        if lab.projects.boxes.isEmpty {
+        if lab.projects.listedBoxes.isEmpty && lab.projects.looseRolls.isEmpty {
             SidebarHint("Gather photographs from any Archive: make a Box with +, then drag photographs onto it.")
         }
-        ForEach(lab.projects.boxes) { box in rows(box, depth: 0, open: lab.openView) }
+        ForEach(lab.projects.listedBoxes) { box in rows(box, depth: 0, open: lab.litView) }
+        // Qlick Lab: the Rolls at the top, in no Box.
+        ForEach(lab.projects.looseRolls) { roll in rollRow(roll, in: ProjectStore.looseID, depth: 0, open: lab.litView) }
         // Qlick Lab: the place under the Boxes: photographs, a folder or a Roll dropped there make a new Box.
         Color.clear.frame(height: 64).contentShape(Rectangle())
             .sidebarDrop(lab, .boxes, depth: 0)
@@ -223,28 +225,31 @@ struct BoxesSection: View {
                 }
             if unfolded {
                 ForEach(box.boxes) { inner in rows(inner, depth: depth + 1, open: view) }
-                ForEach(box.rolls) { roll in
-                    let symbol = (roll.isSmart ? LabGlyph.smartCanister : LabGlyph.canister).symbol
-                    SidebarRow(symbol: symbol, name: roll.name, depth: depth + 1, count: lab.projects.frames(of: .roll(roll.id, box: box.id)).count,
-                               on: view == .roll(roll.id, box: box.id),
-                               action: { lab.open(.roll(roll.id, box: box.id)) })
-                        .help(roll.isSmart ? "Smart Roll: the photographs that meet its rules, found again as they change" : "")
-                        .sidebarDrop(lab, .roll(roll.id, box: box.id), depth: depth + 1, drags: .roll(roll.id, box: box.id),
-                                     symbol: symbol, name: roll.name)
-                        .contextMenu {
-                            Button("Open on the Contact Sheet") { lab.open(.roll(roll.id, box: box.id)) }
-                            if roll.isSmart {
-                                Button("Edit Rules…") { lab.editSmartRoll(roll.id, in: box.id) }
-                            } else {
-                                PasteItem(lab: lab, holder: .roll(roll.id, box: box.id))
-                            }
-                            Button("Rename…") { lab.naming = .init(kind: .renameRoll(roll.id, box: box.id), name: roll.name) }
-                            Divider()
-                            Button(roll.isSmart ? "Delete the Smart Roll…" : "Delete the Roll…") { lab.deleteRoll(roll.id, in: box.id) }
-                        }
-                }
+                ForEach(box.rolls) { roll in rollRow(roll, in: box.id, depth: depth + 1, open: view) }
             }
         })
+    }
+
+    /// A Roll's row, in its Box or at the top (`ProjectStore.looseID`).
+    private func rollRow(_ roll: BoxRoll, in boxID: UUID, depth: Int, open view: LabView?) -> some View {
+        let symbol = (roll.isSmart ? LabGlyph.smartCanister : LabGlyph.canister).symbol
+        return SidebarRow(symbol: symbol, name: roll.name, depth: depth, count: lab.projects.frames(of: .roll(roll.id, box: boxID)).count,
+                          on: view == .roll(roll.id, box: boxID),
+                          action: { lab.open(.roll(roll.id, box: boxID)) })
+            .help(roll.isSmart ? "Smart Roll: the photographs that meet its rules, found again as they change" : "")
+            .sidebarDrop(lab, .roll(roll.id, box: boxID), depth: depth, drags: .roll(roll.id, box: boxID), symbol: symbol, name: roll.name)
+            .contextMenu {
+                Button("Open on the Contact Sheet") { lab.open(.roll(roll.id, box: boxID)) }
+                if roll.isSmart {
+                    Button("Edit Rules…") { lab.editSmartRoll(roll.id, in: boxID) }
+                } else {
+                    PasteItem(lab: lab, holder: .roll(roll.id, box: boxID))
+                    RollLookMenu(lab: lab, holder: .roll(roll.id, box: boxID))
+                }
+                Button("Rename…") { lab.naming = .init(kind: .renameRoll(roll.id, box: boxID), name: roll.name) }
+                Divider()
+                Button(roll.isSmart ? "Delete the Smart Roll…" : "Delete the Roll…") { lab.deleteRoll(roll.id, in: boxID) }
+            }
     }
 }
 
@@ -309,7 +314,7 @@ struct FindingSection: View {
     private var lab: LabState { model.lab }
 
     var body: some View {
-        let view = lab.openView
+        let view = lab.litView
         let reading = lab.catalog.building && !lab.catalog.ready
         VStack(alignment: .leading, spacing: 1) {
             SidebarRow(symbol: LabGlyph.print.symbol, name: "All Photographs", depth: 0, count: lab.allCount, on: view == .all,
@@ -441,5 +446,32 @@ extension SidebarRow where Adding == EmptyView {
          unfoldable: Bool = false, unfolded: Bool = false, dropping: Bool = false, toggle: @escaping () -> Void = {}, action: @escaping () -> Void) {
         self.init(symbol: symbol, name: name, depth: depth, count: count, on: on, strong: strong, dim: dim, unfoldable: unfoldable,
                   unfolded: unfolded, dropping: dropping, toggle: toggle, action: action, adding: { EmptyView() })
+    }
+}
+
+/// Qlick Lab: a Roll's look, as a real roll has one film: a film stock or a recipe chosen here goes on every photograph
+/// in it, and is kept on the Roll (`BoxRoll.look`), ticked. With "One film stock per Roll" (Settings), photographs put
+/// in it later get it too.
+struct RollLookMenu: View {
+    let lab: LabState
+    let holder: Holder
+
+    var body: some View {
+        let model = lab.model
+        let current: String? = {
+            guard case .roll(let id, let box) = holder else { return nil }
+            return lab.projects.boxRoll(id, in: box)?.roll.look
+        }()
+        Menu("Load a Film on the Roll") {
+            ForEach(model.listedFilms) { stock in
+                Toggle(stock.name, isOn: Binding(get: { current == "film:\(stock.id)" }, set: { _ in lab.setRollLook("film:\(stock.id)", of: holder) }))
+            }
+        }
+        Menu("Develop the Roll with a Recipe") {
+            ForEach(model.listedPresets, id: \.url) { preset in
+                Toggle(preset.name, isOn: Binding(get: { current == "recipe:\(preset.name)" }, set: { _ in lab.setRollLook("recipe:\(preset.name)", of: holder) }))
+            }
+            if model.listedPresets.isEmpty { Text("No Recipes Yet") }
+        }
     }
 }

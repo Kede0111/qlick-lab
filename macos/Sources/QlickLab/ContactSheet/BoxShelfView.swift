@@ -22,9 +22,9 @@ struct ShelfInk {
                                 hole: Color(white: 0.86), text: Color(white: 0.1), dim: Color(white: 0.4), hairline: Color.black.opacity(0.1),
                                 shadow: Color.black.opacity(0.18))
 
-    /// The label's paper and the hand that wrote on it, the same on either sheet.
-    static let paper = Color(red: 0.93, green: 0.9, blue: 0.83)
-    static let handwriting = Color(red: 0.13, green: 0.12, blue: 0.11)
+    /// The label's paper (the lab's white, Quentin 2026-11-21: no more beige) and the hand that wrote on it.
+    static let paper = Theme.paper
+    static let handwriting = Color(white: 0.1)
 }
 
 /// An open Box's shelf: each Box inside it an archive box with its name on a label, each Roll a 35 mm canister with its
@@ -90,7 +90,7 @@ struct BoxShelfView: View {
 
 /// One Box or Roll on the shelf: its drawing, then its name and counts. Lit at the pointer; a drop's target in red,
 /// with what the drop would do said under it.
-private struct ShelfObject: View {
+struct ShelfObject: View {
     let lab: LabState
     let item: BoxShelfItem
     let size: CGSize
@@ -171,6 +171,7 @@ private struct ShelfObject: View {
             Button("Delete the Box…") { lab.deleteBox(id) }
         case .roll(let id, let box):
             if item.kind == .smartRoll { Button("Edit Rules…") { lab.editSmartRoll(id, in: box) } }
+            else { RollLookMenu(lab: lab, holder: .roll(id, box: box)) }
             Button("Rename…") { lab.naming = .init(kind: .renameRoll(id, box: box), name: item.name) }
             Divider()
             Button(item.kind == .smartRoll ? "Delete the Smart Roll…" : "Delete the Roll…") { lab.deleteRoll(id, in: box) }
@@ -180,7 +181,7 @@ private struct ShelfObject: View {
 }
 
 /// A drop on a shelf object: planned as a drop on its row of the sidebar (`ProjectStore.plan`), done the same way.
-private struct ShelfDrop: DropDelegate {
+struct ShelfDrop: DropDelegate {
     let lab: LabState
     let target: SidebarTarget
     @Binding var plan: DropPlan?
@@ -372,7 +373,7 @@ struct CanisterGeometry {
     let holes: [CGRect]
     let line: CGFloat
 
-    init(_ size: CGSize, frames: Int) {
+    init(_ size: CGSize, frames wanted: Int) {
         let h = size.height * 0.94
         let w = (h * 0.46).rounded()
         let x: CGFloat = 4, y = ((size.height - h) / 2).rounded()
@@ -381,17 +382,20 @@ struct CanisterGeometry {
         caps = [CGRect(x: x, y: y + h * 0.065, width: w, height: h * 0.095), CGRect(x: x, y: y + h * 0.84, width: w, height: h * 0.095)]
         knob = CGRect(x: x + w * 0.33, y: y, width: w * 0.34, height: h * 0.075)
         stub = CGRect(x: x + w * 0.38, y: y + h * 0.93, width: w * 0.24, height: h * 0.065)
-        lip = CGRect(x: body.maxX - w * 0.03, y: y + h * 0.2, width: w * 0.13, height: h * 0.6)
+        lip = CGRect(x: body.maxX - w * 0.03, y: body.minY, width: w * 0.13, height: body.height)
         line = max(1, size.height / 100)
-        // The film, as tall as a 35 mm film is beside its canister; smaller if the leader wouldn't fit.
+        // Qlick Lab (Quentin, 2026-11-21): the film as wide as the cartridge's body, as a real 35 mm film is; when the
+        // leader wouldn't fit, fewer frames on it rather than a narrower film.
         let start = lip.maxX - 1
-        func length(_ film: CGFloat) -> CGFloat {
+        func length(_ film: CGFloat, _ frames: Int) -> CGFloat {
             let window = film * 0.66 * 1.5
             return frames == 0 ? film * 0.5 + film * 0.75 : film * 0.22 + CGFloat(frames) * (window + film * 0.12) + film * 0.1 + film * 0.75
         }
-        var film = h * 0.6
+        var film = body.height
         let room = size.width - start - 6
-        if length(film) > room { film = max(film * room / length(film), 8) }
+        var frames = wanted
+        while frames > 0, length(film, frames) > room { frames -= 1 }
+        if length(film, frames) > room { film = max(film * room / length(film, frames), 8) }
         let band = film * 0.17
         let window = CGSize(width: film * 0.66 * 1.5, height: film * 0.66)
         let pitch = window.width + film * 0.12
@@ -406,8 +410,9 @@ struct CanisterGeometry {
         let hole = CGSize(width: max(step * 0.52, 1.5), height: max(band * 0.5, 1.5))
         var hx = start + step * 0.6
         while hx + hole.width < strip.maxX + tongue - film * 0.3 {
-            if hx + hole.width < strip.maxX - 1 { holes.append(CGRect(x: hx, y: top + (band - hole.height) / 2, width: hole.width, height: hole.height)) }
-            holes.append(CGRect(x: hx, y: top + film - band + (band - hole.height) / 2, width: hole.width, height: hole.height))
+            // Qlick Lab: the leader's lower half is cut away (as on a real roll and Quentin's reference): the bottom row stops.
+            holes.append(CGRect(x: hx, y: top + (band - hole.height) / 2, width: hole.width, height: hole.height))
+            if hx + hole.width < strip.maxX - 1 { holes.append(CGRect(x: hx, y: top + film - band + (band - hole.height) / 2, width: hole.width, height: hole.height)) }
             hx += step
         }
         self.holes = holes
@@ -416,15 +421,16 @@ struct CanisterGeometry {
     /// The film's outline: the strip, then the tongue, its upper half cut away in a curve.
     var film: Path {
         Path { p in
-            let s = strip, t = tongue, middle = s.minY + s.height * 0.46, r = s.height * 0.12
-            p.move(to: CGPoint(x: s.minX, y: s.minY))
-            p.addLine(to: CGPoint(x: s.maxX, y: s.minY))
-            p.addQuadCurve(to: CGPoint(x: s.maxX + t * 0.36, y: middle), control: CGPoint(x: s.maxX + t * 0.3, y: s.minY))
+            // The upper half runs on into the leader; the lower half is cut away in a curve.
+            let s = strip, t = tongue, middle = s.maxY - s.height * 0.46, r = s.height * 0.12
+            p.move(to: CGPoint(x: s.minX, y: s.maxY))
+            p.addLine(to: CGPoint(x: s.maxX, y: s.maxY))
+            p.addQuadCurve(to: CGPoint(x: s.maxX + t * 0.36, y: middle), control: CGPoint(x: s.maxX + t * 0.3, y: s.maxY))
             p.addLine(to: CGPoint(x: s.maxX + t - r, y: middle))
-            p.addQuadCurve(to: CGPoint(x: s.maxX + t, y: middle + r), control: CGPoint(x: s.maxX + t, y: middle))
-            p.addLine(to: CGPoint(x: s.maxX + t, y: s.maxY - r))
-            p.addQuadCurve(to: CGPoint(x: s.maxX + t - r, y: s.maxY), control: CGPoint(x: s.maxX + t, y: s.maxY))
-            p.addLine(to: CGPoint(x: s.minX, y: s.maxY))
+            p.addQuadCurve(to: CGPoint(x: s.maxX + t, y: middle - r), control: CGPoint(x: s.maxX + t, y: middle))
+            p.addLine(to: CGPoint(x: s.maxX + t, y: s.minY + r))
+            p.addQuadCurve(to: CGPoint(x: s.maxX + t - r, y: s.minY), control: CGPoint(x: s.maxX + t, y: s.minY))
+            p.addLine(to: CGPoint(x: s.minX, y: s.minY))
             p.closeSubpath()
         }
     }
@@ -506,8 +512,8 @@ struct CanisterArt: View {
         context.fill(Path(CGRect(x: g.body.minX, y: g.body.minY + g.body.height * 0.66, width: g.body.width, height: max(g.body.height * 0.06, 2))),
                      with: .color(Theme.accent))
         context.stroke(body, with: line, style: style)
-        // Caps, knob and stub, knurled.
-        for part in [g.knob, g.stub] {
+        // Caps and the spool's knob, knurled: one end only, on top, as a real cartridge.
+        for part in [g.knob] {
             let path = Path(roundedRect: part, cornerRadius: part.height * 0.25)
             context.fill(path, with: .color(ink.fill))
             context.stroke(path, with: line, style: style)

@@ -597,7 +597,7 @@ private struct CropOverlay: View {
     let fine: Bool
     @Environment(\.sheetInk) private var ink
 
-    static let shade = Color(red: 8 / 255, green: 7 / 255, blue: 6 / 255).opacity(0.6)
+    static let shade = Color(white: 0.03).opacity(0.6)
 
     var body: some View {
         Canvas { context, _ in

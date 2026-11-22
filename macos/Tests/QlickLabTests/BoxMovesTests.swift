@@ -44,7 +44,7 @@ import XCTest
         let urls = ["M1.DNG", "M2.DNG"].map { a.appendingPathComponent($0) }
 
         let photosPlan = try XCTUnwrap(store.plan(.photos(urls, from: nil), onto: .boxes, at: 0.5, copying: false))
-        XCTAssertEqual(photosPlan.label, "New Box “Madrid”, 2 photographs")
+        XCTAssertEqual(photosPlan.label, "New Box “Madrid”, 2 photographs (⌥ for a Roll)")
         XCTAssertTrue(store.apply(try XCTUnwrap(photosPlan.action)))
         XCTAssertEqual(shape(store.boxes), "[Madrid: M1.DNG,M2.DNG  ]")
 
@@ -56,10 +56,16 @@ import XCTest
 
         let box = try XCTUnwrap(store.boxes.first)
         let roll = try XCTUnwrap(store.createRoll(named: "Night", in: box.id, frames: [urls[0]]))
+        // Quentin, 2026-11-21: a Roll dropped on the Boxes goes to the top as it is, in no Box; with ⌥, a Box round it.
         let rollPlan = try XCTUnwrap(store.plan(.roll(roll.id, box: box.id), onto: .boxes, at: 0.5, copying: false))
         XCTAssertTrue(store.apply(try XCTUnwrap(rollPlan.action)))
-        XCTAssertEqual(store.boxes.map(\.name), ["Madrid", "Night"])
-        XCTAssertEqual(store.boxes.last?.rolls.map(\.name), ["Night"])
+        XCTAssertEqual(store.listedBoxes.map(\.name), ["Madrid"])
+        XCTAssertEqual(store.looseRolls.map(\.name), ["Night"])
+        let boxPlan = try XCTUnwrap(store.plan(.roll(roll.id, box: ProjectStore.looseID), onto: .boxes, at: 0.5, copying: true))
+        XCTAssertTrue(store.apply(try XCTUnwrap(boxPlan.action)))
+        XCTAssertEqual(store.listedBoxes.map(\.name), ["Madrid", "Night"])
+        XCTAssertEqual(store.listedBoxes.last?.rolls.map(\.name), ["Night"])
+        XCTAssertTrue(store.looseRolls.isEmpty)
         XCTAssertEqual(try disk(), before, "the disk is untouched")
     }
 

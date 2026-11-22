@@ -15,6 +15,7 @@ import SwiftUI
     private var flagItems: [NSMenuItem] = []
     /// Photo › Add to Box: the Boxes and Rolls, listed as the menu opens.
     private let boxes = NSMenu(title: "Add to Box")
+    private let rolls = NSMenu(title: "Add to Roll")
     /// The pencil's keys are the photographer's (Réglages › Raccourcis).
     private func applyShortcuts() {
         let keys = model.lab.keys
@@ -167,6 +168,10 @@ import SwiftUI
         boxesItem.target = self
         boxesItem.submenu = boxes
         boxes.delegate = self
+        let rollsItem = photo.addItem(withTitle: "Add to Roll", action: #selector(showBoxes), keyEquivalent: "")
+        rollsItem.target = self
+        rollsItem.submenu = rolls
+        rolls.delegate = self
         command(photo, "New Box from Selection…", #selector(newBoxFromSelection), "")
         command(photo, "Remove from Box", #selector(removeFromBox), "")
         photo.addItem(.separator())
@@ -458,8 +463,8 @@ import SwiftUI
 
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
-        if menu === boxes {
-            let built = model.lab.addToBoxMenu(for: model.lab.selectionTargets)
+        if menu === boxes || menu === rolls {
+            let built = model.lab.addToBoxMenu(for: model.lab.selectionTargets, rolls: menu === rolls)
             for item in built.items { built.removeItem(item); menu.addItem(item) }
             return
         }

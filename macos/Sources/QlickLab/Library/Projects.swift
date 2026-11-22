@@ -33,6 +33,10 @@ struct BoxRoll: Codable, Identifiable, Hashable, Sendable {
     /// Qlick Lab: a Smart Roll's rules. Its photographs are those of the catalogue that meet them, found when it's
     /// shown (`ProjectStore.smartFrames`); none are kept in `frames`.
     var rules: RuleGroup? = nil
+    /// Qlick Lab: the Roll's look, as a real roll has one film: a film stock's id (`film:<id>`) or a recipe's name
+    /// (`recipe:<name>`) chosen from its menu. With Settings' "One film stock per Roll", photographs put in it later get
+    /// it too. Nil: each photograph keeps its own.
+    var look: String? = nil
 
     var isSmart: Bool { rules != nil }
 }
@@ -152,6 +156,8 @@ enum BoxesFile {
 enum Holder: Hashable, Sendable {
     case box(UUID)
     case roll(UUID, box: UUID)
+
+    var isRoll: Bool { if case .roll = self { true } else { false } }
 
     /// The list that shows it.
     var view: LabView {
@@ -483,6 +489,21 @@ struct RollStats: Equatable, Sendable {
     }
 
     /// A new Box, on top or inside `parent`, holding `frames`.
+    /// Qlick Lab: the Rolls at the top of the Boxes, in no Box, are kept in a Box of their own that is never shown as one.
+    static let looseID = UUID(uuidString: "0000B0C5-0000-4000-8000-000000000001")!
+    /// The Boxes shown as Boxes: every one on top but the loose Rolls' own.
+    var listedBoxes: [LabBox] { boxes.filter { $0.id != Self.looseID } }
+    /// The Rolls at the top, in no Box.
+    var looseRolls: [BoxRoll] { boxes.first { $0.id == Self.looseID }?.rolls ?? [] }
+    /// The loose Rolls' Box, made the first time one is put there.
+    func looseBoxID() -> UUID {
+        if !boxes.contains(where: { $0.id == Self.looseID }) {
+            boxes.append(LabBox(id: Self.looseID, name: "Rolls"))
+            saveBoxes()
+        }
+        return Self.looseID
+    }
+
     @discardableResult func createBox(named name: String, in parent: UUID? = nil, frames: [URL] = []) -> LabBox? {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let box = LabBox(name: uniqueBoxName(trimmed.isEmpty ? "New Box" : trimmed, in: parent), frames: Self.paths(frames))
@@ -582,7 +603,7 @@ struct RollStats: Equatable, Sendable {
         }
     }
 
-    private func changeBox(_ id: UUID, _ change: (inout LabBox) -> Void) {
+    func changeBox(_ id: UUID, _ change: (inout LabBox) -> Void) {
         var changed = boxes
         guard changed.indices.contains(where: { changed[$0].change(id, change) }), changed != boxes else { return }
         boxes = changed

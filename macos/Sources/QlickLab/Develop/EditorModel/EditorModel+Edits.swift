@@ -345,6 +345,8 @@ extension EditorModel {
     /// Edits can be copied, pasted and reset: the catalog has arrived and no
     /// crop is being drawn.
     var canChangeEdits: Bool { source != nil && hasCatalog && !cropping && !closing }
+    /// Qlick Lab: other photographs' sidecars can change without one being open (a Roll's look from the Library).
+    var canChangeOthers: Bool { hasCatalog && !cropping && !closing }
 
     /// What Copy Edits copies: the grid's current photograph, or the open one.
     var copySource: URL? { mode == .grid ? selection.current : sourceItem }

@@ -18,7 +18,8 @@ final class ViewerSheetTests: XCTestCase {
     /// and its neutral paper white.
     func testInksMatchTheProposal() {
         let expected: [ViewerSheet: (light: Bool, inks: [UInt32])] = [
-            .black: (true, [0xebe4d6, 0xb9b0a1, 0x8c8578, 0x424039, 0x25241f, 0xf8000a]),
+            // QLab's black is the lab's sheet now (2026-11-21): on it the inks are Theme's exactly.
+            .black: (true, [0xf0f0f0, 0xbababa, 0x808080, 0x474747, 0x333333, 0xf8000a]),
             .charcoal: (true, [0xffffff, 0xd0c7b8, 0xa09a8b, 0x55524a, 0x3b3934, 0xf8000a]),
             .grey22: (true, [0xffffff, 0xd5cdbd, 0xaaa294, 0x636058, 0x4b4944, 0xe44b43]),
             .middleGrey: (false, [0x000000, 0x0b0601, 0x0b0601, 0x605c55, 0x6e6b67, 0x600d06]),

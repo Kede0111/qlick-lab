@@ -180,7 +180,7 @@ struct DevelopTag: View {
         }
         .fixedSize()
         .padding(EdgeInsets(top: 7, leading: 16, bottom: 9, trailing: 16))
-        .background(RoundedRectangle(cornerRadius: 3).fill(Color(red: 12 / 255, green: 11 / 255, blue: 10 / 255).opacity(0.78)))
+        .background(RoundedRectangle(cornerRadius: 3).fill(Color(white: 0.045).opacity(0.78)))
         .overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(Theme.paper.opacity(0.08), lineWidth: 1))
         .shadow(color: .black.opacity(0.4), radius: 8, y: 4)
         .accessibilityElement(children: .ignore)

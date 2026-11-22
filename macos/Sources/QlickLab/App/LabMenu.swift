@@ -30,6 +30,7 @@ import AppKit
         add("Print Contact Sheet…", #selector(printSheet), "p")
         add("Compare Selection", #selector(compare), "")
         add("See Larger", #selector(loupe), "")
+        add("Build Previews of the Selection", #selector(buildPreviews), "")
         menu.addItem(.separator())
         add("Red Pencil", #selector(togglePencil), "")
         add("Light Table", #selector(toggleLightTable), "l", [.command, .shift, .option])
@@ -117,6 +118,8 @@ import AppKit
     @objc private func loupe() { if let current = model.selection.current { lab.loupe = lab.loupe == nil ? current : nil } }
     @objc private func togglePencil() { lab.sheet.tool = lab.sheet.tool == .pencil ? .pointer : .pencil }
     @objc private func toggleLightTable() { lab.sheet.lightTable.toggle() }
+    /// Qlick Lab: the large previews of the photographs selected, built now (whatever Settings › Upkeep says).
+    @objc private func buildPreviews() { lab.previewBuilder.build(lab.selectionTargets) }
     @objc private func toggleInfo() { lab.sheet.showInfo.toggle() }
     @objc private func toggleSidebar() { lab.sidebarVisible.toggle() }
 
@@ -137,7 +140,7 @@ import AppKit
         case #selector(compare): return photo && !model.cropping
         case #selector(loupe): return sheet && model.selection.current != nil
         case #selector(togglePencil): item.state = lab.sheet.tool == .pencil ? .on : .off; return sheet
-        case #selector(toggleLightTable): item.state = lab.sheet.lightTable ? .on : .off; return sheet
+        case #selector(toggleLightTable): item.state = lab.sheet.lightTable ? .on : .off; return sheet || lab.workspace == .develop
         case #selector(toggleInfo): item.state = lab.sheet.showInfo ? .on : .off; return sheet
         case #selector(toggleSidebar): item.state = lab.sidebarVisible ? .on : .off; return true
         case #selector(togglePhotoInfo):

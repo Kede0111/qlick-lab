@@ -29,6 +29,8 @@ enum LabGlyph: String, CaseIterable, Sendable {
     case canister
     /// A Smart Roll: the cartridge, with a spark in the lab's red.
     case smartCanister
+    /// Where Rolls are dropped: Quentin's cartridge drawing, only for "Drop Rolls here".
+    case dropCanister
     /// The Archives: an archive box seen from the front, its hand hole and label holder.
     case archive
     /// A Box: the archive box in three quarters, its label on the front.
@@ -180,6 +182,40 @@ enum LabGlyph: String, CaseIterable, Sendable {
             label("135", 7, 12.2)
             if self == .smartCanister {
                 context.fill(spark(g, centre: (19.5, 4.5), radius: 3.6), with: .color(mark))
+            }
+
+        case .dropCanister:
+            // Qlick Lab: the place Rolls are dropped ("Drop Rolls here"): Quentin's own cartridge, traced from his drawing (800 × 560, scaled onto the grid):
+            // the spool's knob on top only, two flanged caps, the seam, the film out at the right with its perforations,
+            // the leader's lower half cut away in an S.
+            let k: CGFloat = 22 / 715
+            func q(_ x: CGFloat, _ y: CGFloat) -> CGPoint { g.p(1 + (x - 40) * k, (24 - 480 * k) / 2 + (y - 40) * k) }
+            func rr(_ x0: CGFloat, _ y0: CGFloat, _ x1: CGFloat, _ y1: CGFloat) -> CGRect {
+                let a = q(x0, y0), b = q(x1, y1); return CGRect(x: a.x, y: a.y, width: b.x - a.x, height: b.y - a.y)
+            }
+            let corner = { (px: CGFloat) in CGSize(width: px * k * g.s, height: px * k * g.s) }
+            line { p in
+                p.addRoundedRect(in: rr(118, 40, 225, 85), cornerSize: corner(9))
+                p.addRoundedRect(in: rr(38, 85, 305, 145), cornerSize: corner(13))
+                p.move(to: q(48, 145)); p.addLine(to: q(48, 462))
+                p.move(to: q(140, 145)); p.addLine(to: q(140, 462))
+                p.move(to: q(295, 145)); p.addLine(to: q(295, 462))
+                p.addRoundedRect(in: rr(38, 462, 305, 520), cornerSize: corner(13))
+                // The film.
+                p.move(to: q(305, 130)); p.addLine(to: q(718, 130)); p.addQuadCurve(to: q(755, 167), control: q(755, 130))
+                p.addLine(to: q(755, 382)); p.addQuadCurve(to: q(718, 418), control: q(755, 418))
+                p.addLine(to: q(565, 418)); p.addCurve(to: q(500, 470), control1: q(525, 418), control2: q(520, 470))
+                p.addLine(to: q(305, 478))
+            }
+            // The perforations: small rounded windows from 32 pt up, short dashes below.
+            let top: [CGFloat] = [311, 388, 463, 542, 622, 702], bottom: [CGFloat] = [318, 395, 472]
+            line { p in
+                if g.side >= 32 {
+                    for x in top { p.addRoundedRect(in: rr(x - 11, 158, x + 11, 190), cornerSize: corner(4)) }
+                    for x in bottom { p.addRoundedRect(in: rr(x - 11, 418, x + 11, 450), cornerSize: corner(4)) }
+                } else {
+                    for x in top.dropFirst().dropLast() { p.move(to: q(x - 14, 174)); p.addLine(to: q(x + 14, 174)) }
+                }
             }
 
         case .archive:
@@ -340,10 +376,10 @@ enum LabGlyph: String, CaseIterable, Sendable {
     private func cartridge(_ g: Grid, line: ((inout Path) -> Void) -> Void, x: CGFloat) {
         line { p in
             p.addRoundedRect(in: g.r(x + 2.8, 2.5, 2.8, 2), cornerSize: CGSize(width: g.s * 0.5, height: g.s * 0.5))
-            p.addRoundedRect(in: g.r(x + 0.5, 4.5, 7.6, 15), cornerSize: CGSize(width: g.s * 1.2, height: g.s * 1.2))
+            // Qlick Lab: one spool end only, on top, as a real 135 cartridge; the bottom is its flat cap.
+            p.addRoundedRect(in: g.r(x + 0.5, 4.5, 7.6, 17), cornerSize: CGSize(width: g.s * 1.2, height: g.s * 1.2))
             p.move(to: g.p(x + 0.5, 7)); p.addLine(to: g.p(x + 8.1, 7))
-            p.move(to: g.p(x + 0.5, 17)); p.addLine(to: g.p(x + 8.1, 17))
-            p.move(to: g.p(x + 3.4, 19.5)); p.addLine(to: g.p(x + 3.4, 21.5)); p.addLine(to: g.p(x + 5.2, 21.5)); p.addLine(to: g.p(x + 5.2, 19.5))
+            p.move(to: g.p(x + 0.5, 19)); p.addLine(to: g.p(x + 8.1, 19))
         }
     }
 

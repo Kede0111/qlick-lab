@@ -1,19 +1,19 @@
 {
-  "about": "Qlick Lab's design tokens: the one place the lab's colours, shapes, motion and capital labels are written. Design/ThemeTokens.swift is generated from this file by DesignTokensTests (QLICK_UPDATE_GENERATED=1 swift test --filter DesignTokensTests). The red is QLab's (Display P3 0.89, 0.11, 0.14), with its sRGB equivalent for AppKit and the contrast checks.",
+  "about": "Qlick Lab's design tokens: the one place the lab's colours, shapes, motion and capital labels are written. Design/ThemeTokens.swift is generated from this file by DesignTokensTests (QLICK_UPDATE_GENERATED=1 swift test --filter DesignTokensTests). The colours are QLab's (its Theme: black 0, surface 0.07, raised 0.115, hairline 0.2, faint 0.32, dim 0.5, text 0.94, neutral greys) and its red, Display P3 0.89, 0.11, 0.14, with its sRGB equivalent for AppKit and the contrast checks.",
   "colours": [
-    { "name": "bg", "srgb": "#0a0a0b", "doc": "The sheet the photograph lies on (canvas, grid)." },
-    { "name": "panel", "srgb": "#131314", "doc": "The inspector and the lab's surfaces, a shade lighter than the sheet; also the alert sheet." },
+    { "name": "bg", "srgb": "#000000", "doc": "The sheet the photograph lies on (canvas, grid)." },
+    { "name": "panel", "srgb": "#121212", "doc": "The inspector and the lab's surfaces, a shade lighter than the sheet; also the alert sheet." },
     { "name": "film", "srgb": "#000000", "doc": "The film's black: the strip, the tray, the leader, the contact sheet." },
-    { "name": "line", "srgb": "#28282a", "doc": "Hairlines between sections and modules." },
-    { "name": "track", "srgb": "#444447", "doc": "Slider track, outlines, separators, outlined buttons. Only on things whose words or shape already say what they are." },
+    { "name": "line", "srgb": "#333333", "doc": "Hairlines between sections and modules." },
+    { "name": "track", "srgb": "#474747", "doc": "Slider track, outlines, separators, outlined buttons. Only on things whose words or shape already say what they are." },
     { "name": "faint", "srgb": "#525252", "doc": "The faintest words and marks: disabled hints, empty states." },
-    { "name": "dim", "srgb": "#8a8a8f", "doc": "Values at their default, hints, secondary words, capital labels." },
-    { "name": "label", "srgb": "#b9b9be", "doc": "Control labels." },
+    { "name": "dim", "srgb": "#808080", "doc": "Values at their default, hints, secondary words, capital labels." },
+    { "name": "label", "srgb": "#bababa", "doc": "Control labels." },
     { "name": "paper", "srgb": "#f0f0f0", "doc": "What's being read: names, changed values, the focus box." },
     { "name": "accent", "srgb": "#f8000a", "displayP3": [0.89, 0.11, 0.14], "doc": "The lab's red, the pencil: the active, the selected, the main action. Never decoration. The sRGB value is the Display P3 red brought into sRGB." },
     { "name": "warn", "srgb": "#ffa64d", "doc": "Errors and warnings, always as words." },
     { "name": "onAccent", "srgb": "#ffffff", "doc": "Words on the red." },
-    { "name": "blank", "srgb": "#1a1a1c", "doc": "A tile not yet developed." },
+    { "name": "blank", "srgb": "#1a1a1a", "doc": "A tile not yet developed." },
     { "name": "raised", "srgb": "#1d1d1d", "doc": "A raised surface: a disabled main button, a lifted card." }
   ],
   "radii": [
