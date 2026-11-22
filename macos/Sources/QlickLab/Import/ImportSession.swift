@@ -332,6 +332,17 @@ enum ImportProgressStyle: String, CaseIterable, Sendable {
         }
     }
 
+    /// Whether an import is under way (its plan being made, files being copied, or Add in Place running).
+    var isBusy: Bool { run != nil || starting || adding != nil }
+
+    /// Another catalogue opens: the source closes and what was chosen in this one (its Archive, Box or Roll) goes.
+    func forgetCatalog() {
+        close()
+        lastSource = nil
+        options.project = ""; options.projectID = nil; options.boxID = nil; options.boxRollID = nil
+        ledgerCache = nil
+    }
+
     func close() {
         scan?.cancel(); scan = nil
         source = nil; frames = []; index = [:]; shown = []; selected = []; current = nil; scanning = false; plan = ImportPlan()

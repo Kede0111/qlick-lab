@@ -9,6 +9,7 @@ struct WorkspaceOverlay: View {
     var body: some View {
         let lab = model.lab
         Group {
+            if !lab.projects.isOpen { NoCatalogView(lab: lab) } else {
             switch lab.workspace {
             case .develop: EmptyView()
             case .library: LibraryHome(model: model)
@@ -20,6 +21,7 @@ struct WorkspaceOverlay: View {
             case .importer: ImportWorkspace(model: model)
             // Print is the photograph as it will be printed, with the print's panel beside it (`PrintPanel`).
             case .print: EmptyView()
+            }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -118,7 +120,8 @@ struct WorkspaceOverlay: View {
         let lab = model.lab
         if sidebarItem.isCollapsed == lab.sidebarVisible { sidebarItem.animator().isCollapsed = !lab.sidebarVisible }
         // The contact sheet's Grid is the editor's own sheet, under the room: nothing covers it.
-        let covered = lab.workspace != .develop && lab.workspace != .print && !(lab.workspace == .contactSheet && lab.sheet.style == .grid && model.source != nil)
+        // No catalogue open: the window asks for one, over every room (`NoCatalogView`).
+        let covered = !lab.projects.isOpen || lab.workspace != .develop && lab.workspace != .print && !(lab.workspace == .contactSheet && lab.sheet.style == .grid && model.source != nil)
         model.canvasScale.covered = covered
         if overlay.isHidden == covered {
             overlay.isHidden = !covered

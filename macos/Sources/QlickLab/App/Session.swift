@@ -32,14 +32,21 @@ struct EditorSession: Codable, Equatable, Sendable {
     var match: SessionMatch?
     /// Not saved: the photograph's sidecar, read with the session at launch.
     var sidecar: SidecarRestore?
+    /// Qlick Lab: the catalogue open when it was saved (its folder's path). The photograph is reopened only in that
+    /// catalogue: one catalogue at a time, nothing of another shows (`EditorModel.restores`).
+    var catalog: String?
 
-    private enum CodingKeys: String, CodingKey { case schema, source, variant, bookmark, state, inspectorVisible, fitImage, match }
+    private enum CodingKeys: String, CodingKey { case schema, source, variant, bookmark, state, inspectorVisible, fitImage, match, catalog }
 
     /// With `state`, a schema 2 session, as earlier versions saved.
     init(source: URL, state: EditState? = nil, inspectorVisible: Bool = true, fitImage: Bool = true) {
         self.source = source; self.state = state; self.inspectorVisible = inspectorVisible; self.fitImage = fitImage
         schema = state == nil ? 3 : 2
     }
+
+    /// A session saved before sessions named their catalogue reopens only a photograph of the catalogue open. The
+    /// tests' sessions, made by hand, name none and are reopened as they are.
+    nonisolated(unsafe) static var unnamedNeedCatalog = NSClassFromString("XCTestCase") == nil
 
     func validate() throws {
         guard (2...3).contains(schema), source.isFileURL, schema == 2 || state == nil else {

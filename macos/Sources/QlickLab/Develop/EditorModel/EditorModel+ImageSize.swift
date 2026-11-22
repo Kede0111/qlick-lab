@@ -55,10 +55,20 @@ extension EditorModel {
         guard !closing, ready, let source else { return nil }
         var session = EditorSession(source: source, inspectorVisible: inspectorVisible, fitImage: fitImage)
         session.variant = sourceVariant
+        if lab.projects.isOpen { session.catalog = lab.projects.directory.labStandardized.path }
         if brightnessMatchActive, !brightnessMatchPending, !matchingBrightness {
             session.match = SessionMatch(state.brightnessMatch, file: source)
         }
         return session
+    }
+
+    /// Qlick Lab: whether the session's photograph is reopened in the catalogue open now: saved in this one, or,
+    /// saved before sessions named theirs, one of its own photographs. Never with no catalogue open.
+    func restores(_ session: EditorSession) -> Bool {
+        let projects = lab.projects
+        guard projects.isOpen else { return false }
+        if let catalog = session.catalog { return catalog == projects.directory.labStandardized.path }
+        return !EditorSession.unnamedNeedCatalog || projects.holds(session.source)
     }
 
     func restore(_ session: EditorSession) throws {

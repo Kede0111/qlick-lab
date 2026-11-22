@@ -52,7 +52,9 @@ extension LabState {
                 }
                 if gone { model.closeFolder(); show(.library); return }
             }
-            projects.viewFolder(for: open)
+            let listed = projects.viewFolder(for: open)
+            // A list of the catalogue's left with nothing (its Archives removed, no pick left) closes, as a Roll does.
+            if open.holder == nil, PhotoFolder.sources(ofList: listed)?.isEmpty ?? true { model.closeFolder(); show(.library); return }
             // A Box whose own photographs all left keeps its shelf, no photograph open.
             if case .box(let id) = open, projects.ownFrames(of: .box(id)).isEmpty, model.source != nil {
                 model.openList(directory, allowEmpty: true)
