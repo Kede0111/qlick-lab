@@ -916,6 +916,8 @@ struct AdjustmentInspector: View {
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
+                // Qlick Lab: Develop's sections fold and open by their heads.
+                .environment(\.inkFoldPanel, "develop")
             }
             .scrollIndicators(.automatic)
         }

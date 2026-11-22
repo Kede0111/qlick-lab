@@ -1,21 +1,63 @@
 import AppKit
 import SwiftUI
 
-// Settings in the T2 · Label look, as "B · Index" in design/proposals/r19-settings.html:
-// the title band over the inspector's tabs, here Photographs, Upkeep and Shortcuts,
-// each a short page of the inspector's rows. The window fits its page's height.
+// Settings: the title band over a row of tabs, each a pictogram over its word (Photographs, Lab, Upkeep,
+// Shortcuts, About), each page a few sections of the inspector's rows with a line saying what each does.
+// The window fits its page's height.
 
 /// Settings' pages, in the order of their tabs.
 enum SettingsTab: String, CaseIterable {
-    case photographs = "Photographs", upkeep = "Upkeep"
-    // Qlick Lab: the sorting keys and the menus' shortcuts.
+    /// What a new photograph starts with, and how edits are kept.
+    case photographs = "Photographs"
+    /// The lab around the photograph: surfaces, the viewer, Rolls.
+    case lab = "Lab"
+    /// What the lab prepares by itself and the room it takes.
+    case upkeep = "Upkeep"
+    /// Every key, in one list.
     case shortcuts = "Shortcuts"
+    /// The version, updates, the lab's pages.
+    case about = "About"
+
+    var symbol: String {
+        switch self {
+        case .photographs: "photo.on.rectangle"
+        case .lab: "slider.horizontal.3"
+        case .upkeep: "externaldrive"
+        case .shortcuts: "keyboard"
+        case .about: "info.circle"
+        }
+    }
+}
+
+/// A Settings tab: its pictogram over its word, red when chosen.
+private struct SettingsTabButton: View {
+    let tab: SettingsTab
+    let chosen: Bool
+    let choose: () -> Void
+    @State private var hovered = false
+
+    var body: some View {
+        Button(action: choose) {
+            VStack(spacing: 4) {
+                Image(systemName: tab.symbol).font(.system(size: 16, weight: .regular)).frame(height: 20)
+                Text(tab.rawValue.uppercased()).font(.system(size: 9.5, weight: .semibold)).tracking(0.8)
+            }
+            .foregroundStyle(chosen ? Theme.accent : hovered ? Theme.paper : Theme.dim)
+            .frame(width: 84, height: 48)
+            .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.white.opacity(chosen ? 0.06 : 0)))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovered = $0 }
+        .accessibilityLabel(tab.rawValue)
+        .accessibilityAddTraits(chosen ? [.isSelected, .isButton] : .isButton)
+    }
 }
 
 /// The Settings window: Newsreader's title in the 38 pt band over the tabs,
 /// no toolbar, and the keyboard focus box rather than the system's ring.
 @MainActor final class SettingsWindowController: NSWindowController {
-    static let width: CGFloat = 440
+    static let width: CGFloat = 520
     private let band = TitleBand()
     private let host: NSHostingView<SettingsView>
 
@@ -102,25 +144,23 @@ struct SettingsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .firstTextBaseline, spacing: 24) {
+            HStack(spacing: 4) {
+                Spacer(minLength: 0)
                 ForEach(SettingsTab.allCases, id: \.self) { item in
-                    TabWord(title: item.rawValue, chosen: tab == item) { tab = item }
+                    SettingsTabButton(tab: item, chosen: tab == item) { tab = item }
                 }
                 Spacer(minLength: 0)
             }
-            .padding(.horizontal, Theme.Size.gutter)
-            .padding(.top, 8)
-            .frame(height: Theme.Size.tabRow, alignment: .top)
+            .padding(.vertical, 8)
             .overlay(alignment: .bottom) { InkRule() }
             .accessibilityElement(children: .contain)
             .accessibilityLabel("Settings tabs")
             switch tab {
             case .photographs: photographs
+            case .lab: labPage
             case .upkeep: upkeep
-            case .shortcuts:
-                ShortcutSettings(keys: model.lab.keys)
-                MenuShortcutsList(store: .shared)
-                    .padding(.horizontal, Theme.Size.gutter).padding(.bottom, 16)
+            case .shortcuts: ShortcutSettings(keys: model.lab.keys, menus: .shared)
+            case .about: about
             }
         }
         .frame(width: SettingsWindowController.width, alignment: .top)
@@ -174,6 +214,11 @@ struct SettingsView: View {
             ForEach(ColorLabel.allCases) { label in LabelNameRow(label: label) }
             HintText("Your own name for each colour (“To print”, “For the client”). Empty, the colour’s name. Photographs keep the colour, not the name.")
         } }
+    }
+
+    // MARK: Lab: the lab around the photograph
+
+    @ViewBuilder private var labPage: some View {
         InkSection(title: "Rolls") {
             TickRow(title: "One film stock per Roll", isOn: $oneStock,
                     help: "A Roll keeps the film or recipe loaded from its menu, and every photograph put in it later takes it, as on a real roll.")
@@ -249,6 +294,23 @@ struct SettingsView: View {
         .task { thumbnailBytes = await model.thumbnailCacheSize() }
         // Qlick Lab: the previews built ahead: where, how much room, emptied.
         PreviewStorageSection(model: model)
+    }
+
+    // MARK: About: the version, updates, the lab's pages
+
+    @ViewBuilder private var about: some View {
+        let info = Bundle.main.infoDictionary ?? [:]
+        VStack(spacing: 6) {
+            Image(nsImage: NSApp.applicationIconImage).resizable().frame(width: 84, height: 84)
+            Text(info["CFBundleName"] as? String ?? "Qlick Lab").font(.system(size: 17, weight: .semibold)).foregroundStyle(Theme.paper)
+            Text("Version \(info["CFBundleShortVersionString"] as? String ?? "–") (\(info["CFBundleVersion"] as? String ?? "–"))")
+                .font(.system(size: 11.5)).foregroundStyle(Theme.dim).textSelection(.enabled)
+            Text("Develops digital photographs as a film lab would, by the spectral simulation of real stocks.")
+                .font(.system(size: 11.5)).foregroundStyle(Theme.label).multilineTextAlignment(.center).padding(.top, 4)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 16)
+        InkRule()
         InkSection(title: "Updates") {
             if updates.configured {
                 TickRow(title: "Automatically check for updates", isOn: Binding(
@@ -266,6 +328,14 @@ struct SettingsView: View {
                 ReadoutRow(title: "Updates are not configured for this build.", value: "")
                 HintText("Install a release build to receive updates.")
             }
+        }
+        InkSection(title: "The lab") {
+            ButtonRow {
+                Text("Its source, its versions, a problem to report").font(Theme.serif(14.5)).foregroundStyle(Theme.label)
+            } button: {
+                Button("Open the Lab’s Page") { NSWorkspace.shared.open(Support.repositoryURL) }.buttonStyle(OutlinedButtonStyle())
+            }
+            HintText("Qlick Lab is free and open source (GPL-3.0). Support Qlick Lab… in the app’s menu, if you’d like to.")
         }
     }
 

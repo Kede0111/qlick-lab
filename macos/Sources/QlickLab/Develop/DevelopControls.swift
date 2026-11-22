@@ -283,12 +283,45 @@ struct WhiteBalanceSection: View {
 /// kind. Each opens its stocks. The paper can be taken away: the film is then scanned as it is, with no print.
 struct StockPicker: View {
     let model: EditorModel
+    /// Qlick Lab: the card folded to one line (the film, the paper), to leave the column to the settings.
+    @AppStorage("qlick.filmCardFolded") private var folded = false
 
     var body: some View {
+        Group {
+            if folded { foldedCard } else { card }
+        }
+        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.white.opacity(0.05)))
+        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Color.white.opacity(0.09), lineWidth: 1))
+        .padding(.horizontal, Theme.Size.gutter - 8)
+        .padding(.bottom, 4)
+        .animation(.snappy(duration: 0.2), value: folded)
+    }
+
+    /// One line: the film and what it's printed on; a click opens the card again.
+    private var foldedCard: some View {
+        let scanning = model.value("io.scan_film").bool
+        let noFilm = model.value(EditorModel.noFilmPath).bool
+        return Button { folded = false } label: {
+            HStack(spacing: 8) {
+                Text(noFilm ? "No film" : model.filmName).font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.paper).lineLimit(1)
+                Text(scanning ? "scanned" : "on \(model.paperName)").font(.system(size: 11.5)).foregroundStyle(Theme.dim)
+                    .lineLimit(1).truncationMode(.tail)
+                Spacer(minLength: 4)
+                Image(systemName: "chevron.down").font(.system(size: 10, weight: .semibold)).foregroundStyle(Theme.dim)
+            }
+            .padding(.horizontal, 14).frame(height: 34).contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help("Shows the film, the paper and the recipe")
+        .accessibilityLabel("Film \(noFilm ? "none" : model.filmName), \(scanning ? "scanned" : "printed on \(model.paperName)")")
+        .accessibilityHint("Opens the film card")
+    }
+
+    private var card: some View {
         let scanning = model.value("io.scan_film").bool
         let noFilm = model.value(EditorModel.noFilmPath).bool
         let film = model.films.first { $0.id == model.film }
-        VStack(spacing: 0) {
+        return VStack(spacing: 0) {
             HStack(spacing: 0) {
                 if noFilm {
                     PickerRow(model: model, paper: false, caption: nil, name: "No film",
@@ -304,6 +337,14 @@ struct StockPicker: View {
                 }
                 .buttonStyle(.plain)
                 .help(noFilm ? "Use a film again" : "No film: take the image as it is, for a scanned negative or effects alone")
+                Button { folded = true } label: {
+                    Image(systemName: "chevron.up")
+                        .font(.system(size: 10, weight: .semibold)).foregroundStyle(Theme.dim)
+                        .frame(width: 24, height: 56).contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("Folds the film card to one line")
+                .accessibilityLabel("Fold the film card")
                 .padding(.trailing, 4)
             }
             Rectangle().fill(Color.white.opacity(0.07)).frame(height: 1).padding(.horizontal, 12)
@@ -322,10 +363,6 @@ struct StockPicker: View {
             Rectangle().fill(Color.white.opacity(0.07)).frame(height: 1).padding(.horizontal, 12)
             PresetRow(model: model)
         }
-        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.white.opacity(0.05)))
-        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Color.white.opacity(0.09), lineWidth: 1))
-        .padding(.horizontal, Theme.Size.gutter - 8)
-        .padding(.bottom, 4)
     }
 
     static func kind(_ stock: Stock) -> String {

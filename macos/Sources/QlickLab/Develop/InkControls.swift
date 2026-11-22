@@ -497,6 +497,45 @@ struct InkRule: View {
     var body: some View { Rectangle().fill(Theme.line).frame(height: 1).accessibilityHidden(true) }
 }
 
+/// Qlick Lab: the panels whose sections fold (Develop, Print), by name: a section's head then folds and opens it,
+/// ⌥-click opens it alone, and its menu opens or folds them all. Which are folded is remembered.
+@MainActor @Observable final class InkFolds {
+    static let shared = InkFolds()
+    private static let key = "qlick.foldedSections"
+    private(set) var folded: Set<String>
+    /// The sections each panel has shown, for "only this one" and "fold all".
+    @ObservationIgnored private var known: [String: Set<String>] = [:]
+
+    private init() { folded = Set(UserDefaults.standard.stringArray(forKey: Self.key) ?? []) }
+
+    func isOpen(_ panel: String, _ title: String) -> Bool { !folded.contains("\(panel).\(title)") }
+    func note(_ panel: String, _ title: String) { known[panel, default: []].insert(title) }
+
+    func toggle(_ panel: String, _ title: String, alone: Bool = false) {
+        if alone {
+            for other in known[panel] ?? [] { folded.insert("\(panel).\(other)") }
+            folded.remove("\(panel).\(title)")
+        } else if folded.remove("\(panel).\(title)") == nil {
+            folded.insert("\(panel).\(title)")
+        }
+        save()
+    }
+
+    func setAll(_ panel: String, open: Bool) {
+        for title in known[panel] ?? [] {
+            if open { folded.remove("\(panel).\(title)") } else { folded.insert("\(panel).\(title)") }
+        }
+        save()
+    }
+
+    private func save() { UserDefaults.standard.set(folded.sorted(), forKey: Self.key) }
+}
+
+extension EnvironmentValues {
+    /// The panel whose sections fold (`InkFolds`); nil where sections always show (Settings).
+    @Entry var inkFoldPanel: String? = nil
+}
+
 /// A section of the panel: a head in small bold caps (with the dot when
 /// anything in it changed), its rows, and a rule under it.
 struct InkSection<Content: View>: View {
@@ -507,11 +546,21 @@ struct InkSection<Content: View>: View {
     /// Qlick Lab: the section's on/off switch, if it has one: off, its rows fade and keep their settings.
     var enabled: Binding<Bool>? = nil
     @ViewBuilder let content: Content
+    @Environment(\.inkFoldPanel) private var panel
+    @State private var hovered = false
 
     var body: some View {
+        let folds = panel != nil && title != nil
+        let open = !folds || InkFolds.shared.isOpen(panel ?? "", title ?? "")
         VStack(alignment: .leading, spacing: 0) {
             if let title {
                 HStack(spacing: 0) {
+                    if folds {
+                        Text("›").font(Theme.serif(15)).foregroundStyle(hovered ? Theme.label : Theme.dim)
+                            .rotationEffect(.degrees(open ? 90 : 0))
+                            .frame(width: 13, alignment: .leading).padding(.trailing, 3)
+                            .accessibilityHidden(true)
+                    }
                     Text(title.uppercased())
                         .font(Theme.serif(11, weight: 700)).tracking(11 * 0.13)
                         .foregroundStyle(skipped == nil ? Theme.label : Theme.dim)
@@ -532,14 +581,34 @@ struct InkSection<Content: View>: View {
                 .padding(.horizontal, Theme.Size.gutter)
                 .frame(height: Theme.Size.sectionHead - 8)
                 .padding(.top, 8)
+                .contentShape(Rectangle())
+                .onHover { hovered = $0 && folds }
+                .onTapGesture {
+                    guard folds, let panel else { return }
+                    withAnimation(.snappy(duration: 0.2)) { InkFolds.shared.toggle(panel, title, alone: NSEvent.modifierFlags.contains(.option)) }
+                }
+                .contextMenu {
+                    if folds, let panel {
+                        Button("Only This Section") { withAnimation(.snappy(duration: 0.2)) { InkFolds.shared.toggle(panel, title, alone: true) } }
+                        Button("Open All Sections") { withAnimation(.snappy(duration: 0.2)) { InkFolds.shared.setAll(panel, open: true) } }
+                        Button("Fold All Sections") { withAnimation(.snappy(duration: 0.2)) { InkFolds.shared.setAll(panel, open: false) } }
+                    }
+                }
+                .help(folds ? "Click to fold or open; ⌥-click to open this one alone" : "")
                 .accessibilityElement(children: .combine)
-                .accessibilityAddTraits(.isHeader)
-                .accessibilityValue(edited ? "Edited" : "")
+                .accessibilityAddTraits(folds ? [.isHeader, .isButton] : .isHeader)
+                .accessibilityValue([edited ? "Edited" : nil, folds ? (open ? "Open" : "Folded") : nil].compactMap { $0 }.joined(separator: ", "))
+                .accessibilityAction { if folds, let panel { InkFolds.shared.toggle(panel, title) } }
+                .onAppear { if let panel { InkFolds.shared.note(panel, title) } }
             } else {
                 Color.clear.frame(height: 8)
             }
-            content.inkDisabled(enabled.map { !$0.wrappedValue } ?? false)
-            Color.clear.frame(height: 9)
+            if open {
+                content.inkDisabled(enabled.map { !$0.wrappedValue } ?? false)
+                Color.clear.frame(height: 9)
+            } else {
+                Color.clear.frame(height: 4)
+            }
             InkRule()
         }
     }

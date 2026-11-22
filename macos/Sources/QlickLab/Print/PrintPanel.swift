@@ -52,6 +52,8 @@ struct PrintPanel: View {
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
+                // Qlick Lab: Print's sections fold and open by their heads, as Develop's.
+                .environment(\.inkFoldPanel, "print")
             }
             .scrollIndicators(.automatic)
             // The line over the button says what the export makes, from the choices above.

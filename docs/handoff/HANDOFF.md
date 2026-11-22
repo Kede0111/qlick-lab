@@ -622,6 +622,8 @@ and speed/memory/disk comparisons. Measures and what changed: `docs/performance/
   (local, nothing pushed, `main` untouched). Swift tests: 555 (24 skipped), all pass (561 after R8); the Rust side wasn't changed.
   Qlick Lab Dev is built from it (`dist/qlick-lab-dev/Qlick Lab Dev.app`).
 - Phase: **lab structure** on `feature/lab-structure` (from `feature/import-library`, local). Lots A to I done, G but the recipes' door (question to Quentin); J and the recipes' door done. Next: waiting for Quentin to try Qlick Lab Dev; decision 4 (a recipe format shared with QLab) is for the very end.
+- Phase (2026-11-22): `feature/speed-redlamp` merged into `feature/lab-structure`, which now holds everything; Quentin
+  asked for it installed in /Applications.
 - Phase: **speed kept** (Quentin, 2026-11-21): `feature/speed-redlamp` = `feature/lab-structure` at 64547fc + speed +
   settings respected (c56d3b7: helpers relaunched when Make proxies changes, no previews on disk with Build previews
   ahead off, Settings › Upkeep › Develop thumbnails ahead). Qlick Lab Dev is now built from it. To do: merge it into
@@ -650,9 +652,15 @@ unplugging: `QLICK_SILENT_VOLUME=/Volumes/Name QLICK_SILENT_SECONDS=20`. Launch 
   Helper command `level` (a grey file of what the canvas shows, drawn at 1024 px); the Swift look stays as the
   fallback when the engine can't be asked. `QLICK_LEVEL_KEEP=<folder>` keeps what it read;
   `QLICK_LEVEL_FILES=... cargo test -p spektrafilm-io level_files -- --ignored --nocapture` reads files.
-- Still to do from Quentin's list (2026-11-22): the film card folding, Develop's sections folding (RedLamp's
-  PanelSection), Settings laid out as RedLamp's (About with "Check for updates automatically"), RedLamp's shortcut
-  editor. They touch files the `feature/lab-structure` worktree changed without committing.
+- Done after the merge into `feature/lab-structure` (2026-11-22): the film card folds to one line
+  (`qlick.filmCardFolded`); Develop's and Print's sections fold by their heads (`InkFolds`, `\.inkFoldPanel`;
+  ⌥-click opens one alone, the head's menu opens or folds all; `qlick.foldedSections`); Settings has pictogram tabs
+  (Photographs, Lab, Upkeep, Shortcuts, About; window 520 pt), About holds the version, "Automatically check for
+  updates" and the lab's page; Shortcuts is one list (`ShortcutSettings`): search, the sheet's keys then each menu,
+  key caps, a red dot when changed, a menu per row (record, remove, back to the lab's key), a clash offered with
+  "Take It", "Undo N Changes".
+- Branches: `feature/speed-redlamp` (NAS, selection, marks, straighten) and the other thread's uncommitted UX passes
+  (committed as 0ebe9ed at Quentin's request) are merged into `feature/lab-structure`; installed in /Applications.
 
 ## Build and test
 
