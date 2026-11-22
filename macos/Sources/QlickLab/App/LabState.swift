@@ -139,6 +139,13 @@ struct SheetOptions: Codable, Equatable, Sendable {
     /// before it read as they were (on the edge).
     var namesUnder: Bool? = nil
     var showInfo = false
+    /// Qlick Lab: the red pencil's rings and crosses hidden from view (View › Pencil Marks); the marks stay on the
+    /// photographs, and the Picks and Rejects filters keep finding them. Optional so options saved before read as shown.
+    var hideMarks: Bool? = nil
+    var showMarks: Bool {
+        get { hideMarks != true }
+        set { hideMarks = newValue ? nil : true }
+    }
 
     /// Where file names show, in every view of the photographs: the contact sheet's four, Develop's film strip.
     enum FileNames: String, CaseIterable, Sendable {
@@ -324,11 +331,53 @@ struct SheetOptions: Codable, Equatable, Sendable {
         importer.loadProfiles(inCatalog: projects.directory)
         // The Binder's folders and the import's old Recent list (before 0.4): the Archives' Folders replace them.
         for key in ["qlick.binderRoots", "qlick.importRecent"] { UserDefaults.standard.removeObject(forKey: key) }
-        if NSClassFromString("XCTestCase") == nil { projects.folders.start() }
+        if NSClassFromString("XCTestCase") == nil { projects.folders.start(); followReach() }
         model.canvasScale.contextMenu = { [weak self] point in self?.developCommands.menu(at: point) }
         projects.removedChanged = { [weak self] in self?.followRemoved($0) }
         setUpFinding()
     }
+
+    // MARK: Disks that don't answer
+
+    /// Qlick Lab: a disk that stops answering (a NAS gone away) is said once, and the lab carries on without it;
+    /// when it answers again its Folders are counted again. A catalogue that couldn't open at launch is said too.
+    private func followReach() {
+        VolumeReach.stoppedAnswering = { [weak self] volume in
+            self?.tellOnWindow(AppAlert(
+                title: "“\(volume.lastPathComponent)” isn’t answering",
+                detail: "Qlick Lab carries on without it: its Folders and photographs show as away until it answers again. Nothing on it is changed.",
+                buttons: [.init(title: "OK")]))
+        }
+        reach = NotificationCenter.default.addObserver(forName: VolumeReach.changed, object: nil, queue: .main) { [weak self] note in
+            guard let volume = note.userInfo?["volume"] as? String, !VolumeReach.isSilent(volume) else { return }
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                for roll in self.projects.projects.flatMap(\.rolls) where roll.folder.hasPrefix(volume + "/") { self.projects.count(roll) }
+            }
+        }
+        if let missed = CatalogList.missed {
+            CatalogList.missed = nil
+            if missed.silent { VolumeReach.said(missed.url.path) }
+            let name = CatalogList.name(of: missed.url), disk = VolumeReach.volumeName(of: missed.url.path)
+            tellOnWindow(AppAlert(
+                title: "The catalog “\(name)” couldn’t be opened",
+                detail: (missed.silent ? "Its disk, “\(disk)”, isn’t answering." : "It isn’t there: its disk, “\(disk)”, may not be connected.")
+                    + " The Default Catalog is open meanwhile: File › Open Recent Catalog opens “\(name)” once its disk is back, and the next launch tries it first.",
+                buttons: [.init(title: "OK")]))
+        }
+    }
+
+    /// Says it on the lab's window once the window is shown (at launch it isn't yet), within five seconds.
+    private func tellOnWindow(_ alert: AppAlert) {
+        Task { [model] in
+            for _ in 0..<50 {
+                if NSApp.windows.contains(where: { $0.isVisible && $0.canBecomeMain }) { break }
+                try? await Task.sleep(for: .milliseconds(100))
+            }
+            model.tell(alert)
+        }
+    }
+    @ObservationIgnored private var reach: NSObjectProtocol?
 
     // MARK: Rooms
 
@@ -526,7 +575,7 @@ struct SheetOptions: Codable, Equatable, Sendable {
             // A list is listed again (its Box may have changed since); a list whose Box went is skipped.
             if let view = projects.view(of: folder) { projects.viewFolder(for: view) }
             let gone = folder.path.hasPrefix(projects.directory.appendingPathComponent("Views").path + "/") && projects.view(of: folder) == nil
-            guard !gone, PhotoFolder.isList(folder) || FileManager.default.fileExists(atPath: folder.path) else {
+            guard !gone, PhotoFolder.isList(folder) || VolumeReach.exists(folder.path) else {
                 // The folder went (a card taken out): that place is skipped.
                 places.remove(at: index)
                 if placeIndex > index { placeIndex -= 1 }
@@ -624,7 +673,9 @@ struct SheetOptions: Codable, Equatable, Sendable {
     /// Opens a Folder on its contact sheet.
     func open(_ roll: LabRoll, in project: LabProject) {
         guard let folder = projects.resolve(roll, in: project.id) else {
-            model.error = "The folder “\(roll.name)” can't be found. It may have moved, or its disk isn't connected."
+            model.error = VolumeReach.isSilent(roll.folder)
+                ? "The folder “\(roll.name)” can’t be opened now: its disk, “\(VolumeReach.volumeName(of: roll.folder))”, isn’t answering."
+                : "The folder “\(roll.name)” can't be found. It may have moved, or its disk isn't connected."
             return
         }
         open(folder: folder)

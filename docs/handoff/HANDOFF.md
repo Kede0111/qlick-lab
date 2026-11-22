@@ -550,6 +550,33 @@ and speed/memory/disk comparisons. Measures and what changed: `docs/performance/
   ahead off, Settings › Upkeep › Develop thumbnails ahead). Qlick Lab Dev is now built from it. To do: merge it into
   `feature/lab-structure` once the UX work there is committed (it's checked out in `.worktrees/lab-structure`).
 
+### A NAS that doesn't answer (2026-11-22, on `feature/speed-redlamp`, not committed yet)
+
+The lab froze at launch when the NAS (Archives' Folders, or the catalogue) was mounted but its server gone: every
+look at a file there waits for ever, and some were on the main thread. `Files/VolumeReach.swift` now guards them: a disk
+under /Volumes that doesn't answer within 0.8 s (catalogue: 1.5 s) is left aside without waiting again, a thread
+watches it and posts `VolumeReach.changed` when it answers (Folders read and counted again). Said once per launch
+("“NAS” isn’t answering"); a catalogue on it opens the Default Catalog meanwhile with its own message (preference kept,
+the next launch tries it first). Guarded: catalogue choice and recent list, `PhotoFolder` listings, folder trees and
+their FSEvents, counts and cards, the sidebar's missing check, Last Import, Folder resolution (bookmarks now
+`.withoutUI, .withoutMounting`), opening a photograph or folder, the Import's volumes. Try it in a debug build without
+unplugging: `QLICK_SILENT_VOLUME=/Volumes/Name QLICK_SILENT_SECONDS=20`. Launch with a silent NAS: 1.2 s (Folders),
+2.4 s (catalogue). Tests: `VolumeReachTests`.
+
+### Selection, pencil marks, Auto Straighten (2026-11-22, `feature/speed-redlamp`, not committed yet)
+
+- Every selected frame wears the red pencil box (contact sheet, Grid, Develop's strip underline); the current one the
+  heavier line, the rest a finer one. View › Pencil Marks (⌥⇧⌘M, `SheetOptions.hideMarks`) hides the rings and
+  crosses everywhere (marks kept, filters unchanged). Automation: `sheet marks=0`.
+- Auto Straighten is the engine's now: `spektrafilm_io::straighten`, ported from LightCraft (MIT; notice in
+  LICENSES.md): plumb lines' vanishing point, then a horizon across the width, then the long lines, never past 5°.
+  Helper command `level` (a grey file of what the canvas shows, drawn at 1024 px); the Swift look stays as the
+  fallback when the engine can't be asked. `QLICK_LEVEL_KEEP=<folder>` keeps what it read;
+  `QLICK_LEVEL_FILES=... cargo test -p spektrafilm-io level_files -- --ignored --nocapture` reads files.
+- Still to do from Quentin's list (2026-11-22): the film card folding, Develop's sections folding (RedLamp's
+  PanelSection), Settings laid out as RedLamp's (About with "Check for updates automatically"), RedLamp's shortcut
+  editor. They touch files the `feature/lab-structure` worktree changed without committing.
+
 ## Build and test
 
 ```bash

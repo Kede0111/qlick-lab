@@ -6,6 +6,7 @@ catalog
 export_lut
 preset_import
 preset_export
+level
 preview_colour_space
 prepare_balance
 make_proxy

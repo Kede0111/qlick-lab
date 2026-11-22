@@ -110,6 +110,8 @@ enum PhotoFolder {
     }
 
     private static func listing(in directory: URL, own: Bool) throws -> (photos: [PhotoFile], sidecars: [String: PhotoFile]) {
+        // Qlick Lab: a disk that doesn't answer (a NAS gone away) isn't waited for (`VolumeReach`).
+        guard VolumeReach.answers(directory.path) else { throw CocoaError(.fileReadUnknown, userInfo: [NSFilePathErrorKey: directory.path]) }
         let files = try FileManager.default.contentsOfDirectory(at: directory,
             includingPropertiesForKeys: [.isRegularFileKey, .contentModificationDateKey, .fileSizeKey], options: [.skipsHiddenFiles])
         var photos: [PhotoFile] = [], sidecars: [String: PhotoFile] = [:]
@@ -340,7 +342,7 @@ struct PhotoBrowser: View {
                 // placed as the frames are (as the grid draws its own).
                 ForEach(frames, id: \.file.url) { frame in
                     ZStack {
-                        if library.summary(for: frame.file.url).flag == .pick {
+                        if model.lab.sheet.showMarks, library.summary(for: frame.file.url).flag == .pick {
                             BoxInk(name: frame.file.name, picked: true, inStrip: true)
                         }
                     }
@@ -571,7 +573,7 @@ private struct StripFrame: View {
     let width: CGFloat
     /// The open photograph: at full strength, with the pencil under it.
     let current: Bool
-    /// Selected for the context menu: at full strength, with a plain rule under it.
+    /// Selected for the context menu: at full strength, with a finer pencil under it.
     let selected: Bool
     let summary: LibrarySummary
     let readOnly: Bool
@@ -596,13 +598,14 @@ private struct StripFrame: View {
         Button(action: open) {
             VStack(spacing: 0) {
                 StripPicture(image: image, width: width, current: current, selected: selected, rejected: summary.flag == .reject)
-                    .overlay { PhotoMarks(summary: summary, name: file.name, stack: lab.projects.stackBadge(file.url)) }
+                    .overlay { PhotoMarks(summary: lab.sheet.showMarks ? summary : summary.unmarked, name: file.name, stack: lab.projects.stackBadge(file.url)) }
                     .modifier(PlaceReport(image: image, placed: placed))
                 ZStack(alignment: .top) {
                     if current {
                         PencilStroke().pencil(width: PhotoBrowser.pencilWidth).frame(height: Theme.pencilHeight).padding(.top, 3)
                     } else if selected {
-                        Rectangle().fill(Theme.label).frame(height: 1.5).padding(.top, 3)
+                        // Qlick Lab: the rest of the selection in the same red pencil, finer.
+                        PencilStroke().pencil(width: PhotoBrowser.pencilWidth * 0.5).frame(height: Theme.pencilHeight * 0.7).padding(.top, 3)
                     }
                 }
                 .frame(width: width, height: Theme.Size.stripRebate, alignment: .top)

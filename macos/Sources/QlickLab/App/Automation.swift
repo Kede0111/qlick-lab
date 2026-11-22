@@ -503,6 +503,7 @@ import AppKit
                 case "light": lab.sheet.lightTable = pair[1] == "1"
                 case "names": lab.sheet.fileNames = SheetOptions.FileNames(rawValue: pair[1]) ?? (pair[1] == "1" ? .edge : .off)
                 case "info": lab.sheet.showInfo = pair[1] == "1"
+                case "marks": lab.sheet.showMarks = pair[1] == "1"
                 case "sideways": lab.sheet.sidewaysVerticals = pair[1] == "1"
                 default: break
                 }

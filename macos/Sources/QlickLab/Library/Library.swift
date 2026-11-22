@@ -35,6 +35,8 @@ extension URL {
 /// What the film strip shows of a photograph or duplicate: its variant's
 /// rating and flag, and whether it has edits.
 struct LibrarySummary: Equatable, Sendable {
+    /// Qlick Lab: as drawn with the pencil's marks hidden (View › Pencil Marks): no ring, no cross.
+    var unmarked: LibrarySummary { var summary = self; summary.flag = nil; return summary }
     var rating = 0
     var flag: PhotoSidecar.Flag?
     var edited = false
@@ -427,7 +429,8 @@ struct LibraryFilter: Codable, Equatable, Sendable {
         rescans[id] = continuation
         // Armed before the first listing, so arrivals during it aren't missed.
         // Qlick Lab: a list (a whole project, a selection) follows each of its folders.
-        let watchers = PhotoFolder.folders(of: directory).compactMap { PhotoFolderWatcher(directory: $0) }
+        // Qlick Lab: a folder on a disk that doesn't answer isn't followed (`VolumeReach`).
+        let watchers = PhotoFolder.folders(of: directory).filter { VolumeReach.answers($0.path) }.compactMap { PhotoFolderWatcher(directory: $0) }
         let forwards = watchers.map { watcher in Task { for await _ in watcher.changes { continuation.yield(()) } } }
         defer {
             watchers.forEach { $0.stop() }; forwards.forEach { $0.cancel() }; continuation.finish()

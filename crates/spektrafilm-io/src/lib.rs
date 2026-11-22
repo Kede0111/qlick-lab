@@ -27,6 +27,7 @@ pub mod metadata;
 pub mod raw;
 pub mod resize;
 pub mod save;
+pub mod straighten;
 mod white_balance;
 
 pub use colour::{InputColour, InputInterpretation, InputMode};
