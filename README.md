@@ -112,7 +112,7 @@ with one ⌘Z.
 
 ## The Lab: developing
 
-- **[62 film stocks and papers](#film-stocks-and-papers)**: Portra, Ektar, Gold, Tri-X, Velvia, CineStill and more,
+- **[63 film stocks and papers](#film-stocks-and-papers)**: Portra, Ektar, Gold, Tri-X, Velvia, CineStill, Leica Monopan 50 and more,
   each with its measured curves, where it comes from and how far it can be trusted. Every stock shows a preview
   developed on *your* photograph.
 - **The film card** at the top of the panel: the film, the paper it's printed on, the recipe.
@@ -181,10 +181,10 @@ Infrared Color (creative)
 Kodak Vision3 50D · Vision3 200T · Vision3 250D · Vision3 500T · Verita 200D · Fujifilm Eterna 500 ·
 Eterna Vivid 500 · Reala 500D · F-64D
 
-**Black and white (8)**
+**Black and white (9)**
 
 Kodak Tri-X 400 (experimental) · T-MAX 100 · Double-X 5222 · Tri-X Reversal 7266 · Ilford HP5 Plus · FP4 Plus ·
-Delta 3200 · Fujifilm Neopan 100 Acros II
+Delta 3200 · Fujifilm Neopan 100 Acros II · Leica Monopan 50 (experimental)
 
 **Papers (7)**
 
