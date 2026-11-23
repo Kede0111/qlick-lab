@@ -84,10 +84,10 @@ struct IdeviceTransport: PhoneTransport {
     static func find() -> IdeviceTransport? {
         let fm = FileManager.default
         var candidates: [URL] = []
-        if let path = ProcessInfo.processInfo.environment["QLICK_IPHONE_HELPER"] { candidates.append(URL(fileURLWithPath: path)) }
+        if let path = ProcessInfo.processInfo.environment["QLICK_IPHONE_HELPER"] { candidates.append(URL(fileURLWithPath: path, isDirectory: false)) }
         if let executable = Bundle.main.executableURL { candidates.append(executable.deletingLastPathComponent().appendingPathComponent("qlick-iphone")) }
         if let root = ProcessInfo.processInfo.environment["SPEKTRAFILM_ROOT"] {
-            candidates.append(URL(fileURLWithPath: root).appendingPathComponent("target/release/qlick-iphone"))
+            candidates.append(URL(fileURLWithPath: root, isDirectory: true).appendingPathComponent("target/release/qlick-iphone"))
         }
         return candidates.first { fm.isExecutableFile(atPath: $0.path) }.map(IdeviceTransport.init(helper:))
     }

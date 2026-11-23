@@ -115,9 +115,9 @@ final class ImportRunner: @unchecked Sendable {
     static func copyCompanion(of source: URL, beside written: URL, verify: Bool) {
         let fm = FileManager.default
         for suffix in [PhotoSidecar.fileExtension, "qlab.json"] {
-            let companion = URL(fileURLWithPath: source.path + "." + suffix)
+            let companion = URL(fileURLWithPath: source.path + "." + suffix, isDirectory: false)
             guard fm.fileExists(atPath: companion.path) else { continue }
-            let target = URL(fileURLWithPath: written.path + "." + suffix)
+            let target = URL(fileURLWithPath: written.path + "." + suffix, isDirectory: false)
             if !fm.fileExists(atPath: target.path) { _ = try? ImportCopier.copy(companion, to: target, verify: verify) }
             return
         }
