@@ -18,13 +18,10 @@ Both apps keep reading their former files (`.qlabrecipe`, `.qlab.json`; `Presets
 - **Each app has its own block** at the top level, `"qlab"` and `"qlick"`. An app never changes or drops the other's
   block, nor any key it doesn't know, at any level: it writes back what it found.
 - **A newer format number** (`qrecipe.format`, `qsidecar`) is read as far as understood and never written over.
-- **Engine** (`engine`): which engine a development or a recipe is authoritative for.
-  - `{"name": "spektrafilm-rs", "revision": "<qlick-lab commit>", "defaultsVersion": <n>}`: the shared part (the
-    engine's parameters) is what renders. Both apps render it alike.
-  - `{"name": "qlab-swift", "version": "1.0.0", "reference": "spektrafilm 0.3.4 (3bb2c2d)"}`: QLab's former engine.
-    QLab renders it from its own block exactly as before; the shared part is a translation for Qlick Lab, an
-    approximation, and Qlick Lab says so. Only QLab can move a development or a recipe to `spektrafilm-rs` (the
-    photographer's choice, "use the new engine"); it never happens by itself.
+- **Engine** (`engine`): `{"name": "spektrafilm-rs", "revision": "<qlick-lab commit>", "defaultsVersion": <n>}`.
+  The shared part (the engine's parameters) is what renders; both apps render it alike at the same revision.
+  QLab's former Swift engine is gone: what it made was translated once, at QLab's first launch with the lab's engine
+  (below). A file naming another engine (`qlab-swift`, written by no released version) is read as a translation.
 
 ## `.qrecipe`
 
@@ -66,7 +63,7 @@ The file **is spektrafilm's saved GUI state** (the format Qlick Lab's recipes al
 | `qrecipe.revision` | An opaque token the writer sets anew whenever the content changes (each app uses a `sha256:` of its own serialisation). Readers never recompute it: they compare it with the revision they last synced. |
 | `qrecipe.engine` | See *Engine* above. |
 | `qlick` | Qlick Lab's own block (`RecipeDevelop`: which Develop groups the recipe carries). |
-| `qlab.recipe` | QLab's `Recipe` (`id`, `name`, `details`, `settings`, `thumbnail`…), verbatim: what a former `.qlabrecipe` held. For a `qlab-swift` recipe it is what renders, unchanged. |
+| `qlab.recipe` | QLab's `Recipe` (`id`, `name`, `details`, `settings`, `thumbnail`…), verbatim, its finishing and effects included. |
 | `qlab.enginePart` | QLab's fingerprint of the engine's part when it wrote the file. When the engine's part no longer matches (edited in Qlick Lab), QLab takes the engine's part and keeps only its finishing from `qlab.recipe`. |
 
 Applying a recipe keeps the photograph's own geometry, white balance, exposure and grain seed, in both apps (as both
@@ -74,10 +71,15 @@ already do).
 
 ### Migration (once, at launch, nothing lost)
 
-- QLab: each `Library/Recipes/<UUID>.qlabrecipe` becomes `Documents/Recipes/<name>.qrecipe` with
-  `engine: qlab-swift`, `qlab.recipe` = the former file verbatim, `qrecipe.id` = its `id`, and the shared part
-  translated from its settings. The former folder stays as it was (the backup); a recipe already migrated (same id in
-  `Documents/Recipes`) is skipped. Its renders do not change: QLab renders a `qlab-swift` recipe with the Swift engine.
+- QLab, once at launch (`LibraryStorage.migrateToLabEngine`, marker `Library/lab-engine-migrated.json`): the
+  sidecars and recipes are first copied as they are to `Application Support/QLab backup before the lab engine/`
+  (never shown in the app). Then every development of the former engine is translated: QLab's controls keep their
+  values on the lab's engine (`LabEngine.converted`), QLab's black-and-white approximations become the real films
+  (`qlab_bw_kodak_trix_400` → `kodak_trix400_d76_8min`, `…ilford_hp5_400` → `ilford_hp5_plus`, `…ilford_fp4_125` →
+  `ilford_fp4_plus`, `…kodak_tmax_100` → `kodak_tmax_100`, `…leica_monopan_50` → `leica_monopan_50`); stored renders
+  and previews are made again. Each `Library/Recipes/<UUID>.qlabrecipe` becomes `Documents/Recipes/<name>.qrecipe` in
+  the same terms, `qrecipe.id` = its `id`; the former files stay where they were, and a recipe migrated once (even
+  deleted since) is never migrated again.
 - Qlick Lab: each `Presets/<name>.json` becomes `Presets/<name>.qrecipe`, the same content plus `qrecipe` (its id
   from `.ids.json`, `origin: "Qlick Lab"`, `engine: spektrafilm-rs` at the app's revision). The former files move to
   `Presets/Before qrecipe/`. A `.json` dropped in later (a spektrafilm preset from elsewhere) is imported as before
@@ -122,7 +124,7 @@ It is Qlick Lab's `.qlick` format (`docs/sidecar-format.md` in Qlick Lab) under 
 | `qsidecar` | Schema number, 1. Replaces `.qlick`'s `qlick` number; everything else of `.qlick` keeps its meaning (`defaultsVersion`, `app`, `variants[].id/rating/flag/label/keywords/title/caption/recipe`, `edits` stored as the difference from the frozen defaults table, unknown keys kept, writes as patches). |
 | `variants[].name` | The development's name (QLab's version name). |
 | `variants[].engine` | See *Engine*. Absent in a file converted from `.qlick`: `spektrafilm-rs` at the revision that wrote it. |
-| `variants[].edits` | The engine's parameters, as `.qlick` stores them. Authoritative for `spektrafilm-rs`; for `qlab-swift`, a translation. |
+| `variants[].edits` | The engine's parameters, as `.qlick` stores them. |
 | `variants[].recipeRef` | The recipe applied last, by id and revision (beside `recipe`, its name, which Qlick Lab's search reads). |
 | `variants[].qlab.version` | QLab's `DevelopmentVersion` verbatim (`settings`, `history`, `recipeID`, `renderedFile`…; for `spektrafilm-rs`, its finishing layer). |
 | `qlab.record` | QLab's `PhotoRecord` without `versions`: id, original's names, capture information, albums, notes, favourite… |
