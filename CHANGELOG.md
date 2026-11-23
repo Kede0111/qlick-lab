@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased — one recipe format and one sidecar with QLab
+
+QLab, the iPhone camera, now develops with this lab's engine (the same code, at one commit), and the two apps share
+their files (`docs/q-formats.md`).
+
+- **Recipes are `.qrecipe` files**: still spektrafilm's format (they open in spektrafilm), plus a small header with a
+  stable identifier, so the same recipe is the same on the Mac and on the iPhone. Your recipes are converted once with
+  their identifiers; the former `.json` files are kept in `Presets/Before qrecipe/`. Export, bundles and imports
+  write `.qrecipe`; a `.qrecipe` from QLab keeps its identifier.
+- **Sidecars are `.qsidecar` files** (`IMG_0412.CR3.qsidecar`), the name QLab writes beside its photographs. Your
+  `.qlick` files are still read and left as they are; the first change to a photograph writes its `.qsidecar`.
+- Leica Monopan 50 has its 35mm edge print.
+
 ## 0.2.0 — the lab in three parts
 
 A new version of the whole lab. Your `.qlick` sidecars and catalogues from 0.1.x are read and converted once, with

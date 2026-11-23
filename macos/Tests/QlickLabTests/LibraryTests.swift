@@ -46,7 +46,7 @@ final class LibraryFormatTests: XCTestCase {
         XCTAssertNil(try patch(rating: 0).applied(to: nil), "nothing to hold, no file")
         XCTAssertNil(try patch(flag: .some(nil)).applied(to: nil))
         let made = try XCTUnwrap(patch(rating: 2).applied(to: nil))
-        XCTAssertEqual(made["qlick"], .number(1))
+        XCTAssertEqual(made["qsidecar"], .number(1))
         XCTAssertEqual(made["defaultsVersion"], .number(1))
         XCTAssertEqual(made["variants"], .array([.object(["id": .string("v1"), "rating": .number(2)])]))
         XCTAssertNil(try patch(rating: 0).applied(to: made), "the last rating gone, the file goes")
@@ -980,7 +980,7 @@ final class LibraryFormatTests: XCTestCase {
         step { model.delete(plan) }
         XCTAssertEqual(model.source, c)
         XCTAssertEqual(model.library.items.map(\.name), ["a.png", "c.png", "c.png (2)", "d.png"], "gone at once")
-        try await waitUntil { !exists(b) && exists(bin.appendingPathComponent("b.png")) && exists(bin.appendingPathComponent("b.png.qlick")) }
+        try await waitUntil { !exists(b) && exists(bin.appendingPathComponent("b.png")) && exists(bin.appendingPathComponent("b.png.qsidecar")) }
         XCTAssertEqual(undo.undoActionName, "Delete from Disk")
 
         undo.undo()

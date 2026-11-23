@@ -56,7 +56,7 @@ contributors' rules in `CONTRIBUTING.md`. Keep the engine in Rust and the interf
 ## Work in progress
 
 Several agents may work on this repository in turn. **Read `docs/handoff/HANDOFF.md` first**: current phase, branch,
-what's done and next, decisions. Update it at the end of each phase.
+what's next, gotchas. Rewrite it at the end of each phase as a short snapshot, never an accumulating log.
 
 ## The interface
 

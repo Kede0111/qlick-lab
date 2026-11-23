@@ -76,6 +76,6 @@ extension PhotoSidecar {
         variants.removeAll { $0["id"] == .string(id) }
         top["variants"] = .array(variants)
         let plain = variants.isEmpty || variants.count == 1 && Set(variants[0].object.map { Array($0.keys) } ?? []) == ["id"]
-        return plain && Set(top.keys).isSubset(of: ["qlick", "app", "defaultsVersion", "variants"]) ? nil : .object(top)
+        return plain && Set(top.keys).isSubset(of: PhotoSidecar.plainKeys) ? nil : .object(top)
     }
 }

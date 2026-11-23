@@ -121,8 +121,8 @@ with one ⌘Z.
   Grain and halation have their own presets.
 - **Every slider is live**: the GPU redraws as you move it, and the next frames are developed ahead as you step through
   a roll.
-- **Recipes**: a look saved once, applied to a whole selection, a Roll or an import in one step. Share them as a
-  `.qlickrecipes` bundle.
+- **Recipes**: a look saved once, applied to a whole selection, a Roll or an import in one step. Each is a `.qrecipe`
+  file, shared with QLab on the iPhone; share several as a `.qlickrecipes` bundle.
 - **Versions** of one photograph side by side, and **Compare** across frames, stocks, recipes or before/after, with
   linked zoom.
 
@@ -218,7 +218,8 @@ the automatic check off. Coming from 0.1.x, install 0.2.0 once by hand; the next
 
 ## Your files
 
-- Each photograph's marks, rating and development live in a small `.qlick` file beside it (`IMG_0412.CR3.qlick`).
+- Each photograph's marks, rating and development live in a small `.qsidecar` file beside it (`IMG_0412.CR3.qsidecar`;
+  `.qlick` before, still read), the same file QLab writes on the iPhone (`docs/q-formats.md`).
   They travel with the folder, and your originals are never written to.
 - Each folder of an Archive can carry a `Roll.qlickroll` card (film, camera, notes), so it keeps them if you move it.
 - A catalogue is a `.qlicklab` package: the Archives, Boxes, Rolls and their order, as small JSON files. The

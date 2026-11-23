@@ -207,6 +207,7 @@ pub const STOCKS: &[(&str, Kind, EdgePrint)] = &[
         Kind::Negative,
         EdgePrint::Cine { product: "5203", keykode: Some("ER") },
     ),
+    ("leica_monopan_50", Kind::BlackAndWhite, EdgePrint::Still(&["LEICA MONOPAN 50"])),
     ("lomography_color_100", Kind::Negative, EdgePrint::Still(&["LOMOGRAPHY 100"])),
     (
         "lomography_lomochrome_metropolis",

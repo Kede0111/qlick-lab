@@ -434,7 +434,8 @@ extension EditorModel {
             do {
                 let data = try await presetLibrary.read(preset)
                 let taken = Set(presets.map { PresetName.key($0.name) })
-                _ = try await presetLibrary.add(data, name: PresetName.unique(preset.name, taken: taken))
+                // A copy is a recipe of its own: a new id.
+                _ = try await presetLibrary.add(QRecipe.withoutID(data), name: PresetName.unique(preset.name, taken: taken))
                 await refreshPresets()
             } catch { report(error) }
         }

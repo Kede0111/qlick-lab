@@ -123,13 +123,17 @@ enum PhotoFolder {
         for url in files {
             try Task.checkCancellation()
             let ext = url.pathExtension.lowercased()
-            let sidecar = ext == PhotoSidecar.fileExtension
+            let sidecar = PhotoSidecar.extensions.contains(ext)
             guard sidecar || extensions.contains(ext),
                   let values = try? url.resourceValues(forKeys: [.isRegularFileKey, .contentModificationDateKey, .fileSizeKey]),
                   values.isRegularFile == true else { continue }
             // Preserve the opened folder's spelling through symlinks.
             let file = PhotoFile(url: directory.appendingPathComponent(url.lastPathComponent), values: values)
-            if sidecar { sidecars[directory.appendingPathComponent(url.deletingPathExtension().lastPathComponent).path] = file } else { photos.append(file) }
+            if sidecar {
+                // A .qsidecar wins over the former .qlick of the same photograph.
+                let key = directory.appendingPathComponent(url.deletingPathExtension().lastPathComponent).path
+                if ext == PhotoSidecar.fileExtension || sidecars[key] == nil { sidecars[key] = file }
+            } else { photos.append(file) }
         }
         photos.sort { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
         // Qlick Lab: what was removed from the lab isn't listed (its file is still there).
