@@ -226,7 +226,7 @@ final class SelectionTests: XCTestCase {
         XCTAssertEqual(copy.path, photo.path)
         XCTAssertEqual(copy.lastPathComponent, "IMG_0412.CR3")
         XCTAssertNotEqual(copy, photo)
-        XCTAssertEqual(PhotoSidecar.url(for: copy.photoFile).lastPathComponent, "IMG_0412.CR3.qlick")
+        XCTAssertEqual(PhotoSidecar.url(for: copy.photoFile).lastPathComponent, "IMG_0412.CR3.qsidecar")
         XCTAssertEqual(copy.variant("ff").variantID, "ff")
     }
 

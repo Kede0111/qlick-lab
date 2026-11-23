@@ -46,7 +46,7 @@ enum RecipeBundle {
         for recipe in recipes {
             let name = PresetName.unique(PresetName.from(fileName: recipe.name), taken: taken)
             taken.insert(PresetName.key(name))
-            let file = "\(name).json"
+            let file = "\(name).\(QRecipe.fileExtension)"
             try recipe.data.write(to: folder.appendingPathComponent(file))
             entries.append(Entry(file: file, name: recipe.name, id: recipe.id, favourite: recipe.favourite ? true : nil))
         }

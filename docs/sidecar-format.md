@@ -1,4 +1,10 @@
-# The `.qlick` sidecar format
+# The `.qsidecar` sidecar format (formerly `.qlick`)
+
+Since the shared formats with QLab (`docs/q-formats.md`), the file is `IMG_0412.CR3.qsidecar`, its schema number under
+the key `qsidecar`; everything below holds as written for `.qlick`. A `.qlick` file is still read (a `.qsidecar` beside
+it wins) and never written or removed, except that keeping a DNG's state in its XMP removes both, as it removed the
+`.qlick` before; clearing everything while a `.qlick` is there leaves an empty `.qsidecar`. QLab's block (`qlab`, and
+`qlab` inside each variant) is kept like any key the lab doesn't know.
 
 Every photograph Qlick Lab marks, rates or develops gets its state saved beside it. Nothing inside the original
 image is ever changed, except a DNG's XMP when the user keeps its edits inside the DNG (see below).

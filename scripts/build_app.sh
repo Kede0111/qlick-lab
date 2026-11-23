@@ -105,6 +105,9 @@ sed -e "s/\$(EXECUTABLE_NAME)/$name/" -e "s/\$(PRODUCT_BUNDLE_IDENTIFIER)/$bundl
     -e "s/\$(MARKETING_VERSION)/$version/" -e "s/\$(CURRENT_PROJECT_VERSION)/$build/" -e 's/\$(MACOSX_DEPLOYMENT_TARGET)/14.0/' \
     macos/QlickLab-Info.plist > "$app/Contents/Info.plist"
 plutil -lint "$app/Contents/Info.plist" >/dev/null
+# The engine's revision (this repository's commit), written into .qrecipe and .qsidecar files: QLab builds the same
+# engine from this repository at a pinned commit (docs/q-formats.md).
+plutil -insert QlickEngineRevision -string "$(git -C "$root" rev-parse --short=7 HEAD 2>/dev/null || echo unknown)" "$app/Contents/Info.plist"
 
 # Updates: the app that ships reads the releases' feed (the appcast.xml attached to the latest GitHub release, written
 # by make_dmg.sh) and checks it by itself; an update is accepted only if signed with the private key kept in the

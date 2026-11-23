@@ -189,7 +189,7 @@ extension EditorModel {
         panel.prompt = "Import"
         panel.allowsMultipleSelection = true
         panel.canChooseDirectories = false
-        panel.allowedContentTypes = [.json, .plainText, RecipeBundle.contentType]
+        panel.allowedContentTypes = [QRecipe.contentType, .json, .plainText, RecipeBundle.contentType]
         LabPanel.begin(panel) { [weak self] response in
             guard response == .OK, let self else { return }
             MainActor.assumeIsolated { self.importPresets(panel.urls) }
@@ -213,7 +213,9 @@ extension EditorModel {
                         for recipe in recipes {
                             do {
                                 _ = try await engine.request(["command": EngineCommand.presetImport.json, "text": .string(try Self.presetText(recipe.data))])
-                                let file = try await presetLibrary.add(recipe.data, name: PresetName.from(fileName: recipe.name))
+                                // Brought in twice: copies, with ids of their own.
+                                let fresh = !recipe.id.isEmpty && !ids.contains(recipe.id) && !(QRecipe.id(recipe.data).map(ids.contains) ?? false)
+                                let file = try await presetLibrary.add(fresh ? recipe.data : QRecipe.withoutID(recipe.data), name: PresetName.from(fileName: recipe.name))
                                 added.append(file.url)
                                 if !recipe.id.isEmpty, !ids.contains(recipe.id) {
                                     try await presetLibrary.setID(recipe.id, for: file.name)
@@ -230,9 +232,12 @@ extension EditorModel {
                     continue
                 }
                 do {
-                    let data = try await Task.detached(priority: .userInitiated) { try PresetLibrary.read(url) }.value
+                    var data = try await Task.detached(priority: .userInitiated) { try PresetLibrary.read(url) }.value
                     _ = try await engine.request(["command": EngineCommand.presetImport.json, "text": .string(try Self.presetText(data))])
-                    added.append(try await presetLibrary.add(data, name: PresetName.from(fileName: url.deletingPathExtension().lastPathComponent)).url)
+                    // A .qrecipe keeps its id (the same recipe as in QLab), unless one here has it: then it's a copy.
+                    if let id = QRecipe.id(data) { if ids.contains(id) { data = QRecipe.withoutID(data) } else { ids.insert(id) } }
+                    let name = QRecipe.header(data)?["name"] as? String ?? url.deletingPathExtension().lastPathComponent
+                    added.append(try await presetLibrary.add(data, name: PresetName.from(fileName: name)).url)
                 } catch {
                     failures.append("\(url.lastPathComponent): \(error.localizedDescription)")
                 }
@@ -364,9 +369,9 @@ extension EditorModel {
         let panel = NSSavePanel()
         panel.title = "Export Recipe"
         panel.canCreateDirectories = true
-        panel.allowedContentTypes = [.json]
-        panel.nameFieldStringValue = "\(preset.name).json"
-        panel.message = "spektrafilm’s format: opens in Qlick Lab and in spektrafilm."
+        panel.allowedContentTypes = [QRecipe.contentType]
+        panel.nameFieldStringValue = "\(preset.name).\(QRecipe.fileExtension)"
+        panel.message = "spektrafilm’s format, shared with QLab: opens in Qlick Lab, QLab and spektrafilm."
         LabPanel.begin(panel) { [weak self] response in
             guard response == .OK, let url = panel.url, let self else { return }
             MainActor.assumeIsolated {

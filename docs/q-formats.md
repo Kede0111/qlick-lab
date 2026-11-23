@@ -52,7 +52,7 @@ The file **is spektrafilm's saved GUI state** (the format Qlick Lab's recipes al
     "engine": { "name": "spektrafilm-rs", "revision": "66aa771", "defaultsVersion": 1 }
   },
   "qlick": { "version": 1, "develop": { "groups": ["tone"], "params": { "prep.shadows": 8 }, "match_brightness": true } },
-  "qlab": { "recipe": { "…": "QLab's Recipe, as it encodes it" }, "finishing": { "…": "QLab's tone and effects" } }
+  "qlab": { "recipe": { "…": "QLab's Recipe, as it encodes it (its finishing and effects included)" }, "enginePart": "sha256:…" }
 }
 ```
 
@@ -63,11 +63,11 @@ The file **is spektrafilm's saved GUI state** (the format Qlick Lab's recipes al
 | `qrecipe.name` | The recipe's name (the file's name may differ by the characters a file name refuses). |
 | `qrecipe.origin` | `"QLab"` or `"Qlick Lab"`: where it was made. Informative. |
 | `qrecipe.created`, `modified` | ISO 8601, UTC. |
-| `qrecipe.revision` | `sha256:` of the file's canonical JSON (sorted keys, no spaces) without `qrecipe.revision` and `qrecipe.modified`. Two sides with the same revision hold the same recipe; sync compares revisions, not dates. |
+| `qrecipe.revision` | An opaque token the writer sets anew whenever the content changes (each app uses a `sha256:` of its own serialisation). Readers never recompute it: they compare it with the revision they last synced. |
 | `qrecipe.engine` | See *Engine* above. |
 | `qlick` | Qlick Lab's own block (`RecipeDevelop`: which Develop groups the recipe carries). |
 | `qlab.recipe` | QLab's `Recipe` (`id`, `name`, `details`, `settings`, `thumbnail`…), verbatim: what a former `.qlabrecipe` held. For a `qlab-swift` recipe it is what renders, unchanged. |
-| `qlab.finishing` | For a `spektrafilm-rs` recipe made or edited in QLab: QLab's finishing and creative layer (`tone`, `effects`, `sharpness` below zero…), applied after the engine. Qlick Lab keeps it. |
+| `qlab.enginePart` | QLab's fingerprint of the engine's part when it wrote the file. When the engine's part no longer matches (edited in Qlick Lab), QLab takes the engine's part and keeps only its finishing from `qlab.recipe`. |
 
 Applying a recipe keeps the photograph's own geometry, white balance, exposure and grain seed, in both apps (as both
 already do).
@@ -81,7 +81,10 @@ already do).
 - Qlick Lab: each `Presets/<name>.json` becomes `Presets/<name>.qrecipe`, the same content plus `qrecipe` (its id
   from `.ids.json`, `origin: "Qlick Lab"`, `engine: spektrafilm-rs` at the app's revision). The former files move to
   `Presets/Before qrecipe/`. A `.json` dropped in later (a spektrafilm preset from elsewhere) is imported as before
-  and saved as `.qrecipe`.
+  and saved as `.qrecipe`; a `.qrecipe` imported keeps its id (the same recipe on every device).
+
+Writing a file that may hold `Infinity`/`NaN`: those numbers are carried through the JSON writer as the strings
+`"\u0001Infinity"`, `"\u0001-Infinity"`, `"\u0001NaN"` and put back as bare words in the text (as the engine does).
 
 ## `.qsidecar`
 
@@ -123,12 +126,15 @@ It is Qlick Lab's `.qlick` format (`docs/sidecar-format.md` in Qlick Lab) under 
 | `variants[].recipeRef` | The recipe applied last, by id and revision (beside `recipe`, its name, which Qlick Lab's search reads). |
 | `variants[].qlab.version` | QLab's `DevelopmentVersion` verbatim (`settings`, `history`, `recipeID`, `renderedFile`…; for `spektrafilm-rs`, its finishing layer). |
 | `qlab.record` | QLab's `PhotoRecord` without `versions`: id, original's names, capture information, albums, notes, favourite… |
+| `qlab.order` | QLab's order of its developments (the file lists the primary one first). |
 
 Shared meanings: QLab's notes are the primary variant's `caption`; QLab's favourite is `flag: "pick"` on the primary
 variant only when QLab set it (QLab keeps its own value in `qlab.record`). The primary variant is QLab's active version.
 
 Reading: `.qsidecar` first, then the former files (`.qlab.json` for QLab, `.qlick` and the DNG's XMP for Qlick Lab).
-Writing: `.qsidecar` only; a former file is left as it is.
+Writing: `.qsidecar` only; a former file is left as it is (when everything is cleared, an empty `.qsidecar` stays so
+the former file's state doesn't come back). Qlick Lab keeping a DNG's state in its XMP removes the photograph's
+`.qsidecar` and `.qlick`, as it removed `.qlick` before.
 
 ## Syncing over the cable (Qlick Lab, iPhone plugged in)
 

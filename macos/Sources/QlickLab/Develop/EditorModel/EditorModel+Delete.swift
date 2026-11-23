@@ -80,8 +80,8 @@ extension EditorModel {
             let moved = await Task.detached(priority: .userInitiated) { () -> (moves: [(original: URL, trashed: URL)], failure: String?) in
                 var moves: [(original: URL, trashed: URL)] = [], failure: String?
                 for file in files {
-                    let sidecar = PhotoSidecar.url(for: file)
-                    for item in [file, sidecar] where item == file || FileManager.default.fileExists(atPath: item.path) {
+                    let sidecars = [PhotoSidecar.url(for: file), PhotoSidecar.legacyURL(for: file)]
+                    for item in [file] + sidecars where item == file || FileManager.default.fileExists(atPath: item.path) {
                         do {
                             if permanent { try trash.remove(item) } else { moves.append((item, try trash.trash(item))) }
                         } catch {

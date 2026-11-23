@@ -81,11 +81,45 @@ actor PresetLibrary {
         self.folder = folder
     }
 
+    /// Qlick Lab: where the recipes kept as `.json` before `.qrecipe` go, once converted (docs/q-formats.md).
+    var formerFolder: URL { folder.appendingPathComponent("Before qrecipe", isDirectory: true) }
+
+    /// Qlick Lab: each recipe still kept as `<name>.json` becomes `<name>.qrecipe` (the same content, a `qrecipe`
+    /// header with its identifier added); the `.json` moves to `Before qrecipe/`. A name already taken by a
+    /// `.qrecipe` leaves the `.json` where it is.
+    func migrate() {
+        let fm = FileManager.default
+        guard let names = try? fm.contentsOfDirectory(atPath: folder.path) else { return }
+        let jsons = names.filter { !$0.hasPrefix(".") && ($0 as NSString).pathExtension.lowercased() == "json" }
+        guard !jsons.isEmpty else { return }
+        var ids = readIDs()
+        for name in jsons {
+            let source = folder.appendingPathComponent(name)
+            let stem = (name as NSString).deletingPathExtension
+            let target = folder.appendingPathComponent(stem).appendingPathExtension(QRecipe.fileExtension)
+            guard !fm.fileExists(atPath: target.path), let data = try? Self.read(source) else { continue }
+            let id = QRecipe.id(data) ?? ids[PresetName.key(stem)] ?? UUID().uuidString
+            let stamped = (try? QRecipe.stamped(data, id: id, name: stem)) ?? data
+            let temporary = folder.appendingPathComponent(".\(UUID().uuidString).tmp")
+            guard (try? stamped.write(to: temporary, options: .withoutOverwriting)) != nil else { continue }
+            defer { unlink(temporary.path) }
+            // A hard link never replaces: a recipe saved meanwhile under that name stays.
+            guard link(temporary.path, target.path) == 0 else { continue }
+            try? fm.createDirectory(at: formerFolder, withIntermediateDirectories: true)
+            var kept = formerFolder.appendingPathComponent(name), n = 2
+            while fm.fileExists(atPath: kept.path) { kept = formerFolder.appendingPathComponent("\(stem) \(n).json"); n += 1 }
+            try? fm.moveItem(at: source, to: kept)
+            ids[PresetName.key(stem)] = id
+        }
+        try? writeIDs(ids)
+    }
+
     func list() throws -> [PresetFile] {
         let fm = FileManager.default
         guard fm.fileExists(atPath: folder.path) else { return [] }
+        migrate()
         let files = try fm.contentsOfDirectory(atPath: folder.path)
-            .filter { !$0.hasPrefix(".") && ($0 as NSString).pathExtension.lowercased() == "json" }
+            .filter { !$0.hasPrefix(".") && ($0 as NSString).pathExtension.lowercased() == QRecipe.fileExtension }
             // In the folder's own spelling (not /private/var for /var), so a
             // file added or renamed here is the same URL when listed.
             .compactMap { try? file(at: folder.appendingPathComponent($0)) }
@@ -99,13 +133,17 @@ actor PresetLibrary {
         return identified(ordered)
     }
 
-    /// Gives each recipe its identifier: the one kept for its file name, or a new one (a file copied in by hand).
+    /// Gives each recipe its identifier: the one in its file's header (shared with QLab), else the one kept for its
+    /// file name, or a new one (a file copied in by hand).
     private func identified(_ presets: [PresetFile]) -> [PresetFile] {
         var ids = readIDs(), changed = false
         let named = presets.map { preset -> PresetFile in
             var preset = preset
             let key = PresetName.key(preset.name)
-            if let id = ids[key] { preset.shelfID = id } else {
+            if let own = (try? Self.read(preset.url)).flatMap(QRecipe.id) {
+                preset.shelfID = own
+                if ids[key] != own { ids[key] = own; changed = true }
+            } else if let id = ids[key] { preset.shelfID = id } else {
                 preset.shelfID = UUID().uuidString
                 ids[key] = preset.shelfID
                 changed = true
@@ -134,11 +172,25 @@ actor PresetLibrary {
         try data.write(to: idsFile, options: .atomic)
     }
 
-    /// Gives the recipe named `name` the identifier `id` (a bundle brings its recipes' own).
+    /// Gives the recipe named `name` the identifier `id` (a bundle brings its recipes' own), in its file's header too.
     func setID(_ id: String, for name: String) throws {
         var ids = readIDs()
         ids[PresetName.key(name)] = id
         try writeIDs(ids)
+        if let preset = try list().first(where: { PresetName.key($0.name) == PresetName.key(name) }) {
+            try restamp(preset, id: id, name: preset.name)
+        }
+    }
+
+    /// Rewrites a recipe's header in place (through a hidden file renamed over it).
+    private func restamp(_ preset: PresetFile, id: String, name: String) throws {
+        guard let data = try? QRecipe.stamped(try Self.read(preset.url), id: id, name: name) else { return }
+        let temporary = folder.appendingPathComponent(".\(UUID().uuidString).tmp")
+        try data.write(to: temporary, options: .withoutOverwriting)
+        guard Darwin.rename(temporary.path, preset.url.path) == 0 else {
+            unlink(temporary.path)
+            throw posixError("Couldn’t save the recipe")
+        }
     }
 
     /// Remembers this order of the presets.
@@ -151,13 +203,19 @@ actor PresetLibrary {
         if let problem = PresetName.problem(name) { throw EngineError(message: problem) }
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let temporary = folder.appendingPathComponent(".\(UUID().uuidString).tmp")
-        try data.write(to: temporary, options: .withoutOverwriting)
+        // Qlick Lab: a `.qrecipe` with its header; a recipe that has an id already (from QLab, a bundle) keeps it.
+        let id = QRecipe.id(data) ?? UUID().uuidString
+        // A file that isn't a JSON object is written as it came (the engine says why when it's read).
+        try ((try? QRecipe.stamped(data, id: id, name: name)) ?? data).write(to: temporary, options: .withoutOverwriting)
         defer { unlink(temporary.path) }
         var taken = Set(try list().map { PresetName.key($0.name) })
         for _ in 0..<1000 {
             let candidate = PresetName.unique(name, taken: taken)
-            let url = folder.appendingPathComponent(candidate).appendingPathExtension("json")
+            let url = folder.appendingPathComponent(candidate).appendingPathExtension(QRecipe.fileExtension)
             // A hard link never replaces: a file created meanwhile fails it.
+            if candidate != name, let stamped = try? QRecipe.stamped(data, id: id, name: candidate) {
+                try stamped.write(to: temporary, options: .atomic)
+            }
             if link(temporary.path, url.path) == 0 {
                 try writeOrder(try list().map(\.name).filter { PresetName.key($0) != PresetName.key(candidate) } + [candidate])
                 return try file(at: url)
@@ -171,7 +229,7 @@ actor PresetLibrary {
     func rename(_ preset: PresetFile, to name: String) throws -> PresetFile {
         if let problem = PresetName.problem(name) { throw EngineError(message: problem) }
         try verify(preset)
-        let url = folder.appendingPathComponent(name).appendingPathExtension("json")
+        let url = folder.appendingPathComponent(name).appendingPathExtension(QRecipe.fileExtension)
         if PresetName.key(name) == PresetName.key(preset.name) {
             // The same name in another case or form: the same file.
             guard Darwin.rename(preset.url.path, url.path) == 0 else { throw posixError("Couldn’t rename the recipe") }
@@ -196,6 +254,9 @@ actor PresetLibrary {
             try? writeIDs(ids)
         }
         var renamed = try file(at: url)
+        renamed.shelfID = ids[PresetName.key(name)] ?? ""
+        // Qlick Lab: the header follows the name.
+        if !renamed.shelfID.isEmpty, (try? restamp(renamed, id: renamed.shelfID, name: name)) != nil { renamed = try file(at: url) }
         renamed.shelfID = ids[PresetName.key(name)] ?? ""
         return renamed
     }

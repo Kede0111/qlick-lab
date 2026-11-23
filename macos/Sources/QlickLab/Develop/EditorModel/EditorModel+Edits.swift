@@ -558,7 +558,7 @@ extension EditorModel {
                 // Checks the schema: a newer file is never written over.
                 if let raw { _ = try PhotoSidecar(raw: raw) }
                 if before[photo] == nil { before[photo] = .some(raw) }
-                var top = raw?.object ?? ["qlick": .number(Double(PhotoSidecar.schema)), "defaultsVersion": .number(Double(SidecarDefaults.latest))]
+                var top = raw?.object ?? PhotoSidecar.newTop()
                 var variants = top["variants"]?.array ?? []
                 if variants.isEmpty {
                     // The photograph's own variant first, with the id the open one already uses.

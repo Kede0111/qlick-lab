@@ -118,8 +118,21 @@ struct SavedEdits: Equatable, Sendable {
 /// version doesn't know are written back unchanged.
 struct PhotoSidecar: Equatable, Sendable {
     static let schema = 1
-    static let fileExtension = "qlick"
+    /// The `.qsidecar` shared with QLab (docs/q-formats.md): Qlick Lab's format under the key `qsidecar`.
+    static let fileExtension = "qsidecar"
+    /// Before it: `.qlick`, schema under the key `qlick`. Still read, never written; left as it is.
+    static let legacyExtension = "qlick"
+    static let extensions: Set<String> = [fileExtension, legacyExtension]
+    static let schemaKey = "qsidecar"
     static let maximumSize = 1_048_576
+
+    /// A new file's top level.
+    static func newTop(defaultsVersion: Int = SidecarDefaults.latest) -> [String: JSONValue] {
+        [schemaKey: .number(Double(schema)), "defaultsVersion": .number(Double(defaultsVersion))]
+    }
+
+    /// The keys a file has with nothing of its own in it.
+    static let plainKeys: Set<String> = [schemaKey, "qlick", "app", "defaultsVersion", "variants"]
 
     enum Flag: String, Sendable { case pick, reject }
 
@@ -155,8 +168,10 @@ struct PhotoSidecar: Equatable, Sendable {
         }
     }
 
-    /// `IMG_0412.CR3` → `IMG_0412.CR3.qlick`.
+    /// `IMG_0412.CR3` → `IMG_0412.CR3.qsidecar`: the same name in QLab, so its photographs come with their developments.
     static func url(for photo: URL) -> URL { photo.appendingPathExtension(fileExtension) }
+    /// `IMG_0412.CR3` → `IMG_0412.CR3.qlick`, the former name.
+    static func legacyURL(for photo: URL) -> URL { photo.appendingPathExtension(legacyExtension) }
     /// The hidden file a write goes through, which folder scans skip.
     static func temporaryURL(for photo: URL) -> URL {
         photo.deletingLastPathComponent().appendingPathComponent(".\(url(for: photo).lastPathComponent).tmp")
@@ -164,7 +179,8 @@ struct PhotoSidecar: Equatable, Sendable {
 
     init(raw: JSONValue) throws {
         guard case .object(let top) = raw else { throw Problem.unreadable("not a JSON object") }
-        guard let schema = top["qlick"]?.integer else { throw Problem.unreadable("no schema") }
+        // `qsidecar`, or `qlick` in a file from before it (where `qlick` was the number).
+        guard let schema = top[Self.schemaKey]?.integer ?? top["qlick"]?.integer else { throw Problem.unreadable("no schema") }
         guard schema <= Self.schema else { throw Problem.newer }
         guard schema >= 1 else { throw Problem.unreadable("schema \(schema)") }
         guard let version = top["defaultsVersion"]?.integer, version >= 1 else { throw Problem.unreadable("no defaults version") }
@@ -318,7 +334,7 @@ struct SidecarPatch: Equatable, Sendable {
     /// rating, flag or edits left.
     func applied(to raw: JSONValue?) throws -> JSONValue? {
         if let replacement { return replacement }
-        var top = raw?.object ?? ["qlick": .number(Double(PhotoSidecar.schema)), "defaultsVersion": .number(Double(defaultsVersion))]
+        var top = raw?.object ?? PhotoSidecar.newTop(defaultsVersion: defaultsVersion)
         if raw != nil {
             // Decoding checks the schema and versions: a newer file is never written over.
             let sidecar = try PhotoSidecar(raw: .object(top))
@@ -335,6 +351,9 @@ struct SidecarPatch: Equatable, Sendable {
             index = variants.count - 1
         }
         top["app"] = .string(app)
+        // Written as a .qsidecar: the schema under its new key (a former file's number goes).
+        if top["qlick"]?.integer != nil { top["qlick"] = nil }
+        top[PhotoSidecar.schemaKey] = .number(Double(PhotoSidecar.schema))
         var fields = variants[index!].object ?? [:]
         if let expected = onlyIfEdits, fields["edits"] != expected { return raw }
         if let edits {
@@ -364,7 +383,7 @@ struct SidecarPatch: Equatable, Sendable {
         if let recipe { fields["recipe"] = recipe.map { .string($0) } }
         variants[index!] = .object(fields)
         top["variants"] = .array(variants)
-        let plain = variants.count == 1 && Set(fields.keys) == ["id"] && Set(top.keys).isSubset(of: ["qlick", "app", "defaultsVersion", "variants"])
+        let plain = variants.count == 1 && Set(fields.keys) == ["id"] && Set(top.keys).isSubset(of: PhotoSidecar.plainKeys)
         return plain ? nil : .object(top)
     }
 }
@@ -440,9 +459,13 @@ final class SidecarStore: Sendable {
         return DNGMetadata.isDNG(photo) ? try DNGMetadata.sidecar(of: photo) : nil
     }
 
-    /// The `.qlick` file's JSON, or nil if there's none.
+    /// The `.qsidecar` file's JSON, else the former `.qlick` file's, or nil if there's neither.
     static func readQlick(photo: URL) throws -> JSONValue? {
-        let file = PhotoSidecar.url(for: photo)
+        if let raw = try readFile(PhotoSidecar.url(for: photo)) { return raw }
+        return try readFile(PhotoSidecar.legacyURL(for: photo))
+    }
+
+    private static func readFile(_ file: URL) throws -> JSONValue? {
         let data: Data
         do {
             let handle = try FileHandle(forReadingFrom: file)
@@ -504,6 +527,7 @@ final class SidecarStore: Sendable {
                     // changes; the pixels don't change (the write checks it), so the proxy follows.
                     let proxies = [false, true].map { PreviewStorage.proxyFile(for: photo, lensCorrection: $0) }
                     try DNGMetadata.write(raw, to: photo)
+                    do { try FileManager.default.removeItem(at: PhotoSidecar.legacyURL(for: photo)) } catch CocoaError.fileNoSuchFile {}
                     for (lens, before) in zip([false, true], proxies) {
                         guard let before, let after = PreviewStorage.proxyFile(for: photo, lensCorrection: lens), after != before,
                               FileManager.default.fileExists(atPath: before.path) else { continue }
@@ -518,9 +542,12 @@ final class SidecarStore: Sendable {
                 }
             } else if raw == nil, (try? DNGMetadata.sidecar(of: photo)) ?? nil != nil {
                 // An empty .qlick file, so what the DNG holds doesn't come back.
-                raw = .object(["qlick": .number(Double(PhotoSidecar.schema)), "defaultsVersion": .number(Double(SidecarDefaults.latest)),
-                               "variants": .array([])])
+                raw = .object(PhotoSidecar.newTop().merging(["variants": .array([])]) { a, _ in a })
             }
+        }
+        // Everything cleared while a former .qlick is there: an empty .qsidecar, so the former state doesn't come back.
+        if raw == nil, FileManager.default.fileExists(atPath: PhotoSidecar.legacyURL(for: photo).path) {
+            raw = .object(PhotoSidecar.newTop().merging(["variants": .array([])]) { a, _ in a })
         }
         guard let raw else {
             do { try FileManager.default.removeItem(at: file) } catch CocoaError.fileNoSuchFile {}
