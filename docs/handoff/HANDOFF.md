@@ -14,6 +14,14 @@ Read this first, then `CLAUDE.md` and `docs/architecture.md`. Update it at the e
 - Talk to Quentin in French; the app's interface stays in English. Commit, push and release only when he says so.
 - `scripts/build_app.sh --dev` (Qlick Lab Dev, its own bundle id and data) stays the copy to try work in progress.
 
+## Now: one recipe format with QLab (branch `common-recipes`, from `main`, 2026-11-23)
+
+Decision 4 is reopened by Quentin: QLab (iPhone) takes the lab's Rust engine (a git submodule of this repository,
+pinned; QLab's branch `rust-engine`), and both apps share `.qrecipe` recipes and `.qsidecar` sidecars, specified in
+`docs/q-formats.md` (the same file in QLab). Here: read and write both, migrate `Presets/*.json` without loss (former
+files kept in `Presets/Before qrecipe/`), keep reading `.qlick` and the DNG's XMP. The cable transport (AFC) is a
+separate module, later. Try with the Dev copy only. Raising the engine means raising QLab's submodule too.
+
 ## In 0.2.0 too (2026-11-23, e3af094: the release v0.2.0 was rebuilt and its tag moved, same version)
 
 - **Panels as sheets** (`App/LabPanel.swift`): the 16 open/save panels (Export, Save Preview, LUT, recipes, Open,
