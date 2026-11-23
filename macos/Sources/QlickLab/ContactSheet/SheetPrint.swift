@@ -336,7 +336,7 @@ struct SheetPrintDialog: View {
         panel.title = "Save the Contact Sheet"
         panel.allowedContentTypes = [.pdf]
         panel.nameFieldStringValue = SheetPrinter(model: model, options: options).suggestedName
-        panel.begin { response in
+        LabPanel.begin(panel) { response in
             guard response == .OK, let url = panel.url else { return }
             do { try data.write(to: url, options: .atomic) } catch { MainActor.assumeIsolated { model.error = error.localizedDescription } }
             MainActor.assumeIsolated { lab.printing = false }

@@ -711,6 +711,8 @@ import AppKit
             if fields.count == 2, case .roll(let id, let box)? = sidebarTarget("roll:" + fields[0]) { lab.setRollLook(fields[1], of: .roll(id, box: box)) }
         // exportpanel: Export… as the button does; exportdir <path>: the open save panel moves to a folder.
         case "exportpanel": model.exportPanel()
+        // panel cancel: the open lab panel is cancelled; panel <file>: writes where it is ("none", or "sheet on <window>").
+        case "panel": if rest == "cancel" { LabPanel.cancel() } else { try? LabPanel.whereShown.write(toFile: rest, atomically: true, encoding: .utf8) }
         // overview archives | boxes: the sidebar's Archives or Boxes entry.
         case "overview": lab.showOverview(rest == "boxes" ? .boxes : .archives)
         case "favourite": lab.toggleFavourite(rest)

@@ -356,7 +356,7 @@ enum ImportProgressStyle: String, CaseIterable, Sendable {
         panel.prompt = "Choose"
         panel.canChooseFiles = false; panel.canChooseDirectories = true; panel.allowsMultipleSelection = false
         if let folder { panel.directoryURL = folder }
-        panel.begin { [weak self] response in
+        LabPanel.begin(panel) { [weak self] response in
             guard response == .OK, let url = panel.url else { return }
             MainActor.assumeIsolated { self?.open(ImportVolumes.folder(url)) }
         }

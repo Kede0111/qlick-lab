@@ -49,7 +49,7 @@ extension EditorModel {
         if let path = UserDefaults.standard.string(forKey: "lastLUTFolder") {
             panel.directoryURL = URL(fileURLWithPath: path, isDirectory: true)
         }
-        panel.begin { [weak self] response in
+        LabPanel.begin(panel) { [weak self] response in
             guard response == .OK, let url = panel.url, let self else { return }
             UserDefaults.standard.set(url.deletingLastPathComponent().path, forKey: "lastLUTFolder")
             Task { await self.exportLUT(to: url) }
@@ -58,7 +58,7 @@ extension EditorModel {
 
     func exportLUT(to url: URL) async {
         guard canExportLUT, let engine else { return }
-        if let source, Self.sameFile(url, source) {
+        if let source, await Task.detached(priority: .userInitiated, operation: { Self.sameFile(url, source) }).value {
             error = "Choose a different filename to preserve the original photograph."; return
         }
         let snapshot = state
@@ -78,6 +78,8 @@ extension EditorModel {
     }
 
     func savePanel(export: Bool) {
+        // Already open (perhaps out of sight): brought forward.
+        if LabPanel.bringForward() { return }
         guard let source, !cropping, export ? !exporting && !saving : canSave else { return }
         let panel = NSSavePanel()
         panel.title = export ? "Export Photograph" : "Save Preview"
@@ -102,11 +104,8 @@ extension EditorModel {
             }
         }
         panel.nameFieldStringValue = "\(source.deletingPathExtension().lastPathComponent)_\(state.film).\(picker.format.type.preferredFilenameExtension ?? "png")"
-        panel.begin { [weak self] response in
+        LabPanel.begin(panel) { [weak self] response in
             guard response == .OK, let url = panel.url, let self else { return }
-            guard !Self.sameFile(url, source) else {
-                self.error = "Choose a different filename to preserve the original photograph."; return
-            }
             OutputFormat.last = picker.format
             ExportSize.last = picker.size
             picker.remember()
@@ -116,6 +115,10 @@ extension EditorModel {
             let save = picker.settings
             if export { ExportEngine.selected = engine }
             Task {
+                // Asked of the disk off the main thread.
+                guard await !Task.detached(priority: .userInitiated, operation: { Self.sameFile(url, source) }).value else {
+                    self.error = "Choose a different filename to preserve the original photograph."; return
+                }
                 if export { await self.export(to: url, engine: engine, size: size, save: save) } else { await self.savePreview(to: url, size: size, save: save) }
                 // Then the preview follows the space just saved in.
                 self.choosePreviewSpace(save.spaceName)
@@ -123,12 +126,13 @@ extension EditorModel {
         }
     }
 
-    /// The folder of the last save or export, if it still exists.
+    /// The folder of the last save or export, if it still exists. Its disk is asked by the rule of slow disks
+    /// (`VolumeReach`): none if it's offline; a moment at most, and taken as there while a slow disk's answer is out.
     static var lastSaveFolder: URL? {
         get {
             guard let path = UserDefaults.standard.string(forKey: "lastSaveFolder") else { return nil }
-            var isDirectory: ObjCBool = false
-            return FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory) && isDirectory.boolValue ? URL(fileURLWithPath: path, isDirectory: true) : nil
+            let folder = URL(fileURLWithPath: path, isDirectory: true)
+            return VolumeReach.isFolder(folder, patience: 0.3) ? folder : nil
         }
         set { UserDefaults.standard.set(newValue?.path, forKey: "lastSaveFolder") }
     }

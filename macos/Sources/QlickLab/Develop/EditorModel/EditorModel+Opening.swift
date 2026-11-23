@@ -21,7 +21,7 @@ extension EditorModel {
             // A file URL reveals and selects the file; a parent URL only opens its folder.
             panel.directoryURL = source
         }
-        panel.begin { [weak self] response in
+        LabPanel.begin(panel) { [weak self] response in
             if response == .OK, let url = panel.url { self?.open(url) }
         }
     }

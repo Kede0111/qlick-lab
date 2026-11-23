@@ -190,7 +190,7 @@ extension EditorModel {
         panel.allowsMultipleSelection = true
         panel.canChooseDirectories = false
         panel.allowedContentTypes = [.json, .plainText, RecipeBundle.contentType]
-        panel.begin { [weak self] response in
+        LabPanel.begin(panel) { [weak self] response in
             guard response == .OK, let self else { return }
             MainActor.assumeIsolated { self.importPresets(panel.urls) }
         }
@@ -339,7 +339,7 @@ extension EditorModel {
         panel.allowedContentTypes = [RecipeBundle.contentType]
         panel.nameFieldStringValue = "\(RecipeBundle.suggestedName(recipes.map(\.name))).\(RecipeBundle.fileExtension)"
         panel.message = "One file holding the \(recipes.count) recipes, to import into Qlick Lab elsewhere."
-        panel.begin { [weak self] response in
+        LabPanel.begin(panel) { [weak self] response in
             guard response == .OK, let url = panel.url, let self else { return }
             MainActor.assumeIsolated { Task { await self.exportRecipes(recipes, to: url) } }
         }
@@ -367,7 +367,7 @@ extension EditorModel {
         panel.allowedContentTypes = [.json]
         panel.nameFieldStringValue = "\(preset.name).json"
         panel.message = "spektrafilm’s format: opens in Qlick Lab and in spektrafilm."
-        panel.begin { [weak self] response in
+        LabPanel.begin(panel) { [weak self] response in
             guard response == .OK, let url = panel.url, let self else { return }
             MainActor.assumeIsolated {
                 Task {

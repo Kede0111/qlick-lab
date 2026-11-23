@@ -18,7 +18,7 @@ extension LabState {
         // The panel opens on the disks, never inside the Folder's old place: on a share that's gone or slow, the panel
         // itself would wait on it (and a folder of thousands of RAW files asks for as many icons).
         panel.directoryURL = URL(fileURLWithPath: "/Volumes", isDirectory: true)
-        panel.begin { [weak self] response in
+        LabPanel.begin(panel) { [weak self] response in
             guard response == .OK, let url = panel.url else { return }
             MainActor.assumeIsolated { self?.locateFolder(path, at: url.labStandardized.path, archive: archive) }
         }

@@ -71,6 +71,13 @@ A disk under /Volumes is offline only when it isn't mounted or the Mac says a sh
 (`Files/VolumeReach.swift`): never because it's slow. Nothing on the main thread waits on a disk for more than a moment;
 off the main thread, work goes at the disk's speed. Try it with `QLICK_SLOW_VOLUME` / `QLICK_GONE_VOLUME` (debug builds).
 
+## Panels
+
+Every open and save panel goes through `LabPanel.begin` (`App/LabPanel.swift`): a sheet on the lab's window, one at a
+time, and asking again brings the open one forward. Never `panel.begin` or `runModal` on its own: a free panel can open
+behind the window, unseen. What a panel needs from a disk before it shows (the last folder, a photograph's edits) is
+asked by the rule above, never waited for.
+
 ## Building and testing
 
 - `scripts/build_app.sh` builds `dist/qlick-lab/Qlick Lab.app` and regenerates `QlickLab.xcodeproj` from `project.yml`

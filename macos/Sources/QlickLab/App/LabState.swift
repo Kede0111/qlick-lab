@@ -835,7 +835,7 @@ struct SheetOptions: Codable, Equatable, Sendable {
         panel.message = "Choose a folder of photographs. Import opens on it: copy it, move it, or leave it where it is."
         panel.prompt = "Choose"
         panel.canChooseFiles = false; panel.canChooseDirectories = true; panel.allowsMultipleSelection = true
-        panel.begin { [weak self] response in
+        LabPanel.begin(panel) { [weak self] response in
             guard response == .OK else { return }
             MainActor.assumeIsolated { self?.importFolders(panel.urls, into: project) }
         }

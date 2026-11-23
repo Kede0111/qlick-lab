@@ -14,6 +14,20 @@ Read this first, then `CLAUDE.md` and `docs/architecture.md`. Update it at the e
 - Talk to Quentin in French; the app's interface stays in English. Commit, push and release only when he says so.
 - `scripts/build_app.sh --dev` (Qlick Lab Dev, its own bundle id and data) stays the copy to try work in progress.
 
+## After 0.2.0 (2026-11-23, not committed yet)
+
+- **Panels as sheets** (`App/LabPanel.swift`): the 16 open/save panels (Export, Save Preview, LUT, recipes, Open,
+  Import, catalogues, folders, previews, contact sheet PDF) come down as a sheet on the lab's key window, one at a time;
+  Export (or any panel) asked again while one is open brings it forward. Found on a slow NAS: the free export panel had
+  opened behind the window and a second click did nothing. Automation: `panel <file>` (where it is), `panel cancel`.
+- **No disk waited on before the export panel**: `lastSaveFolder` asks its disk through `VolumeReach.isFolder`
+  (0.3 s at most, taken as there meanwhile); the photographs' edits for the batch name preview and for the batch
+  itself are read off the main thread (`readRestores`, then `batchItems(…, restores:)`); the "same file as the
+  original" checks and the folder bookmark too. Left on the main thread: `solveBatchMatch` re-reads a sidecar during
+  the run to store a solved match.
+- Known, older than this: running the export tests together crashes xctest in `Support.swift:61` (`NSApp` is nil under
+  tests when the donation question's timer fires); each test alone passes.
+
 The sections below are the history of how 0.2.0 was built: decisions and file names worth keeping.
 
 ## Sources

@@ -132,7 +132,7 @@ extension LabState {
         panel.prompt = "Create"
         panel.nameFieldStringValue = "Untitled Catalog"
         panel.allowedContentTypes = [CatalogList.type]
-        panel.begin { [weak self] response in
+        LabPanel.begin(panel) { [weak self] response in
             guard response == .OK, let url = panel.url else { return }
             MainActor.assumeIsolated {
                 try? FileManager.default.removeItem(at: url)
@@ -147,7 +147,7 @@ extension LabState {
         panel.prompt = "Open"
         panel.canChooseFiles = true; panel.canChooseDirectories = false; panel.allowsMultipleSelection = false
         panel.allowedContentTypes = [CatalogList.type]
-        panel.begin { [weak self] response in
+        LabPanel.begin(panel) { [weak self] response in
             guard response == .OK, let url = panel.url else { return }
             MainActor.assumeIsolated { self?.openCatalog(url) }
         }
@@ -170,7 +170,7 @@ extension LabState {
         panel.prompt = "Save"
         panel.nameFieldStringValue = catalogName == "Default Catalog" ? "My Catalog" : catalogName + " copy"
         panel.allowedContentTypes = [CatalogList.type]
-        panel.begin { [weak self] response in
+        LabPanel.begin(panel) { [weak self] response in
             guard response == .OK, let url = panel.url else { return }
             MainActor.assumeIsolated { self?.saveCatalog(as: url) }
         }

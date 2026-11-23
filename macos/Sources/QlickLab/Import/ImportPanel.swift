@@ -203,7 +203,7 @@ struct ImportPanel: View {
     panel.title = title
     panel.prompt = "Choose"
     panel.canChooseFiles = false; panel.canChooseDirectories = true; panel.canCreateDirectories = true; panel.allowsMultipleSelection = false
-    panel.begin { response in
+    LabPanel.begin(panel) { response in
         guard response == .OK, let url = panel.url else { return }
         MainActor.assumeIsolated { then(url) }
     }

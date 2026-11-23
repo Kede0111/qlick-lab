@@ -137,6 +137,7 @@
 		7521E584799C9D0A8CCA549A /* MatchCacheTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB3B2D52D8BB5E9E8E02D7C8 /* MatchCacheTests.swift */; };
 		75231D924D1AFC8F64DEF66D /* EditorModel+Lab.swift in Sources */ = {isa = PBXBuildFile; fileRef = 918FF4909E02FB0917339CB8 /* EditorModel+Lab.swift */; };
 		77B2CF3705A4669EC9E03198 /* GridBenchmark.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0AFDE18E9CB55609A7A67D4 /* GridBenchmark.swift */; };
+		79209415B696E9E8D86C0F4F /* LabPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AE286EBC81DB4C2EB9F8498 /* LabPanel.swift */; };
 		79312D496FD47A8B871B0D16 /* FilmCacheReleaseTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8BE6B3FDC84AD6F78A4887F /* FilmCacheReleaseTests.swift */; };
 		7BA074EE473766BF7D12ECE0 /* EditorModel+Previews.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA6A746E5D76C12FEF33304B /* EditorModel+Previews.swift */; };
 		7C22AB7476785C10164A2378 /* ContactSheetLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F9FAA9374BDABEF352BC4D1 /* ContactSheetLayout.swift */; };
@@ -302,6 +303,7 @@
 		090DE1373616859EE3D601C4 /* EditorModel+Notifications.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "EditorModel+Notifications.swift"; sourceTree = "<group>"; };
 		099BD022CF0079443350E6F4 /* PhotoFolderWatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoFolderWatcher.swift; sourceTree = "<group>"; };
 		0AB03B3330620845B0B46F2A /* EditorModel+Original.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "EditorModel+Original.swift"; sourceTree = "<group>"; };
+		0AE286EBC81DB4C2EB9F8498 /* LabPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LabPanel.swift; sourceTree = "<group>"; };
 		0B40FA5C22145DC125BCBEA5 /* MenuShortcuts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuShortcuts.swift; sourceTree = "<group>"; };
 		0BEAF5FB898C0E4BA87885D3 /* CatalogIndex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CatalogIndex.swift; sourceTree = "<group>"; };
 		0BFFEC8A41100D74B5F0A1BC /* Delete.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Delete.swift; sourceTree = "<group>"; };
@@ -680,6 +682,7 @@
 				5D10671FD96C6AB7667E6B37 /* ControlHelp.swift */,
 				BC86570A650696786F635ABA /* EditorWindowController.swift */,
 				EA7A5AB323909782BD87154A /* LabMenu.swift */,
+				0AE286EBC81DB4C2EB9F8498 /* LabPanel.swift */,
 				D9483836EF9311825BF4F029 /* LabShell.swift */,
 				F9D3DE880C50DD2E27BD7F0A /* LabState.swift */,
 				42FE5F9D90F7D6ECD32B1641 /* MachineState.swift */,
@@ -1225,6 +1228,7 @@
 				4FCCFA2F5091926AD871648C /* LabDeveloper.swift in Sources */,
 				3DD149E5CED474FA0DD0DB29 /* LabGlyphs.swift in Sources */,
 				D3798E19E51B0AC06A73E712 /* LabMenu.swift in Sources */,
+				79209415B696E9E8D86C0F4F /* LabPanel.swift in Sources */,
 				F4D40CE7B6B65BDB3727F304 /* LabPath.swift in Sources */,
 				3BDC33BED177926419B91333 /* LabShelf.swift in Sources */,
 				72141A3ABAD2697BC2543580 /* LabShell.swift in Sources */,

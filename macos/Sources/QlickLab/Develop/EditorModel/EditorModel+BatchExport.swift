@@ -33,6 +33,8 @@ extension EditorModel {
 
     /// Export: a single export, or a batch of the grid's selection.
     func exportPanel() {
+        // Already open (perhaps out of sight): brought forward.
+        if LabPanel.bringForward() { return }
         guard canExport, !cropping else { return }
         if exportsSingle { return savePanel(export: true) }
         batchPanel(exportTargets)
@@ -52,10 +54,11 @@ extension EditorModel {
         panel.title = single ? "Export Photograph" : "Export \(targets.count) Photographs"
         panel.canCreateDirectories = true
         if let folder = Self.lastSaveFolder { panel.directoryURL = folder }
-        // The first photograph's name, to show what the naming does.
+        // The first photograph's name, to show what the naming does. Its edits, beside it on its disk, are read off
+        // the main thread: until they come, the name is a never-edited photograph's.
         var named = BatchOptions()
         named.format = OutputFormat.last.rawValue
-        let first = batchItems([targets[0]], options: named)[0]
+        var first = batchItems([targets[0]], options: named, restores: [:])[0]
         var chosenFormat = OutputFormat.last
         let rows = single ? nil : BatchRows { naming, custom in
             var options = BatchOptions(); options.naming = naming; options.custom = custom
@@ -79,12 +82,17 @@ extension EditorModel {
             rows?.refresh()
         }
         if single { panel.nameFieldStringValue = first.fileName }
-        panel.begin { [weak self] response in
+        let guessed = first.fileName
+        Task { [weak self, weak panel, weak rows] in
+            guard let self, case let restores = await self.readRestores([targets[0]]), !restores.isEmpty else { return }
+            first = self.batchItems([targets[0]], options: named, restores: restores)[0]
+            // The name follows, unless it was typed meanwhile.
+            if single, let panel, panel.nameFieldStringValue == guessed { panel.nameFieldStringValue = first.fileName }
+            rows?.refresh()
+        }
+        LabPanel.begin(panel) { [weak self] response in
             guard response == .OK, let url = panel.url, let self else { return }
             let folder = single ? url.deletingLastPathComponent() : url
-            if single, Self.sameFile(url, targets[0].photoFile) {
-                self.error = "Choose a different filename to preserve the original photograph."; return
-            }
             OutputFormat.last = picker.format
             ExportSize.last = picker.size
             picker.remember(); rows?.remember()
@@ -115,23 +123,47 @@ extension EditorModel {
     func exportBatch(_ targets: [URL], to folder: URL, options: BatchOptions, named: String? = nil) async -> BatchRun? {
         if let open = sourceItem, targets.contains(open) { await settleBrightnessMatch() }
         guard canStartBatch else { return nil }
-        var items = batchItems(targets, options: options)
+        let restores = await readRestores(targets)
+        guard canStartBatch else { return nil }
+        var items = batchItems(targets, options: options, restores: restores)
         if let named, items.count == 1 { items[0].fileName = named }
-        // Replacing a photograph's own file is refused, as for a single export.
-        if options.existing == .replace, items.contains(where: { Self.sameFile(folder.appendingPathComponent($0.fileName), $0.item.photoFile) }) {
-            error = "Choose a different folder or file name to preserve the original photographs."
+        // Replacing a photograph's own file is refused, as for a single export. The disks are asked off the main
+        // thread, with the folder's bookmark.
+        let pairs = options.existing == .replace ? items.map { (folder.appendingPathComponent($0.fileName), $0.item.photoFile) } : []
+        let (replacesOriginal, bookmark) = await Task.detached(priority: .userInitiated) {
+            (pairs.contains { Self.sameFile($0.0, $0.1) }, try? folder.bookmarkData())
+        }.value
+        if replacesOriginal {
+            error = items.count == 1 ? "Choose a different filename to preserve the original photograph."
+                : "Choose a different folder or file name to preserve the original photographs."
             return nil
         }
-        let journal = BatchJournal(destination: folder, bookmark: try? folder.bookmarkData(), options: options, items: items)
+        let journal = BatchJournal(destination: folder, bookmark: bookmark, options: options, items: items)
         return startBatch(journal)
     }
 
     /// One exporter at a time: not during a single export either.
     var canStartBatch: Bool { !closing && !batchRunning && !exporting && hasCatalog && engine != nil }
 
-    /// Each target's edits as they are now, and the name it gets.
-    func batchItems(_ targets: [URL], options: BatchOptions) -> [BatchItem] {
-        let lookup = sidecarLookup
+    /// The saved edits of `targets` (all but the open photograph), read beside each on its disk off the main thread,
+    /// at the disks' speed; none for a disk that's offline (the export finds out), nor without sidecars.
+    func readRestores(_ targets: [URL]) async -> [URL: SidecarRestore] {
+        guard let lookup = sidecarLookup else { return [:] }
+        let open = sourceDeleted ? nil : sourceItem
+        let wanted = targets.filter { !($0 == open && source != nil) }
+        guard !wanted.isEmpty else { return [:] }
+        return await Task.detached(priority: .userInitiated) {
+            var restores: [URL: SidecarRestore] = [:]
+            for target in wanted where !VolumeReach.offline(target.photoFile.path) {
+                restores[target] = SidecarRestore.read(photo: target.photoFile, variant: target.variantID, store: lookup.store, data: lookup.data)
+            }
+            return restores
+        }.value
+    }
+
+    /// Each target's edits as they are now, and the name it gets: `restores` holds the saved edits read beforehand
+    /// (`readRestores`); a target without one is taken as never edited.
+    func batchItems(_ targets: [URL], options: BatchOptions, restores: [URL: SidecarRestore]) -> [BatchItem] {
         let open = sourceDeleted ? nil : sourceItem
         let current = state
         var items = targets.map { target -> BatchItem in
@@ -147,8 +179,7 @@ extension EditorModel {
                 // As on screen, its match settled.
                 let size = image != nil ? imageSize : placeholderSize
                 item.size = size == .zero ? nil : size
-            } else if let lookup, case let restore = SidecarRestore.read(photo: photo, variant: target.variantID, store: lookup.store, data: lookup.data),
-                      let saved = restore.edits, restore.problem == nil {
+            } else if let restore = restores[target], let saved = restore.edits, restore.problem == nil {
                 item.state = restoredState(saved.state, legacy: false, matchSolved: saved.matchSolved)
                 item.needsMatch = !saved.matchSolved && matchable(item.state)
                 item.storesMatch = true
