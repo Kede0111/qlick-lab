@@ -64,6 +64,10 @@ protocol PhoneTransport: Sendable {
     func pull(_ udid: String, paths: [String], into folder: URL, progress: @escaping @Sendable (Int) -> Void) async throws -> [String]
     /// Leaves QLab a request to delete these photographs (docs/q-formats.md); QLab carries it out when it next opens.
     func requestDelete(_ udid: String, request: Data) async throws
+    /// Writes a recipe into QLab's `Recipes/` as `name` (`<name>.qrecipe`), over the file of that name.
+    func putRecipe(_ udid: String, name: String, data: Data) async throws
+    /// Removes the recipe `name` (`<name>.qrecipe`) from QLab's `Recipes/`.
+    func removeRecipe(_ udid: String, name: String) async throws
 }
 
 enum PhoneTransportEvent: Sendable {
@@ -78,7 +82,8 @@ struct PhoneTransportError: LocalizedError, Sendable {
 }
 
 /// The cable: the `qlick-iphone` helper (crates/qlick-iphone), built with the engine's tools and put beside the app's
-/// executable. Everything runs off the main thread; nothing is written to the iPhone.
+/// executable. Everything runs off the main thread. It writes to the iPhone only a deletion request, and the recipes
+/// sent or removed one by one from the Recipes room.
 struct IdeviceTransport: PhoneTransport {
     let helper: URL
 
@@ -201,6 +206,29 @@ struct IdeviceTransport: PhoneTransport {
                                           state: (failure?["state"] as? String).flatMap(PhoneDevice.State.init(rawValue:)) ?? .error)
             }
         }
+    }
+
+    /// Runs a command that writes to the iPhone; it answered `key` when it did.
+    private func write(_ arguments: [String], input: String?, answers key: String, failure what: String) async throws {
+        try await detached {
+            var failure: [String: Any]?, done = false
+            _ = try run(arguments, input: input) { object in
+                if object[key] != nil { done = true } else if object["error"] != nil { failure = object }
+            }
+            guard done else {
+                throw PhoneTransportError(message: failure?["error"] as? String ?? what,
+                                          state: (failure?["state"] as? String).flatMap(PhoneDevice.State.init(rawValue:)) ?? .error)
+            }
+        }
+    }
+
+    func putRecipe(_ udid: String, name: String, data: Data) async throws {
+        try await write(["put-recipe", udid, name], input: String(decoding: data, as: UTF8.self), answers: "written",
+                        failure: "The recipe couldn’t be written on the iPhone.")
+    }
+
+    func removeRecipe(_ udid: String, name: String) async throws {
+        try await write(["remove-recipe", udid, name], input: nil, answers: "removed", failure: "The recipe couldn’t be removed from the iPhone.")
     }
 
     func watch(_ event: @escaping @Sendable (PhoneTransportEvent) -> Void) -> @Sendable () -> Void {

@@ -404,6 +404,23 @@ import AppKit
             case "resume": session.resume()
             case "open": session.openImported()
             case "done": session.dismissRun()
+            // import recipes read|bring|send|both|delete <name>, and import recipes state <file>: the Recipes room's
+            // iPhone section without the mouse (delete without asking).
+            case "recipes":
+                let recipes = session.phones.recipes, what = words.dropFirst().first ?? "", name = words.dropFirst(2).joined(separator: " ")
+                let row = recipes.rows.first { $0.name == name || $0.mac?.name == name }
+                switch what {
+                case "read": recipes.refresh(session.phones.devices.first, model: model)
+                case "bring": if let row { recipes.bringToMac(row, model: model) }
+                case "send": if let row { recipes.sendToPhone(row, model: model) }
+                case "both": if let row { recipes.keepBoth(row, model: model) }
+                case "delete": if let row { recipes.removeFromPhone(row, model: model, ask: false) }
+                case "state":
+                    let lines = ["busy=\(recipes.busy ?? "-")", "notice=\(recipes.notice ?? "-")"]
+                        + recipes.rows.map { "\($0.name)\t\($0.status)\tmac=\($0.mac?.name ?? "-")\tiphone=\($0.phone?.fileName ?? "-")" }
+                    try? (lines.joined(separator: "\n") + "\n").write(toFile: name, atomically: true, encoding: .utf8)
+                default: break
+                }
             case "state":
                 // import state <file>: what the room holds, for a test to read.
                 let run = session.run

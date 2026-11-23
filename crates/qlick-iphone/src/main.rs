@@ -1,4 +1,4 @@
-//! Qlick Lab's iPhone helper: QLab's shared folder (its Documents) over the cable, read only.
+//! Qlick Lab's iPhone helper: QLab's shared folder (its Documents) over the cable.
 //!
 //! One command per run, its answers as JSON lines on stdout (an error as `{"error": …, "state": …}`):
 //!
@@ -8,13 +8,16 @@
 //! - `pair UDID`: asks the iPhone to trust this Mac (the iPhone shows the question), then answers as `probe`.
 //! - `list UDID`: every file of QLab's folder, `{"path", "size", "modified"}` (path relative to Documents).
 //! - `request-delete UDID`: the JSON on stdin written as a deletion request in QLab's folder
-//!   (`.qlab-delete-requests/<uuid>.json`, through a hidden file renamed into place): QLab carries it out. The only
-//!   thing this helper ever writes to the iPhone.
+//!   (`.qlab-delete-requests/<uuid>.json`, through a hidden file renamed into place): QLab carries it out.
+//! - `put-recipe UDID NAME`: the bytes on stdin written as `Recipes/NAME` (a `.qrecipe`), through a hidden file
+//!   renamed into place; `{"written": "Recipes/NAME"}`.
+//! - `remove-recipe UDID NAME`: removes `Recipes/NAME` (a `.qrecipe`), and nothing else; `{"removed": …}`.
 //! - `pull UDID DEST`: copies the files named on stdin (one relative path per line) into DEST, under the same paths,
 //!   read in blocks and checked for size; `{"done": path, "bytes"}`, `{"skipped": path}` (already there, same size)
 //!   or `{"failed": path, "error"}` for each, `{"progress": bytes}` as it goes.
 //!
-//! The app (`PhoneTransport.swift`) runs it; nothing here writes to the iPhone.
+//! The app (`PhoneTransport.swift`) runs it. It writes to the iPhone only a deletion request and the recipes it's
+//! asked to send or remove, one by one, in `Recipes/`: never a photograph.
 
 use std::io::Write;
 use std::path::{Component, Path, PathBuf};
@@ -237,6 +240,55 @@ async fn request_delete(udid: &str) {
     say(json!({"written": done.trim_start_matches("/Documents/")}));
 }
 
+/// A recipe's file name in QLab's `Recipes/`: a plain `<name>.qrecipe`, never a path nor a hidden file.
+fn recipe_file(name: &str) -> Option<String> {
+    let fine = name.ends_with(".qrecipe") && name.len() > ".qrecipe".len() && !name.starts_with('.')
+        && !name.contains(['/', '\\', '\0', ':']) && name.len() <= 255;
+    fine.then(|| format!("/Documents/Recipes/{name}"))
+}
+
+/// Writes a recipe into QLab's `Recipes/`: a hidden part first, then renamed into place (over the former file of
+/// that name), so QLab never reads half a recipe.
+async fn put_recipe(udid: &str, name: &str) {
+    let Some(done) = recipe_file(name) else { fail("error", format!("not a recipe's file name: {name}")) };
+    let mut body = Vec::new();
+    let _ = std::io::Read::read_to_end(&mut std::io::stdin(), &mut body);
+    if body.is_empty() || body.len() > 1 << 20 || body.first() != Some(&b'{') {
+        fail("error", "not a recipe".into());
+    }
+    let device = device(udid).await;
+    let mut afc = documents(&device).await.unwrap_or_else(|e| fail(state_of(&e), e.to_string()));
+    let _ = afc.mk_dir("/Documents/Recipes").await;
+    let part = format!("/Documents/Recipes/.{name}.part");
+    let written = async {
+        let mut file = afc.open(&part, AfcFopenMode::WrOnly).await?;
+        let result = file.write_entire(&body).await;
+        file.close().await?;
+        result
+    }
+    .await;
+    if let Err(e) = written {
+        let _ = afc.remove(&part).await;
+        fail(state_of(&e), e.to_string());
+    }
+    if let Err(e) = afc.rename(&part, &done).await {
+        let _ = afc.remove(&part).await;
+        fail(state_of(&e), e.to_string());
+    }
+    say(json!({"written": done.trim_start_matches("/Documents/")}));
+}
+
+/// Removes one recipe from QLab's `Recipes/`.
+async fn remove_recipe(udid: &str, name: &str) {
+    let Some(file) = recipe_file(name) else { fail("error", format!("not a recipe's file name: {name}")) };
+    let device = device(udid).await;
+    let mut afc = documents(&device).await.unwrap_or_else(|e| fail(state_of(&e), e.to_string()));
+    if let Err(e) = afc.remove(&file).await {
+        fail(state_of(&e), e.to_string());
+    }
+    say(json!({"removed": file.trim_start_matches("/Documents/")}));
+}
+
 /// Copies one file in blocks; the file on the iPhone is always closed, whatever happens.
 async fn copy(afc: &mut AfcClient, remote: &str, local: &Path, size: usize) -> Result<usize, String> {
     let mut out = std::fs::File::create(local).map_err(|e| e.to_string())?;
@@ -320,7 +372,12 @@ async fn main() {
         }
         Some("pull") if args.len() == 4 => pull(&args[2], Path::new(&args[3])).await,
         Some("request-delete") if args.len() == 3 => request_delete(&args[2]).await,
-        _ => fail("error", "usage: qlick-iphone watch | probe UDID | pair UDID | list UDID | pull UDID DEST | request-delete UDID".into()),
+        Some("put-recipe") if args.len() == 4 => put_recipe(&args[2], &args[3]).await,
+        Some("remove-recipe") if args.len() == 4 => remove_recipe(&args[2], &args[3]).await,
+        _ => fail(
+            "error",
+            "usage: qlick-iphone watch | probe UDID | pair UDID | list UDID | pull UDID DEST | request-delete UDID | put-recipe UDID NAME | remove-recipe UDID NAME".into(),
+        ),
     }
 }
 
@@ -334,6 +391,14 @@ mod tests {
         assert_eq!(inside("Recipes/Portra.qrecipe"), Some(PathBuf::from("Recipes/Portra.qrecipe")));
         for bad in ["", "../x", "/etc/passwd", "a/../../b", "./a"] {
             assert_eq!(inside(bad), None, "{bad}");
+        }
+    }
+
+    #[test]
+    fn only_recipes_are_written_or_removed() {
+        assert_eq!(recipe_file("Portra 400 (Quent).qrecipe").as_deref(), Some("/Documents/Recipes/Portra 400 (Quent).qrecipe"));
+        for bad in ["", ".qrecipe", ".hidden.qrecipe", "../x.qrecipe", "a/b.qrecipe", "QLB_0001.DNG", "x.qrecipe.part", "a\\b.qrecipe"] {
+            assert_eq!(recipe_file(bad), None, "{bad}");
         }
     }
 

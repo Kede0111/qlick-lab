@@ -81,7 +81,8 @@ with one ⌘Z.
 ### Import
 
 - From an iPhone with **QLab**, over its cable: "iPhone · QLab" appears in Import when it's plugged in. Its
-  photographs come with their developments (`.qsidecar`) and its recipes join the lab's; nothing is written to it.
+  photographs come with their developments (`.qsidecar`), shown developed before they're imported. Its recipes are
+  exchanged one by one in the Recipes room, which shows them beside the lab's while it's plugged in.
 - From a memory card, a disk or a network share. Choose to **Copy**, **Move** or **Leave in Place**: in place, the
   folders simply join an Archive as they are.
 - Every import goes into an Archive (an existing one or a new one), and can also go into a Box or a Roll.

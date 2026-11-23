@@ -92,6 +92,14 @@ enum QRecipe {
         return try text(top)
     }
 
+    /// What the recipe develops with, as a token: everything but its header (its name, dates and revision), so the
+    /// same recipe written by either app compares alike. Nil when it isn't a recipe.
+    static func content(_ data: Data) -> String? {
+        guard var top = try? object(data) else { return nil }
+        top["qrecipe"] = nil
+        return fingerprint(top)
+    }
+
     /// An opaque token for the content (docs/q-formats.md: readers compare it, never recompute another app's).
     static func fingerprint(_ top: [String: Any]) -> String {
         let data = (try? JSONSerialization.data(withJSONObject: sentinelled(top), options: [.sortedKeys])) ?? Data()

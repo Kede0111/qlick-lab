@@ -144,13 +144,21 @@ The transport is its own module in Qlick Lab, behind an interface (`Import/Phone
 iCloud container shared by the two apps, for a Mac App Store build) can take its place. Today: the `qlick-iphone`
 helper (`crates/qlick-iphone`, idevice over usbmuxd, house_arrest `VendDocuments` on `be.jackfrom.qlab`, read only,
 files read in blocks and always closed), run by `IdeviceTransport`. Import's "iPhone · QLab" copies the photographs
-with their `.qsidecar` (or `.qlab.json`) into a transit folder in the Mac's caches, then imports them as any source.
+with their `.qsidecar` (or `.qlab.json`) into a transit folder (the Mac's caches, or the folder chosen in Settings), then
+imports them as any source.
 
 - Photographs: `Documents/<day>/<name>` with its `.qsidecar` → imported with its developments. Before the import,
   Import's grid and loupe already show each as its active version (the first variant) develops, with its `recipe`.
-- Recipes: `Documents/Recipes/*.qrecipe` ⇄ Presets. By id: same revision, nothing to do; one side changed since the
-  last sync (Qlick Lab keeps the last synced revision of each id, per iPhone), it wins; both changed, both are kept, the
-  incoming one with a new id and " (iPhone)" or " (Mac)" after its name. A deletion is not carried over.
+- Recipes: never with an import (a photograph's `.qsidecar` holds its development whole). Qlick Lab's Recipes room
+  shows, while an iPhone is plugged in, `Documents/Recipes/*.qrecipe` beside its own, matched by `qrecipe.id`, and
+  exchanges them one at a time, on request: bring one to the Mac (added, or in place of the Mac's, its name included),
+  send one to the iPhone (added, or in place of the iPhone's), keep both (the iPhone's added with a new id and
+  " (iPhone)" after its name), delete one from the iPhone (asked first). Each app sets its own `revision`, so they are
+  never compared with each other: Qlick Lab remembers, per iPhone and id, both revisions as they were at the last
+  exchange, and says which side changed since ("Changed on the iPhone", "on the Mac", "on both"). Never exchanged and
+  alike once the `qrecipe` header is set aside: "The same". A deletion is never carried over on its own.
+- Writing to the iPhone: `Recipes/.<name>.qrecipe.part` renamed to `Recipes/<name>.qrecipe` (over that name only);
+  removing: `Recipes/<name>.qrecipe` only. QLab reads `Documents/Recipes/` again whenever it comes to the front.
 
 ## Deleting from the iPhone after an import
 

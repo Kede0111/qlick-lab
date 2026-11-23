@@ -18,6 +18,8 @@ struct RecipesWorkspace: View {
     /// The recipe being dragged to another place (Custom Order).
     @State private var dragged: URL?
     @State private var name = ""
+    /// Qlick Lab: an iPhone's QLab recipes, while one is plugged in.
+    private var phoneRecipes: PhoneRecipes { model.lab.importer.phones.recipes }
 
     private var lab: LabState { model.lab }
 
@@ -106,6 +108,9 @@ struct RecipesWorkspace: View {
                 }
             }
         }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if !model.lab.importer.phones.devices.isEmpty { PhoneRecipesPanel(model: model, recipes: phoneRecipes) }
+        }
         .background(Theme.bg)
         // Recipe files and bundles dropped anywhere in the room are imported.
         .overlay {
@@ -124,6 +129,10 @@ struct RecipesWorkspace: View {
         Button("Duplicate as a New Version") { model.labDuplicate(preset) }
         Button(lab.isFavourite(recipe: preset) ? "Remove from Favourites" : "Add to Favourites") { lab.toggleFavourite(recipe: preset) }
         Button(lab.isHidden(recipe: preset) ? "Show in the Lists" : "Hide from the Lists") { lab.setHidden(recipe: preset, !lab.isHidden(recipe: preset)) }
+        if phoneRecipes.udid != nil, let row = phoneRecipes.rows.first(where: { $0.mac?.preset.url == preset.url }),
+           [.onlyMac, .changedOnMac].contains(row.status) {
+            Button("Send to the iPhone") { phoneRecipes.sendToPhone(row, model: model) }.disabled(phoneRecipes.busy != nil)
+        }
         Divider()
         Button("Export…") { model.exportPresetPanel(preset) }
         if chosen.count > 1, chosen.contains(preset.url) {

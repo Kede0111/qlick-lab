@@ -15,6 +15,9 @@ import XCTest
         func pull(_ udid: String, paths: [String], into folder: URL, progress: @escaping @Sendable (Int) -> Void) async throws -> [String] { paths }
         var requests: [Data] = []
         func requestDelete(_ udid: String, request: Data) async throws { requests.append(request) }
+        var written: [String: Data] = [:], removed: [String] = []
+        func putRecipe(_ udid: String, name: String, data: Data) async throws { written[name] = data }
+        func removeRecipe(_ udid: String, name: String) async throws { removed.append(name) }
     }
 
     /// The deletion request names only photographs whose copy was checked, by QLab's id and the copy's SHA-256.
@@ -72,7 +75,8 @@ import XCTest
         XCTAssertNil(phone.advice)
     }
 
-    /// The photographs, each with its `.qsidecar` (or its former `.qlab.json` when it has none), and the recipes.
+    /// The photographs, each with its `.qsidecar` (or its former `.qlab.json` when it has none); the recipes apart
+    /// (an import doesn't take them: the Recipes room exchanges them).
     func testTheFilesAnImportTakes() {
         let files = [
             "2026-11-15/QLB_0130.DNG", "2026-11-15/QLB_0130.DNG.qsidecar", "2026-11-15/QLB_0130.DNG.qlab.json",
@@ -86,14 +90,83 @@ import XCTest
         XCTAssertEqual(recipes.map(\.path), ["Recipes/Portra.qrecipe"])
     }
 
-    /// A recipe from the iPhone never writes over the lab's: same revision, nothing; changed, both are kept.
-    func testRecipesFromTheIPhoneNeverReplaceTheLabs() {
-        let local: [String: [String: Any]] = ["ID1": ["id": "ID1", "revision": "sha256:a"]]
-        XCTAssertEqual(PhoneRecipeDecision.decide(remote: ["id": "ID2", "revision": "sha256:b", "name": "Gold"], local: local, taken: []), .add)
-        XCTAssertEqual(PhoneRecipeDecision.decide(remote: ["id": "ID1", "revision": "sha256:a", "name": "Portra"], local: local, taken: []), .same)
-        XCTAssertEqual(PhoneRecipeDecision.decide(remote: ["id": "ID1", "revision": "sha256:c", "name": "Portra"], local: local,
-                                                  taken: [PresetName.key("Portra (iPhone)")]), .keepBoth(name: "Portra (iPhone) 2"))
-        XCTAssertEqual(PhoneRecipeDecision.decide(remote: ["name": "No id"], local: local, taken: []), .add)
+    /// Each app sets its own revision: the lab compares each side with what it was when last exchanged, never the
+    /// two with one another.
+    func testWhichSideOfARecipeChanged() {
+        typealias Row = PhoneRecipeRow
+        let synced = PhoneRecipeSync.Pair(mac: "sha256:m", phone: "sha256:p")
+        XCTAssertEqual(Row.status(mac: "sha256:m", phone: "sha256:p", synced: synced), .same)
+        XCTAssertEqual(Row.status(mac: "sha256:m", phone: "sha256:p2", synced: synced), .changedOnPhone, "renamed or edited in QLab")
+        XCTAssertEqual(Row.status(mac: "sha256:m2", phone: "sha256:p", synced: synced), .changedOnMac)
+        XCTAssertEqual(Row.status(mac: "sha256:m2", phone: "sha256:p2", synced: synced), .changedOnBoth)
+        XCTAssertEqual(Row.status(mac: "sha256:x", phone: "sha256:x", synced: nil), .same, "sent as it is: one revision")
+        XCTAssertEqual(Row.status(mac: "sha256:m", phone: "sha256:p", synced: nil), .different)
+        XCTAssertEqual(Row.status(mac: "sha256:m", phone: "sha256:p", synced: nil, sameContent: true), .same, "only the header differs")
+        // The header aside, the content is compared.
+        let one = Data(#"{"simulation": {"film_stock": "a"}, "qrecipe": {"name": "One", "revision": "sha256:1"}}"#.utf8)
+        let other = Data(#"{"simulation": {"film_stock": "a"}, "qrecipe": {"name": "Two", "revision": "sha256:2"}}"#.utf8)
+        XCTAssertEqual(QRecipe.content(one), QRecipe.content(other))
+        XCTAssertNotEqual(QRecipe.content(one), QRecipe.content(Data(#"{"simulation": {"film_stock": "b"}}"#.utf8)))
+    }
+
+    func testTheIPhonesRecipesBesideTheLabs() {
+        func preset(_ name: String) -> PresetFile { PresetFile(url: URL(fileURLWithPath: "/p/\(name).qrecipe", isDirectory: false), size: 1, modified: .distantPast) }
+        func file(_ name: String, id: String?, revision: String) -> PhoneRecipeFile {
+            PhoneRecipeFile(fileName: "\(name).qrecipe", id: id, name: name, revision: revision, local: URL(fileURLWithPath: "/t/\(name).qrecipe", isDirectory: false))
+        }
+        let mac: [PhoneRecipeRow.Mac] = [.init(preset: preset("Portra"), id: "A", name: "Portra", revision: "m1"),
+                                         .init(preset: preset("Gold"), id: "B", name: "Gold", revision: "m2")]
+        let phone = [file("Portra warm", id: "A", revision: "p1"), file("Trix", id: "C", revision: "p3"), file("Hand made", id: nil, revision: "p4")]
+        let rows = PhoneRecipeRow.rows(mac: mac, phone: phone, synced: ["A": .init(mac: "m1", phone: "p0")])
+        XCTAssertEqual(rows.map(\.name), ["Gold", "Hand made", "Portra warm", "Trix"])
+        XCTAssertEqual(rows.map(\.status), [.onlyMac, .onlyPhone, .changedOnPhone, .onlyPhone])
+        XCTAssertEqual(rows[2].mac?.name, "Portra", "the same recipe, renamed in QLab")
+    }
+
+    func testTheLastExchangeIsRememberedPerIPhone() throws {
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: "qlick-phone-sync-\(UUID().uuidString)"))
+        PhoneRecipeSync.remember(udid: "X", id: "A", mac: "m", phone: "p", defaults: defaults)
+        XCTAssertEqual(PhoneRecipeSync.load(udid: "X", defaults: defaults)["A"], .init(mac: "m", phone: "p"))
+        XCTAssertTrue(PhoneRecipeSync.load(udid: "Y", defaults: defaults).isEmpty)
+        PhoneRecipeSync.forget(udid: "X", id: "A", defaults: defaults)
+        XCTAssertNil(PhoneRecipeSync.load(udid: "X", defaults: defaults)["A"])
+    }
+
+    /// The iPhone's version put in place of the Mac's: its content and its name (a rename made in QLab), the same
+    /// identifier, never over another recipe.
+    func testARecipeIsReplacedByItsIPhoneVersion() async throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("qlick-overwrite-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let library = PresetLibrary(folder: dir)
+        func recipe(_ film: String, id: String, name: String) -> Data {
+            Data(#"{"simulation": {"film_stock": "\#(film)"}, "qrecipe": {"format": 1, "id": "\#(id)", "name": "\#(name)", "revision": "sha256:qlab"}}"#.utf8)
+        }
+        let portra = try await library.add(recipe("kodak_portra_400", id: "ID-A", name: "Portra"), name: "Portra")
+        _ = try await library.add(recipe("kodak_gold_200", id: "ID-B", name: "Gold"), name: "Gold")
+        let listed = try await library.list()
+        let mine = try XCTUnwrap(listed.first { $0.url.lastPathComponent == portra.url.lastPathComponent })
+        let saved = try await library.overwrite(mine, with: recipe("kodak_ektar_100", id: "ID-A", name: "Portra warm"), name: "Portra warm")
+        XCTAssertEqual(saved.name, "Portra warm")
+        XCTAssertEqual(saved.shelfID, "ID-A")
+        let after = try await library.list()
+        XCTAssertEqual(Set(after.map(\.name)), ["Gold", "Portra warm"])
+        let data = try await library.read(try XCTUnwrap(after.first { $0.name == "Portra warm" }))
+        XCTAssertTrue(String(decoding: data, as: UTF8.self).contains("kodak_ektar_100"))
+        XCTAssertEqual(QRecipe.id(data), "ID-A")
+        // Renamed to another recipe's name: it gets one of its own.
+        let gold = try XCTUnwrap(after.first { $0.name == "Portra warm" })
+        let again = try await library.overwrite(gold, with: recipe("kodak_ektar_100", id: "ID-A", name: "Gold"), name: "Gold")
+        XCTAssertEqual(again.name, "Gold 2")
+        let count = try await library.list().count
+        XCTAssertEqual(count, 2)
+    }
+
+    /// Only QLab's recipes, not hidden parts or files elsewhere.
+    func testWhatCountsAsAnIPhoneRecipe() {
+        XCTAssertTrue(PhoneRecipes.isRecipe(PhoneFile(path: "Recipes/Portra.qrecipe", size: 1)))
+        XCTAssertFalse(PhoneRecipes.isRecipe(PhoneFile(path: "Recipes/.Portra.qrecipe.part", size: 1)))
+        XCTAssertFalse(PhoneRecipes.isRecipe(PhoneFile(path: "Recipes/old/Portra.qrecipe", size: 1)))
+        XCTAssertFalse(PhoneRecipes.isRecipe(PhoneFile(path: "2026-11-15/Portra.qrecipe", size: 1)))
     }
 
     /// A photograph's development travels with it into the Archive: its `.qsidecar`, else its former `.qlab.json`;
