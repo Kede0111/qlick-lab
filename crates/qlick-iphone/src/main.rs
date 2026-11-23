@@ -7,6 +7,9 @@
 //! - `probe UDID`: `{"udid", "name", "state"}`, `state` one of `ready`, `locked`, `untrusted`, `no_qlab`, `error`.
 //! - `pair UDID`: asks the iPhone to trust this Mac (the iPhone shows the question), then answers as `probe`.
 //! - `list UDID`: every file of QLab's folder, `{"path", "size", "modified"}` (path relative to Documents).
+//! - `request-delete UDID`: the JSON on stdin written as a deletion request in QLab's folder
+//!   (`.qlab-delete-requests/<uuid>.json`, through a hidden file renamed into place): QLab carries it out. The only
+//!   thing this helper ever writes to the iPhone.
 //! - `pull UDID DEST`: copies the files named on stdin (one relative path per line) into DEST, under the same paths,
 //!   read in blocks and checked for size; `{"done": path, "bytes"}`, `{"skipped": path}` (already there, same size)
 //!   or `{"failed": path, "error"}` for each, `{"progress": bytes}` as it goes.
@@ -201,6 +204,39 @@ async fn pull(udid: &str, destination: &Path) {
     }
 }
 
+/// Writes a deletion request for QLab (docs/q-formats.md): a hidden part first, then renamed into place, so QLab
+/// never reads half a request.
+async fn request_delete(udid: &str) {
+    let mut body = Vec::new();
+    let _ = std::io::Read::read_to_end(&mut std::io::stdin(), &mut body);
+    if serde_json::from_slice::<Value>(&body).map(|v| v["photos"].is_array()).unwrap_or(false) == false {
+        fail("error", "not a deletion request".into());
+    }
+    let device = device(udid).await;
+    let mut afc = documents(&device).await.unwrap_or_else(|e| fail(state_of(&e), e.to_string()));
+    let folder = "/Documents/.qlab-delete-requests";
+    let _ = afc.mk_dir(folder).await;
+    let name = uuid::Uuid::new_v4().to_string().to_uppercase();
+    let part = format!("{folder}/.{name}.json.part");
+    let done = format!("{folder}/{name}.json");
+    let written = async {
+        let mut file = afc.open(&part, AfcFopenMode::WrOnly).await?;
+        let result = file.write_entire(&body).await;
+        file.close().await?;
+        result
+    }
+    .await;
+    if let Err(e) = written {
+        let _ = afc.remove(&part).await;
+        fail(state_of(&e), e.to_string());
+    }
+    if let Err(e) = afc.rename(&part, &done).await {
+        let _ = afc.remove(&part).await;
+        fail(state_of(&e), e.to_string());
+    }
+    say(json!({"written": done.trim_start_matches("/Documents/")}));
+}
+
 /// Copies one file in blocks; the file on the iPhone is always closed, whatever happens.
 async fn copy(afc: &mut AfcClient, remote: &str, local: &Path, size: usize) -> Result<usize, String> {
     let mut out = std::fs::File::create(local).map_err(|e| e.to_string())?;
@@ -283,7 +319,8 @@ async fn main() {
             }
         }
         Some("pull") if args.len() == 4 => pull(&args[2], Path::new(&args[3])).await,
-        _ => fail("error", "usage: qlick-iphone watch | probe UDID | pair UDID | list UDID | pull UDID DEST".into()),
+        Some("request-delete") if args.len() == 3 => request_delete(&args[2]).await,
+        _ => fail("error", "usage: qlick-iphone watch | probe UDID | pair UDID | list UDID | pull UDID DEST | request-delete UDID".into()),
     }
 }
 

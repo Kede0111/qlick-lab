@@ -62,6 +62,8 @@ protocol PhoneTransport: Sendable {
     /// Copies `paths` into `folder`, under the same relative paths; `progress` is told of the bytes as they come.
     /// Returns the paths copied or already there; those that failed are named in the error, after the others.
     func pull(_ udid: String, paths: [String], into folder: URL, progress: @escaping @Sendable (Int) -> Void) async throws -> [String]
+    /// Leaves QLab a request to delete these photographs (docs/q-formats.md); QLab carries it out when it next opens.
+    func requestDelete(_ udid: String, request: Data) async throws
 }
 
 enum PhoneTransportEvent: Sendable {
@@ -184,6 +186,20 @@ struct IdeviceTransport: PhoneTransport {
                 throw PhoneTransportError(message: "\(failed.count) file\(failed.count == 1 ? "" : "s") couldn’t be copied: " + failed.prefix(3).joined(separator: "; "))
             }
             return copied
+        }
+    }
+
+    func requestDelete(_ udid: String, request: Data) async throws {
+        let text = String(decoding: request, as: UTF8.self)
+        try await detached {
+            var failure: [String: Any]?, written = false
+            _ = try run(["request-delete", udid], input: text) { object in
+                if object["written"] != nil { written = true } else if object["error"] != nil { failure = object }
+            }
+            guard written else {
+                throw PhoneTransportError(message: failure?["error"] as? String ?? "The request couldn’t be written on the iPhone.",
+                                          state: (failure?["state"] as? String).flatMap(PhoneDevice.State.init(rawValue:)) ?? .error)
+            }
         }
     }
 

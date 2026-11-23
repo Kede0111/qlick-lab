@@ -121,6 +121,10 @@ struct SidecarRestore: Equatable, Sendable {
     var edits: SavedEdits?
     /// Why the sidecar isn't used; it is then never written over.
     var problem: String?
+    /// Qlick Lab: the recipe applied last, as the sidecar names it (`recipe`) and, from QLab, by identifier
+    /// (`recipeRef.id`): the film card shows it.
+    var recipe: String?
+    var recipeID: String?
 
     static func newVariantID() -> String { String(UUID().uuidString.lowercased().prefix(8)) }
 
@@ -134,6 +138,9 @@ struct SidecarRestore: Equatable, Sendable {
             guard let variant = sidecar.variants.first(where: { $0.id == id }) ?? sidecar.variants.first else { return restore }
             restore.variant = variant.id; restore.newVariant = false
             restore.rating = variant.rating; restore.flag = variant.flag; restore.words = variant.words
+            let fields = sidecar.raw["variants"].array.first { $0["id"] == .string(variant.id) }
+            restore.recipe = fields.flatMap { $0["recipe"] == .null ? nil : $0["recipe"].string }.flatMap { $0.isEmpty ? nil : $0 }
+            restore.recipeID = fields.flatMap { $0["recipeRef.id"] == .null ? nil : $0["recipeRef.id"].string }.flatMap { $0.isEmpty ? nil : $0 }
             if let edits = variant.edits {
                 let table = try SidecarDefaults.load(version: sidecar.defaultsVersion, data: data)
                 restore.edits = try PhotoSidecar.decodeEdits(edits, table: table)

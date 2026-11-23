@@ -20,7 +20,7 @@ struct ImportPanel: View {
         ScrollView(.vertical) {
             VStack(alignment: .leading, spacing: 0) {
                 // The decision that matters most comes first, in three words.
-                ImportModeChoice(session: session, card: session.source?.kind == .card)
+                ImportModeChoice(session: session, card: session.source?.kind == .card || session.source?.kind == .phone)
                     .padding(.horizontal, 16).padding(.top, 16).padding(.bottom, 12)
                     .overlay(alignment: .bottom) { Rectangle().fill(Color.white.opacity(0.06)).frame(height: 1) }
 
@@ -610,8 +610,20 @@ struct ImportModeChoice: View {
             CapsLabel("The Photographs")
             QSegmented(options: (card ? [ImportMode.copy] : ImportMode.allCases).map { ($0, $0.short, $0.help) },
                        selection: $session.options.mode)
-            Text(card ? "A card's photographs are copied. Format the card in the camera afterwards." : mode.help)
+            Text(session.source?.kind == .phone ? "An iPhone’s photographs are copied, and checked." :
+                 card ? "A card's photographs are copied. Format the card in the camera afterwards." : mode.help)
                 .font(.system(size: 11)).foregroundStyle(Theme.dim).fixedSize(horizontal: false, vertical: true)
+            if session.source?.kind == .phone {
+                // Qlick Lab: QLab deletes them itself, once the Mac's copies are checked (docs/q-formats.md).
+                Toggle("Delete from the iPhone after import", isOn: Binding(get: { session.phones.deleteAfterImport },
+                                                                         set: { session.phones.deleteAfterImport = $0 }))
+                    .toggleStyle(.checkbox).font(.system(size: 12))
+                    .help("Once each photograph’s copy on this Mac is checked, QLab deletes it from the iPhone, with its developments, the next time it opens. Those not imported stay.")
+                if session.phones.deleteAfterImport {
+                    Text("Only photographs whose copy is checked. QLab frees the room the next time it opens.")
+                        .font(.system(size: 11)).foregroundStyle(Theme.dim).fixedSize(horizontal: false, vertical: true)
+                }
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }

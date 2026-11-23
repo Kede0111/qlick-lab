@@ -197,7 +197,17 @@ extension EditorModel {
                                           variantIsNew: restore.newVariant, opened: Self.userEdits(state),
                                           editedAtOpen: restore.edits != nil, exists: restore.exists, blocked: restore.problem)
         if restore.edits != nil, context.blocked == nil { context.written = storedEdits(state, context) }
+        rememberRecipe(of: restore)
         return context
+    }
+
+    /// Qlick Lab: the film card shows the recipe the sidecar names (by its identifier first, the same recipe in QLab
+    /// and here, then by name), when nothing was applied to the photograph in this session.
+    func rememberRecipe(of restore: SidecarRestore) {
+        guard let item = sourceItem, appliedPresets[item] == nil else { return }
+        let found = restore.recipeID.flatMap { id in presets.first { $0.shelfID == id } }
+            ?? restore.recipe.flatMap { name in presets.first { PresetName.key($0.name) == PresetName.key(name) } }
+        if let found { appliedPresets[item] = found.url }
     }
 
     /// The catalog changed under an open photograph: shows its saved edits

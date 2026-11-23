@@ -13,6 +13,40 @@ import XCTest
         func pair(_ udid: String) async -> PhoneDevice { await probe(udid) }
         func list(_ udid: String) async throws -> [PhoneFile] { files }
         func pull(_ udid: String, paths: [String], into folder: URL, progress: @escaping @Sendable (Int) -> Void) async throws -> [String] { paths }
+        var requests: [Data] = []
+        func requestDelete(_ udid: String, request: Data) async throws { requests.append(request) }
+    }
+
+    /// The deletion request names only photographs whose copy was checked, by QLab's id and the copy's SHA-256.
+    func testTheDeletionRequestNamesOnlyCheckedCopies() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("qlick-delete-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        try FileManager.default.createDirectory(at: dir.appendingPathComponent("2026-11-15"), withIntermediateDirectories: true)
+        var frames: [ImportFrame] = [], times: [URL: CaptureTime] = [:]
+        for (index, name) in ["QLB_0001.DNG", "QLB_0002.DNG", "QLB_0003.DNG"].enumerated() {
+            let url = dir.appendingPathComponent("2026-11-15/\(name)")
+            try Data(repeating: UInt8(index), count: 1000 + index).write(to: url)
+            if index < 2 {
+                let sidecar = #"{"qsidecar": 1, "qlab": {"record": {"id": "ID-\#(index)"}}, "variants": []}"#
+                try Data(sidecar.utf8).write(to: URL(fileURLWithPath: url.path + ".qsidecar", isDirectory: false))
+            }
+            let time = CaptureTime(exif: "2026:11:15 10:00:0\(index)")
+            frames.append(ImportFrame(file: ImportFile(url: url, size: 1000 + index, modified: nil), captured: time)); times[url] = time
+        }
+        var options = ImportOptions(); options.destination = dir.appendingPathComponent("out", isDirectory: true)
+        var journal = ImportJournal(plan: ImportPlan.make(frames, options: options), options: options, marks: [:], times: times, volume: nil,
+                                    sourceName: "iPhone", sourceRoot: dir)
+        for i in journal.items.indices {
+            journal.items[i].files[0].status = .done
+            journal.items[i].files[0].hash = i == 1 ? nil : "ABC\(i)"
+        }
+        let data = try XCTUnwrap(PhoneImport.deleteRequest(journal, mac: "Studio"))
+        let request = try XCTUnwrap(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+        XCTAssertEqual(request["format"] as? Int, 1); XCTAssertEqual(request["mac"] as? String, "Studio")
+        let photos = try XCTUnwrap(request["photos"] as? [[String: Any]])
+        // QLB_0002: no checked hash; QLB_0003: no QLab sidecar.
+        XCTAssertEqual(photos.map { $0["id"] as? String }, ["ID-0"])
+        XCTAssertEqual(photos.first?["sha256"] as? String, "abc0")
     }
 
     func testOnlyIPhonesOnTheCableAreOfferedAndLeaveWhenUnplugged() async throws {
@@ -128,9 +162,23 @@ import XCTest
         let folder = PhoneImport.transit(for: udid)
         try FileManager.default.createDirectory(at: folder.appendingPathComponent("2026-11-15"), withIntermediateDirectories: true)
         try Data("raw".utf8).write(to: folder.appendingPathComponent("2026-11-15/QLB_0001.DNG"))
-        PhoneImport(transport: FakeTransport(), watch: false).clearTransit(udid)
+        PhoneImport(transport: FakeTransport(), watch: false).clearTransit(at: folder)
         for _ in 0..<100 where FileManager.default.fileExists(atPath: folder.path) { try await Task.sleep(for: .milliseconds(10)) }
         XCTAssertFalse(FileManager.default.fileExists(atPath: folder.path))
+    }
+
+    /// The transit folder chosen in Settings, or the caches' when none is chosen or its disk isn't there.
+    func testTheTransitFolderCanBeChosen() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("qlick-transit-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let chosen = PhoneImport.usableTransitRoot(chosen: dir)
+        XCTAssertEqual(chosen.root, dir.appendingPathComponent("Qlick Lab iPhone Transit", isDirectory: true))
+        XCTAssertNil(chosen.note)
+        let gone = PhoneImport.usableTransitRoot(chosen: URL(fileURLWithPath: "/Volumes/No Such Disk \(UUID().uuidString)/Transit", isDirectory: true))
+        XCTAssertEqual(gone.root, PhoneImport.defaultTransitRoot)
+        XCTAssertTrue(gone.note?.contains("isn’t there") == true)
+        XCTAssertEqual(PhoneImport.usableTransitRoot(chosen: nil).root, PhoneImport.defaultTransitRoot)
     }
 
     func testTransitIsPerIPhoneInTheCaches() {

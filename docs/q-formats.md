@@ -150,3 +150,22 @@ with their `.qsidecar` (or `.qlab.json`) into a transit folder in the Mac's cach
 - Recipes: `Documents/Recipes/*.qrecipe` ⇄ Presets. By id: same revision, nothing to do; one side changed since the
   last sync (Qlick Lab keeps the last synced revision of each id, per iPhone), it wins; both changed, both are kept, the
   incoming one with a new id and " (iPhone)" or " (Mac)" after its name. A deletion is not carried over.
+
+## Deleting from the iPhone after an import
+
+Qlick Lab never deletes on the iPhone itself: QLab does, from a request. With "Delete from the iPhone after import"
+ticked, once the import is over Qlick Lab writes `Documents/.qlab-delete-requests/<UUID>.json` (a hidden
+`.<UUID>.json.part` renamed into place, the only thing it ever writes to the iPhone):
+
+```json
+{ "format": 1, "requested": "2026-11-23T21:00:00Z", "mac": "Studio",
+  "photos": [ { "id": "<QLab PhotoRecord id, from qlab.record.id>", "sha256": "<the copy's SHA-256>", "name": "QLB_0001.DNG" } ] }
+```
+
+Only photographs whose copy on the Mac was checked are named. QLab reads the requests at launch and when it comes
+back to the front: a photograph whose original's SHA-256 is the one named is deleted for good (original, versions,
+renders, previews, sidecars, published copy; no bin), anything else is kept and noted in
+`Application Support/Diagnostics/delete-requests.log`; each request is removed once read.
+
+A development made with a recipe names it in its variant: `recipe` (the name) and `recipeRef.id` (its `qrecipe.id`).
+
