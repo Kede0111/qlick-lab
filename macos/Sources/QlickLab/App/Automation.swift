@@ -377,6 +377,8 @@ import AppKit
             case "label": session.toggle(label: ColorLabel(word: argument))
             case "keywords": session.options.keywords = argument
             case "card": if let card = session.cards.first(where: { argument.isEmpty || $0.name == argument }) { session.open(card) }
+            // import phone [<udid>]: the first iPhone plugged in (or that one), as the room's source.
+            case "phone": if let phone = session.phones.devices.first(where: { argument.isEmpty || $0.udid == argument }) { session.phones.open(phone, in: session) }
             case "skipdup": session.options.skipDuplicates = argument != "0"
             case "balance": session.options.balanceEach = argument != "0"
             case "verify": session.options.verify = argument != "0"

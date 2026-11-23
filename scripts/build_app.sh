@@ -71,6 +71,8 @@ fi
 cargo build --locked --release -p spektrafilm-native ${rust_targets[@]+"${rust_targets[@]}"} --target-dir "$target_dir"
 cargo build --locked --release -p spektrafilm-cli --bin spektrafilm ${rust_targets[@]+"${rust_targets[@]}"} --target-dir "$target_dir"
 cargo build --locked --release -p spektrafilm-cli --bin spektrafilm-f64 --features precision-f64 ${rust_targets[@]+"${rust_targets[@]}"} --target-dir "$target_dir"
+# The iPhone over the cable (Import's "iPhone · QLab"): a helper of its own, apart from the engine.
+cargo build --locked --release -p qlick-iphone ${rust_targets[@]+"${rust_targets[@]}"} --target-dir "$target_dir"
 swift build --package-path macos --scratch-path "$swift_scratch" -c release ${swift_archs[@]+"${swift_archs[@]}"} ${swift_flags[@]+"${swift_flags[@]}"}
 swift_bin="$(swift build --package-path macos --scratch-path "$swift_scratch" -c release ${swift_archs[@]+"${swift_archs[@]}"} ${swift_flags[@]+"${swift_flags[@]}"} --show-bin-path)"
 
@@ -80,7 +82,7 @@ cp "$swift_bin/QlickLab" "$app/Contents/MacOS/$name"
 # The executable looks for Sparkle beside it in a development build, in Frameworks in the app.
 install_name_tool -add_rpath "@executable_path/../Frameworks" "$app/Contents/MacOS/$name" 2>/dev/null || true
 ditto "$swift_bin/Sparkle.framework" "$app/Contents/Frameworks/Sparkle.framework"
-for tool in spektrafilm-native spektrafilm spektrafilm-f64; do
+for tool in spektrafilm-native spektrafilm spektrafilm-f64 qlick-iphone; do
     if [[ ${#rust_targets[@]} -gt 0 ]]; then
         lipo -create -output "$app/Contents/MacOS/$tool" "$target_dir/aarch64-apple-darwin/release/$tool" "$target_dir/x86_64-apple-darwin/release/$tool"
     else

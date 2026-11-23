@@ -5,7 +5,8 @@ import Observation
 
 /// A place photographs are imported from.
 struct ImportSource: Identifiable, Hashable, Sendable {
-    enum Kind: String, Sendable { case card, disk, folder }
+    /// Qlick Lab: `phone` is an iPhone's QLab folder, copied to a transit folder (`PhoneImport`).
+    enum Kind: String, Sendable { case card, disk, folder, phone }
     /// Where its photographs are listed from: a card's `DCIM`, a folder itself.
     var root: URL
     /// Its volume's mount point, when it's a card or a disk.
@@ -19,6 +20,7 @@ struct ImportSource: Identifiable, Hashable, Sendable {
         case .card: LabGlyph.card.symbol
         case .disk: "externaldrive"
         case .folder: "folder"
+        case .phone: "iphone"
         }
     }
 }
@@ -169,6 +171,8 @@ enum ImportProgressStyle: String, CaseIterable, Sendable {
 
     private(set) var volumes: [ImportSource] = []
     private(set) var source: ImportSource?
+    /// Qlick Lab: the iPhones plugged in, offered as "iPhone · QLab".
+    let phones = PhoneImport()
     /// Cards put in since the room was last looked at: the sidebar says so.
     var cards: [ImportSource] { volumes.filter { $0.kind == .card } }
 
@@ -294,7 +298,7 @@ enum ImportProgressStyle: String, CaseIterable, Sendable {
         factsRead = 0; scanning = true; view = .grid; filter = .all
         plan = ImportPlan()
         // A card's photographs can't stay where they are: it starts on Copy.
-        if source.kind == .card, options.mode == .add { options.mode = .copy }
+        if source.kind == .card || source.kind == .phone, options.mode == .add { options.mode = .copy }
         let root = source.root
         scan = Task { [weak self] in
             let files = await Task.detached(priority: .userInitiated) { ImportScan.files(in: root, cancelled: { Task.isCancelled }) }.value

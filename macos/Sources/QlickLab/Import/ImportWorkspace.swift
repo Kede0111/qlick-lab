@@ -78,6 +78,27 @@ private struct ImportSources: View {
                         .fixedSize(horizontal: false, vertical: true).padding(.horizontal, 10).padding(.bottom, 6)
                 }
                 ForEach(cards) { card in row(card) { session.open(card) } }
+                // Qlick Lab: QLab's folder on an iPhone plugged in.
+                let phones = session.phones
+                if !phones.devices.isEmpty {
+                    heading("iPhone")
+                    ForEach(phones.devices) { phone in
+                        RoomButton(symbol: "iphone", title: phone.title, on: session.source?.uuid == phone.udid && session.source?.kind == .phone,
+                                   trailing: phone.state == .ready ? nil : "…") { phones.open(phone, in: session) }
+                            .help(phone.advice ?? "Copies QLab’s photographs, each with its development, and its recipes, then shows them.")
+                    }
+                    if let activity = phones.activity {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(activity.text).font(.system(size: 11)).foregroundStyle(Theme.dim)
+                            if let fraction = activity.fraction { ProgressView(value: fraction).controlSize(.small) }
+                        }
+                        .padding(.horizontal, 10).padding(.bottom, 6)
+                    }
+                    if let notice = phones.notice {
+                        Text(notice).font(.system(size: 11)).foregroundStyle(Theme.paper)
+                            .fixedSize(horizontal: false, vertical: true).padding(.horizontal, 10).padding(.bottom, 6)
+                    }
+                }
                 heading("Disks")
                 let disks = session.volumes.filter { $0.kind == .disk }
                 ForEach(disks) { disk in row(disk, trailing: "…") { session.chooseFolder(startingAt: disk.root) } }

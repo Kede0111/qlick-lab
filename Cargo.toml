@@ -8,6 +8,7 @@ members = [
     "crates/spektrafilm-io",
     "crates/spektrafilm-cli",
     "crates/spektrafilm-native",
+    "crates/qlick-iphone",
 ]
 exclude = ["vendor"]
 

@@ -1,0 +1,15 @@
+# Qlick Lab: the iPhone, through its cable. A helper of its own, apart from the engine, that reads QLab's shared
+# folder (its Documents, Files › On My iPhone › QLab) over usbmuxd and house_arrest/AFC. Read only. The app talks to
+# it in JSON lines (macos/Sources/QlickLab/Import/PhoneTransport.swift); another transport can take its place.
+[package]
+name = "qlick-iphone"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+idevice = { version = "=0.1.68", default-features = false, features = ["aws-lc", "usbmuxd", "afc", "house_arrest", "pair"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "io-util", "time"] }
+serde_json.workspace = true
+futures = "0.3"
+uuid = { version = "1", features = ["v4"] }

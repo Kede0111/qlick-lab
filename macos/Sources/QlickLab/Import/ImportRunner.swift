@@ -90,6 +90,9 @@ final class ImportRunner: @unchecked Sendable {
                 }
                 journal.items[index].files[fileIndex] = file
                 if file.status == .done || file.status == .present, let written = file.written {
+                    Self.copyCompanion(of: planned.source.url, beside: written, verify: verify)
+                }
+                if file.status == .done || file.status == .present, let written = file.written {
                     ledger?.record(planned.source, captured: journal.items[index].captured, hash: file.hash, destination: written)
                 }
                 unsaved += 1
@@ -105,6 +108,19 @@ final class ImportRunner: @unchecked Sendable {
         save(force: true)
         events(.finished(journal))
         return journal
+    }
+
+    /// Qlick Lab: a photograph's development from QLab travels with it: its `.qsidecar` beside it in the source, or its
+    /// former `.qlab.json` when it has none, is copied beside the copy (never over a sidecar there already).
+    static func copyCompanion(of source: URL, beside written: URL, verify: Bool) {
+        let fm = FileManager.default
+        for suffix in [PhotoSidecar.fileExtension, "qlab.json"] {
+            let companion = URL(fileURLWithPath: source.path + "." + suffix)
+            guard fm.fileExists(atPath: companion.path) else { continue }
+            let target = URL(fileURLWithPath: written.path + "." + suffix)
+            if !fm.fileExists(atPath: target.path) { _ = try? ImportCopier.copy(companion, to: target, verify: verify) }
+            return
+        }
     }
 
     /// The name of the source or destination that isn't there any more, if that's why a copy failed.

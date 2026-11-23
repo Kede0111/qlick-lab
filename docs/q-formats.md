@@ -140,8 +140,11 @@ the former file's state doesn't come back). Qlick Lab keeping a DNG's state in i
 
 ## Syncing over the cable (Qlick Lab, iPhone plugged in)
 
-The transport is its own module in Qlick Lab, behind an interface, so another one (an iCloud container shared by the
-two apps, for a Mac App Store build) can take its place. It is not part of this step.
+The transport is its own module in Qlick Lab, behind an interface (`Import/PhoneTransport.swift`), so another one (an
+iCloud container shared by the two apps, for a Mac App Store build) can take its place. Today: the `qlick-iphone`
+helper (`crates/qlick-iphone`, idevice over usbmuxd, house_arrest `VendDocuments` on `be.jackfrom.qlab`, read only,
+files read in blocks and always closed), run by `IdeviceTransport`. Import's "iPhone · QLab" copies the photographs
+with their `.qsidecar` (or `.qlab.json`) into a transit folder in the Mac's caches, then imports them as any source.
 
 - Photographs: `Documents/<day>/<name>` with its `.qsidecar` → imported with its developments.
 - Recipes: `Documents/Recipes/*.qrecipe` ⇄ Presets. By id: same revision, nothing to do; one side changed since the

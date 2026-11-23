@@ -12,6 +12,10 @@ their files (`docs/q-formats.md`).
 - **Sidecars are `.qsidecar` files** (`IMG_0412.CR3.qsidecar`), the name QLab writes beside its photographs. Your
   `.qlick` files are still read and left as they are; the first change to a photograph writes its `.qsidecar`.
 - Leica Monopan 50 has its 35mm edge print.
+- **Import from the iPhone**: plug in an iPhone with QLab and "iPhone · QLab" appears among Import's sources. Its
+  photographs come over the cable with their developments (`.qsidecar`), then join an Archive as any import does,
+  a folder per day; QLab's recipes join the lab's, a recipe changed on both sides kept twice. Nothing is written to
+  the iPhone. If it's locked, or hasn't trusted this Mac yet, the lab says what to do.
 
 ## 0.2.0 — the lab in three parts
 

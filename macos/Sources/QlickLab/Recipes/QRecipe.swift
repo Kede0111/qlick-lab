@@ -15,9 +15,10 @@ enum QRecipe {
     /// scripts/build_app.sh), the same QLab records when it builds the engine from this repository.
     static var engineRevision: String { Bundle.main.object(forInfoDictionaryKey: "QlickEngineRevision") as? String ?? "unknown" }
 
-    private static let iso: ISO8601DateFormatter = {
+    /// A formatter per use: `ISO8601DateFormatter` isn't Sendable.
+    private static var iso: ISO8601DateFormatter {
         let f = ISO8601DateFormatter(); f.formatOptions = [.withInternetDateTime]; return f
-    }()
+    }
 
     /// Python's non-finite numbers, carried through the JSON writer as text (as the engine does).
     private static let sentinels: [(Double, String)] = [(.infinity, "\u{1}Infinity"), (-.infinity, "\u{1}-Infinity")]
