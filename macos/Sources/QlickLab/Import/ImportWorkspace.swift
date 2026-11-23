@@ -431,7 +431,8 @@ enum ImportKeys {
     }
 }
 
-/// One frame of the grid: the camera's own preview, never a development, with what the import will do with it.
+/// One frame of the grid: the camera's own preview, with what the import will do with it. Qlick Lab: a frame QLab
+/// developed shows that development (`ImportSession.developed`) once it's made here, the camera's preview meanwhile.
 struct ImportCell: View {
     let session: ImportSession
     let frame: ImportFrame
@@ -444,10 +445,11 @@ struct ImportCell: View {
         let marks = session.marks(for: id)
         let included = session.included(id), known = session.known.contains(id)
         let selected = session.selected.contains(id), current = session.current == id
+        let development = session.developments[id]
         VStack(spacing: 5) {
             ZStack {
                 RoundedRectangle(cornerRadius: 5, style: .continuous).fill(Color(white: current ? 0.13 : 0.085))
-                if let image {
+                if let image = session.developed[id] ?? image {
                     TurnedPicture(image: image, rotation: marks.rotation)
                         .padding(7)
                         .opacity(included ? (marks.flag == "reject" ? 0.45 : 1) : 0.28)
@@ -496,6 +498,14 @@ struct ImportCell: View {
                         .background(Capsule().fill(Color.black.opacity(0.62))).padding(5)
                         .frame(maxWidth: side * 0.7, alignment: .trailing)
                         .help("Developed with the recipe “\(recipe)” once it’s imported")
+                } else if let development {
+                    Label(development.recipe ?? development.name ?? "QLab", systemImage: development.recipe == nil ? "iphone" : "flask")
+                        .font(.system(size: 9.5, weight: .medium)).labelStyle(.titleAndIcon).lineLimit(1)
+                        .foregroundStyle(Theme.paper).padding(.horizontal, 6).frame(height: 17)
+                        .background(Capsule().fill(Color.black.opacity(0.62))).padding(5)
+                        .frame(maxWidth: side * 0.7, alignment: .trailing)
+                        .help(development.recipe.map { "Developed in QLab with the recipe “\($0)”: it’s imported with this development" }
+                              ?? "Developed in QLab: it’s imported with this development")
                 }
             }
             .overlay {
@@ -515,6 +525,8 @@ struct ImportCell: View {
         }
         .contentShape(Rectangle())
         .help(tooltip)
+        .onAppear { session.wantDevelopment(id) }
+        .onChange(of: development) { if development != nil { session.wantDevelopment(id) } }
         .task(id: id) {
             let file = PhotoFile(url: id)
             let large = side > 190

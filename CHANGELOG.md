@@ -16,6 +16,9 @@ their files (`docs/q-formats.md`).
   photographs come over the cable with their developments (`.qsidecar`), then join an Archive as any import does,
   a folder per day; QLab's recipes join the lab's, a recipe changed on both sides kept twice. Nothing is written to
   the iPhone. If it's locked, or hasn't trusted this Mac yet, the lab says what to do.
+- **QLab's developments before the import**: Import's grid, its loupe and the import's progress show each photograph
+  as QLab developed it (its active version, through the lab's engine, in the background; the camera's preview until
+  it's ready), with the name of its recipe. The loupe can show the camera's preview beside it (`\`).
 
 ## 0.2.0 — the lab in three parts
 

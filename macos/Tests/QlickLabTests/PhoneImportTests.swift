@@ -186,4 +186,36 @@ import XCTest
         XCTAssertTrue(folder.path.contains("/Caches/"))
         XCTAssertEqual(folder.lastPathComponent, "00008150-000854312244401C")
     }
+    /// The import's grid and loupe show what QLab developed: a frame whose `.qsidecar` holds a development, with the
+    /// recipe its active version names.
+    func testFramesDevelopedInQLabAreKnownBeforeTheImport() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("qlick-developed-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        func photo(_ name: String, sidecar: String?) throws -> URL {
+            let url = dir.appendingPathComponent(name, isDirectory: false)
+            try Data([0]).write(to: url)
+            if let sidecar { try Data(sidecar.utf8).write(to: dir.appendingPathComponent(name + ".qsidecar", isDirectory: false)) }
+            return url
+        }
+        let withRecipe = try photo("QLB_0001.DNG", sidecar: """
+            {"qsidecar": 1, "defaultsVersion": 1, "variants": [
+              {"id": "a", "name": "Portra", "recipe": "Kodak Portra 400 (Quent)", "recipeRef": {"id": "403683E1"},
+               "edits": {"film": "kodak_portra_400"}},
+              {"id": "b", "name": "Trix", "recipe": "Trix", "edits": {"film": "kodak_trix400_d76_8min"}}]}
+            """)
+        let plain = try photo("QLB_0002.DNG", sidecar: """
+            {"qsidecar": 1, "defaultsVersion": 1, "variants": [{"id": "a", "name": "Version 1", "recipe": "", "edits": {"film": "kodak_gold_200"}}]}
+            """)
+        let untouched = try photo("QLB_0003.DNG", sidecar: """
+            {"qsidecar": 1, "defaultsVersion": 1, "variants": [{"id": "a", "rating": 3}]}
+            """)
+        let bare = try photo("QLB_0004.DNG", sidecar: nil)
+
+        // The active version is the first: its recipe, not another version's.
+        XCTAssertEqual(ImportDevelopment.read(photo: withRecipe), ImportDevelopment(recipe: "Kodak Portra 400 (Quent)", name: "Portra"))
+        XCTAssertEqual(ImportDevelopment.read(photo: plain), ImportDevelopment(recipe: nil, name: "Version 1"))
+        XCTAssertNil(ImportDevelopment.read(photo: untouched), "a rating alone isn't a development")
+        XCTAssertNil(ImportDevelopment.read(photo: bare))
+    }
 }

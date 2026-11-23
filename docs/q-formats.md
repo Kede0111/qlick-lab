@@ -146,7 +146,8 @@ helper (`crates/qlick-iphone`, idevice over usbmuxd, house_arrest `VendDocuments
 files read in blocks and always closed), run by `IdeviceTransport`. Import's "iPhone · QLab" copies the photographs
 with their `.qsidecar` (or `.qlab.json`) into a transit folder in the Mac's caches, then imports them as any source.
 
-- Photographs: `Documents/<day>/<name>` with its `.qsidecar` → imported with its developments.
+- Photographs: `Documents/<day>/<name>` with its `.qsidecar` → imported with its developments. Before the import,
+  Import's grid and loupe already show each as its active version (the first variant) develops, with its `recipe`.
 - Recipes: `Documents/Recipes/*.qrecipe` ⇄ Presets. By id: same revision, nothing to do; one side changed since the
   last sync (Qlick Lab keeps the last synced revision of each id, per iPhone), it wins; both changed, both are kept, the
   incoming one with a new id and " (iPhone)" or " (Mac)" after its name. A deletion is not carried over.

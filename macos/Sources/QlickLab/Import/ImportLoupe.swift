@@ -6,7 +6,8 @@ import SwiftUI
 /// the wheel and a pinch zoom, 100 % shows its pixels. What shows first is the camera's own rendering, read from
 /// inside the file. If the frame has a recipe, the engine develops it from the source, with that recipe, and the two
 /// lie side by side under a line to drag: what the camera made of it, and what the lab will. The development is the
-/// engine's, the same one the photograph gets once imported.
+/// engine's, the same one the photograph gets once imported. Qlick Lab: a frame QLab developed (its `.qsidecar`) is
+/// developed with that sidecar's active version, unless a recipe is chosen for it here.
 struct ImportLoupe: View {
     let model: EditorModel
     @State private var preview: CGImage?
@@ -21,17 +22,19 @@ struct ImportLoupe: View {
         let session = session
         let current = session.current
         let marks = current.map { session.marks(for: $0) } ?? ImportMarks()
+        let development = current.flatMap { session.developments[$0] }
+        let developable = marks.recipe != nil || development != nil
         ZStack {
             Color.black
             if let current, let preview, shown == current {
-                FrameCanvas(panes: panes(preview, current: current, marks: marks), split: developed != nil && marks.recipe != nil && session.splitBefore,
+                FrameCanvas(panes: panes(preview, current: current, marks: marks, developing: developable), split: developed != nil && developable && session.splitBefore,
                             reset: current, control: control,
                             onOpen: { _ in control.toggle() },
                             onKey: { ImportKeys.handle($0, model: model) })
                     .padding(.top, 50).padding(.bottom, 58)
-                if developed != nil, marks.recipe != nil, session.splitBefore {
+                if developed != nil, developable, session.splitBefore {
                     VStack {
-                        HStack { label("CAMERA"); Spacer(); label("RECIPE") }.padding(.horizontal, 12)
+                        HStack { label("CAMERA"); Spacer(); label(marks.recipe == nil ? "QLAB" : "RECIPE") }.padding(.horizontal, 12)
                         Spacer()
                     }
                     .padding(.top, 58)
@@ -43,19 +46,21 @@ struct ImportLoupe: View {
             VStack {
                 HStack { Spacer(); FrameZoomControls(control: control).padding(.horizontal, 12).frame(height: 34).glass(Capsule()) }
                 Spacer()
-                if let current, let frame = session.frame(current) { caption(frame, marks: marks) }
+                if let current, let frame = session.frame(current) { caption(frame, marks: marks, development: development) }
             }
             .padding(10)
         }
-        .task(id: LoupeKey(item: current, recipe: marks.recipe, rotation: marks.rotation)) { await load(current, recipe: marks.recipe, rotation: marks.rotation) }
+        .task(id: LoupeKey(item: current, recipe: marks.recipe, qlab: development != nil, rotation: marks.rotation)) {
+            await load(current, recipe: marks.recipe, qlab: development != nil, rotation: marks.rotation)
+        }
     }
 
-    private struct LoupeKey: Hashable { var item: URL?; var recipe: String?; var rotation: Int }
+    private struct LoupeKey: Hashable { var item: URL?; var recipe: String?; var qlab: Bool; var rotation: Int }
 
     /// The camera's rendering; with a recipe, its development beside it (split) or alone.
-    private func panes(_ preview: CGImage, current: URL, marks: ImportMarks) -> [CompareCanvas.Pane] {
+    private func panes(_ preview: CGImage, current: URL, marks: ImportMarks, developing: Bool) -> [CompareCanvas.Pane] {
         let faint = !session.included(current) || marks.flag == "reject"
-        guard let developed, marks.recipe != nil else { return [.init(image: preview, faint: faint)] }
+        guard let developed, developing else { return [.init(image: preview, faint: faint)] }
         return session.splitBefore ? [.init(image: preview, faint: faint), .init(image: developed, faint: faint)] : [.init(image: developed, faint: faint)]
     }
 
@@ -64,7 +69,7 @@ struct ImportLoupe: View {
             .padding(.horizontal, 6).frame(height: 16).background(Capsule().fill(Color.black.opacity(0.55)))
     }
 
-    private func caption(_ frame: ImportFrame, marks: ImportMarks) -> some View {
+    private func caption(_ frame: ImportFrame, marks: ImportMarks, development: ImportDevelopment?) -> some View {
         let session = session
         return HStack(spacing: 12) {
             Text(frame.file.name).font(Theme.caps(12.5, weight: .semibold)).foregroundStyle(Theme.paper).fixedSize()
@@ -78,6 +83,15 @@ struct ImportLoupe: View {
                 else if developed == nil { Text("couldn’t be developed").font(.system(size: 11)).foregroundStyle(Theme.warn).lineLimit(1) }
                 Button(session.splitBefore ? "Recipe Only" : "Camera | Recipe") { session.splitBefore.toggle() }.buttonStyle(QPillButtonStyle())
                     .help("The camera’s rendering beside the recipe’s, or the recipe’s alone (\\)")
+            } else if let development {
+                Divider().frame(height: 14).overlay(Color.white.opacity(0.15))
+                Label(development.recipe ?? development.name ?? "Developed in QLab", systemImage: development.recipe == nil ? "iphone" : "flask")
+                    .font(.system(size: 11.5)).foregroundStyle(Theme.paper).labelStyle(.titleAndIcon).lineLimit(1)
+                    .help(development.recipe.map { "Developed in QLab with the recipe “\($0)”, as it’s imported" } ?? "Developed in QLab, as it’s imported")
+                if developing { ProgressView().controlSize(.mini) }
+                else if developed == nil { Text("couldn’t be developed").font(.system(size: 11)).foregroundStyle(Theme.warn).lineLimit(1) }
+                Button(session.splitBefore ? "QLab Only" : "Camera | QLab") { session.splitBefore.toggle() }.buttonStyle(QPillButtonStyle())
+                    .help("The camera’s rendering beside QLab’s development, or QLab’s alone (\\)")
             } else {
                 Divider().frame(height: 14).overlay(Color.white.opacity(0.15))
                 Text("Camera’s rendering").font(.system(size: 11.5)).foregroundStyle(Theme.dim)
@@ -92,14 +106,27 @@ struct ImportLoupe: View {
         .glass(Capsule())
     }
 
-    private func load(_ item: URL?, recipe: String?, rotation: Int) async {
+    private func load(_ item: URL?, recipe: String?, qlab: Bool, rotation: Int) async {
         guard let item else { preview = nil; developed = nil; shown = nil; return }
         if shown != item { developed = nil }
         // The whole of the camera's rendering, so 100 % is its pixels.
         let image = await Task.detached(priority: .userInitiated) { ImportScan.preview(of: item, maxPixels: 6000)?.turned(rotation) }.value
         guard !Task.isCancelled, session.current == item else { return }
         preview = image; shown = item
-        guard let recipe, let preset = model.presets.first(where: { $0.name == recipe }) else { developed = nil; developing = false; return }
+        let preset = recipe.flatMap { recipe in model.presets.first { $0.name == recipe } }
+        if preset == nil, qlab {
+            // QLab's development, from the sidecar beside the frame: the grid's at once if it's made, then larger.
+            if developed == nil { developed = session.developed[item]?.turned(rotation) }
+            developing = true
+            try? await Task.sleep(for: .milliseconds(180))
+            guard !Task.isCancelled, session.current == item else { return }
+            let large = await model.lab.compareModel.developer.image(.init(item: item, longSide: 2048))
+            guard !Task.isCancelled, session.current == item else { return }
+            developed = large?.turned(rotation) ?? developed
+            developing = false
+            return
+        }
+        guard let preset else { developed = nil; developing = false; return }
         // The engine's development under the recipe, from the source itself. A moment's wait first, so stepping
         // through a roll doesn't develop every frame passed.
         developing = true
