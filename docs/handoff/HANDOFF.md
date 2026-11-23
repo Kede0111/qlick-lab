@@ -14,7 +14,7 @@ Read this first, then `CLAUDE.md` and `docs/architecture.md`. Update it at the e
 - Talk to Quentin in French; the app's interface stays in English. Commit, push and release only when he says so.
 - `scripts/build_app.sh --dev` (Qlick Lab Dev, its own bundle id and data) stays the copy to try work in progress.
 
-## After 0.2.0 (2026-11-23, not committed yet)
+## In 0.2.0 too (2026-11-23, e3af094: the release v0.2.0 was rebuilt and its tag moved, same version)
 
 - **Panels as sheets** (`App/LabPanel.swift`): the 16 open/save panels (Export, Save Preview, LUT, recipes, Open,
   Import, catalogues, folders, previews, contact sheet PDF) come down as a sheet on the lab's key window, one at a time;
