@@ -37,6 +37,12 @@ import Observation
             .appendingPathComponent(udid.replacingOccurrences(of: "/", with: "-"), isDirectory: true)
     }
 
+    /// Empties an iPhone's transit folder (copies of what is on the iPhone), off the main thread.
+    func clearTransit(_ udid: String) {
+        let folder = Self.transit(for: udid)
+        Task.detached(priority: .utility) { try? FileManager.default.removeItem(at: folder) }
+    }
+
     func handle(_ event: PhoneTransportEvent) {
         switch event {
         case let .attached(udid, deviceID, usb):
@@ -73,10 +79,14 @@ import Observation
 
     /// The files of QLab's folder an import takes: its photographs (not inside Recipes), each one's `.qsidecar`, or its
     /// `.qlab.json` when it has none, and the recipes.
-    nonisolated static func wanted(_ files: [PhoneFile]) -> (photos: [PhoneFile], companions: [PhoneFile], recipes: [PhoneFile]) {
+    /// `known`: whether the catalogue imported a photograph of that name and size already (its ledger); those aren't
+    /// copied over again.
+    nonisolated static func wanted(_ files: [PhoneFile], known: (String, Int) -> Bool = { _, _ in false })
+        -> (photos: [PhoneFile], companions: [PhoneFile], recipes: [PhoneFile]) {
         let paths = Set(files.map(\.path))
         let photos = files.filter { file in
             !file.path.hasPrefix("Recipes/") && PhotoFolder.extensions.contains((file.path as NSString).pathExtension.lowercased())
+                && !known((file.path as NSString).lastPathComponent, file.size)
         }
         var companions: [PhoneFile] = []
         let byPath = Dictionary(files.map { ($0.path, $0) }) { a, _ in a }
@@ -107,7 +117,9 @@ import Observation
             guard state.state == .ready else { self.notice = state.advice; return }
             do {
                 self.activity = ("Listing QLab’s photographs…", nil)
-                let (photos, companions, recipes) = Self.wanted(try await transport.list(device.udid))
+                let ledger = session.ledger
+                let listed = try await transport.list(device.udid)
+                let (photos, companions, recipes) = await Task.detached { Self.wanted(listed) { ledger.knows(name: $0, size: $1) } }.value
                 let all = photos + companions + recipes
                 let total = max(all.reduce(0) { $0 + $1.size }, 1)
                 let folder = Self.transit(for: device.udid)
@@ -119,7 +131,9 @@ import Observation
                     Task { @MainActor [weak self] in self?.activity = ("Copying from the iPhone…", min(Double(done) / Double(total), 1)) }
                 }
                 let brought = await session.model.importPhoneRecipes(recipes.map { folder.appendingPathComponent($0.path) })
-                self.notice = [photos.isEmpty ? "No photographs in QLab’s folder." : nil, brought].compactMap { $0 }.joined(separator: " ").nilIfEmpty
+                let anyListed = listed.contains { !$0.path.hasPrefix("Recipes/") && PhotoFolder.extensions.contains(($0.path as NSString).pathExtension.lowercased()) }
+                let none = !anyListed ? "No photographs in QLab’s folder." : photos.isEmpty ? "Every photograph on the iPhone is imported already." : nil
+                self.notice = [none, brought].compactMap { $0 }.joined(separator: " ").nilIfEmpty
                 session.open(ImportSource(root: folder, volume: nil, name: state.title, kind: .phone, uuid: device.udid))
             } catch let error as PhoneTransportError {
                 var failed = state; failed.state = error.state; failed.message = error.message

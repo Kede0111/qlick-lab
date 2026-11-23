@@ -101,6 +101,38 @@ import XCTest
         }())
     }
 
+    /// What the catalogue imported already doesn't come over again (its ledger: name and size, where it went still there).
+    func testWhatWasImportedIsntCopiedAgain() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("qlick-ledger-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let copied = dir.appendingPathComponent("20261115_0001.DNG")
+        try Data("raw".utf8).write(to: copied)
+        let ledger = ImportLedger(url: dir.appendingPathComponent("import-ledger.jsonl"))
+        let source = dir.appendingPathComponent("QLB_0130.DNG")
+        ledger.record(ImportFile(url: source, size: 1000, modified: nil), captured: nil, hash: nil, destination: copied)
+        XCTAssertTrue(ledger.knows(name: "qlb_0130.dng", size: 1000))
+        XCTAssertFalse(ledger.knows(name: "QLB_0130.DNG", size: 999))
+        let files = ["2026-11-15/QLB_0130.DNG", "2026-11-15/QLB_0130.DNG.qsidecar", "2026-11-15/QLB_0131.DNG"]
+            .map { PhoneFile(path: $0, size: 1000, modified: nil) }
+        let (photos, companions, _) = PhoneImport.wanted(files) { ledger.knows(name: $0, size: $1) }
+        XCTAssertEqual(photos.map(\.path), ["2026-11-15/QLB_0131.DNG"])
+        XCTAssertEqual(companions, [])
+        // The copy gone from where it went: it's wanted again.
+        try FileManager.default.removeItem(at: copied)
+        XCTAssertFalse(ledger.knows(name: "QLB_0130.DNG", size: 1000))
+    }
+
+    func testTheTransitFolderIsEmptiedOnRequest() async throws {
+        let udid = "TEST-\(UUID().uuidString)"
+        let folder = PhoneImport.transit(for: udid)
+        try FileManager.default.createDirectory(at: folder.appendingPathComponent("2026-11-15"), withIntermediateDirectories: true)
+        try Data("raw".utf8).write(to: folder.appendingPathComponent("2026-11-15/QLB_0001.DNG"))
+        PhoneImport(transport: FakeTransport(), watch: false).clearTransit(udid)
+        for _ in 0..<100 where FileManager.default.fileExists(atPath: folder.path) { try await Task.sleep(for: .milliseconds(10)) }
+        XCTAssertFalse(FileManager.default.fileExists(atPath: folder.path))
+    }
+
     func testTransitIsPerIPhoneInTheCaches() {
         let folder = PhoneImport.transit(for: "00008150-000854312244401C")
         XCTAssertTrue(folder.path.contains("/Caches/"))
