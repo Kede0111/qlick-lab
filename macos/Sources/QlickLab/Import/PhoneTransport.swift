@@ -102,7 +102,9 @@ struct IdeviceTransport: PhoneTransport {
         process.standardInput = stdin
         process.standardError = FileHandle.nullDevice
         try process.run()
-        if let input { stdin.fileHandleForWriting.write(Data(input.utf8)) }
+        _ = BrokenPipes.ignored
+        // A helper that ended early (an iPhone unplugged) makes this fail; what it said is read below all the same.
+        if let input { try? stdin.fileHandleForWriting.write(contentsOf: Data(input.utf8)) }
         try? stdin.fileHandleForWriting.close()
         var pending = Data()
         let handle = output.fileHandleForReading
@@ -193,6 +195,7 @@ struct IdeviceTransport: PhoneTransport {
         process.standardOutput = output
         process.standardInput = stdin
         process.standardError = FileHandle.nullDevice
+        _ = BrokenPipes.ignored
         guard (try? process.run()) != nil else { return {} }
         let handle = output.fileHandleForReading
         DispatchQueue.global(qos: .utility).async {

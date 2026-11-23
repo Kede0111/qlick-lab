@@ -88,6 +88,19 @@ import XCTest
         XCTAssertEqual(try String(contentsOfFile: a2.path + ".qsidecar", encoding: .utf8), "mine")
     }
 
+    /// Writing to a helper that has ended is an error to handle, not SIGPIPE ending the lab (seen on CI: "signal 13").
+    func testWritingToAnEndedHelperIsAnErrorNotACrash() throws {
+        _ = BrokenPipes.ignored
+        let process = Process(), stdin = Pipe()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/true", isDirectory: false)
+        process.standardInput = stdin
+        try process.run()
+        process.waitUntilExit()
+        XCTAssertThrowsError(try {
+            for _ in 0..<64 { try stdin.fileHandleForWriting.write(contentsOf: Data(repeating: 0x41, count: 65_536)) }
+        }())
+    }
+
     func testTransitIsPerIPhoneInTheCaches() {
         let folder = PhoneImport.transit(for: "00008150-000854312244401C")
         XCTAssertTrue(folder.path.contains("/Caches/"))
