@@ -12,6 +12,14 @@ their files (`docs/q-formats.md`).
 - **Sidecars are `.qsidecar` files** (`IMG_0412.CR3.qsidecar`), the name QLab writes beside its photographs. Your
   `.qlick` files are still read and left as they are; the first change to a photograph writes its `.qsidecar`.
 - Leica Monopan 50 has its 35mm edge print.
+- **Auto White Balance and Auto Exposure** in the Photograph menu, the contact sheet's and Develop's menus: each RAW's
+  own white balance as the lab finds it, and each photograph's exposure matched to the camera's rendering, on the
+  open photograph or the selected frames (one undo step). JPEG and TIFF files keep their white balance.
+- **Apply Recipe chooses what it takes from Develop**, group by group (White Balance, Brightness, Tone, Color,
+  Detail) instead of one box: a recipe can be applied without its white balance, for instance.
+- **Edit Recipe** (Recipes room, Edit…): a recipe's name, its look (kept or taken from the open photograph) and the
+  Develop settings it carries, changed in place. Its identifier stays and its revision moves on, so QLab sees the
+  change.
 - **Import from the iPhone**: plug in an iPhone with QLab and "iPhone · QLab" appears among Import's sources. Its
   photographs come over the cable with their developments (`.qsidecar`), then join an Archive as any import does,
   a folder per day. If it's locked, or hasn't trusted this Mac yet, the lab says what to do. A photograph opens

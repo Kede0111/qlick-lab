@@ -805,15 +805,18 @@ struct LibraryContextMenu: View {
         Button("Copy Edits") { model.copyEdits(from: item) }.disabled(!editing)
         Button("Paste Edits" + several) { model.pasteEdits(onto: targets) }.disabled(!editing || model.copiedEdits == nil)
         Button("Paste from Previous" + several) { model.pasteFromPrevious(onto: targets) }.disabled(!editing || model.previousEdits == nil)
+        // Qlick Lab: each photograph's own, as "Apply Recipe with Auto WB & Exposure" gives them, without a recipe.
+        Button("Auto White Balance" + several) { model.labAuto(whiteBalance: true, exposure: false, to: targets) }.disabled(!editing)
+            .help(RecipeParts.autoWhiteBalanceHelp)
+        Button("Auto Exposure" + several) { model.labAuto(whiteBalance: false, exposure: true, to: targets) }.disabled(!editing)
+            .help(RecipeParts.autoExposureHelp)
         Menu("Apply Recipe" + several) {
             ForEach(model.listedPresets) { preset in Button(preset.name) { model.labApply(preset, to: targets) } }
-            Divider()
-            Toggle("Apply Develop Settings Too", isOn: Binding(get: { model.recipesApplyDevelop }, set: { model.recipesApplyDevelop = $0 }))
+            RecipePartsMenu(model: model)
         }.disabled(!editing || !model.canChangePresets || model.listedPresets.isEmpty)
         Menu("Apply Recipe with Auto WB & Exposure" + several) {
             ForEach(model.listedPresets) { preset in Button(preset.name) { model.labApply(preset, to: targets, adapting: true) } }
-            Divider()
-            Toggle("Apply Develop Settings Too", isOn: Binding(get: { model.recipesApplyDevelop }, set: { model.recipesApplyDevelop = $0 }))
+            RecipePartsMenu(model: model)
         }.disabled(!editing || !model.canChangePresets || model.listedPresets.isEmpty)
         .help("The recipe's look, with each photograph's own white balance and exposure, for photographs taken in different light")
         ForEach(PresetSection.allCases, id: \.self) { section in

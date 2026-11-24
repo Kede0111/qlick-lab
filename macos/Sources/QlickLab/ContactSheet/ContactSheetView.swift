@@ -839,6 +839,8 @@ extension ContactSheetView: NSDraggingSource {
         add("Copy Edits", #selector(copyEdits), enabled: model.canCopyEdits)
         add("Paste Edits" + several, #selector(pasteEdits), enabled: model.canPasteEdits)
         add("Paste from Previous" + several, #selector(pasteFromPrevious), enabled: model.canChangeEdits && model.previousEdits != nil)
+        // Qlick Lab: each photograph's own white balance or exposure, the selection at once.
+        for entry in RecipeParts.autoItems(model, targets: model.ratingTargets, several: several, enabled: model.canChangeEdits) { menu.addItem(entry) }
         shownPresets = model.listedPresets
         for (title, action) in [("Apply Recipe", #selector(applyPreset(_:))), ("Apply Recipe with Auto WB & Exposure", #selector(applyPresetAdapting(_:)))] {
             let presets = NSMenu()
@@ -846,9 +848,7 @@ extension ContactSheetView: NSDraggingSource {
                 let entry = presets.addItem(withTitle: preset.name, action: action, keyEquivalent: "")
                 entry.tag = index; entry.target = self; entry.representedObject = self
             }
-            presets.addItem(.separator())
-            let develop = presets.addItem(withTitle: "Apply Develop Settings Too", action: #selector(toggleRecipeDevelop), keyEquivalent: "")
-            develop.target = self; develop.representedObject = self; develop.state = model.recipesApplyDevelop ? .on : .off
+            for entry in RecipeParts.menuItems(model) { presets.addItem(entry) }
             let applying = menu.addItem(withTitle: title + several, action: nil, keyEquivalent: "")
             if model.canChangeEdits, model.canChangePresets, !shownPresets.isEmpty { applying.submenu = presets } else { applying.isEnabled = false }
         }
@@ -887,7 +887,6 @@ extension ContactSheetView: NSDraggingSource {
         guard shownPresets.indices.contains(sender.tag) else { return }
         model.labApply(shownPresets[sender.tag], to: model.ratingTargets, adapting: true)
     }
-    @objc private func toggleRecipeDevelop() { model.recipesApplyDevelop.toggle() }
     @objc private func pick() { sheet.lab.toggleMark(.pick) }
     @objc private func reject() { sheet.lab.toggleMark(.reject) }
     @objc private func unmark() { model.setFlag(nil) }

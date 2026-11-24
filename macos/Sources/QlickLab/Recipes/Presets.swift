@@ -63,8 +63,8 @@ enum PresetName {
 }
 
 /// The Presets folder. File I/O runs on this actor, away from the main
-/// actor; writes never replace an existing file, and renames and deletes
-/// act only on the file as it was listed.
+/// actor; writes never replace an existing file (but Edit Recipe's, on the file as it was listed), and renames and
+/// deletes act only on the file as it was listed.
 ///
 /// The user's order is `.order.json` in the folder: `{"order": [file names]}`.
 /// Presets it doesn't name, such as files copied in by hand, follow in name
@@ -293,6 +293,27 @@ actor PresetLibrary {
         var saved = try file(at: url)
         saved.shelfID = id
         return saved
+    }
+
+    /// Qlick Lab: Edit Recipe. Writes `data` over the recipe, in one rename, once it's still the file listed. Its
+    /// name, place in the order and identifier stay; its header gets a new revision and date when the content changed,
+    /// so QLab sees the change (docs/q-formats.md).
+    func replace(_ preset: PresetFile, with data: Data) throws -> PresetFile {
+        try verify(preset)
+        let id = preset.shelfID.isEmpty ? (QRecipe.id(data) ?? UUID().uuidString) : preset.shelfID
+        let temporary = folder.appendingPathComponent(".\(UUID().uuidString).tmp")
+        try QRecipe.stamped(data, id: id, name: preset.name).write(to: temporary, options: .withoutOverwriting)
+        guard Darwin.rename(temporary.path, preset.url.path) == 0 else {
+            let failure = posixError("Couldn’t save the recipe")
+            unlink(temporary.path)
+            throw failure
+        }
+        var ids = readIDs()
+        ids[PresetName.key(preset.name)] = id
+        try? writeIDs(ids)
+        var replaced = try file(at: preset.url)
+        replaced.shelfID = id
+        return replaced
     }
 
     func delete(_ preset: PresetFile) throws {

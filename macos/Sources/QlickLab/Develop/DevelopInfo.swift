@@ -129,12 +129,12 @@ struct CaptionOptions: Codable, Equatable, Sendable {
         add(menu, "Copy Edits…", #selector(copyEditsChoosing), key: "c", modifiers: [.command, .shift, .option], enabled: editing)
         add(menu, "Paste Edits", #selector(pasteEdits), key: "v", modifiers: [.command, .shift], enabled: editing && model.copiedEdits != nil)
         add(menu, "Paste from Previous", #selector(pasteFromPrevious), key: "v", modifiers: [.command, .shift, .option], enabled: editing && model.previousEdits != nil)
+        for entry in RecipeParts.autoItems(model, targets: [item], several: "", enabled: editing) { menu.addItem(entry) }
         presets = model.listedPresets
         for (title, action) in [("Apply Recipe", #selector(applyPreset(_:))), ("Apply Recipe with Auto WB & Exposure", #selector(applyPresetAdapting(_:)))] {
             let list = NSMenu()
             for (index, preset) in presets.enumerated() { add(list, preset.name, action).tag = index }
-            list.addItem(.separator())
-            add(list, "Apply Develop Settings Too", #selector(toggleRecipeDevelop), on: model.recipesApplyDevelop)
+            for entry in RecipeParts.menuItems(model) { list.addItem(entry) }
             let applying = menu.addItem(withTitle: title, action: nil, keyEquivalent: "")
             if editing, model.canChangePresets, !presets.isEmpty { applying.submenu = list } else { applying.isEnabled = false }
         }
@@ -213,7 +213,6 @@ struct CaptionOptions: Codable, Equatable, Sendable {
     @objc private func pasteFromPrevious() { model.pasteFromPrevious(onto: targets) }
     @objc private func applyPreset(_ sender: NSMenuItem) { if presets.indices.contains(sender.tag) { model.labApply(presets[sender.tag], to: targets) } }
     @objc private func applyPresetAdapting(_ sender: NSMenuItem) { if presets.indices.contains(sender.tag) { model.labApply(presets[sender.tag], to: targets, adapting: true) } }
-    @objc private func toggleRecipeDevelop() { model.recipesApplyDevelop.toggle() }
     @objc private func resetEdits() { model.resetEdits(of: targets) }
     @objc private func duplicate() { model.duplicate(targets) }
     @objc private func beforeAfter() { model.holdOriginal(!model.holdingOriginal) }

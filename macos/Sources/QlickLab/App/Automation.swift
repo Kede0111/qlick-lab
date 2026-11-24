@@ -690,6 +690,12 @@ import AppKit
         case "halationmask": model.halationMask = rest != "off"
         // applydevelop on|off: recipes apply their Develop part too. developgroups tone,color…: what New Preset saves of it.
         case "applydevelop": model.recipesApplyDevelop = rest != "off"
+        // applygroups whiteBalance,tone…: the groups recipes apply, one by one. autowb / autoexposure: on the targets.
+        case "applygroups": model.recipeApplyGroups = Set(rest.split(separator: ",").compactMap { DevelopGroup(rawValue: String($0)) })
+        // editrecipe <name>: Edit Recipe's sheet on it; editrecipe alone closes it.
+        case "editrecipe": model.editingRecipe = model.presets.first { $0.name == rest }
+        case "autowb": model.labAuto(whiteBalance: true, exposure: false, to: model.editTargets)
+        case "autoexposure": model.labAuto(whiteBalance: false, exposure: true, to: model.editTargets)
         case "developgroups": DevelopGroup.saved = Set(rest.split(separator: ",").compactMap { DevelopGroup(rawValue: String($0)) })
         case "renamepreset": model.renamingPreset = model.presets.first { $0.name == rest }?.url
         case "selectall": model.selectAll()

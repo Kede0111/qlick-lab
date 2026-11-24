@@ -248,9 +248,10 @@ extension EditorModel {
     func stopApplying() { applyTask?.cancel(); lab.proxyMaker.stopBalancing() }
 
     /// Qlick Lab: each RAW's own Auto white balance, a few at a time, written as it's found. Stops between batches.
-    func balanceInBatches(_ items: [URL]) async {
+    /// Returns the sidecars as they were before, for an undo of its own.
+    @discardableResult func balanceInBatches(_ items: [URL]) async -> [URL: JSONValue?] {
         let raws = items.filter { Self.rawExtensions.contains($0.photoFile.pathExtension.lowercased()) }
-        var done = 0
+        var done = 0, before: [URL: JSONValue?] = [:]
         for start in stride(from: 0, to: raws.count, by: 8) {
             guard !Task.isCancelled else { break }
             let batch = Array(raws[start..<min(start + 8, raws.count)])
@@ -258,20 +259,89 @@ extension EditorModel {
             let balances = await autoBalances(batch) { [weak self] index in self?.backgroundWork = ("Balancing", offset + index, total) }
             guard !Task.isCancelled else { break }
             done += batch.count
-            await writeBalances(balances, to: batch)
+            for (photo, sidecar) in await writeBalances(balances, to: batch) where before[photo] == nil { before[photo] = sidecar }
         }
+        return before
     }
 
-    func writeBalances(_ balances: [URL: (temperature: Double, tint: Double)], to items: [URL]) async {
+    @discardableResult func writeBalances(_ balances: [URL: (temperature: Double, tint: Double)], to items: [URL]) async -> [URL: JSONValue?] {
         let items = items.filter { balances[$0.photoFile] != nil }
-        guard !items.isEmpty else { return }
-        _ = await changeEditsInBatches(items, title: nil) { item, base in
+        guard !items.isEmpty else { return [:] }
+        return await changeEditsInBatches(items, title: nil) { item, base in
             guard let found = balances[item.photoFile] else { return base }
             var next = base
             next.params["io.raw_white_balance.mode"] = .string("custom")
             next.params["io.raw_white_balance.temperature"] = .number((found.temperature / 10).rounded() * 10)
             next.params["io.raw_white_balance.tint"] = .number(found.tint)
             return next
+        }
+    }
+
+    /// Qlick Lab: Auto White Balance and Auto Exposure on the photographs given, as the contact sheet's, the grid's
+    /// and Develop's menus ask: each RAW's own Auto white balance, and each photograph's exposure matched to the
+    /// camera's (Match camera brightness, Exposure at 0), as "Apply Recipe with Auto WB & Exposure" does without the
+    /// recipe. Nothing else changes. The open photograph alone is an ordinary edit; several change as one undo step,
+    /// those on screen first, after whatever is being applied already.
+    func labAuto(whiteBalance: Bool, exposure: Bool, to items: [URL]) {
+        guard canChangeEdits, !items.isEmpty, whiteBalance || exposure else { return }
+        let action = whiteBalance && exposure ? "Auto White Balance & Exposure" : whiteBalance ? "Auto White Balance" : "Auto Exposure"
+        let raws = items.filter { Self.rawExtensions.contains($0.photoFile.pathExtension.lowercased()) }
+        if !exposure, raws.isEmpty {
+            libraryNote = LibraryNote(text: "Auto white balance is for RAW files", detail: "A JPEG or a TIFF keeps the white balance it was made with.",
+                                      count: items.count, serial: (libraryNote?.serial ?? 0) + 1)
+            return
+        }
+        func adjusted(_ base: EditState, balance: (temperature: Double, tint: Double)?) -> EditState {
+            var next = base
+            if exposure {
+                next.brightnessMatch = BrightnessMatch()
+                next.params["prep.exposure_ev"] = .number(0)
+            }
+            if let balance {
+                next.params["io.raw_white_balance.mode"] = .string("custom")
+                next.params["io.raw_white_balance.temperature"] = .number((balance.temperature / 10).rounded() * 10)
+                next.params["io.raw_white_balance.tint"] = .number(balance.tint)
+            }
+            return next
+        }
+        // The open photograph alone: an edit of its own, in its history.
+        if let open = sourceItem, items == [open] {
+            Task { [weak self] in
+                guard let self else { return }
+                let balance = whiteBalance && !raws.isEmpty ? await self.autoBalances([open])[open.photoFile] : nil
+                guard self.sourceItem == open else { return }
+                if whiteBalance, !raws.isEmpty, balance == nil { self.error = "Auto white balance found nothing to go by in this photograph." }
+                let next = adjusted(self.state, balance: balance)
+                if next != self.state { self.apply(next, action: action) }
+                self.status = action
+            }
+            return
+        }
+        guard canChangeOthers else { return }
+        let previous = applyTask
+        applyTask = Task { [weak self] in
+            // After what's being applied (a recipe, an earlier Auto), which Stop ends too.
+            await withTaskCancellationHandler { await previous?.value } onCancel: { previous?.cancel() }
+            guard let self, !Task.isCancelled else { return }
+            defer { self.backgroundWork = nil }
+            let onScreen = self.thumbnailsOnScreen
+            let ordered = items.filter { onScreen.contains($0) } + items.filter { !onScreen.contains($0) }
+            var before: [URL: JSONValue?] = [:]
+            if exposure {
+                before = await self.changeEditsInBatches(ordered, title: "Matching exposure") { _, base in adjusted(base, balance: nil) }
+            }
+            // Then each RAW's own white balance, a few at a time; undo takes back both together.
+            if whiteBalance {
+                for (photo, sidecar) in await self.balanceInBatches(ordered) where before[photo] == nil { before[photo] = sidecar }
+            }
+            if !before.isEmpty { self.registerSidecarUndo(before, action: action) }
+            let skipped = whiteBalance ? items.count - raws.count : 0
+            self.libraryNote = LibraryNote(text: action, detail: skipped > 0 ? "\(skipped) not RAW: white balance kept" : nil,
+                                           count: items.count, serial: (self.libraryNote?.serial ?? 0) + 1)
+            guard !Task.isCancelled else { return }
+            self.backgroundWork = nil
+            let stale = self.lab.previewBuilder.automatic ? items.filter(self.lab.previewBuilder.needs) : []
+            if !stale.isEmpty { self.lab.previewBuilder.build(stale) }
         }
     }
 

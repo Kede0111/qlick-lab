@@ -161,6 +161,9 @@ import SwiftUI
         command(photo, "Copy Edits…", #selector(copyEditsChoosing), "c", [.command, .shift, .option])
         command(photo, "Paste Edits", #selector(pasteEdits), "v", [.command, .shift])
         command(photo, "Paste from Previous", #selector(pasteFromPrevious), "v", [.command, .shift, .option])
+        // Qlick Lab: on the photographs Paste Edits changes.
+        command(photo, "Auto White Balance", #selector(autoWhiteBalance), "")
+        command(photo, "Auto Exposure", #selector(autoExposure), "")
         photo.addItem(.separator())
         // Qlick Lab: the Boxes. ⇧⌘B lists them at the pointer; the key comes before the submenu so it's the one found.
         hidden(photo, #selector(chooseBox), "b", [.command, .shift])
@@ -297,6 +300,8 @@ import SwiftUI
     @objc private func rotateLeft() { model.turn(clockwise: false) }
     @objc private func crop() { model.cropping ? model.endCrop(apply: true) : model.beginCrop() }
     @objc private func autoStraighten() { model.autoStraighten() }
+    @objc private func autoWhiteBalance() { model.labAuto(whiteBalance: true, exposure: false, to: model.editTargets) }
+    @objc private func autoExposure() { model.labAuto(whiteBalance: false, exposure: true, to: model.editTargets) }
     @objc private func resetAdjustments() { model.reset() }
     @objc private func rate(_ item: NSMenuItem) { model.lab.menuRate(item.tag) }
     @objc private func raiseRating() { model.changeRating(by: 1) }
@@ -415,6 +420,10 @@ import SwiftUI
             return model.canCopyEdits && Self.takesRatingKeys(NSApp.keyWindow)
         case #selector(pasteEdits):
             return model.canPasteEdits && Self.takesRatingKeys(NSApp.keyWindow)
+        case #selector(autoWhiteBalance), #selector(autoExposure):
+            let count = model.editTargets.count
+            item.title = (item.action == #selector(autoExposure) ? "Auto Exposure" : "Auto White Balance") + (count > 1 ? " (\(count) frames)" : "")
+            return model.canChangeEdits && count > 0 && Self.takesRatingKeys(NSApp.keyWindow)
         case #selector(showBoxes), #selector(chooseBox), #selector(newBoxFromSelection):
             return !model.lab.selectionTargets.isEmpty && Self.takesRatingKeys(NSApp.keyWindow)
         case #selector(removeFromBox):
