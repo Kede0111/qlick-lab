@@ -109,7 +109,7 @@ struct RecipesWorkspace: View {
             }
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            if !model.lab.importer.phones.devices.isEmpty { PhoneRecipesPanel(model: model, recipes: phoneRecipes) }
+            if !model.lab.importer.phones.devices.isEmpty { PhoneRecipesPanel(model: model, recipes: phoneRecipes, dragged: $dragged) }
         }
         .background(Theme.bg)
         // Recipe files and bundles dropped anywhere in the room are imported.
@@ -117,7 +117,13 @@ struct RecipesWorkspace: View {
             if dropping { RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous).strokeBorder(Theme.accent, lineWidth: 2).padding(8).allowsHitTesting(false) }
         }
         .onDrop(of: [.fileURL], isTargeted: $dropping) { providers in
-            LabDrop.load(providers) { model.importPresets($0) }
+            LabDrop.load(providers) { urls in
+                // Qlick Lab: one of the iPhone's recipes, dragged from its section, is brought to the Mac by its rules.
+                let phone = urls.filter(phoneRecipes.isPhoneCopy)
+                for url in phone { phoneRecipes.dropOnMac(url, model: model) }
+                let others = urls.filter { !phoneRecipes.isPhoneCopy($0) }
+                if !others.isEmpty { model.importPresets(others) }
+            }
         }
         .environment(\.colorScheme, .dark)
         .task { await model.refreshPresets() }

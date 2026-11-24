@@ -209,8 +209,13 @@ private struct ImportToolbar: View {
                 }
             }
             Spacer(minLength: 8)
-            QIconButton(symbol: "checkmark.circle", help: "Check all: every frame shown is imported") { session.setIncluded(true, session.shown.map(\.id)) }
-            QIconButton(symbol: "circle", help: "Uncheck all: no frame shown is imported, check those you want") { session.setIncluded(false, session.shown.map(\.id)) }
+            let several = session.selected.count > 1
+            QIconButton(symbol: "checkmark.circle", help: several ? "Check the selection: the frames selected are imported" : "Check all: every frame shown is imported") {
+                session.setIncluded(true, session.checkAllTargets)
+            }
+            QIconButton(symbol: "circle", help: several ? "Uncheck the selection: the frames selected are left out" : "Uncheck all: no frame shown is imported, check those you want") {
+                session.setIncluded(false, session.checkAllTargets)
+            }
             if !session.bursts.isEmpty {
                 QIconButton(symbol: "square.stack.3d.down.right", help: "Firsts of bursts: keeps the first frame of every burst checked and unchecks the others") { session.keepFirstOfBursts() }
             }
@@ -460,7 +465,8 @@ struct ImportCell: View {
             }
             .frame(height: side * 0.72)
             .overlay(alignment: .topLeading) {
-                Button { session.toggleIncluded([id]) } label: {
+                // Part of a selection of several: the whole selection, and only it.
+                Button { session.clickCheck(id) } label: {
                     Image(systemName: included ? "checkmark.circle.fill" : "circle")
                         .font(.system(size: 15, weight: .medium))
                         .foregroundStyle(included ? Theme.accent : Color(white: 0.5), .white)

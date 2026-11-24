@@ -6,7 +6,10 @@ import SwiftUI
 struct PhoneRecipesPanel: View {
     let model: EditorModel
     let recipes: PhoneRecipes
+    /// The lab's recipe being dragged (the room's), let go once it's dropped here.
+    @Binding var dragged: URL?
     @AppStorage("qlick.iphoneRecipesOpen") private var open = true
+    @State private var targeted = false
 
     private var phones: PhoneImport { model.lab.importer.phones }
     private var device: PhoneDevice? { phones.devices.first { $0.state == .ready } ?? phones.devices.first }
@@ -36,7 +39,7 @@ struct PhoneRecipesPanel: View {
                     recipes.refresh(device, model: model)
                 }
                 .buttonStyle(QPillButtonStyle()).disabled(recipes.busy != nil)
-                .help("Reads the iPhone’s recipes again")
+                .help("Reads the iPhone’s recipes again. Drag a recipe here to send it to the iPhone; drag one of the iPhone’s among the lab’s to bring it to the Mac")
             }
             .padding(.horizontal, 16).frame(height: 36)
             if open, !recipes.rows.isEmpty {
@@ -44,6 +47,11 @@ struct PhoneRecipesPanel: View {
                     LazyVStack(spacing: 0) {
                         ForEach(recipes.rows) { row in
                             PhoneRecipeLine(model: model, recipes: recipes, row: row)
+                                // Dragged among the lab's recipes, it's brought to the Mac.
+                                .onDrag {
+                                    guard let phone = row.phone else { return NSItemProvider() }
+                                    return NSItemProvider(contentsOf: phone.local) ?? NSItemProvider()
+                                } preview: { Text(row.name).font(.system(size: 12.5, weight: .semibold)).foregroundStyle(Theme.paper).padding(8) }
                             Rectangle().fill(Color.white.opacity(0.04)).frame(height: 1)
                         }
                     }
@@ -53,6 +61,21 @@ struct PhoneRecipesPanel: View {
         }
         .background(Color(white: 0.05))
         .overlay(alignment: .top) { Rectangle().fill(Color.white.opacity(0.06)).frame(height: 1) }
+        // A recipe of the lab dropped here is sent to the iPhone, as its line's button would.
+        .overlay {
+            if targeted { RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous).strokeBorder(Theme.accent, lineWidth: 2).padding(4).allowsHitTesting(false) }
+        }
+        .onDrop(of: [.text], isTargeted: $targeted) { providers in
+            guard device?.state == .ready, let provider = providers.first else { return false }
+            _ = provider.loadObject(ofClass: NSString.self) { text, _ in
+                guard let text = text as? String, let url = URL(string: text), url.isFileURL else { return }
+                Task { @MainActor in
+                    dragged = nil
+                    recipes.dropOnPhone(url, model: model)
+                }
+            }
+            return true
+        }
         .task(id: Watch(udid: device?.udid, state: device?.state)) { recipes.refresh(device, model: model) }
     }
 

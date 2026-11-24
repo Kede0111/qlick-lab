@@ -528,6 +528,20 @@ enum ImportProgressStyle: String, CaseIterable, Sendable {
         if view == .compare || selected.isEmpty { return current.map { [$0] } ?? [] }
         return shown.map(\.id).filter(selected.contains)
     }
+    /// What a click on a frame's check (in the grid or the loupe) acts on: the whole selection when the frame is part
+    /// of a selection of several, else that frame alone. Never a frame left out of the selection.
+    func checkTargets(clicked id: URL) -> [URL] { Self.checkTargets(clicked: id, selected: selected, shown: shown.map(\.id)) }
+    nonisolated static func checkTargets(clicked id: URL, selected: Set<URL>, shown: [URL]) -> [URL] {
+        guard selected.count > 1, selected.contains(id) else { return [id] }
+        return shown.filter(selected.contains)
+    }
+    /// A click on a frame's check: what it shows flips, for the frame and the selection it belongs to.
+    func clickCheck(_ id: URL) { setIncluded(!included(id), checkTargets(clicked: id)) }
+    /// What the bar's Check and Uncheck act on: the selection when there is one of several, else every frame shown.
+    var checkAllTargets: [URL] { Self.checkAllTargets(selected: selected, shown: shown.map(\.id)) }
+    nonisolated static func checkAllTargets(selected: Set<URL>, shown: [URL]) -> [URL] {
+        selected.count > 1 ? shown.filter(selected.contains) : shown
+    }
     /// Makes `id` the current frame and leaves the selection as it is.
     func focus(_ id: URL) { current = id }
 

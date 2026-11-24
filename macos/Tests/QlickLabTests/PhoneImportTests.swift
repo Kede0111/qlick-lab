@@ -161,6 +161,22 @@ import XCTest
         XCTAssertEqual(count, 2)
     }
 
+    /// A recipe dragged to the other side does what its button does; it asks first when the side it lands on changed too.
+    func testARecipeDraggedToTheOtherSide() {
+        typealias D = PhoneRecipes.DropDecision
+        XCTAssertEqual(PhoneRecipes.dropDecision(toPhone: true, .onlyMac), D.go)
+        XCTAssertEqual(PhoneRecipes.dropDecision(toPhone: true, .changedOnMac), D.go)
+        XCTAssertEqual(PhoneRecipes.dropDecision(toPhone: true, .changedOnPhone), D.ask, "the iPhone's change would be lost")
+        XCTAssertEqual(PhoneRecipes.dropDecision(toPhone: false, .onlyPhone), D.go)
+        XCTAssertEqual(PhoneRecipes.dropDecision(toPhone: false, .changedOnPhone), D.go)
+        XCTAssertEqual(PhoneRecipes.dropDecision(toPhone: false, .changedOnMac), D.ask, "the Mac's change would be lost")
+        for status in [PhoneRecipeRow.Status.changedOnBoth, .different] {
+            XCTAssertEqual(PhoneRecipes.dropDecision(toPhone: true, status), D.ask)
+            XCTAssertEqual(PhoneRecipes.dropDecision(toPhone: false, status), D.ask)
+        }
+        XCTAssertEqual(PhoneRecipes.dropDecision(toPhone: true, .same), D.alreadySame)
+    }
+
     /// Only QLab's recipes, not hidden parts or files elsewhere.
     func testWhatCountsAsAnIPhoneRecipe() {
         XCTAssertTrue(PhoneRecipes.isRecipe(PhoneFile(path: "Recipes/Portra.qrecipe", size: 1)))

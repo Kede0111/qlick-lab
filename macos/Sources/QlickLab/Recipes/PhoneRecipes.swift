@@ -160,6 +160,62 @@ import Observation
         }
     }
 
+    // MARK: Dragged from one side to the other
+
+    /// What a recipe dropped on the other side does, by how it stands: what its button does, nothing when they're the
+    /// same, and a question when the side it lands on changed too (or they were never exchanged).
+    enum DropDecision: Equatable { case go, alreadySame, ask }
+
+    nonisolated static func dropDecision(toPhone: Bool, _ status: PhoneRecipeRow.Status) -> DropDecision {
+        switch status {
+        case .same: return .alreadySame
+        case .onlyMac, .changedOnMac: return toPhone ? .go : .ask
+        case .onlyPhone, .changedOnPhone: return toPhone ? .ask : .go
+        case .changedOnBoth, .different: return .ask
+        }
+    }
+
+    /// A recipe of the lab (`url`, its file) dropped on the iPhone section.
+    func dropOnPhone(_ url: URL, model: EditorModel) {
+        guard let row = rows.first(where: { $0.mac?.preset.url.labStandardized == url.labStandardized }) else { return }
+        switch Self.dropDecision(toPhone: true, row.status) {
+        case .go: sendToPhone(row, model: model)
+        case .alreadySame: notice = "“\(row.name)” is the same on the iPhone already."
+        case .ask:
+            Task {
+                let answer = await model.ask(AppAlert(
+                    title: "Replace the iPhone’s “\(row.phone?.name ?? row.name)” with the Mac’s?",
+                    detail: "It is \(row.status.title.lowercased()). The iPhone’s version is replaced, its name included.",
+                    buttons: [.init(title: "Replace the iPhone’s", role: .destructive), .init(title: "Cancel", role: .cancel)]))
+                if answer.button == 0 { sendToPhone(row, model: model) }
+            }
+        }
+    }
+
+    /// Whether `url` is one of the iPhone's recipes as copied here to be read (what its line drags).
+    func isPhoneCopy(_ url: URL) -> Bool { rows.contains { $0.phone?.local.labStandardized == url.labStandardized } }
+
+    /// One of the iPhone's recipes (its copy here) dropped among the lab's.
+    func dropOnMac(_ url: URL, model: EditorModel) {
+        guard let row = rows.first(where: { $0.phone?.local.labStandardized == url.labStandardized }) else { return }
+        switch Self.dropDecision(toPhone: false, row.status) {
+        case .go: bringToMac(row, model: model)
+        case .alreadySame: notice = "“\(row.name)” is the same on the Mac already."
+        case .ask:
+            Task {
+                let answer = await model.ask(AppAlert(
+                    title: "Replace the Mac’s “\(row.mac?.name ?? row.name)” with the iPhone’s?",
+                    detail: "It is \(row.status.title.lowercased()). Keep Both brings the iPhone’s beside it, “(iPhone)” after its name.",
+                    buttons: [.init(title: "Replace the Mac’s", role: .destructive), .init(title: "Keep Both"), .init(title: "Cancel", role: .cancel)]))
+                switch answer.button {
+                case 0: bringToMac(row, model: model)
+                case 1: keepBoth(row, model: model)
+                default: break
+                }
+            }
+        }
+    }
+
     /// The engine reads it as a recipe first, as any recipe imported.
     private static func check(_ data: Data, model: EditorModel) async throws {
         guard let engine = model.engine else { throw EngineError(message: "The engine isn’t ready.") }
