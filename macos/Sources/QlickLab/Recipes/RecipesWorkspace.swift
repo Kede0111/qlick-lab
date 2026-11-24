@@ -100,7 +100,7 @@ struct RecipesWorkspace: View {
                         }
                     }
                     if let current {
-                        RecipeDetail(model: model, preset: current) { name = current.name; renaming = current.url }
+                        RecipeDetail(model: model, preset: current, edit: { model.editingRecipe = current }) { name = current.name; renaming = current.url }
                             .frame(width: 330)
                             .background(Color(white: 0.06))
                             .overlay(alignment: .leading) { Rectangle().fill(Color.white.opacity(0.06)).frame(width: 1) }
@@ -126,11 +126,13 @@ struct RecipesWorkspace: View {
             }
         }
         .environment(\.colorScheme, .dark)
+        .sheet(item: Binding(get: { model.editingRecipe }, set: { model.editingRecipe = $0 })) { preset in RecipeEditor(model: model, preset: preset) { model.editingRecipe = nil } }
         .task { await model.refreshPresets() }
     }
 
     @ViewBuilder private func menu(_ preset: PresetFile) -> some View {
         Button("Apply to the Open Photograph") { model.labApply(preset, to: model.sourceItem.map { [$0] } ?? []) }.disabled(model.source == nil)
+        Button("Edit…") { model.editingRecipe = preset }.disabled(!model.canChangePresets)
         Button("Rename") { name = preset.name; renaming = preset.url }
         Button("Duplicate as a New Version") { model.labDuplicate(preset) }
         Button(lab.isFavourite(recipe: preset) ? "Remove from Favourites" : "Add to Favourites") { lab.toggleFavourite(recipe: preset) }
@@ -226,6 +228,7 @@ enum RecipeFacts {
 private struct RecipeDetail: View {
     let model: EditorModel
     let preset: PresetFile
+    let edit: () -> Void
     let rename: () -> Void
     @State private var image: CGImage?
 
@@ -255,11 +258,13 @@ private struct RecipeDetail: View {
                     Text(reason).font(.system(size: 12)).foregroundStyle(Theme.warn).fixedSize(horizontal: false, vertical: true)
                 }
                 VStack(spacing: 8) {
-                    Toggle(isOn: Binding(get: { model.recipesApplyDevelop }, set: { model.recipesApplyDevelop = $0 })) {
-                        Text("Apply Develop settings too").font(.system(size: 12)).foregroundStyle(Color(white: 0.86))
+                    // Qlick Lab: the parts of its Develop settings it applies, group by group (a recipe without its white balance…).
+                    VStack(alignment: .leading, spacing: 6) {
+                        CapsLabel("Also apply from Develop", size: 9.5)
+                        RecipePartChips(model: model, carried: model.labPresetText(preset).flatMap(RecipeDevelop.read)?.groups ?? [])
                     }
-                    .toggleStyle(.checkbox).tint(Theme.accent).help(RecipeDevelop.applyHelp)
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.bottom, 4)
                     Button(targets.count > 1 ? "Apply to the \(targets.count) Selected Frames" : "Apply to the Photograph") {
                         model.labApply(preset, to: targets)
                     }
@@ -280,12 +285,16 @@ private struct RecipeDetail: View {
                         Button("Duplicate") { model.labDuplicate(preset) }.buttonStyle(QPillButtonStyle()).help("A new version of the recipe, to change without losing this one")
                         Button("Export…") { model.exportPresetPanel(preset) }.buttonStyle(QPillButtonStyle())
                     }
-                    Button(lab.isHidden(recipe: preset) ? "Show in the Lists" : "Hide from the Lists") { lab.setHidden(recipe: preset, !lab.isHidden(recipe: preset)) }
-                        .buttonStyle(QPillButtonStyle())
-                        .help("A hidden recipe leaves Develop's recipes, the menus, Compare and Import; it stays here, under Hidden")
+                    HStack(spacing: 8) {
+                        Button("Edit…", action: edit).buttonStyle(QPillButtonStyle()).disabled(!model.canChangePresets)
+                            .help("Its name, its look and the Develop settings it carries, changed in place")
+                        Button(lab.isHidden(recipe: preset) ? "Show in the Lists" : "Hide from the Lists") { lab.setHidden(recipe: preset, !lab.isHidden(recipe: preset)) }
+                            .buttonStyle(QPillButtonStyle())
+                            .help("A hidden recipe leaves Develop's recipes, the menus, Compare and Import; it stays here, under Hidden")
+                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                Text("spektrafilm format: the recipe opens in spektrafilm too. To change it, apply it, adjust the development, then save that as a new recipe.")
+                Text("spektrafilm format: the recipe opens in spektrafilm too. Edit changes it in place; Duplicate first to keep this version.")
                     .font(.system(size: 10.5)).foregroundStyle(Theme.faint).fixedSize(horizontal: false, vertical: true)
             }
             .padding(18)

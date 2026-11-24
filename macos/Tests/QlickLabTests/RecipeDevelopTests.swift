@@ -134,4 +134,42 @@ import XCTest
         let importedOff = await model.labRecipeState(toned)
         XCTAssertEqual(importedOff?.params["prep.highlights"], .number(0))
     }
+
+    func testOnlyTheGroupsChosenAreApplied() throws {
+        let source = state(highlights: -40, exposure: 1.5, match: true, temperature: 4800)
+        let develop = RecipeDevelop.taking([.whiteBalance, .tone, .brightness], from: source, exposureOffset: 0.3)
+        XCTAssertNil(develop.only([.color]), "none of its groups chosen")
+        let withoutBalance = try XCTUnwrap(develop.only([.tone, .brightness, .color]))
+        XCTAssertEqual(withoutBalance.groups, [.tone, .brightness])
+        XCTAssertNil(withoutBalance.values["io.raw_white_balance.temperature"])
+        XCTAssertTrue(withoutBalance.matchBrightness)
+        // The photograph keeps its own white balance.
+        var photo = EditState()
+        photo.params["io.raw_white_balance.mode"] = .string("custom")
+        photo.params["io.raw_white_balance.temperature"] = .number(6100)
+        let applied = withoutBalance.applied(to: photo, photo: photo)
+        XCTAssertEqual(applied.params["io.raw_white_balance.temperature"], .number(6100))
+        XCTAssertEqual(applied.params["prep.highlights"], .number(-40))
+        XCTAssertEqual(develop.describe(.whiteBalance), "4800 K")
+        XCTAssertEqual(develop.describe(.tone), "Highlights −40")
+    }
+
+    func testEditingARecipeKeepsEveryOtherKey() throws {
+        let file = "{\n  \"couplers\": {\n    \"k\": [\n      Infinity,\n      1.0,\n      2\n    ]\n  },\n  \"qlab\": {\"recipe\": {\"id\": \"A\"}},\n  \"qrecipe\": {\"format\": 1, \"id\": \"X\"},\n  \"simulation\": {\n    \"film_stock\": \"kodak_portra_400\"\n  },\n  \"qlick\": {\"version\": 1, \"other\": true, \"develop\": {\"groups\": [\"tone\"], \"params\": {\"prep.highlights\": 5}, \"match_brightness\": false}}\n}\n"
+        let develop = RecipeDevelop(groups: [.color], values: ["prep.saturation": .number(-10)])
+        let edited = try XCTUnwrap(RecipeText.editing(file, develop: develop))
+        XCTAssertTrue(edited.contains("Infinity"))
+        XCTAssertTrue(edited.contains("1.0,"), "a decimal stays one")
+        let top = try XCTUnwrap(RecipeText.object(edited))
+        XCTAssertEqual((top["qlab"] as? [String: Any])?["recipe"] as? [String: String], ["id": "A"])
+        XCTAssertEqual((top["qrecipe"] as? [String: Any])?["id"] as? String, "X")
+        XCTAssertEqual((top["qlick"] as? [String: Any])?["other"] as? Bool, true)
+        XCTAssertEqual(RecipeDevelop.read(edited), develop)
+        // Its film taken from another development; dropping every group leaves no Develop part.
+        let look = "{\"simulation\": {\"film_stock\": \"kodak_gold_200\"}, \"qlick\": {\"version\": 9}}"
+        let relooked = try XCTUnwrap(RecipeText.editing(file, develop: nil, look: look))
+        XCTAssertTrue(relooked.contains("kodak_gold_200"))
+        XCTAssertNil(RecipeDevelop.read(relooked))
+        XCTAssertEqual(((RecipeText.object(relooked)?["qlick"]) as? [String: Any])?["version"] as? Int, 1)
+    }
 }

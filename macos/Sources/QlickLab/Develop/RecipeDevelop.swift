@@ -37,6 +37,29 @@ enum DevelopGroup: String, CaseIterable, Sendable {
         }
     }
 
+    /// Its name in a menu or a tick box: short, in the menus' capitals.
+    var label: String {
+        switch self {
+        case .whiteBalance: "White Balance"
+        case .brightness: "Brightness"
+        case .tone: "Tone"
+        case .color: "Color"
+        case .detail: "Detail"
+        }
+    }
+
+    /// The groups a recipe applies of its Develop part, wherever it's applied, as last chosen. Before the choice was
+    /// group by group it was one box, all or none: that answer is the first choice.
+    static var applied: Set<DevelopGroup> {
+        get {
+            guard let names = UserDefaults.standard.string(forKey: "recipeAppliesGroups") else {
+                return UserDefaults.standard.bool(forKey: "recipeAppliesDevelop") ? Set(allCases) : []
+            }
+            return Set(names.split(separator: ",").compactMap { DevelopGroup(rawValue: $0.trimmingCharacters(in: .whitespaces)) })
+        }
+        set { UserDefaults.standard.set(allCases.filter(newValue.contains).map(\.rawValue).joined(separator: ","), forKey: "recipeAppliesGroups") }
+    }
+
     /// The groups saved into new recipes, as last chosen: none until chosen.
     static var saved: Set<DevelopGroup> {
         get {
@@ -124,11 +147,120 @@ struct RecipeDevelop: Equatable, Sendable {
         return head + (head.hasSuffix("{") ? "" : ",") + "\n  \"qlick\": " + indented + "\n}\n"
     }
 
+    /// This Develop part with only `chosen` of its groups (those applied); nil when none is left.
+    func only(_ chosen: Set<DevelopGroup>) -> RecipeDevelop? {
+        let kept = groups.intersection(chosen)
+        guard !kept.isEmpty else { return nil }
+        let paths = Set(kept.flatMap(\.paths))
+        return RecipeDevelop(groups: kept, values: values.filter { paths.contains($0.key) }, matchBrightness: kept.contains(.brightness) && matchBrightness)
+    }
+
+    /// What it holds of `group`, in words: "5200 K, tint +3", "Matched to the camera, +0.30 EV", "Shadows +8".
+    func describe(_ group: DevelopGroup) -> String {
+        func number(_ path: String) -> Double? { values[path].flatMap { $0 == .null ? nil : $0.double } }
+        func signed(_ value: Double, _ digits: Int = 0) -> String {
+            let text = String(format: "%.\(digits)f", abs(value))
+            return value > 0 ? "+" + text : value < 0 ? "−" + text : text
+        }
+        switch group {
+        case .whiteBalance:
+            let mode = values["io.raw_white_balance.mode"]?.string ?? ""
+            guard mode == "custom", let temperature = number("io.raw_white_balance.temperature") else {
+                return mode.isEmpty || mode == "as_shot" ? "As shot" : mode.replacingOccurrences(of: "_", with: " ").capitalized
+            }
+            let tint = number("io.raw_white_balance.tint") ?? 0
+            return "\(Int(temperature.rounded())) K" + (abs(tint) >= 0.5 ? ", tint \(signed(tint))" : "")
+        case .brightness:
+            let exposure = number("prep.exposure_ev") ?? 0
+            var words = matchBrightness ? ["Matched to the camera"] : []
+            if abs(exposure) >= 0.005 || !matchBrightness { words.append(signed(exposure, 2) + " EV") }
+            if values["camera.auto_exposure"]?.bool == true { words.append("auto exposure") }
+            return words.joined(separator: ", ")
+        default:
+            let words = group.paths.compactMap { path -> String? in
+                guard let value = number(path), abs(value) >= 0.005 else { return nil }
+                let name = (path.split(separator: ".").last.map(String.init) ?? path).replacingOccurrences(of: "_", with: " ")
+                return name.prefix(1).uppercased() + name.dropFirst() + " " + signed(value, value.rounded() == value ? 0 : 2)
+            }
+            return words.isEmpty ? "All at zero" : words.joined(separator: ", ")
+        }
+    }
+
     /// "tone, color" for a recipe's summary.
     var summary: String { DevelopGroup.allCases.filter(groups.contains).map(\.word).joined(separator: ", ") }
 }
 
 extension RecipeDevelop {
-    /// What the tick box does, wherever it shows.
-    static let applyHelp = "Recipes saved with Develop settings (white balance, tone, color…) apply them too. Off, a recipe changes the film, the paper and their settings only."
+    /// What the tick boxes do, wherever they show.
+    static let applyHelp = "Of the Develop settings a recipe was saved with, those ticked are applied too; the others stay the photograph's own. None ticked, a recipe changes the film, the paper and their settings only."
+
+    /// Its `qlick.develop` block, as JSON objects.
+    var object: [String: Any] {
+        var params: [String: Any] = [:]
+        for (path, value) in values {
+            if let data = try? JSONEncoder().encode(value),
+               let decoded = try? JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed]) { params[path] = decoded }
+        }
+        return ["groups": DevelopGroup.allCases.filter(groups.contains).map(\.rawValue), "params": params, "match_brightness": matchBrightness]
+    }
+}
+
+/// Qlick Lab: a recipe's text changed in place (Edit Recipe), every key it holds kept: spektrafilm's, QLab's block,
+/// `qrecipe`, and any the lab doesn't know (`docs/q-formats.md`). Written back pretty-printed with sorted keys;
+/// spektrafilm's `Infinity` and `NaN` stay as they were.
+enum RecipeText {
+    /// The blocks that aren't the engine's own settings.
+    static let ownBlocks: Set<String> = ["qlick", "qlab", "qrecipe"]
+
+    static func object(_ text: String) -> [String: Any]? {
+        guard let data = text.data(using: .utf8) else { return nil }
+        return try? JSONSerialization.jsonObject(with: data, options: [.json5Allowed]) as? [String: Any]
+    }
+
+    /// `text` with its Develop part `develop` (nil: none), and, given `look` (the engine's `preset_export` of another
+    /// development), the engine's settings taken from it. Nil if `text` isn't a recipe's.
+    static func editing(_ text: String, develop: RecipeDevelop?, look: String? = nil) -> String? {
+        guard var top = object(text) else { return nil }
+        if let look {
+            guard let exported = object(look) else { return nil }
+            for (key, value) in exported where !ownBlocks.contains(key) { top[key] = value }
+        }
+        var lab = top["qlick"] as? [String: Any] ?? [:]
+        if lab["version"] == nil { lab["version"] = 1 }
+        if let develop, !develop.groups.isEmpty { lab["develop"] = develop.object } else { lab["develop"] = nil }
+        top["qlick"] = lab
+        return write(top, indent: "") + "\n"
+    }
+
+    /// JSON as spektrafilm reads it, with `Infinity`, `-Infinity` and `NaN` where the numbers are.
+    static func write(_ value: Any, indent: String) -> String {
+        let inner = indent + "  "
+        switch value {
+        case let object as [String: Any]:
+            guard !object.isEmpty else { return "{}" }
+            let entries = object.keys.sorted().map { inner + string($0) + ": " + write(object[$0]!, indent: inner) }
+            return "{\n" + entries.joined(separator: ",\n") + "\n" + indent + "}"
+        case let array as [Any]:
+            guard !array.isEmpty else { return "[]" }
+            return "[\n" + array.map { inner + write($0, indent: inner) }.joined(separator: ",\n") + "\n" + indent + "]"
+        case let text as String:
+            return string(text)
+        case let number as NSNumber:
+            if CFGetTypeID(number) == CFBooleanGetTypeID() { return number.boolValue ? "true" : "false" }
+            let double = number.doubleValue
+            if double.isNaN { return "NaN" }
+            if double.isInfinite { return double > 0 ? "Infinity" : "-Infinity" }
+            let type = String(cString: number.objCType)
+            if type != "d" && type != "f" { return number.stringValue }
+            return double == double.rounded() && abs(double) < 1e15 ? String(format: "%.1f", double) : "\(double)"
+        default:
+            return "null"
+        }
+    }
+
+    private static func string(_ text: String) -> String {
+        guard let data = try? JSONSerialization.data(withJSONObject: text, options: [.fragmentsAllowed, .withoutEscapingSlashes]),
+              let json = String(data: data, encoding: .utf8) else { return "\"\"" }
+        return json
+    }
 }

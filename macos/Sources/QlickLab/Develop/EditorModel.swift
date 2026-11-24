@@ -473,12 +473,23 @@ import UserNotifications
     var interacting: Bool { interactionStart != nil }
 
     @ObservationIgnored let presetLibrary: PresetLibrary
-    /// Qlick Lab: applying a recipe also applies its Develop part, where it has one. Remembered.
-    var recipesApplyDevelop = UserDefaults.standard.bool(forKey: "recipeAppliesDevelop") {
-        didSet { UserDefaults.standard.set(recipesApplyDevelop, forKey: "recipeAppliesDevelop") }
+    /// Qlick Lab: the groups of a recipe's Develop part that applying it applies too (a recipe without its white
+    /// balance…); the others stay each photograph's own. Remembered.
+    var recipeApplyGroups = DevelopGroup.applied {
+        didSet { DevelopGroup.applied = recipeApplyGroups }
     }
-    /// The Develop part to apply with a recipe's text: nil when the box is off or the recipe has none.
-    func recipeDevelop(_ text: String) -> RecipeDevelop? { recipesApplyDevelop ? RecipeDevelop.read(text) : nil }
+    /// Every group applied, or none.
+    var recipesApplyDevelop: Bool {
+        get { !recipeApplyGroups.isEmpty }
+        set { recipeApplyGroups = newValue ? Set(DevelopGroup.allCases) : [] }
+    }
+    /// The recipe in Edit Recipe's sheet (Recipes).
+    var editingRecipe: PresetFile?
+    func toggleRecipeApplyGroup(_ group: DevelopGroup) {
+        if recipeApplyGroups.contains(group) { recipeApplyGroups.remove(group) } else { recipeApplyGroups.insert(group) }
+    }
+    /// The Develop part to apply with a recipe's text: only the groups chosen; nil when none is, or the recipe has none.
+    func recipeDevelop(_ text: String) -> RecipeDevelop? { RecipeDevelop.read(text)?.only(recipeApplyGroups) }
     /// The Lab's shelf: favourite and hidden films, papers and recipes.
     @ObservationIgnored let shelf: LabShelf
     /// Film and paper preview grids (`Previews.swift`).

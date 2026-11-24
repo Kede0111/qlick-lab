@@ -575,8 +575,10 @@ private struct RecipeChooser: View {
                     }
                 }
                 // Qlick Lab: the recipes' Develop settings, as wherever a recipe is applied (remembered).
-                PanelToggle("Apply Develop settings too", isOn: Binding(get: { model.recipesApplyDevelop }, set: { model.recipesApplyDevelop = $0 }),
-                            help: RecipeDevelop.applyHelp)
+                VStack(alignment: .leading, spacing: 5) {
+                    Text("Also apply from Develop").font(.system(size: 11.5)).foregroundStyle(Color(white: 0.8))
+                    RecipePartChips(model: model)
+                }
                 PanelToggle("Balance each photograph", isOn: $session.options.balanceEach,
                             help: "Each photograph also gets its own Auto white balance and its exposure matched to the camera’s: the recipe’s look on frames taken in any light. Slower.")
                 PanelHint("Open a frame in the Loupe to see it developed with its recipe, beside the camera’s own rendering. A recipe stays a setting: it can be changed after the import.")

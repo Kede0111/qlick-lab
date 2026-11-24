@@ -31,7 +31,8 @@ caches, deletion request), `ImportRunner.copyCompanion` (a photograph's `.qsidec
 and `PhoneRecipesPanel.swift` (the Recipes room's iPhone section; the last exchanged revisions per iPhone in
 `PhoneRecipeSync`; `PresetLibrary.overwrite`). `scripts/build_app.sh` builds and bundles the helper. Automation:
 `import phone [udid]`, `import recipes read|bring|send|both|delete <name>|state <file>`.
-Not done: combining two recipes, which waits for Edit Recipe (`feature/batch-auto-recipe-parts`, not on main).
+Edit Recipe, Auto White Balance / Auto Exposure and Apply Recipe's Develop groups are on main (`Recipes/RecipeParts.swift`,
+`EditorModel.labAuto`, `PresetLibrary.replace` stamps a new revision). Not done: combining two recipes.
 Next: show which engine revision a file names when it differs from the lab's own.
 
 ## Next, after that (none started)

@@ -84,6 +84,17 @@ final class QFormatsTests: XCTestCase {
         let renamed = try await library.rename(added, to: "Gold 200")
         XCTAssertEqual(QRecipe.header(try Data(contentsOf: renamed.url))?["name"] as? String, "Gold 200")
         XCTAssertEqual(renamed.shelfID, "ID-QLAB")
+        // Edit Recipe: in place, the same id and name, QLab's block kept, a new revision so QLab sees the change.
+        let before = QRecipe.header(try Data(contentsOf: renamed.url))
+        let text = try XCTUnwrap(RecipeText.editing(String(decoding: try Data(contentsOf: renamed.url), as: UTF8.self),
+                                                    develop: RecipeDevelop(groups: [.tone], values: [:], matchBrightness: false)))
+        let edited = try await library.replace(renamed, with: Data(text.utf8))
+        let editedData = try Data(contentsOf: edited.url)
+        XCTAssertEqual(edited.url, renamed.url); XCTAssertEqual(edited.shelfID, "ID-QLAB")
+        XCTAssertEqual(QRecipe.id(editedData), "ID-QLAB")
+        XCTAssertEqual(QRecipe.header(editedData)?["name"] as? String, "Gold 200")
+        XCTAssertNotNil(try QRecipe.object(editedData)["qlab"])
+        XCTAssertNotEqual(QRecipe.header(editedData)?["revision"] as? String, before?["revision"] as? String)
     }
 
     /// A photograph from QLab opens with QLab's development (film, paper, its versions) and names its recipe, by the
