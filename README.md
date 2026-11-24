@@ -84,7 +84,7 @@ with one ⌘Z.
   photographs come with their developments (`.qsidecar`), shown developed before they're imported. Its recipes are
   exchanged one by one in the Recipes room, which shows them beside the lab's while it's plugged in.
 - From a memory card, a disk or a network share. Choose to **Copy**, **Move** or **Leave in Place**: in place, the
-  folders simply join an Archive as they are.
+  photographs checked join an Archive where they lie, and the others in their folders stay out of the lab.
 - Every import goes into an Archive (an existing one or a new one), and can also go into a Box or a Roll.
 - Folders by day, month, year or your own pattern, file names from the camera or your own pattern, with an example
   line before anything is written. Duplicates and unreadable files are flagged.

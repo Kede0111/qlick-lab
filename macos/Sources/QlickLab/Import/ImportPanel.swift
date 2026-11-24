@@ -12,7 +12,7 @@ struct ImportPanel: View {
     @State private var customFolders = false
     @State private var customNames = false
 
-    static let inPlaceLine = "The photographs stay where they are: nothing is copied or renamed."
+    static let inPlaceLine = "The photographs stay where they are: nothing is copied or renamed. Only those checked join the Archive."
 
     var body: some View {
         @Bindable var session = model.lab.importer

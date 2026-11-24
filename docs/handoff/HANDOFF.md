@@ -8,7 +8,7 @@ under about 120 lines. History lives in `git log`, `CHANGELOG.md` and the docs. 
 
 - **0.2.1** (`scripts/version`). On 2026-11-24 Quentin had every waiting branch merged into `main` and pushed, still
   0.2.1 (no new release): Auto White Balance per photograph (PR #8), Import's Type menu, Library on the photograph in
-  hand, lighter exports. Installed in /Applications from that `main`.
+  hand, lighter exports, then Leave in Place taking only what's checked. Installed in /Applications from that `main`.
 - **Updates are on** (Sparkle 2.10, EdDSA): every build but the Dev copies carries `SUFeedURL`
   (`releases/latest/download/appcast.xml`) and `SUPublicEDKey`. `scripts/make_dmg.sh` signs with the key in Quentin's
   login Keychain. **Every release attaches both the DMG and `appcast.xml`**, or installed apps see nothing new.
@@ -35,6 +35,15 @@ and `PhoneRecipesPanel.swift` (the Recipes room's iPhone section; the last excha
 Edit Recipe, Auto White Balance / Auto Exposure and Apply Recipe's Develop groups are on main (`Recipes/RecipeParts.swift`,
 `EditorModel.labAuto`, `PresetLibrary.replace` stamps a new revision). Not done: combining two recipes.
 Next: show which engine revision a file names when it differs from the lab's own.
+
+## Merged: Leave in Place takes only what's checked (2026-11-24)
+
+Leave in Place used to add the whole folder to the Archive (200 shown for 10 checked). Now the unchecked frames of
+that folder the lab didn't already show go into the catalogue's removed set (`ProjectStore.removed`, as Remove from
+Qlick Lab; files untouched); those checked later come back in; Restore Removed Photos brings the rest.
+`ImportSession.leftOut`, `addInPlace` (`Import/ImportRun.swift`), test in `ImportChecksTests`. Tried off screen:
+20 in the folder, 10 checked → 10; again with 2 more → 12; all checked (with a sub-folder) → 8 of 8.
+Automation gotcha: `import archive new Test` names it "new Test"; say `import archive Test`.
 
 ## Merged: Import's Type menu (2026-11-24)
 

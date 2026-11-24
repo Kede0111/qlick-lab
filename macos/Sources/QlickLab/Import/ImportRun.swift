@@ -360,6 +360,18 @@ extension ImportSession {
         }
     }
 
+    /// Leave in Place: the files of the source's frames, in `within` (the folders that join the Archive), that the
+    /// import doesn't take (`taken`, by the RAW + JPEG choice) and the lab doesn't show already (`shown`). The Folder
+    /// is the disk's folder: these are kept out of the lab, so it shows only what was checked.
+    nonisolated static func leftOut(of frames: [ImportFrame], taken: [URL], within: [URL], shown: (URL) -> Bool) -> [URL] {
+        let taken = Set(taken.map { $0.labStandardized.path })
+        let roots = within.map { $0.labStandardized.path }
+        return frames.flatMap { [$0.file.url] + ($0.companion.map { [$0.url] } ?? []) }.filter { url in
+            let path = url.labStandardized.path
+            return !taken.contains(path) && roots.contains { path.hasPrefix($0 + "/") } && !shown(url)
+        }
+    }
+
     /// Leave in Place: the folder chosen is the Folder, with every folder under it at every depth, as the disk has
     /// it. From a disk (or a card), the deepest folder holding all the photographs added: a whole disk isn't added.
     nonisolated static func placeRoot(of photos: [URL], source: URL, sourceIsFolder: Bool) -> URL? {
@@ -441,6 +453,15 @@ extension ImportSession {
         let options = options
         // The Folder is the folder the photographs are taken from, with its tree (a sub-folder at any depth shows).
         let root = Self.placeRoot(of: frames.map(\.id), source: source?.root ?? URL(fileURLWithPath: "/"), sourceIsFolder: source?.kind == .folder)
+        // Qlick Lab: only what's checked joins the lab. The Folder is the disk's folder, so the photographs left
+        // unchecked in it are kept out of every listing (as Remove from Qlick Lab does; Restore Removed Photos brings
+        // them back). Those the lab showed before stay as they were; those checked now come in, even if removed once.
+        let projects = model.lab.projects
+        let taken = frames.flatMap { ImportPlan.files(of: $0, options.pairs).map(\.url) }
+        let within = root.map { [$0] } ?? Array(Set(frames.map { $0.file.url.deletingLastPathComponent() }))
+        let left = Self.leftOut(of: self.frames, taken: taken, within: within) { projects.holds($0) }
+        let takenPaths = Set(taken.map { $0.labStandardized.path })
+        projects.replaceRemoved(projects.removed.subtracting(takenPaths).union(left.map { $0.labStandardized.path }))
         activity = ProcessInfo.processInfo.beginActivity(options: [.idleSystemSleepDisabled, .userInitiated], reason: "Adding photographs")
         adding = Task { [weak self] in
             guard let self else { return }

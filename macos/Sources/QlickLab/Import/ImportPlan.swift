@@ -177,7 +177,7 @@ enum ImportMode: String, Codable, CaseIterable, Sendable {
         switch self {
         case .copy: "Copies the photographs and checks every copy. The source is left as it is."
         case .move: "Copies and checks, then moves the source files to the Trash. Not for memory cards."
-        case .add: "Copies nothing: each folder joins the Archive where it lies."
+        case .add: "Copies nothing: the photographs checked join the Archive where they lie."
         }
     }
 }
@@ -582,7 +582,8 @@ struct ImportPlan: Equatable, Sendable {
         return plan
     }
 
-    private static func files(of frame: ImportFrame, _ pairs: ImportPairs) -> [ImportFile] {
+    /// The files of `frame` the import takes, by the RAW + JPEG choice.
+    static func files(of frame: ImportFrame, _ pairs: ImportPairs) -> [ImportFile] {
         guard let jpeg = frame.companion else { return [frame.file] }
         switch pairs {
         case .both: return [frame.file, jpeg]
