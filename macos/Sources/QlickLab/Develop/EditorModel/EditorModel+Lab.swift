@@ -249,23 +249,33 @@ extension EditorModel {
 
     /// Qlick Lab: each RAW's own Auto white balance, a few at a time, written as it's found. Stops between batches.
     /// Returns the sidecars as they were before, for an undo of its own.
-    @discardableResult func balanceInBatches(_ items: [URL]) async -> [URL: JSONValue?] {
+    /// With `onlyPending` (Auto White Balance), only the photographs still waiting for theirs (`autoBalancePending`):
+    /// one opened meanwhile has had its own, once.
+    @discardableResult func balanceInBatches(_ items: [URL], onlyPending: Bool = false) async -> [URL: JSONValue?] {
         let raws = items.filter { Self.rawExtensions.contains($0.photoFile.pathExtension.lowercased()) }
         var done = 0, before: [URL: JSONValue?] = [:]
         for start in stride(from: 0, to: raws.count, by: 8) {
             guard !Task.isCancelled else { break }
-            let batch = Array(raws[start..<min(start + 8, raws.count)])
             let offset = done, total = raws.count
+            var batch = Array(raws[start..<min(start + 8, raws.count)])
+            done += batch.count
+            if onlyPending { batch = batch.filter { autoBalancePending.contains($0.photoFile) } }
+            guard !batch.isEmpty else { continue }
             let balances = await autoBalances(batch) { [weak self] index in self?.backgroundWork = ("Balancing", offset + index, total) }
             guard !Task.isCancelled else { break }
-            done += batch.count
-            for (photo, sidecar) in await writeBalances(balances, to: batch) where before[photo] == nil { before[photo] = sidecar }
+            for (photo, sidecar) in await writeBalances(balances, to: batch, onlyPending: onlyPending) where before[photo] == nil { before[photo] = sidecar }
         }
         return before
     }
 
-    @discardableResult func writeBalances(_ balances: [URL: (temperature: Double, tint: Double)], to items: [URL]) async -> [URL: JSONValue?] {
-        let items = items.filter { balances[$0.photoFile] != nil }
+    @discardableResult func writeBalances(_ balances: [URL: (temperature: Double, tint: Double)], to items: [URL],
+                                          onlyPending: Bool = false) async -> [URL: JSONValue?] {
+        var items = items.filter { balances[$0.photoFile] != nil }
+        // Written once: not over one balanced in Develop while this one was found.
+        if onlyPending {
+            items = items.filter { autoBalancePending.contains($0.photoFile) }
+            autoBalancePending.subtract(items.map(\.photoFile))
+        }
         guard !items.isEmpty else { return [:] }
         return await changeEditsInBatches(items, title: nil) { item, base in
             guard let found = balances[item.photoFile] else { return base }
@@ -274,6 +284,31 @@ extension EditorModel {
             next.params["io.raw_white_balance.temperature"] = .number((found.temperature / 10).rounded() * 10)
             next.params["io.raw_white_balance.tint"] = .number(found.tint)
             return next
+        }
+    }
+
+    /// Qlick Lab: the open photograph, still waiting for its Auto White Balance in a batch, gets its own as soon as
+    /// it's developed, as an edit of its own; the batch then leaves it.
+    func applyPendingAutoBalance() {
+        guard let open = sourceItem, isRaw else { return }
+        let photo = open.photoFile
+        guard autoBalancePending.contains(photo), autoBalanceOpening.insert(photo).inserted else { return }
+        Task { [weak self] in
+            guard let self else { return }
+            let found = await self.autoBalances([open])[photo]
+            self.autoBalanceOpening.remove(photo)
+            guard let found, self.autoBalancePending.remove(photo) != nil else { return }
+            if self.sourceItem?.photoFile == photo {
+                var next = self.state
+                next.params["io.raw_white_balance.mode"] = .string("custom")
+                next.params["io.raw_white_balance.temperature"] = .number((found.temperature / 10).rounded() * 10)
+                next.params["io.raw_white_balance.tint"] = .number(found.tint)
+                self.apply(next, action: "Auto White Balance")
+            } else {
+                // Left before it was found: written to its edits as the batch would.
+                self.autoBalancePending.insert(photo)
+                await self.writeBalances([photo: found], to: [open], onlyPending: true)
+            }
         }
     }
 
@@ -318,6 +353,8 @@ extension EditorModel {
             return
         }
         guard canChangeOthers else { return }
+        // Each RAW waits for its own balance from now on: the batch's, or Develop's if it's opened first.
+        if whiteBalance { autoBalancePending.formUnion(raws.map(\.photoFile)) }
         let previous = applyTask
         applyTask = Task { [weak self] in
             // After what's being applied (a recipe, an earlier Auto), which Stop ends too.
@@ -332,7 +369,9 @@ extension EditorModel {
             }
             // Then each RAW's own white balance, a few at a time; undo takes back both together.
             if whiteBalance {
-                for (photo, sidecar) in await self.balanceInBatches(ordered) where before[photo] == nil { before[photo] = sidecar }
+                for (photo, sidecar) in await self.balanceInBatches(ordered, onlyPending: true) where before[photo] == nil { before[photo] = sidecar }
+                // Stopped, or none found: none is waiting any more.
+                self.autoBalancePending.subtract(raws.map(\.photoFile))
             }
             if !before.isEmpty { self.registerSidecarUndo(before, action: action) }
             let skipped = whiteBalance ? items.count - raws.count : 0
@@ -475,12 +514,22 @@ extension EditorModel {
             let command: [String: JSONValue] = ["command": EngineCommand.prepareBalance.json, "input": .string(photo.path),
                                                 "source_generation": .number(generationBase + Double(index + 1)), "params": state.params,
                                                 "read_long_side": .number(1024)]
-            // The helper reads in the background and answers at once; asked again, it says once it's done.
-            for _ in 0..<60 {
-                guard let (_, result) = try? await helper.request(command) else { break }
+            // The helper reads in the background and answers at once; asked again, it says once it's done. Without a
+            // proxy it first needs the photograph read As Shot (its metering frame), which a fresh helper hasn't: read
+            // once, small, then asked again. Up to a minute for a large RAW on a slow disk.
+            var readAsShot = false
+            for _ in 0..<240 {
+                guard let (_, result) = try? await helper.request(command) else {
+                    guard !readAsShot else { break }
+                    readAsShot = true
+                    if Self.logsRenders { FileHandle.standardError.write(Data("auto balance \(photo.lastPathComponent): no proxy, reading it As Shot\n".utf8)) }
+                    guard await decodeAsShot(photo, state: state, generation: generationBase + Double(index + 1), helper: helper) else { break }
+                    continue
+                }
                 if result["ready"].bool {
                     let auto = result["auto"].array.map(\.double), asShot = result["as_shot"].array.map(\.double)
                     if auto.count == 2 { found[photo] = (auto[0], auto[1]) }
+                    if Self.logsRenders { FileHandle.standardError.write(Data("auto balance \(photo.lastPathComponent): engine \(auto)\n".utf8)) }
                     if asShot.count == 2 { lab.asShot.set(photo, (asShot[0], asShot[1]), auto: auto.count == 2 ? (auto[0], auto[1]) : nil) }
                     break
                 }
@@ -493,9 +542,31 @@ extension EditorModel {
                     return WhiteBalanceMath.auto(of: photo, asShot: asShot)
                 }.value
                 if let fallback { found[photo] = fallback }
+                if Self.logsRenders { FileHandle.standardError.write(Data("auto balance \(photo.lastPathComponent): fallback \(String(describing: fallback))\n".utf8)) }
             }
         }
         return found
+    }
+
+    /// Qlick Lab: `photo` read As Shot in `helper`, small, as the source `prepare_balance` meters against. False if
+    /// it couldn't be read.
+    private func decodeAsShot(_ photo: URL, state: EditState, generation: Double, helper: EngineClient) async -> Bool {
+        var params = state.params
+        params["io.raw_white_balance.mode"] = .string("as_shot")
+        let buffer = helper.directory.appendingPathComponent("balance-\(UUID().uuidString).rgba")
+        defer { try? FileManager.default.removeItem(at: buffer) }
+        let command: [String: JSONValue] = [
+            "command": EngineCommand.thumbnail.json, "input": .string(photo.path), "source_generation": .number(generation),
+            "film": .string(state.film), "paper": .string(state.paper), "params": params, "long_side": .number(1024),
+            "preview_path": .string(buffer.path), "reduced_decode": .bool(true), "decode_only": .bool(true),
+        ]
+        do {
+            _ = try await helper.request(command)
+            return true
+        } catch {
+            FileHandle.standardError.write(Data("auto balance \(photo.lastPathComponent): \(error.localizedDescription)\n".utf8))
+            return false
+        }
     }
 
     /// A copy of a recipe under a new name: a version to change without losing the first.

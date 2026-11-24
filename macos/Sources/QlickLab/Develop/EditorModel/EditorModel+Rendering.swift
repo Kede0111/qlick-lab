@@ -353,6 +353,8 @@ extension EditorModel {
                     renderID = id; previewCurrent = true; hideActivity()
                     showingCachedPreview = false
                     prepareBalanceSoon()
+                    // Qlick Lab: opened before its turn in an Auto White Balance batch: its own, now.
+                    applyPendingAutoBalance()
                     renderAtExportSize = reply.exportResolution && !masked
                     renderOnGPU = ExportEngine.ranOnGPU(backend: reply.backend)
                     if let cacheKey { previewCache.save(developed, photoSize: imageSize, sourceSize: sourceSize, workingSize: workingSize, raw: isRaw, key: cacheKey) }

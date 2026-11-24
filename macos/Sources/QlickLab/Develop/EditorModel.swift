@@ -475,6 +475,11 @@ import UserNotifications
     @ObservationIgnored let presetLibrary: PresetLibrary
     /// Qlick Lab: the groups of a recipe's Develop part that applying it applies too (a recipe without its white
     /// balance…); the others stay each photograph's own. Remembered.
+    /// Qlick Lab: RAW photographs (their files) whose Auto White Balance was asked for and isn't written yet. Each is
+    /// balanced once: by the batch, or as soon as it's opened and developed, whichever comes first.
+    @ObservationIgnored var autoBalancePending: Set<URL> = []
+    /// Those being balanced for Develop now, so a second render doesn't ask again.
+    @ObservationIgnored var autoBalanceOpening: Set<URL> = []
     var recipeApplyGroups = DevelopGroup.applied {
         didSet { DevelopGroup.applied = recipeApplyGroups }
     }
