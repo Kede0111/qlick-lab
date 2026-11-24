@@ -160,6 +160,14 @@ final class ImportLedger: @unchecked Sendable {
         return entry.destination
     }
 
+    /// Qlick Lab: whether a file of this name and size was imported and still lies where it went: for a source read
+    /// before its files are (an iPhone), where the capture time isn't known yet.
+    func knows(name: String, size: Int) -> Bool {
+        let name = name.lowercased()
+        let found = lock.withLock { entries.values.filter { $0.name.lowercased() == name && $0.size == size }.map(\.destination) }
+        return found.contains { FileManager.default.fileExists(atPath: $0) }
+    }
+
     /// Qlick Lab: when each photograph still known was imported, by its path (the catalogue's index).
     func importDates() -> [String: Date] {
         lock.withLock {

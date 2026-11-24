@@ -5,7 +5,8 @@ import Observation
 
 /// A place photographs are imported from.
 struct ImportSource: Identifiable, Hashable, Sendable {
-    enum Kind: String, Sendable { case card, disk, folder }
+    /// Qlick Lab: `phone` is an iPhone's QLab folder, copied to a transit folder (`PhoneImport`).
+    enum Kind: String, Sendable { case card, disk, folder, phone }
     /// Where its photographs are listed from: a card's `DCIM`, a folder itself.
     var root: URL
     /// Its volume's mount point, when it's a card or a disk.
@@ -19,6 +20,7 @@ struct ImportSource: Identifiable, Hashable, Sendable {
         case .card: LabGlyph.card.symbol
         case .disk: "externaldrive"
         case .folder: "folder"
+        case .phone: "iphone"
         }
     }
 }
@@ -111,6 +113,27 @@ enum ImportScan {
     }
 }
 
+/// Qlick Lab: a photograph QLab developed, as its `.qsidecar` (beside it) says: the active version (the first
+/// variant) holds edits, and names the recipe it was made with, if any.
+struct ImportDevelopment: Hashable, Sendable {
+    /// The recipe's name (`recipe`), nil when the development isn't a recipe's.
+    var recipe: String?
+    /// The version's name in QLab (`name`).
+    var name: String?
+
+    /// Nil when the photograph has no `.qsidecar` (or `.qlick`), or its active version holds no edits. A few
+    /// kilobytes read: call it off the main thread.
+    static func read(photo: URL) -> ImportDevelopment? {
+        guard let raw = try? SidecarStore.readQlick(photo: photo), let variant = raw["variants"].array.first,
+              case .object(let edits) = variant["edits"], !edits.isEmpty else { return nil }
+        func text(_ value: JSONValue) -> String? {
+            let text = value.string.trimmingCharacters(in: .whitespacesAndNewlines)
+            return text.isEmpty ? nil : text
+        }
+        return ImportDevelopment(recipe: text(variant["recipe"]), name: text(variant["name"]))
+    }
+}
+
 /// Which frames the import's grid shows.
 enum ImportFilter: String, CaseIterable, Sendable {
     case all, new, checked, picks, unmarked, rejects, bursts, twins, unreadable
@@ -169,6 +192,8 @@ enum ImportProgressStyle: String, CaseIterable, Sendable {
 
     private(set) var volumes: [ImportSource] = []
     private(set) var source: ImportSource?
+    /// Qlick Lab: the iPhones plugged in, offered as "iPhone · QLab".
+    let phones = PhoneImport()
     /// Cards put in since the room was last looked at: the sidebar says so.
     var cards: [ImportSource] { volumes.filter { $0.kind == .card } }
 
@@ -191,6 +216,18 @@ enum ImportProgressStyle: String, CaseIterable, Sendable {
     private(set) var unreadable: Set<URL> = []
     /// What the grid shows, in order.
     private(set) var shown: [ImportFrame] = []
+    /// Qlick Lab: frames QLab developed (their `.qsidecar` holds a development), each with what it names.
+    private(set) var developments: [URL: ImportDevelopment] = [:]
+    /// Qlick Lab: those developed here already, with the settings of their sidecar's active version, at the grid's
+    /// size (`developedSide`): the grid, the Film Lab and the loupe show these instead of the camera's preview.
+    private(set) var developed: [URL: CGImage] = [:]
+    @ObservationIgnored private var developedOrder: [URL] = []
+    @ObservationIgnored private var developQueue: [URL] = []
+    @ObservationIgnored private var developPump: Task<Void, Never>?
+    /// The grid's developments: enough for its largest cells.
+    static let developedSide = 640
+    /// How many are kept (about 1 MB each); one scrolled back to is developed again.
+    static let developedKept = 400
 
     // MARK: Triage
 
@@ -284,6 +321,9 @@ enum ImportProgressStyle: String, CaseIterable, Sendable {
         self.source = source
         frames = []; index = [:]; shown = []; known = []; bursts = [:]; twins = [:]; unreadable = []
         excluded = []; marks = [:]; selected = []; current = nil; anchor = nil
+        stopDeveloping(); developed = [:]; developedOrder = []
+        // A development from QLab is what's looked at; the camera's preview is beside it on request.
+        if source.kind == .phone { splitBefore = false }
         // What belongs to one import subject is chosen again for each source: the Archive (required), the Box or Roll,
         // the film card. `LabState.importFolders` names the Archive after opening.
         if source.root != lastSource {
@@ -294,7 +334,7 @@ enum ImportProgressStyle: String, CaseIterable, Sendable {
         factsRead = 0; scanning = true; view = .grid; filter = .all
         plan = ImportPlan()
         // A card's photographs can't stay where they are: it starts on Copy.
-        if source.kind == .card, options.mode == .add { options.mode = .copy }
+        if source.kind == .card || source.kind == .phone, options.mode == .add { options.mode = .copy }
         let root = source.root
         scan = Task { [weak self] in
             let files = await Task.detached(priority: .userInitiated) { ImportScan.files(in: root, cancelled: { Task.isCancelled }) }.value
@@ -304,6 +344,7 @@ enum ImportProgressStyle: String, CaseIterable, Sendable {
             self.scanning = false
             self.refreshShown()
             self.current = self.shown.first?.id
+            if source.kind == .phone { self.developAll(self.frames.map(\.id)) }
             // Then what each says of itself, a batch at a time, so the grid is there at once.
             let urls = self.frames.map(\.id)
             for start in stride(from: 0, to: urls.count, by: 48) {
@@ -345,6 +386,8 @@ enum ImportProgressStyle: String, CaseIterable, Sendable {
 
     func close() {
         scan?.cancel(); scan = nil
+        // What was developed stays for the import's progress, which shows it; the next source drops it.
+        stopDeveloping()
         source = nil; frames = []; index = [:]; shown = []; selected = []; current = nil; scanning = false; plan = ImportPlan()
     }
 
@@ -365,6 +408,57 @@ enum ImportProgressStyle: String, CaseIterable, Sendable {
     // MARK: What's shown
 
     func frame(_ id: URL) -> ImportFrame? { index[id].map { frames[$0] } }
+
+    // MARK: Qlick Lab: QLab's developments
+
+    /// Reads which frames QLab developed, then develops them one at a time in the lab's developer, off the main
+    /// thread: those on screen first (`wantDevelopment`), then the others in the grid's order.
+    private func developAll(_ urls: [URL]) {
+        stopDeveloping()
+        developPump = Task { [weak self] in
+            let found = await Task.detached(priority: .utility) { urls.compactMap { url in ImportDevelopment.read(photo: url).map { (url, $0) } } }.value
+            guard let self, !Task.isCancelled else { return }
+            self.developments = Dictionary(found, uniquingKeysWith: { first, _ in first })
+            self.developQueue.append(contentsOf: found.map(\.0).filter { !self.developQueue.contains($0) })
+            self.developPump = nil
+            self.pumpDevelopments()
+        }
+    }
+
+    /// A cell on screen asks for its frame's development: it's developed next.
+    func wantDevelopment(_ id: URL) {
+        guard developments[id] != nil, developed[id] == nil else { return }
+        developQueue.removeAll { $0 == id }
+        developQueue.insert(id, at: 0)
+        pumpDevelopments()
+    }
+
+    private func pumpDevelopments() {
+        guard developPump == nil, !developQueue.isEmpty else { return }
+        developPump = Task { [weak self] in
+            while let self, !Task.isCancelled, !self.developQueue.isEmpty {
+                let next = self.developQueue.removeFirst()
+                guard self.developed[next] == nil, self.developments[next] != nil else { continue }
+                let image = await self.model.lab.compareModel.developer.image(.init(item: next, longSide: Self.developedSide))
+                guard !Task.isCancelled else { return }
+                if let image { self.keepDeveloped(image, for: next) }
+            }
+            self?.developPump = nil
+        }
+    }
+
+    private func keepDeveloped(_ image: CGImage, for id: URL) {
+        developed[id] = image
+        developedOrder.removeAll { $0 == id }
+        developedOrder.append(id)
+        while developedOrder.count > Self.developedKept { developed[developedOrder.removeFirst()] = nil }
+    }
+
+    private func stopDeveloping() {
+        developPump?.cancel(); developPump = nil
+        developQueue = []
+        developments = [:]
+    }
     func marks(for id: URL) -> ImportMarks { marks[id] ?? ImportMarks() }
 
     /// Whether the import takes this frame.
@@ -433,6 +527,20 @@ enum ImportProgressStyle: String, CaseIterable, Sendable {
         // In the comparison the keys mark the pane last clicked, not all of them.
         if view == .compare || selected.isEmpty { return current.map { [$0] } ?? [] }
         return shown.map(\.id).filter(selected.contains)
+    }
+    /// What a click on a frame's check (in the grid or the loupe) acts on: the whole selection when the frame is part
+    /// of a selection of several, else that frame alone. Never a frame left out of the selection.
+    func checkTargets(clicked id: URL) -> [URL] { Self.checkTargets(clicked: id, selected: selected, shown: shown.map(\.id)) }
+    nonisolated static func checkTargets(clicked id: URL, selected: Set<URL>, shown: [URL]) -> [URL] {
+        guard selected.count > 1, selected.contains(id) else { return [id] }
+        return shown.filter(selected.contains)
+    }
+    /// A click on a frame's check: what it shows flips, for the frame and the selection it belongs to.
+    func clickCheck(_ id: URL) { setIncluded(!included(id), checkTargets(clicked: id)) }
+    /// What the bar's Check and Uncheck act on: the selection when there is one of several, else every frame shown.
+    var checkAllTargets: [URL] { Self.checkAllTargets(selected: selected, shown: shown.map(\.id)) }
+    nonisolated static func checkAllTargets(selected: Set<URL>, shown: [URL]) -> [URL] {
+        selected.count > 1 ? shown.filter(selected.contains) : shown
     }
     /// Makes `id` the current frame and leaves the selection as it is.
     func focus(_ id: URL) { current = id }

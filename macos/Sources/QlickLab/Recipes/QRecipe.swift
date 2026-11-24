@@ -15,9 +15,10 @@ enum QRecipe {
     /// scripts/build_app.sh), the same QLab records when it builds the engine from this repository.
     static var engineRevision: String { Bundle.main.object(forInfoDictionaryKey: "QlickEngineRevision") as? String ?? "unknown" }
 
-    private static let iso: ISO8601DateFormatter = {
+    /// A formatter per use: `ISO8601DateFormatter` isn't Sendable.
+    private static var iso: ISO8601DateFormatter {
         let f = ISO8601DateFormatter(); f.formatOptions = [.withInternetDateTime]; return f
-    }()
+    }
 
     /// Python's non-finite numbers, carried through the JSON writer as text (as the engine does).
     private static let sentinels: [(Double, String)] = [(.infinity, "\u{1}Infinity"), (-.infinity, "\u{1}-Infinity")]
@@ -89,6 +90,14 @@ enum QRecipe {
         header["revision"] = revision
         top["qrecipe"] = header
         return try text(top)
+    }
+
+    /// What the recipe develops with, as a token: everything but its header (its name, dates and revision), so the
+    /// same recipe written by either app compares alike. Nil when it isn't a recipe.
+    static func content(_ data: Data) -> String? {
+        guard var top = try? object(data) else { return nil }
+        top["qrecipe"] = nil
+        return fingerprint(top)
     }
 
     /// An opaque token for the content (docs/q-formats.md: readers compare it, never recompute another app's).

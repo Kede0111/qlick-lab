@@ -261,6 +261,40 @@ actor PresetLibrary {
         return renamed
     }
 
+    /// Qlick Lab: puts `data` (the same recipe from elsewhere: QLab's, by its identifier) in place of `preset`, under
+    /// `name` (its name there, a rename made in QLab included; "name 2"… when another recipe has it). The recipe keeps
+    /// its identifier, its star and its place; the former file goes only once the new one is there.
+    func overwrite(_ preset: PresetFile, with data: Data, name wanted: String) throws -> PresetFile {
+        try verify(preset)
+        let id = preset.shelfID.isEmpty ? (QRecipe.id(data) ?? UUID().uuidString) : preset.shelfID
+        let others = Set(try list().filter { $0.url != preset.url }.map { PresetName.key($0.name) })
+        let name = PresetName.problem(wanted) == nil ? PresetName.unique(wanted, taken: others) : preset.name
+        let same = PresetName.key(name) == PresetName.key(preset.name)
+        // The same name in another case or form keeps its file's spelling.
+        let url = same ? preset.url : folder.appendingPathComponent(name).appendingPathExtension(QRecipe.fileExtension)
+        let temporary = folder.appendingPathComponent(".\(UUID().uuidString).tmp")
+        try ((try? QRecipe.stamped(data, id: id, name: name)) ?? data).write(to: temporary, options: .withoutOverwriting)
+        defer { unlink(temporary.path) }
+        // Over its own file; under a new name, never over another's (a file made meanwhile fails it).
+        let moved = same ? Darwin.rename(temporary.path, url.path) : renamex_np(temporary.path, url.path, UInt32(RENAME_EXCL))
+        guard moved == 0 else { throw posixError("Couldn’t save the recipe") }
+        if !same {
+            unlink(preset.url.path)
+            let order = readOrder()
+            if let index = order.firstIndex(where: { PresetName.key($0) == PresetName.key(preset.name) }) {
+                var renamed = order; renamed[index] = name
+                try writeOrder(renamed)
+            }
+        }
+        var ids = readIDs()
+        ids[PresetName.key(preset.name)] = nil
+        ids[PresetName.key(name)] = id
+        try? writeIDs(ids)
+        var saved = try file(at: url)
+        saved.shelfID = id
+        return saved
+    }
+
     func delete(_ preset: PresetFile) throws {
         try verify(preset)
         try FileManager.default.removeItem(at: preset.url)

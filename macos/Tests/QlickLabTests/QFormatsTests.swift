@@ -85,4 +85,32 @@ final class QFormatsTests: XCTestCase {
         XCTAssertEqual(QRecipe.header(try Data(contentsOf: renamed.url))?["name"] as? String, "Gold 200")
         XCTAssertEqual(renamed.shelfID, "ID-QLAB")
     }
+
+    /// A photograph from QLab opens with QLab's development (film, paper, its versions) and names its recipe, by the
+    /// identifier the lab's copy of the recipe carries too.
+    func testAPhotographFromQLabOpensWithItsDevelopmentAndRecipe() throws {
+        let dir = try folder(); defer { try? FileManager.default.removeItem(at: dir) }
+        let photo = dir.appendingPathComponent("QLB_0032.DNG"); try Data("raw".utf8).write(to: photo)
+        let qlab = #"""
+        {"qsidecar": 1, "app": "QLab", "defaultsVersion": 1, "qlab": {"record": {"id": "R1"}},
+         "variants": [
+          {"id": "V2", "name": "Version 2", "recipe": "Kodak Vision3 250D (Q)", "recipeRef": {"id": "ID-VISION"},
+           "engine": {"name": "spektrafilm-rs", "revision": "689db67"},
+           "edits": {"film": "kodak_vision3_250d", "paper": "kodak_2383", "params": {"camera": {"exposure_compensation_ev": 0.3}}}},
+          {"id": "V1", "name": "Version 1", "edits": {"film": "kodak_portra_400", "paper": "kodak_portra_endura"}}]}
+        """#
+        try Data(qlab.utf8).write(to: PhotoSidecar.url(for: photo))
+        let data = URL(fileURLWithPath: #filePath, isDirectory: false).deletingLastPathComponent()
+            .appendingPathComponent("../../../data", isDirectory: true).standardizedFileURL
+        let restore = SidecarRestore.read(photo: photo, store: SidecarStore(), data: data)
+        XCTAssertNil(restore.problem, restore.problem ?? "")
+        XCTAssertEqual(restore.variant, "V2")
+        XCTAssertEqual(restore.edits?.state.film, "kodak_vision3_250d")
+        XCTAssertEqual(restore.edits?.state.paper, "kodak_2383")
+        XCTAssertEqual(restore.recipe, "Kodak Vision3 250D (Q)")
+        XCTAssertEqual(restore.recipeID, "ID-VISION")
+        let second = SidecarRestore.read(photo: photo, variant: "V1", store: SidecarStore(), data: data)
+        XCTAssertEqual(second.edits?.state.film, "kodak_portra_400")
+        XCTAssertNil(second.recipe)
+    }
 }

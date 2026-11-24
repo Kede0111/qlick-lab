@@ -61,7 +61,7 @@ struct ImportProgressView: View {
             ZStack(alignment: .top) {
                 if run.finished { ImportAccount(model: model, run: run) }
                 else if compact { ImportList(run: run) }
-                else { FilmLabView(run: run) }
+                else { FilmLabView(run: run, developed: session.developed) }
                 // Always in sight.
                 Text(run.figures).font(Theme.value(12.5)).foregroundStyle(Theme.paper)
                     .padding(.horizontal, 16).frame(height: 32)
@@ -90,6 +90,8 @@ struct ImportProgressView: View {
 /// copy has been read back and matches. The negative is only how the camera's preview is shown, never a rendering.
 private struct FilmLabView: View {
     let run: ImportRun
+    /// Qlick Lab: frames from QLab, as QLab developed them (`ImportSession.developed`).
+    var developed: [URL: CGImage] = [:]
 
     /// The frame at the gate: the one being copied, or the first that waits.
     private var gate: Int {
@@ -102,9 +104,9 @@ private struct FilmLabView: View {
             let stripHeight = frameWidth / 1.5 + frameWidth * 0.26
             VStack(spacing: 0) {
                 Spacer().frame(height: 64)
-                FilmGate(run: run, gate: gate, frameWidth: frameWidth, width: geometry.size.width)
+                FilmGate(run: run, gate: gate, frameWidth: frameWidth, width: geometry.size.width, developed: developed)
                     .frame(height: stripHeight)
-                ImportSheet(run: run)
+                ImportSheet(run: run, developed: developed)
                     .padding(.top, 22)
             }
         }
@@ -118,6 +120,7 @@ private struct FilmGate: View {
     let gate: Int
     let frameWidth: CGFloat
     let width: CGFloat
+    var developed: [URL: CGImage] = [:]
 
     var body: some View {
         let pitch = frameWidth * (38.0 / 36.0)
@@ -129,7 +132,7 @@ private struct FilmGate: View {
             if !run.order.isEmpty {
                 ForEach(Array(range), id: \.self) { index in
                     let id = run.order[index]
-                    FilmFrame(source: id, written: run.written[id], state: run.state(of: id), number: index + 1)
+                    FilmFrame(source: id, written: run.written[id], state: run.state(of: id), number: index + 1, developed: developed[id])
                         .frame(width: frameWidth, height: frameWidth / 1.5)
                         .offset(x: CGFloat(index - gate) * pitch)
                 }
@@ -169,7 +172,10 @@ private struct FilmFrame: View {
     let written: URL?
     let state: ImportFrameState
     let number: Int
-    @State private var image: CGImage?
+    /// Qlick Lab: QLab's development of it, shown instead of the camera's preview.
+    var developed: CGImage?
+    @State private var preview: CGImage?
+    private var image: CGImage? { developed ?? preview }
 
     var body: some View {
         ZStack {
@@ -191,7 +197,7 @@ private struct FilmFrame: View {
             // The grid's own thumbnail, already read: the card isn't asked again while it's being copied.
             let file = PhotoFile(url: source)
             let loaded = await PhotoThumbnails.shared.image(for: file, size: .medium)
-            if !Task.isCancelled { image = loaded }
+            if !Task.isCancelled { preview = loaded }
         }
     }
 
@@ -208,6 +214,7 @@ private struct FilmFrame: View {
 /// The contact sheet as it builds up: every frame whose copy is checked, on strips of six, read from the copy.
 private struct ImportSheet: View {
     let run: ImportRun
+    var developed: [URL: CGImage] = [:]
 
     var body: some View {
         let done = run.order.filter { run.state(of: $0) == .verified }
@@ -215,7 +222,7 @@ private struct ImportSheet: View {
             ScrollView(.vertical) {
                 LazyVGrid(columns: Array(repeating: GridItem(.fixed(96), spacing: 4), count: 6), spacing: 14) {
                     ForEach(done, id: \.self) { id in
-                        SheetThumb(url: run.written[id] ?? id)
+                        SheetThumb(url: run.written[id] ?? id, developed: developed[id])
                             .frame(width: 96, height: 64)
                             .id(id)
                             .transition(.scale(scale: 1.35).combined(with: .opacity))
@@ -234,16 +241,17 @@ private struct ImportSheet: View {
 
 private struct SheetThumb: View {
     let url: URL
-    @State private var image: CGImage?
+    var developed: CGImage?
+    @State private var preview: CGImage?
     var body: some View {
         ZStack {
             Color(white: 0.06)
-            if let image { Image(decorative: image, scale: 1).resizable().interpolation(.medium).aspectRatio(contentMode: .fit) }
+            if let image = developed ?? preview { Image(decorative: image, scale: 1).resizable().interpolation(.medium).aspectRatio(contentMode: .fit) }
         }
         .task(id: url) {
             let file = PhotoFile(url: url)
             let loaded = await PhotoThumbnails.shared.image(for: file, size: .medium)
-            if !Task.isCancelled { image = loaded }
+            if !Task.isCancelled { preview = loaded }
         }
     }
 }

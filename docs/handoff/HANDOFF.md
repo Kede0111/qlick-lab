@@ -23,9 +23,16 @@ same file in QLab: change both together). Here: `Recipes/QRecipe.swift`, `Preset
 engine means raising QLab's submodule too (`vendor/qlick-lab`, then its `scripts/build_qengine.sh`).
 `scripts/build_app.sh` writes `QlickEngineRevision` (this commit) into Info.plist.
 
-Next for this: the cable transport (AFC, its own module behind an interface, so an iCloud container can replace it for
-a Mac App Store build): import a plugged iPhone's photographs with their `.qsidecar` and its `Documents/Recipes`, write
-recipes back. Then show the lab which engine revision a file names when it differs from its own.
+Then (branch `iphone-import`): Import's "iPhone · QLab". `crates/qlick-iphone` (a helper of its own, JSON lines:
+watch, probe, pair, list, pull, request-delete, put-recipe, remove-recipe), `Import/PhoneTransport.swift` (the
+interface and `IdeviceTransport`), `Import/PhoneImport.swift` (devices, transit folder chosen in Settings or the
+caches, deletion request), `ImportRunner.copyCompanion` (a photograph's `.qsidecar` or `.qlab.json` travels with it),
+`ImportSession.developments`/`developed` (QLab's developments shown before the import), `Recipes/PhoneRecipes.swift`
+and `PhoneRecipesPanel.swift` (the Recipes room's iPhone section; the last exchanged revisions per iPhone in
+`PhoneRecipeSync`; `PresetLibrary.overwrite`). `scripts/build_app.sh` builds and bundles the helper. Automation:
+`import phone [udid]`, `import recipes read|bring|send|both|delete <name>|state <file>`.
+Not done: combining two recipes, which waits for Edit Recipe (`feature/batch-auto-recipe-parts`, not on main).
+Next: show which engine revision a file names when it differs from the lab's own.
 
 ## Next, after that (none started)
 

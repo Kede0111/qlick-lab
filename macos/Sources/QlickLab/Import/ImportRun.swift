@@ -396,6 +396,13 @@ extension ImportSession {
             }
         }
         if journal.remaining > 0 { setUnfinished(journal) } else { ImportJournal.remove() }
+        // Qlick Lab: an iPhone's transit folder goes once everything it held is imported and checked (what was left
+        // out with it): the next time, only what the ledger doesn't know comes over again.
+        if !stopped, journal.remaining == 0, journal.items.allSatisfy(\.done), let source, source.kind == .phone {
+            close()
+            // The deletion asked for (only what was copied and checked), then the transit folder emptied.
+            phones.finished(journal, udid: source.uuid, transit: source.root)
+        }
         // Qlick Lab: their proxies straight away, so their thumbnails develop in milliseconds.
         let arrived = journal.items.filter(\.done)
         fileInHolder(arrived.compactMap(\.photo), options: journal.options)

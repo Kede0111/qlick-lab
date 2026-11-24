@@ -78,6 +78,27 @@ private struct ImportSources: View {
                         .fixedSize(horizontal: false, vertical: true).padding(.horizontal, 10).padding(.bottom, 6)
                 }
                 ForEach(cards) { card in row(card) { session.open(card) } }
+                // Qlick Lab: QLab's folder on an iPhone plugged in.
+                let phones = session.phones
+                if !phones.devices.isEmpty {
+                    heading("iPhone")
+                    ForEach(phones.devices) { phone in
+                        RoomButton(symbol: "iphone", title: phone.title, on: session.source?.uuid == phone.udid && session.source?.kind == .phone,
+                                   trailing: phone.state == .ready ? nil : "…") { phones.open(phone, in: session) }
+                            .help(phone.advice ?? "Copies QLab’s photographs, each with its development, and its recipes, then shows them.")
+                    }
+                    if let activity = phones.activity {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(activity.text).font(.system(size: 11)).foregroundStyle(Theme.dim)
+                            if let fraction = activity.fraction { ProgressView(value: fraction).controlSize(.small) }
+                        }
+                        .padding(.horizontal, 10).padding(.bottom, 6)
+                    }
+                    if let notice = phones.notice {
+                        Text(notice).font(.system(size: 11)).foregroundStyle(Theme.paper)
+                            .fixedSize(horizontal: false, vertical: true).padding(.horizontal, 10).padding(.bottom, 6)
+                    }
+                }
                 heading("Disks")
                 let disks = session.volumes.filter { $0.kind == .disk }
                 ForEach(disks) { disk in row(disk, trailing: "…") { session.chooseFolder(startingAt: disk.root) } }
@@ -188,8 +209,13 @@ private struct ImportToolbar: View {
                 }
             }
             Spacer(minLength: 8)
-            QIconButton(symbol: "checkmark.circle", help: "Check all: every frame shown is imported") { session.setIncluded(true, session.shown.map(\.id)) }
-            QIconButton(symbol: "circle", help: "Uncheck all: no frame shown is imported, check those you want") { session.setIncluded(false, session.shown.map(\.id)) }
+            let several = session.selected.count > 1
+            QIconButton(symbol: "checkmark.circle", help: several ? "Check the selection: the frames selected are imported" : "Check all: every frame shown is imported") {
+                session.setIncluded(true, session.checkAllTargets)
+            }
+            QIconButton(symbol: "circle", help: several ? "Uncheck the selection: the frames selected are left out" : "Uncheck all: no frame shown is imported, check those you want") {
+                session.setIncluded(false, session.checkAllTargets)
+            }
             if !session.bursts.isEmpty {
                 QIconButton(symbol: "square.stack.3d.down.right", help: "Firsts of bursts: keeps the first frame of every burst checked and unchecks the others") { session.keepFirstOfBursts() }
             }
@@ -410,7 +436,8 @@ enum ImportKeys {
     }
 }
 
-/// One frame of the grid: the camera's own preview, never a development, with what the import will do with it.
+/// One frame of the grid: the camera's own preview, with what the import will do with it. Qlick Lab: a frame QLab
+/// developed shows that development (`ImportSession.developed`) once it's made here, the camera's preview meanwhile.
 struct ImportCell: View {
     let session: ImportSession
     let frame: ImportFrame
@@ -423,10 +450,11 @@ struct ImportCell: View {
         let marks = session.marks(for: id)
         let included = session.included(id), known = session.known.contains(id)
         let selected = session.selected.contains(id), current = session.current == id
+        let development = session.developments[id]
         VStack(spacing: 5) {
             ZStack {
                 RoundedRectangle(cornerRadius: 5, style: .continuous).fill(Color(white: current ? 0.13 : 0.085))
-                if let image {
+                if let image = session.developed[id] ?? image {
                     TurnedPicture(image: image, rotation: marks.rotation)
                         .padding(7)
                         .opacity(included ? (marks.flag == "reject" ? 0.45 : 1) : 0.28)
@@ -437,7 +465,8 @@ struct ImportCell: View {
             }
             .frame(height: side * 0.72)
             .overlay(alignment: .topLeading) {
-                Button { session.toggleIncluded([id]) } label: {
+                // Part of a selection of several: the whole selection, and only it.
+                Button { session.clickCheck(id) } label: {
                     Image(systemName: included ? "checkmark.circle.fill" : "circle")
                         .font(.system(size: 15, weight: .medium))
                         .foregroundStyle(included ? Theme.accent : Color(white: 0.5), .white)
@@ -475,6 +504,14 @@ struct ImportCell: View {
                         .background(Capsule().fill(Color.black.opacity(0.62))).padding(5)
                         .frame(maxWidth: side * 0.7, alignment: .trailing)
                         .help("Developed with the recipe “\(recipe)” once it’s imported")
+                } else if let development {
+                    Label(development.recipe ?? development.name ?? "QLab", systemImage: development.recipe == nil ? "iphone" : "flask")
+                        .font(.system(size: 9.5, weight: .medium)).labelStyle(.titleAndIcon).lineLimit(1)
+                        .foregroundStyle(Theme.paper).padding(.horizontal, 6).frame(height: 17)
+                        .background(Capsule().fill(Color.black.opacity(0.62))).padding(5)
+                        .frame(maxWidth: side * 0.7, alignment: .trailing)
+                        .help(development.recipe.map { "Developed in QLab with the recipe “\($0)”: it’s imported with this development" }
+                              ?? "Developed in QLab: it’s imported with this development")
                 }
             }
             .overlay {
@@ -494,6 +531,8 @@ struct ImportCell: View {
         }
         .contentShape(Rectangle())
         .help(tooltip)
+        .onAppear { session.wantDevelopment(id) }
+        .onChange(of: development) { if development != nil { session.wantDevelopment(id) } }
         .task(id: id) {
             let file = PhotoFile(url: id)
             let large = side > 190

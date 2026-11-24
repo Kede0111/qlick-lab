@@ -1,6 +1,13 @@
 import Foundation
 import Darwin
 
+/// Qlick Lab: writing to a helper that has just ended (the engine's, the iPhone's) fails with an error the caller
+/// handles (EPIPE), instead of SIGPIPE ending the lab, which is what the signal does by default. Set once, before the
+/// first helper starts.
+enum BrokenPipes {
+    static let ignored: Void = { signal(SIGPIPE, SIG_IGN) }()
+}
+
 struct EngineError: LocalizedError {
     let message: String
     var errorDescription: String? { message }
@@ -333,6 +340,7 @@ final class EngineClient: @unchecked Sendable {
         }
         launchedSettings = settings
         closeHandles()
+        _ = BrokenPipes.ignored
         let child = Process(), stdin = Pipe(), stdout = Pipe()
         let logURL = directory.appendingPathComponent("engine.log")
         FileManager.default.createFile(atPath: logURL.path, contents: nil)

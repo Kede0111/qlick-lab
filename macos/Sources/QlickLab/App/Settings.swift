@@ -294,6 +294,8 @@ struct SettingsView: View {
         .task { thumbnailBytes = await model.thumbnailCacheSize() }
         // Qlick Lab: the previews built ahead: where, how much room, emptied.
         PreviewStorageSection(model: model)
+        // Qlick Lab: where an iPhone's photographs wait before they're imported.
+        PhoneTransitSection()
     }
 
     // MARK: About: the version, updates, the lab's pages
