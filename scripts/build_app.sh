@@ -122,7 +122,7 @@ if ! $dev; then
 fi
 
 # Ad-hoc signatures: the helpers first, then the app. Sparkle keeps its own.
-for tool in spektrafilm-native spektrafilm spektrafilm-f64 "$name"; do codesign --force --sign - "$app/Contents/MacOS/$tool"; done
+for tool in spektrafilm-native spektrafilm spektrafilm-f64 qlick-iphone "$name"; do codesign --force --sign - "$app/Contents/MacOS/$tool"; done
 codesign --force --sign - "$app"
 codesign --verify --strict "$app"
 echo "Built: $root/$app  ($name $version, build $build)"

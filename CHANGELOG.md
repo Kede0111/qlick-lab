@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased — one recipe format and one sidecar with QLab
+## 0.2.1 — one engine, one recipe format and one sidecar with QLab
 
 QLab, the iPhone camera, now develops with this lab's engine (the same code, at one commit), and the two apps share
 their files (`docs/q-formats.md`).
@@ -14,7 +14,13 @@ their files (`docs/q-formats.md`).
 - Leica Monopan 50 has its 35mm edge print.
 - **Import from the iPhone**: plug in an iPhone with QLab and "iPhone · QLab" appears among Import's sources. Its
   photographs come over the cable with their developments (`.qsidecar`), then join an Archive as any import does,
-  a folder per day. If it's locked, or hasn't trusted this Mac yet, the lab says what to do.
+  a folder per day. If it's locked, or hasn't trusted this Mac yet, the lab says what to do. A photograph opens
+  with QLab's film, versions and settings, and the film card names the recipe it was made with.
+- **Delete from the iPhone after import** (Import's panel, off each time): once the copies are checked, QLab deletes
+  those photographs the next time it opens, each only if it is the very file copied (its SHA-256).
+- **The iPhone's transit folder** can be chosen in Settings › Upkeep (a disk with room, when the Mac's is small); the
+  Mac's caches otherwise, or when that disk isn't there. It's emptied after each import, and what the catalogue
+  imported already isn't copied over again.
 - **Recipes with the iPhone**: while it's plugged in, the Recipes room shows QLab's recipes beside the lab's, and
   whether each is only on one side, the same, or changed on the iPhone, the Mac or both since they were last
   exchanged. Bring one to the Mac, send one to the iPhone, put one in place of the other (a rename made in QLab
