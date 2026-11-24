@@ -58,8 +58,10 @@ enum Support {
         guard attempts > 0, !asking else { return }
         Task { @MainActor in
             try? await Task.sleep(for: .seconds(2))
-            let window = NSApp.mainWindow ?? NSApp.windows.first { $0.isVisible && $0.canBecomeMain }
-            guard NSApp.isActive, let window, window.attachedSheet == nil, !model.exporting, !model.batchRunning, due(defaults) else {
+            // No application (the tests): nothing to ask in.
+            guard let app = NSApp else { return }
+            let window = app.mainWindow ?? app.windows.first { $0.isVisible && $0.canBecomeMain }
+            guard app.isActive, let window, window.attachedSheet == nil, !model.exporting, !model.batchRunning, due(defaults) else {
                 // Busy, in the background or no longer due: look again a little later.
                 if due(defaults) { askWhenFree(model: model, defaults: defaults, attempts: attempts - 1) }
                 return

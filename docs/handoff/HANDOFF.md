@@ -35,6 +35,30 @@ Edit Recipe, Auto White Balance / Auto Exposure and Apply Recipe's Develop group
 `EditorModel.labAuto`, `PresetLibrary.replace` stamps a new revision). Not done: combining two recipes.
 Next: show which engine revision a file names when it differs from the lab's own.
 
+## Done, waiting for Quentin's word to merge: export (branch `audit/export`, local, 2026-11-24)
+
+From the export audit (deck https://claude.ai/artifact/RjgD4g4SMuC6oGH9MZPTqi; his HEIF at quality 100 weighed 140 MB
+for a 72 MB M11 DNG). Measured on that DNG, grain on: HEIF 90 38 MB, JPEG 92 23 MB, TIFF 8-bit 113 MB, 16-bit 317 MB.
+- Engine (`spektrafilm-io/src/save.rs`, `metadata.rs`): TIFF is Deflate + horizontal predictor (lossless, parallel
+  strips); every file carries a print resolution (`SaveOptions.ppi`, 300 by default: TIFF/EXIF XResolution, JPEG JFIF,
+  PNG pHYs) and `Software` "Qlick Lab <version>" (`SaveOptions.software`; QLab can pass its own). CLI `--ppi`, `--software`.
+- App: `SaveSettings` holds `heifQuality` (90, at most 95: Apple's encoder goes near lossless above) apart from
+  `jpegQuality` (92), `ppi`, and is Codable (a batch journal keeps all of it in `BatchOptions.saveSettings`: batches
+  used to drop sharpening and metadata). First format JPEG, TIFF starts at 8 bits.
+- Pipeline (`ExportFinisher.deliver`): the engine writes in the scratch folder (local disk), then finishing (HEIF,
+  sharpening, metadata) and the lab's XMP, written once to a hidden file beside the destination, renamed onto it.
+  Fast exports of HEIF or sharpened files now use the preview too (6 s for a 60 MP HEIF).
+- `LabXMP`: inside the file only (no sidecar): `qlick:Film`, `qlick:Paper`, `qlick:Recipe`, `xmp:Rating`,
+  CreatorTool, keywords/title/caption, and creator/rights from the photograph's import `.xmp`; Metadata › None keeps
+  only the lab's fields. ImageIO copies the image bytes (PNG gets an iTXt chunk). `ExportRating.embed` uses it.
+- Print: File › Order (`Print/LabOrder.swift`: Proof JPEG 90 2048 px sRGB screen-sharpened; Scan HEIF 90 full P3;
+  Print TIFF 8-bit full sRGB 300 ppi glossy), per-format Quality lists, Sharpen for; Image Size › Resolution and
+  "Prints at" (cm). The line over Export and the save panel end with the estimated weight (`ExportEstimate`: table
+  measured on the M11 file, then learned from this Mac's exports).
+- Measured, not done: a better JPEG encoder (optimised Huffman gains 2 % on grain; mozjpeg would add a C dependency).
+- Known: a sharpened JPEG goes through Core Image, which writes 4:2:0 (the engine's own JPEG is 4:4:4).
+- Automation: `exportas <path> [fast]` (Print's choices), `order proof|scan|print`.
+
 ## Next, after that (none started)
 
 - Swift 6: strict concurrency is `complete` as warnings; one left (`stillWanted` in

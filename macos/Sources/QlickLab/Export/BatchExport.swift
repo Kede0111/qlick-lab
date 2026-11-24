@@ -44,11 +44,14 @@ struct BatchOptions: Codable, Equatable, Sendable {
     var custom = "{name}_{film}"
     var existing = BatchExisting.number
     var lowMemory = false
+    /// Qlick Lab: every encoding choice (HEIF's quality, resolution, sharpening, metadata), as a single export
+    /// makes them; a journal from before has only the fields above.
+    var saveSettings: SaveSettings?
 
     var outputFormat: OutputFormat { OutputFormat(rawValue: format) ?? .jpeg }
     var exportEngine: ExportEngine { ExportEngine(rawValue: engine) ?? .reference }
     var size: ExportSize { ExportSize(edge: ExportSize.Edge(rawValue: edge) ?? .full, pixels: pixels) }
-    var save: SaveSettings { SaveSettings(bitDepth: bitDepth, colorSpace: colorSpace, jpegQuality: jpegQuality) }
+    var save: SaveSettings { saveSettings ?? SaveSettings(bitDepth: bitDepth, colorSpace: colorSpace, jpegQuality: jpegQuality) }
     var fileExtension: String { outputFormat.type.preferredFilenameExtension ?? format }
 
     /// The file name for a photograph named `name` (without its extension,
@@ -94,6 +97,9 @@ struct BatchItem: Codable, Equatable, Identifiable, Sendable {
     var reason: String?
     /// Where it was written.
     var written: URL?
+    /// Qlick Lab: what the file says of its development (film, paper, recipe, stars, words); nil in a journal from
+    /// before, which then writes the rating only.
+    var xmp: LabXMP?
 
     var id: URL { item }
 }
@@ -165,63 +171,9 @@ enum ExportRating {
         return summary.rating > 0 ? summary.rating : nil
     }
 
-    /// Adds `xmp:Rating` to the finished file without decoding its image:
-    /// ImageIO copies the image data as it is and merges the metadata.
-    /// Formats it can't do that for are left alone.
+    /// Adds `xmp:Rating` to the finished file without decoding its image (`LabXMP`).
     static func embed(_ rating: Int, in file: URL) throws {
-        guard let source = CGImageSourceCreateWithURL(file as CFURL, nil), let type = CGImageSourceGetType(source) else { return }
-        // ImageIO can't add XMP to a PNG without encoding it again.
-        if type as String == UTType.png.identifier { return try embedInPNG(rating, file: file) }
-        let metadata = CGImageMetadataCreateMutable()
-        guard CGImageMetadataSetValueWithPath(metadata, nil, "xmp:Rating" as CFString, "\(rating)" as CFString) else { return }
-        let staging = file.deletingLastPathComponent().appendingPathComponent(".qlick-rating-\(UUID().uuidString).\(file.pathExtension)")
-        defer { try? FileManager.default.removeItem(at: staging) }
-        guard let destination = CGImageDestinationCreateWithURL(staging as CFURL, type, 1, nil) else { return }
-        let options: [CFString: Any] = [kCGImageDestinationMetadata: metadata, kCGImageDestinationMergeMetadata: true]
-        var error: Unmanaged<CFError>?
-        guard CGImageDestinationCopyImageSource(destination, source, options as CFDictionary, &error) else { return }
-        guard rename(staging.path, file.path) == 0 else { throw EngineError(message: "Could not add the rating: \(String(cString: strerror(errno)))") }
-    }
-
-    /// The XMP packet with only the rating.
-    static func packet(_ rating: Int) -> String {
-        "<?xpacket begin=\"\u{FEFF}\" id=\"W5M0MpCehiHzreSzNTczkc9d\"?><x:xmpmeta xmlns:x=\"adobe:ns:meta/\"><rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\">"
-            + "<rdf:Description rdf:about=\"\" xmlns:xmp=\"http://ns.adobe.com/xap/1.0/\" xmp:Rating=\"\(rating)\"/></rdf:RDF></x:xmpmeta><?xpacket end=\"w\"?>"
-    }
-
-    /// A PNG gets the packet as an `iTXt` chunk (`XML:com.adobe.xmp`) before
-    /// its image data, replacing one already there; every other byte stays.
-    private static func embedInPNG(_ rating: Int, file: URL) throws {
-        let data = try Data(contentsOf: file)
-        let signature = Data([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A])
-        guard data.count > 8, data.prefix(8) == signature else { return }
-        let keyword = Data("XML:com.adobe.xmp".utf8)
-        var chunks: [(type: Data, range: Range<Int>)] = []
-        var at = 8
-        while at + 12 <= data.count {
-            let length = data[at..<at + 4].reduce(0) { $0 << 8 | Int($1) }
-            guard at + 12 + length <= data.count else { return }
-            chunks.append((data[at + 4..<at + 8], at..<at + 12 + length))
-            at += 12 + length
-        }
-        guard let image = chunks.firstIndex(where: { $0.type == Data("IDAT".utf8) }) else { return }
-        var body = Data("iTXt".utf8)
-        body += keyword + Data([0, 0, 0, 0, 0]) + Data(packet(rating).utf8)
-        var chunk = Data()
-        let length = UInt32(body.count - 4)
-        chunk += withUnsafeBytes(of: length.bigEndian) { Data($0) }
-        chunk += body
-        chunk += withUnsafeBytes(of: crc32(body).bigEndian) { Data($0) }
-        var out = Data(signature)
-        for (index, piece) in chunks.enumerated() {
-            if index == image { out += chunk }
-            let isXMP = piece.type == Data("iTXt".utf8) && data[piece.range.lowerBound + 8..<min(piece.range.upperBound, piece.range.lowerBound + 8 + keyword.count)] == keyword
-            if !isXMP { out += data[piece.range] }
-        }
-        let staging = file.deletingLastPathComponent().appendingPathComponent(".qlick-rating-\(UUID().uuidString).png")
-        defer { try? FileManager.default.removeItem(at: staging) }
-        try out.write(to: staging)
-        guard rename(staging.path, file.path) == 0 else { throw EngineError(message: "Could not add the rating: \(String(cString: strerror(errno)))") }
+        try LabXMP.embed(LabXMP(rating: rating), in: file)
     }
 
     private static let crcTable: [UInt32] = (0..<256).map { n -> UInt32 in

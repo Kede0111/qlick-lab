@@ -32,27 +32,55 @@ enum OutputFormat: String, CaseIterable {
         }
     }
 
-    /// The format of the last save or export, offered first next time.
+    /// The format a file's extension names, if the lab writes it.
+    init?(extension ext: String) {
+        switch ext.lowercased() {
+        case "jpg", "jpeg": self = .jpeg
+        case "png": self = .png
+        case "tif", "tiff": self = .tiff
+        case "heic", "heif": self = .heif
+        default: return nil
+        }
+    }
+
+    /// The format of the last save or export, offered first next time; JPEG, which every screen and lab reads, at
+    /// the first.
     static var last: OutputFormat {
-        get { UserDefaults.standard.string(forKey: "outputFormat").flatMap(OutputFormat.init) ?? .png }
+        get { UserDefaults.standard.string(forKey: "outputFormat").flatMap { OutputFormat(rawValue: $0) } ?? .jpeg }
         set { UserDefaults.standard.set(newValue.rawValue, forKey: "outputFormat") }
     }
 }
 
-/// How a save encodes the file: bits per channel, colour space, and JPEG
-/// quality. `colorSpace` is the space the file is in: ProPhoto RGB at 8 bits
-/// is already replaced by Adobe RGB (`effectiveSpace`).
-struct SaveSettings: Equatable {
+/// How a save encodes the file: bits per channel, colour space, the JPEG and
+/// HEIF qualities, the print resolution. `colorSpace` is the space the file
+/// is in: ProPhoto RGB at 8 bits is already replaced by Adobe RGB
+/// (`effectiveSpace`).
+struct SaveSettings: Equatable, Codable, Sendable {
     /// As colour names them, which the engine takes.
     static let colorSpaces = ["sRGB", "Display P3", "Adobe RGB (1998)", "ProPhoto RGB"]
     /// ProPhoto RGB bands at 8 bits, so it needs 16; Adobe RGB stands in.
     static let prophoto = 3, prophotoFallback = 2
     static let qualityRange = 1...100
+    /// Qlick Lab: HEIF stops at 95. Above it Apple's encoder turns nearly lossless and the file doubles (140 MB for a
+    /// 60-megapixel photograph with its grain, twice its RAW) for nothing the eye sees.
+    static let heifQualityRange = 1...95
+    /// The qualities Print offers. HEIF's encoder works in steps (80 and 85 make the same file), so it offers only
+    /// those that differ.
+    static let jpegQualities = [100, 95, 92, 90, 85, 80, 70]
+    static let heifQualities = [95, 92, 90, 85, 75, 60]
+    static let defaultJPEGQuality = 92, defaultHEIFQuality = 90
+    /// Print resolutions, in pixels per inch: written in the file, they change no pixel, only the size a page layout
+    /// or a lab prints it at.
+    static let resolutions = [240, 300, 360]
+    static let defaultPPI = 300
 
     /// nil is the format's default: 16 for TIFF, 8 for PNG and JPEG.
     var bitDepth: Int? = nil
     var colorSpace = 0
-    var jpegQuality = 95
+    var jpegQuality = SaveSettings.defaultJPEGQuality
+    /// Qlick Lab: HEIF's own quality, never the JPEG's.
+    var heifQuality = SaveSettings.defaultHEIFQuality
+    var ppi = SaveSettings.defaultPPI
     /// Qlick Lab: the finishing step's choices (`ExportFinisher`).
     var sharpening = OutputSharpening.none
     var sharpeningAmount = SharpeningAmount.standard
@@ -65,15 +93,35 @@ struct SaveSettings: Equatable {
     var spaceName: String { Self.colorSpaces[min(max(colorSpace, 0), Self.colorSpaces.count - 1)] }
     var isSRGB: Bool { colorSpace == 0 }
 
+    /// What the EXIF `Software` tag says: the lab and its version.
+    static var software: String { "Qlick Lab \(EditorModel.appVersion)" }
+
     /// The `save_options` of a save command.
     var json: JSONValue {
-        var options: [String: JSONValue] = ["jpeg_quality": .number(Double(jpegQuality)), "color_space": .string(spaceName)]
+        var options: [String: JSONValue] = ["jpeg_quality": .number(Double(jpegQuality)), "color_space": .string(spaceName),
+                                            "ppi": .number(Double(ppi)), "software": .string(Self.software)]
         if let bitDepth { options["bit_depth"] = .number(Double(bitDepth)) }
         return .object(options)
     }
     /// The exporter's arguments.
     var arguments: [String] {
-        ["--jpeg-quality", "\(jpegQuality)", "--color-space", spaceName] + (bitDepth.map { ["--bit-depth", "\($0)"] } ?? [])
+        ["--jpeg-quality", "\(jpegQuality)", "--color-space", spaceName, "--ppi", "\(ppi)", "--software", Self.software]
+            + (bitDepth.map { ["--bit-depth", "\($0)"] } ?? [])
+    }
+    /// The quality of `format`'s file: JPEG's or HEIF's; nil for the lossless ones.
+    func quality(of format: OutputFormat) -> Int? {
+        switch format {
+        case .jpeg: jpegQuality
+        case .heif: heifQuality
+        case .png, .tiff: nil
+        }
+    }
+    /// The choices Print and the save panel remember, as they stand.
+    static var remembered: SaveSettings {
+        let format = OutputFormat.last, depth = bitDepth(for: format)
+        return SaveSettings(bitDepth: depth, colorSpace: effectiveSpace(chosenSpace, bitDepth: depth), jpegQuality: quality(for: .jpeg),
+                            heifQuality: quality(for: .heif), ppi: ppi, sharpening: OutputSharpening.remembered,
+                            sharpeningAmount: SharpeningAmount.remembered, metadata: ExportMetadata.remembered)
     }
     /// For the save panel's message; nil for sRGB in an sRGB preview. The
     /// preview develops in `previewSpace`; afterwards it follows this save.
@@ -89,22 +137,38 @@ struct SaveSettings: Equatable {
         get { UserDefaults.standard.string(forKey: "colorSpace").flatMap { colorSpaces.firstIndex(of: $0) } ?? 0 }
         set { UserDefaults.standard.set(colorSpaces[min(max(newValue, 0), colorSpaces.count - 1)], forKey: "colorSpace") }
     }
-    /// The bit depth last picked for `format`; JPEG is always 8-bit.
+    /// The bit depth last picked for `format`; JPEG is always 8-bit. TIFF starts at 8 bits, what a lab prints from
+    /// (about 110 MB for 60 megapixels); 16 bits, for retouching elsewhere, are about three times that.
     static func bitDepth(for format: OutputFormat) -> Int {
         switch format {
         case .jpeg: 8
         // The engine writes 16 bits, which the HEIF keeps 10 of.
         case .heif: 16
         case .png: UserDefaults.standard.integer(forKey: "bitDepth.png") == 16 ? 16 : 8
-        case .tiff: UserDefaults.standard.integer(forKey: "bitDepth.tiff") == 8 ? 8 : 16
+        case .tiff: UserDefaults.standard.integer(forKey: "bitDepth.tiff") == 16 ? 16 : 8
         }
     }
     static func setBitDepth(_ depth: Int, for format: OutputFormat) {
         if format != .jpeg, format != .heif { UserDefaults.standard.set(depth, forKey: "bitDepth.\(format.rawValue)") }
     }
-    static var lastQuality: Int {
-        get { let q = UserDefaults.standard.integer(forKey: "jpegQuality"); return qualityRange.contains(q) ? q : 95 }
-        set { UserDefaults.standard.set(newValue, forKey: "jpegQuality") }
+    /// The quality last picked for `format` (JPEG or HEIF, each its own), within its range.
+    static func quality(for format: OutputFormat) -> Int {
+        let heif = format == .heif
+        let range = heif ? heifQualityRange : qualityRange
+        let q = UserDefaults.standard.integer(forKey: heif ? "heifQuality" : "jpegQuality")
+        return range.contains(q) ? q : q > range.upperBound ? range.upperBound : heif ? defaultHEIFQuality : defaultJPEGQuality
+    }
+    static func setQuality(_ quality: Int, for format: OutputFormat) {
+        switch format {
+        case .jpeg: UserDefaults.standard.set(min(max(quality, qualityRange.lowerBound), qualityRange.upperBound), forKey: "jpegQuality")
+        case .heif: UserDefaults.standard.set(min(max(quality, heifQualityRange.lowerBound), heifQualityRange.upperBound), forKey: "heifQuality")
+        case .png, .tiff: break
+        }
+    }
+    /// The print resolution last picked, in pixels per inch.
+    static var ppi: Int {
+        get { let ppi = UserDefaults.standard.integer(forKey: "qlick.exportPPI"); return (72...1200).contains(ppi) ? ppi : defaultPPI }
+        set { UserDefaults.standard.set(newValue, forKey: "qlick.exportPPI") }
     }
 }
 
@@ -127,6 +191,14 @@ struct ExportSize: Equatable {
 
     static let full = ExportSize(edge: .full, pixels: 2048)
     static let pixelRange = 16...65_535
+
+    /// `photograph`'s pixels once fitted, never enlarged; zero stays zero.
+    func fitted(_ photograph: CGSize) -> CGSize {
+        guard photograph.width > 0, photograph.height > 0, edge != .full else { return photograph }
+        let side = edge == .long ? max(photograph.width, photograph.height) : min(photograph.width, photograph.height)
+        let scale = min(1, CGFloat(pixels) / max(side, 1))
+        return CGSize(width: (photograph.width * scale).rounded(), height: (photograph.height * scale).rounded())
+    }
 
     /// The `fit` of a save command; nil at full size.
     var json: JSONValue? {
@@ -197,7 +269,18 @@ struct ExportSize: Equatable {
     let amountPopup = NSPopUpButton()
     let metadataPopup = NSPopUpButton()
     let qualityTitle = NSTextField(labelWithString: "Quality:")
-    let message: (ExportEngine?, ExportSize, SaveSettings) -> String
+    /// Qlick Lab: JPEG's and HEIF's qualities, each its own; the slider shows the chosen format's.
+    var qualities: [OutputFormat: Int] = [.jpeg: SaveSettings.quality(for: .jpeg), .heif: SaveSettings.quality(for: .heif)]
+    /// The photograph's pixels before the size is fitted, border included, for the file's estimated weight; zero
+    /// when unknown (a batch), and the message then says none.
+    var photograph = CGSize.zero
+    private let callerMessage: (ExportEngine?, ExportSize, SaveSettings) -> String
+    /// The caller's message, then the file's estimated weight.
+    func message(_ engine: ExportEngine?, _ size: ExportSize, _ save: SaveSettings) -> String {
+        let text = callerMessage(engine, size, save)
+        guard let estimate = ExportEstimate.text(format: format, save: save, pixels: size.fitted(photograph)) else { return text }
+        return text + " About \(estimate)."
+    }
     private weak var panel: NSSavePanel?
     /// A folder chooser picks no file type.
     let restrictsType: Bool
@@ -216,7 +299,8 @@ struct ExportSize: Equatable {
     var settings: SaveSettings {
         let depth = format == .heif ? 16 : depths[format] ?? 8
         return SaveSettings(bitDepth: depth, colorSpace: SaveSettings.effectiveSpace(chosenSpace, bitDepth: depth),
-                            jpegQuality: Int(qualitySlider.doubleValue.rounded()),
+                            jpegQuality: qualities[.jpeg] ?? SaveSettings.defaultJPEGQuality,
+                            heifQuality: qualities[.heif] ?? SaveSettings.defaultHEIFQuality, ppi: SaveSettings.ppi,
                             sharpening: OutputSharpening.allCases[max(sharpenPopup.indexOfSelectedItem, 0)],
                             sharpeningAmount: SharpeningAmount.allCases[max(amountPopup.indexOfSelectedItem, 0)],
                             metadata: ExportMetadata.allCases[max(metadataPopup.indexOfSelectedItem, 0)])
@@ -226,7 +310,7 @@ struct ExportSize: Equatable {
     init(panel: NSSavePanel, selected: OutputFormat, engine: ExportEngine?, size: ExportSize, restrictsType: Bool = true, extraRows: [NSView] = [],
          message: @escaping (ExportEngine?, ExportSize, SaveSettings) -> String) {
         self.panel = panel
-        self.message = message
+        self.callerMessage = message
         self.restrictsType = restrictsType
         enginePopup = engine.map { _ in NSPopUpButton() }
         super.init()
@@ -245,7 +329,7 @@ struct ExportSize: Equatable {
         // Qlick Lab: one door for the output colour space, in Print; the panel shows it.
         spacePopup.isEnabled = false
         rows.append(NSStackView(views: [NSTextField(labelWithString: "Colour Space:"), spacePopup]))
-        qualitySlider.doubleValue = Double(SaveSettings.lastQuality)
+        qualitySlider.doubleValue = Double(qualities[selected] ?? SaveSettings.defaultJPEGQuality)
         qualitySlider.isContinuous = true
         qualitySlider.target = self; qualitySlider.action = #selector(qualityChanged)
         qualitySlider.widthAnchor.constraint(equalToConstant: 160).isActive = true
@@ -305,7 +389,7 @@ struct ExportSize: Equatable {
     func remember() {
         SaveSettings.chosenSpace = chosenSpace
         for (format, depth) in depths { SaveSettings.setBitDepth(depth, for: format) }
-        SaveSettings.lastQuality = settings.jpegQuality
+        for (format, quality) in qualities { SaveSettings.setQuality(quality, for: format) }
         UserDefaults.standard.set(settings.sharpening.rawValue, forKey: "qlick.exportSharpen")
         UserDefaults.standard.set(settings.sharpeningAmount.rawValue, forKey: "qlick.exportSharpenAmount")
         UserDefaults.standard.set(settings.metadata.rawValue, forKey: "qlick.exportMetadata")
@@ -322,9 +406,12 @@ struct ExportSize: Equatable {
         depthPopup.toolTip = format == .jpeg ? "JPEG is 8-bit only." : format == .heif ? "HEIF is saved with 10 bits a channel: four times JPEG's tones, at about its size." : nil
         amountPopup.isEnabled = current.sharpening != .none
         qualityTitle.stringValue = format == .heif ? "HEIF Quality:" : "JPEG Quality:"
+        qualitySlider.maxValue = Double(format == .heif ? SaveSettings.heifQualityRange.upperBound : SaveSettings.qualityRange.upperBound)
+        if let quality = current.quality(of: format) { qualitySlider.doubleValue = Double(quality) }
+        qualitySlider.toolTip = format == .heif ? "HEIF stops at 95: above it the file doubles for nothing the eye sees." : nil
         spacePopup.item(at: SaveSettings.prophoto)?.isEnabled = current.bitDepth == 16
         spacePopup.selectItem(at: current.colorSpace)
-        qualityLabel.stringValue = "\(current.jpegQuality)"
+        qualityLabel.stringValue = current.quality(of: format).map { "\($0)" } ?? ""
         qualityRow.isHidden = format != .jpeg && format != .heif
         stack.setFrameSize(stack.fittingSize)
         panel?.message = message(engine, size, current)
@@ -340,7 +427,12 @@ struct ExportSize: Equatable {
         sync()
     }
     @objc func spaceChanged() { chosenSpace = max(spacePopup.indexOfSelectedItem, 0); sync() }
-    @objc func qualityChanged() { qualityLabel.stringValue = "\(settings.jpegQuality)" }
+    @objc func qualityChanged() {
+        let quality = Int(qualitySlider.doubleValue.rounded())
+        if format == .jpeg || format == .heif { qualities[format] = quality }
+        qualityLabel.stringValue = "\(quality)"
+        panel?.message = message(engine, size, settings)
+    }
     @objc func engineChanged() { panel?.message = message(engine, size, settings) }
     @objc func sizeChanged() {
         pixelsField.isEnabled = size.edge != .full

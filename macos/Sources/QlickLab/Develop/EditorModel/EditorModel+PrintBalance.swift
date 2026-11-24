@@ -103,6 +103,9 @@ extension EditorModel {
             case nil: "Saves the preview as shown.\(extras)"
             }
         }
+        // Qlick Lab: the message ends with the file's estimated weight.
+        picker.photograph = photograph
+        picker.refreshMessage()
         panel.nameFieldStringValue = "\(source.deletingPathExtension().lastPathComponent)_\(state.film).\(picker.format.type.preferredFilenameExtension ?? "png")"
         LabPanel.begin(panel) { [weak self] response in
             guard response == .OK, let url = panel.url, let self else { return }
@@ -188,15 +191,12 @@ extension EditorModel {
         saving = true
         defer { saving = false }
         do {
-            if ExportFinisher.needed(save, destination: url) {
-                let written = ExportFinisher.engineFile(for: url), finished = ExportFinisher.engineFile(for: url).deletingPathExtension().appendingPathExtension(url.pathExtension)
-                defer { try? FileManager.default.removeItem(at: written); try? FileManager.default.removeItem(at: finished) }
-                _ = try await engine.request(saveCommand(to: written, size: size, save: save))
-                try await Task.detached(priority: .userInitiated) { try ExportFinisher.finish(written, as: url, into: finished, save: save) }.value
-                guard rename(finished.path, url.path) == 0 else { throw EngineError(message: "Could not save \(url.path)") }
-            } else {
-                _ = try await engine.request(saveCommand(to: url, size: size, save: save))
-            }
+            // Qlick Lab: written in the scratch folder, then finished and placed beside the destination once.
+            let written = ExportFinisher.engineFile(for: url, in: engine.scratch.directory)
+            defer { try? FileManager.default.removeItem(at: written) }
+            _ = try await engine.request(saveCommand(to: written, size: size, save: save))
+            let xmp = currentLabXMP(save)
+            try await Task.detached(priority: .userInitiated) { try ExportFinisher.deliver(written, to: url, save: save, xmp: xmp) }.value
             status = "Saved \(url.lastPathComponent)"
         } catch { report(error) }
     }
@@ -207,19 +207,18 @@ extension EditorModel {
     /// existing file untouched. False if the preview could not be saved.
     /// Another colour space than the preview's develops again in it.
     func exportPreview(to url: URL, size: ExportSize, save: SaveSettings) async -> Bool {
-        guard canSave, renderAtExportSize, save.spaceName == renderSpace, !ExportFinisher.needed(save, destination: url), let engine else { return false }
+        guard canSave, renderAtExportSize, save.spaceName == renderSpace, let engine else { return false }
         saving = true
         defer { saving = false }
-        let staging = url.deletingLastPathComponent().appendingPathComponent(".qlick-\(UUID().uuidString).\(url.pathExtension)")
-        defer { try? FileManager.default.removeItem(at: staging) }
-        guard (try? await engine.request(saveCommand(to: staging, size: size, save: save))) != nil else { return false }
-        if let rating = currentSummary.flatMap(ExportRating.value) {
-            do { try ExportRating.embed(rating, in: staging) } catch { report(error); return true }
-        }
-        guard rename(staging.path, url.path) == 0 else {
-            report(EngineError(message: "Could not move the completed export to \(url.path): \(String(cString: strerror(errno)))"))
-            return true
-        }
+        // Qlick Lab: the preview's file in the scratch folder, then finished (HEIF, sharpening, metadata) and placed.
+        let written = ExportFinisher.engineFile(for: url, in: engine.scratch.directory)
+        defer { try? FileManager.default.removeItem(at: written) }
+        guard (try? await engine.request(saveCommand(to: written, size: size, save: save))) != nil else { return false }
+        let xmp = currentLabXMP(save)
+        do {
+            try await Task.detached(priority: .userInitiated) { try ExportFinisher.deliver(written, to: url, save: save, xmp: xmp) }.value
+        } catch { report(error); return true }
+        ExportEstimate.recordLater(url, save: save)
         status = renderOnGPU
             ? "Exported \(url.lastPathComponent)"
             : "Exported \(url.lastPathComponent) on the CPU (32-bit): no GPU was available for Fast export"
@@ -238,7 +237,8 @@ extension EditorModel {
         do {
             let outcome = try await job.run(paths: engine.paths, scratch: engine.scratch, source: source, destination: url, state: exportState,
                                             crop: state.crop.cropped ? state.crop : nil, border: state.border.exported(for: photoSize), size: size, save: save,
-                                            engine: exportEngine, rating: currentSummary.flatMap(ExportRating.value))
+                                            engine: exportEngine, xmp: currentLabXMP(save))
+            ExportEstimate.recordLater(url, save: save)
             status = outcome.fellBackToCPU
                 ? "Exported \(url.lastPathComponent) on the CPU (32-bit): no GPU was available for Fast export"
                 : "Exported \(url.lastPathComponent)"
