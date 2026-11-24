@@ -20,6 +20,8 @@ serde.workspace = true
 serde_json.workspace = true
 rawler = "0.8"
 ab_glyph = "0.2.32"
+flate2 = "1"
+crc32fast = "1"
 
 [build-dependencies]
 cc = "1"

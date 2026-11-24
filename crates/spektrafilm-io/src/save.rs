@@ -1,6 +1,6 @@
 //! Writing rendered images to disk, shared by the CLI and the GUI.
 //!
-//! - TIFF: RGB, uncompressed, 16-bit by default or 8-bit.
+//! - TIFF: RGB, Deflate with the horizontal predictor (lossless), 16-bit by default or 8-bit.
 //! - PNG: RGB, 8-bit by default or 16-bit.
 //! - JPEG: 8-bit RGB, quality 95 by default.
 //!
@@ -9,7 +9,8 @@
 //! [`ImageMetadata`] is given, it is embedded as EXIF: in an `APP1`
 //! segment (JPEG), an `eXIf` chunk (PNG), or IFD0 plus an Exif sub-IFD
 //! (TIFF). Every file carries the ICC profile of its colour space
-//! ([`crate::icc`]).
+//! ([`crate::icc`]), and the print resolution it was asked for ([`SaveOptions::ppi`]): TIFF and EXIF
+//! `XResolution`, JPEG JFIF density, PNG `pHYs`.
 
 use std::fs::File;
 use std::io::{BufWriter, Seek, Write};
@@ -17,14 +18,14 @@ use std::path::Path;
 
 use anyhow::{Context, Result, anyhow, bail, ensure};
 use image::ImageEncoder;
-use rawler::formats::tiff::{DirectoryWriter, Rational, TiffWriter, Value};
+use rawler::formats::tiff::{DirectoryWriter, TiffWriter, Value};
 use rawler::tags::{ExifTag, TiffCommonTag};
 use rayon::prelude::*;
 use spektrafilm_math::colorspace::RgbColourspace;
 use spektrafilm_math::image::ImageBuf;
 
 use crate::extension;
-use crate::metadata::ImageMetadata;
+use crate::metadata::{ImageMetadata, Stamp};
 
 /// JPEG quality. The f64 export path exists to avoid quality loss;
 /// `image`'s default of 75 would defeat the point.
@@ -49,6 +50,11 @@ pub struct SaveOptions {
     /// profile gets a linear tone curve.
     #[serde(skip)]
     pub linear: bool,
+    /// Print resolution written into the file, in pixels per inch. It changes no pixel: a page layout or a lab
+    /// reads it as the print's size.
+    pub ppi: u32,
+    /// The EXIF `Software` tag; `None` is [`crate::metadata::SOFTWARE`].
+    pub software: Option<String>,
 }
 impl Default for SaveOptions {
     fn default() -> Self {
@@ -58,6 +64,8 @@ impl Default for SaveOptions {
             bit_depth: None,
             color_space: "sRGB".into(),
             linear: false,
+            ppi: crate::metadata::DEFAULT_PPI,
+            software: None,
         }
     }
 }
@@ -75,6 +83,7 @@ pub fn save_image_with_options(
     options: &SaveOptions,
 ) -> Result<()> {
     let (format, depth, space) = options.plan(path)?;
+    let stamp = options.stamp();
     let icc = crate::icc::profile(space, options.linear);
     let metadata = if options.copy_metadata {
         metadata
@@ -82,13 +91,23 @@ pub fn save_image_with_options(
         None
     };
     match format {
-        Format::Tiff => save_tiff(img, path, metadata, depth, icc),
-        Format::Png => save_png(img, path, metadata, depth, icc),
-        Format::Jpeg(quality) => save_jpeg(img, path, metadata, quality, icc),
+        Format::Tiff => save_tiff(img, path, metadata, depth, icc, &stamp),
+        Format::Png => save_png(img, path, metadata, depth, icc, &stamp),
+        Format::Jpeg(quality) => save_jpeg(img, path, metadata, quality, icc, &stamp),
     }
 }
 
 impl SaveOptions {
+    /// The software and resolution these options write.
+    pub fn stamp(&self) -> Stamp {
+        let mut stamp = Stamp::default();
+        if let Some(software) = self.software.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
+            stamp.software = software.into();
+        }
+        stamp.ppi = self.ppi.clamp(1, 10_000);
+        stamp
+    }
+
     /// Fails if these options can't save to `path`, before anything renders.
     pub fn check(&self, path: &Path) -> Result<()> {
         self.plan(path).map(|_| ())
@@ -146,11 +165,30 @@ fn create(path: &Path) -> Result<BufWriter<File>> {
 
 /// EXIF block for PNG/JPEG. Written even without source metadata, so
 /// the file at least records the software that made it.
-fn exif_blob(img: &ImageBuf, metadata: Option<&ImageMetadata>) -> Result<Vec<u8>> {
+fn exif_blob(img: &ImageBuf, metadata: Option<&ImageMetadata>, stamp: &Stamp) -> Result<Vec<u8>> {
     metadata
         .cloned()
         .unwrap_or_default()
-        .to_exif_blob(img.width, img.height)
+        .to_exif_blob_stamped(img.width, img.height, stamp)
+}
+
+/// A PNG `pHYs` chunk for `ppi`, inserted after `IHDR` (the encoder writes none): pixels per metre, both ways.
+fn insert_png_density(png: &mut Vec<u8>, ppi: u32) -> Result<()> {
+    // Signature (8), then IHDR: length (4), type (4), 13 bytes, CRC (4).
+    const AFTER_IHDR: usize = 8 + 4 + 4 + 13 + 4;
+    ensure!(png.len() > AFTER_IHDR && &png[12..16] == b"IHDR", "PNG without IHDR");
+    let per_metre = (f64::from(ppi) / 0.0254).round() as u32;
+    let mut body = Vec::with_capacity(13);
+    body.extend_from_slice(b"pHYs");
+    body.extend_from_slice(&per_metre.to_be_bytes());
+    body.extend_from_slice(&per_metre.to_be_bytes());
+    body.push(1); // the unit is the metre
+    let mut chunk = Vec::with_capacity(21);
+    chunk.extend_from_slice(&9u32.to_be_bytes());
+    chunk.extend_from_slice(&body);
+    chunk.extend_from_slice(&crc32fast::hash(&body).to_be_bytes());
+    png.splice(AFTER_IHDR..AFTER_IHDR, chunk);
+    Ok(())
 }
 
 fn save_png(
@@ -159,6 +197,7 @@ fn save_png(
     metadata: Option<&ImageMetadata>,
     depth: u8,
     icc: Vec<u8>,
+    stamp: &Stamp,
 ) -> Result<()> {
     // The encoder takes 16-bit samples in native byte order.
     let (data, color) = if depth == 16 {
@@ -167,15 +206,18 @@ fn save_png(
     } else {
         (quantize_u8(img), image::ExtendedColorType::Rgb8)
     };
-    let mut file = create(path)?;
-    let mut enc = image::codecs::png::PngEncoder::new(&mut file);
-    enc.set_exif_metadata(exif_blob(img, metadata)?)
+    let mut png = Vec::new();
+    let mut enc = image::codecs::png::PngEncoder::new(&mut png);
+    enc.set_exif_metadata(exif_blob(img, metadata, stamp)?)
         .map_err(|e| anyhow!("PNG EXIF: {e}"))?;
     enc.set_icc_profile(icc)
         .map_err(|e| anyhow!("PNG ICC profile: {e}"))?;
     enc.write_image(&data, img.width, img.height, color)
         .with_context(|| format!("saving PNG: {}", path.display()))?;
-    file.flush()
+    insert_png_density(&mut png, stamp.ppi)?;
+    let mut file = create(path)?;
+    file.write_all(&png)
+        .and_then(|()| file.flush())
         .with_context(|| format!("saving PNG: {}", path.display()))?;
     Ok(())
 }
@@ -186,11 +228,13 @@ fn save_jpeg(
     metadata: Option<&ImageMetadata>,
     quality: u8,
     icc: Vec<u8>,
+    stamp: &Stamp,
 ) -> Result<()> {
     let data = quantize_u8(img);
     let mut file = create(path)?;
     let mut enc = image::codecs::jpeg::JpegEncoder::new_with_quality(&mut file, quality);
-    enc.set_exif_metadata(exif_blob(img, metadata)?)
+    enc.set_pixel_density(image::codecs::jpeg::PixelDensity::dpi(u16::try_from(stamp.ppi).unwrap_or(u16::MAX)));
+    enc.set_exif_metadata(exif_blob(img, metadata, stamp)?)
         .map_err(|e| anyhow!("JPEG EXIF: {e}"))?;
     enc.set_icc_profile(icc)
         .map_err(|e| anyhow!("JPEG ICC profile: {e}"))?;
@@ -201,21 +245,24 @@ fn save_jpeg(
     Ok(())
 }
 
-/// Baseline RGB TIFF, uncompressed, in strips. Written with rawler's TIFF
-/// writer rather than the `image` crate's, which can't add an Exif sub-IFD.
+/// RGB TIFF in strips, each compressed with Deflate after the horizontal
+/// predictor (Compression 8, Predictor 2: lossless, read by every TIFF
+/// reader). Written with rawler's TIFF writer rather than the `image`
+/// crate's, which can't add an Exif sub-IFD.
 fn save_tiff(
     img: &ImageBuf,
     path: &Path,
     metadata: Option<&ImageMetadata>,
     depth: u8,
     icc: Vec<u8>,
+    stamp: &Stamp,
 ) -> Result<()> {
     let mut file = create(path)?;
     let tiff = TiffWriter::new(&mut file).map_err(tiff_err)?;
     let written = if depth == 16 {
-        write_tiff_image(tiff, &quantize_u16(img), img.width, img.height, metadata, icc)
+        write_tiff_image(tiff, &quantize_u16(img), img.width, img.height, metadata, icc, stamp)
     } else {
-        write_tiff_image(tiff, &quantize_u8(img), img.width, img.height, metadata, icc)
+        write_tiff_image(tiff, &quantize_u8(img), img.width, img.height, metadata, icc, stamp)
     };
     written
         .and_then(|()| Ok(file.flush()?))
@@ -224,14 +271,19 @@ fn save_tiff(
 }
 
 /// A TIFF sample, in native byte order: TiffWriter writes the header in it.
-trait Sample: Copy {
+trait Sample: Copy + Send + Sync {
     const BYTES: usize;
     fn push(self, out: &mut Vec<u8>);
+    /// `self - previous`, wrapping: the horizontal predictor.
+    fn minus(self, previous: Self) -> Self;
 }
 impl Sample for u8 {
     const BYTES: usize = 1;
     fn push(self, out: &mut Vec<u8>) {
         out.push(self);
+    }
+    fn minus(self, previous: Self) -> Self {
+        self.wrapping_sub(previous)
     }
 }
 impl Sample for u16 {
@@ -239,6 +291,30 @@ impl Sample for u16 {
     fn push(self, out: &mut Vec<u8>) {
         out.extend(self.to_ne_bytes());
     }
+    fn minus(self, previous: Self) -> Self {
+        self.wrapping_sub(previous)
+    }
+}
+
+/// TIFF's `Predictor` tag.
+const TIFF_PREDICTOR: u16 = 317;
+
+/// One strip, predicted and deflated: each sample becomes its difference
+/// from the same channel of the pixel to its left, row by row.
+fn deflate_strip<S: Sample>(strip: &[S], row_len: usize) -> std::io::Result<Vec<u8>> {
+    let mut bytes = Vec::with_capacity(strip.len() * S::BYTES);
+    for row in strip.chunks(row_len) {
+        for (i, &v) in row.iter().enumerate() {
+            let predicted = if i < 3 { v } else { v.minus(row[i - 3]) };
+            predicted.push(&mut bytes);
+        }
+    }
+    let mut encoder = flate2::write::ZlibEncoder::new(
+        Vec::with_capacity(bytes.len() / 2),
+        flate2::Compression::new(6),
+    );
+    encoder.write_all(&bytes)?;
+    encoder.finish()
 }
 
 fn write_tiff_image<W: Write + Seek, S: Sample>(
@@ -248,43 +324,45 @@ fn write_tiff_image<W: Write + Seek, S: Sample>(
     height: u32,
     metadata: Option<&ImageMetadata>,
     icc: Vec<u8>,
+    stamp: &Stamp,
 ) -> Result<()> {
     let row_len = width as usize * 3;
     if row_len == 0 || height == 0 {
         bail!("empty image ({width}x{height})");
     }
-    // ~256 KiB strips: small enough for streaming readers, few enough
-    // offsets for big images.
+    // ~256 KiB strips before compression: small enough for streaming
+    // readers, few enough offsets for big images. They compress in
+    // parallel, then are written in order.
     let rows_per_strip = (256 * 1024 / (row_len * S::BYTES)).clamp(1, height as usize);
-    let mut offsets = Vec::new();
-    let mut counts = Vec::new();
-    let mut bytes = Vec::with_capacity(rows_per_strip * row_len * S::BYTES);
-    for strip in data.chunks(rows_per_strip * row_len) {
-        bytes.clear();
-        strip.iter().for_each(|v| v.push(&mut bytes));
-        offsets.push(tiff.write_data(&bytes).map_err(tiff_err)?);
-        counts.push(u32::try_from(bytes.len())?);
+    let strips: Vec<Vec<u8>> = data
+        .par_chunks(rows_per_strip * row_len)
+        .map(|strip| deflate_strip(strip, row_len))
+        .collect::<std::io::Result<_>>()?;
+    let mut offsets = Vec::with_capacity(strips.len());
+    let mut counts = Vec::with_capacity(strips.len());
+    for strip in &strips {
+        offsets.push(tiff.write_data(strip).map_err(tiff_err)?);
+        counts.push(u32::try_from(strip.len())?);
     }
 
     let mut root = DirectoryWriter::new();
     root.add_tag(TiffCommonTag::ImageWidth, width);
     root.add_tag(TiffCommonTag::ImageLength, height);
     root.add_tag(TiffCommonTag::BitsPerSample, [8 * S::BYTES as u16; 3]);
-    root.add_tag(TiffCommonTag::Compression, 1u16);
+    root.add_tag(TiffCommonTag::Compression, 8u16);
+    root.add_untyped_tag(TIFF_PREDICTOR, Value::Short(vec![2]));
     root.add_tag(TiffCommonTag::PhotometricInt, 2u16);
     root.add_tag(TiffCommonTag::StripOffsets, &offsets);
     root.add_tag(TiffCommonTag::SamplesPerPixel, 3u16);
     root.add_tag(TiffCommonTag::RowsPerStrip, rows_per_strip as u32);
     root.add_tag(TiffCommonTag::StripByteCounts, &counts);
     root.add_tag(ExifTag::PlanarConfiguration, 1u16);
-    root.add_tag(TiffCommonTag::XResolution, Rational::new(72, 1));
-    root.add_tag(TiffCommonTag::YResolution, Rational::new(72, 1));
-    root.add_tag(TiffCommonTag::ResolutionUnit, 2u16);
     root.add_untyped_tag(TIFF_ICC_PROFILE, Value::Undefined(icc));
+    // Software and the resolution come with the metadata's tags.
     metadata
         .cloned()
         .unwrap_or_default()
-        .write_tags(&mut tiff, &mut root, width, height)?;
+        .write_tags(&mut tiff, &mut root, width, height, stamp)?;
     tiff.build(root).map_err(tiff_err)?;
     Ok(())
 }
@@ -298,7 +376,7 @@ mod tests {
     use super::*;
     use crate::metadata::{SOFTWARE, read_metadata};
     use rawler::exif::{Exif, ExifGPS};
-    use rawler::formats::tiff::{IFD, SRational, Value};
+    use rawler::formats::tiff::{IFD, Rational, SRational, Value};
     use spektrafilm_math::precision::{Scalar, from_f32, to_f32};
     use std::path::PathBuf;
 
@@ -655,6 +733,70 @@ mod tests {
             (dim(ExifTag::ExifImageWidth), dim(ExifTag::ExifImageHeight)),
             (2, 3)
         );
+    }
+
+    /// Every format carries the asked resolution and software, and the TIFF
+    /// is deflated with the predictor; none of that changes the pixels.
+    #[test]
+    fn resolution_software_and_tiff_compression() {
+        let dir = Scratch::new("stamp");
+        let options = SaveOptions { ppi: 240, software: Some("Qlick Lab 9.9".into()), ..Default::default() };
+        for name in ["a.png", "b.jpg", "c.tif", "d.tif"] {
+            let out = dir.path(name);
+            let options = SaveOptions { bit_depth: (name == "d.tif").then_some(8), ..options.clone() };
+            save_image_with_options(&test_image(), &out, Some(&sample_metadata()), &options).unwrap();
+            let ifd0 = exif_ifd0(&out);
+            assert_eq!(ifd0.get_entry(ExifTag::Software).unwrap().value.as_string().unwrap(), "Qlick Lab 9.9", "{name}");
+            let x = ifd0.get_entry(TiffCommonTag::XResolution).unwrap().value.clone();
+            assert_eq!(x, Value::Rational(vec![Rational::new(240, 1)]), "{name}");
+            let bytes = std::fs::read(&out).unwrap();
+            match name {
+                // JFIF APP0: units 1 (inches), then 240 × 240.
+                "b.jpg" => assert_eq!(&bytes[13..18], &[1, 0, 240, 0, 240], "{name}"),
+                // pHYs right after IHDR: 9449 px/m (240 ppi) both ways, unit metre.
+                "a.png" => {
+                    assert_eq!(&bytes[37..41], b"pHYs");
+                    assert_eq!(&bytes[41..50], &[0, 0, 0x24, 0xe9, 0, 0, 0x24, 0xe9, 1]);
+                }
+                _ => {
+                    assert_eq!(ifd0.get_entry(TiffCommonTag::Compression).unwrap().value.force_u32(0), 8, "{name}");
+                    assert_eq!(ifd0.get_entry(TIFF_PREDICTOR).unwrap().value.force_u32(0), 2, "{name}");
+                }
+            }
+        }
+        // Still the same pixels, through the predictor and Deflate.
+        let back = image::open(dir.path("c.tif")).unwrap().to_rgb16().into_raw();
+        assert_eq!(back, quantize_u16(&test_image()));
+        let back = image::open(dir.path("d.tif")).unwrap().to_rgb8().into_raw();
+        assert_eq!(back, quantize_u8(&test_image()));
+        // The default is 300 ppi and the lab's own name.
+        let out = dir.path("default.tif");
+        save_image(&test_image(), &out, None).unwrap();
+        let ifd0 = exif_ifd0(&out);
+        assert_eq!(ifd0.get_entry(TiffCommonTag::XResolution).unwrap().value, Value::Rational(vec![Rational::new(300, 1)]));
+        assert_eq!(ifd0.get_entry(ExifTag::Software).unwrap().value.as_string().unwrap(), SOFTWARE);
+    }
+
+    /// A 16-bit TIFF with a gradient wide enough to need several strips
+    /// survives the predictor's wrap-around differences.
+    #[test]
+    fn predictor_wraps_around() {
+        let dir = Scratch::new("wrap");
+        let (w, h) = (700u32, 300u32);
+        let data: Vec<Scalar> = (0..w * h * 3)
+            .map(|i| from_f32(if i % 7 == 0 { 1.0 } else { ((i * 7919) % 65536) as f32 / 65535.0 }))
+            .collect();
+        let img = ImageBuf::from_data(w, h, data);
+        for depth in [8u8, 16] {
+            let out = dir.path(&format!("w{depth}.tif"));
+            save_image_with_options(&img, &out, None, &SaveOptions { bit_depth: Some(depth), ..Default::default() }).unwrap();
+            let back = image::open(&out).unwrap();
+            if depth == 16 {
+                assert_eq!(back.to_rgb16().into_raw(), quantize_u16(&img));
+            } else {
+                assert_eq!(back.to_rgb8().into_raw(), quantize_u8(&img));
+            }
+        }
     }
 
     #[test]

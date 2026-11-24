@@ -2676,6 +2676,8 @@ dependencies = [
  "ab_glyph",
  "anyhow",
  "cc",
+ "crc32fast",
+ "flate2",
  "image",
  "rawler",
  "rayon",

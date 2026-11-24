@@ -25,13 +25,29 @@ use std::path::Path;
 use anyhow::{Result, anyhow};
 use rawler::decoders::{RawDecodeParams, RawMetadata};
 use rawler::exif::Exif;
-use rawler::formats::tiff::{DirectoryWriter, IFD, TiffWriter, Value};
+use rawler::formats::tiff::{DirectoryWriter, IFD, Rational, TiffWriter, Value};
 use rawler::tags::{ExifTag, TiffCommonTag};
 
 use crate::{extension, is_raw_extension};
 
-/// Value of the EXIF `Software` tag in exported files.
-pub const SOFTWARE: &str = concat!("spektrafilm ", env!("CARGO_PKG_VERSION"));
+/// Value of the EXIF `Software` tag in exported files, unless the caller names itself ([`Stamp::software`]).
+pub const SOFTWARE: &str = concat!("Qlick Lab ", env!("CARGO_PKG_VERSION"));
+
+/// Print resolution written into exported files, in pixels per inch, unless the caller asks for another.
+pub const DEFAULT_PPI: u32 = 300;
+
+/// What an exported file says about itself besides the camera's metadata: the program that made it and the
+/// resolution it should print at. Neither changes a pixel.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Stamp {
+    pub software: String,
+    pub ppi: u32,
+}
+impl Default for Stamp {
+    fn default() -> Self {
+        Self { software: SOFTWARE.into(), ppi: DEFAULT_PPI }
+    }
+}
 
 /// Exif-IFD tags that rawler's [`Exif`] struct doesn't cover but that
 /// describe the shot and stay true for the rendered image. Copied
@@ -79,10 +95,15 @@ impl ImageMetadata {
     /// the dimensions of the exported image. `Software` is set to
     /// [`SOFTWARE`].
     pub fn to_exif_blob(&self, width: u32, height: u32) -> Result<Vec<u8>> {
+        self.to_exif_blob_stamped(width, height, &Stamp::default())
+    }
+
+    /// [`Self::to_exif_blob`] with `stamp`'s software and resolution.
+    pub fn to_exif_blob_stamped(&self, width: u32, height: u32, stamp: &Stamp) -> Result<Vec<u8>> {
         let mut buf = Vec::new();
         let mut tiff = TiffWriter::new(Cursor::new(&mut buf)).map_err(tiff_err)?;
         let mut root = DirectoryWriter::new();
-        self.write_tags(&mut tiff, &mut root, width, height)?;
+        self.write_tags(&mut tiff, &mut root, width, height, stamp)?;
         tiff.build(root).map_err(tiff_err)?;
         Ok(buf)
     }
@@ -96,6 +117,7 @@ impl ImageMetadata {
         root: &mut DirectoryWriter,
         width: u32,
         height: u32,
+        stamp: &Stamp,
     ) -> Result<()> {
         let mut exif = self.exif.clone();
         exif.orientation = Some(1);
@@ -121,7 +143,11 @@ impl ImageMetadata {
         if let Some(model) = &self.model {
             root.add_tag(ExifTag::Model, model.as_str());
         }
-        root.add_tag(ExifTag::Software, SOFTWARE);
+        root.add_tag(ExifTag::Software, stamp.software.as_str());
+        let ppi = Rational::new(stamp.ppi.max(1), 1);
+        root.add_tag(TiffCommonTag::XResolution, ppi);
+        root.add_tag(TiffCommonTag::YResolution, ppi);
+        root.add_tag(TiffCommonTag::ResolutionUnit, 2u16);
         for (&tag, value) in &self.extra {
             exif_ifd.add_untyped_tag(tag, value.clone());
         }
@@ -303,6 +329,6 @@ mod tests {
         let text = std::fs::read_to_string(&file).unwrap();
         let version = text.lines().find_map(|line| line.strip_prefix("QLICK_LAB_VERSION=")).unwrap().trim();
         assert_eq!(env!("CARGO_PKG_VERSION"), version, "Cargo.toml's workspace version is not scripts/version's: run scripts/build_app.sh");
-        assert_eq!(super::SOFTWARE, format!("spektrafilm {version}"));
+        assert_eq!(super::SOFTWARE, format!("Qlick Lab {version}"));
     }
 }
