@@ -12,11 +12,13 @@ final class SaveSettingsTests: XCTestCase {
     /// As `spektrafilm-io::save::SaveOptions` and the CLI take them.
     func testSettingsReachTheEngine() {
         let save = SaveSettings(bitDepth: 16, colorSpace: 1, jpegQuality: 80)
-        XCTAssertEqual(save.json, .object(["jpeg_quality": .number(80), "bit_depth": .number(16), "color_space": .string("Display P3")]))
-        XCTAssertEqual(save.arguments, ["--jpeg-quality", "80", "--color-space", "Display P3", "--bit-depth", "16"])
+        let software = SaveSettings.software
+        XCTAssertEqual(save.json, .object(["jpeg_quality": .number(80), "bit_depth": .number(16), "color_space": .string("Display P3"),
+                                           "ppi": .number(300), "software": .string(software)]))
+        XCTAssertEqual(save.arguments, ["--jpeg-quality", "80", "--color-space", "Display P3", "--ppi", "300", "--software", software, "--bit-depth", "16"])
         XCTAssertFalse(save.isSRGB)
-        // The defaults leave the bit depth to the format and save sRGB.
-        XCTAssertEqual(SaveSettings().arguments, ["--jpeg-quality", "95", "--color-space", "sRGB"])
+        // The defaults leave the bit depth to the format, save sRGB at JPEG 92 and 300 ppi, in the lab's name.
+        XCTAssertEqual(SaveSettings().arguments, ["--jpeg-quality", "92", "--color-space", "sRGB", "--ppi", "300", "--software", software])
         XCTAssertNil(SaveSettings().summary(export: true, previewSpace: "sRGB"))
     }
 

@@ -71,6 +71,15 @@ what's next, gotchas. Rewrite it at the end of each phase as a short snapshot, n
 - Red is the lab's mark colour; the Develop panel follows QLab (`Kede0111/QLab`): rounded red sliders, the film
   card, tabs as one pill, Liquid Glass panels.
 
+## Export
+
+Export lives in Print (`Export/`, `Print/PrintPanel.swift`, engine `spektrafilm-io/src/save.rs`). Before changing an
+encoder or a default, measure file sizes on a full-size DNG with grain on (grain is real detail and triples sizes):
+the 2026-11-24 audit is in `docs/handoff/HANDOFF.md`. Each lossy format keeps its own quality; a quality of 100 is
+never a default (HEIF stops at 95: above, near lossless, twice the RAW). The engine writes in the scratch folder; the
+finished file reaches the destination's disk once (`ExportFinisher.deliver`). What the lab says of a file (film,
+paper, recipe, stars, words) goes inside it as XMP (`LabXMP`), never in a second file beside it.
+
 ## Disks
 
 A disk under /Volumes is offline only when it isn't mounted or the Mac says a share stopped answering

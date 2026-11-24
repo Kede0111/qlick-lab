@@ -505,6 +505,19 @@ import AppKit
                 await model.export(to: URL(fileURLWithPath: path), engine: .reference, size: ExportSize(edge: .long, pixels: 3000), save: save)
                 self.note("exported \(path): \(model.status) \(model.error ?? "")")
             }
+        case "exportas":
+            // exportas <path> [fast]: the open photograph as Print's File section and Image Size set it.
+            guard let path = words.first else { break }
+            let engine: ExportEngine = words.contains("fast") ? .fast : .reference
+            Task {
+                await model.export(to: URL(fileURLWithPath: path), engine: engine, size: ExportSize.last, save: SaveSettings.remembered)
+                self.note("exported \(path): \(model.status) \(model.error ?? "")")
+            }
+        case "order":
+            // order proof|scan|print: one of the lab's orders, as Print's File › Order does.
+            guard let order = LabOrder(rawValue: rest) else { break }
+            order.remember()
+            if model.previewSpace != order.colorSpace { model.choosePreviewSpace(order.colorSpace) }
         case "rollinfo":
             // rollinfo <film>|<camera>|<notes>
             let fields = rest.split(separator: "|", omittingEmptySubsequences: false).map(String.init)

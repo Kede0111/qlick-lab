@@ -22,9 +22,9 @@ struct PrintPanel: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     if model.source != nil {
-                        PrintFileSection(revision: $fileRevision)
+                        PrintFileSection(model: model, revision: $fileRevision)
                         PrintColourSection(model: model)
-                        ImageSizeSection(model: model, revision: $fileRevision)
+                        ImageSizeSection(model: model, revision: $fileRevision).id(fileRevision)
                         PrintFrameSection(model: model)
                     } else {
                         HintText("Open a photograph in the Lab, or choose frames on the contact sheet: their size and border are set here.")
@@ -199,35 +199,53 @@ extension LabState {
     }
 }
 
-/// The print's file, chosen here and remembered for the next export (no presets): its format, its bit depth (PNG and
-/// TIFF), its quality (JPEG and HEIF), its size. The export's save panel opens on these.
+/// The print's file, chosen here and remembered for the next export: one of the lab's three orders (Proof, Scan,
+/// Print) in one click, or each choice on its own: its format, its bit depth (PNG and TIFF), its quality (JPEG and
+/// HEIF, each its own), the sharpening for where it's shown. The export's save panel opens on these.
 struct PrintFileSection: View {
+    let model: EditorModel
     @Binding var revision: Int
-    @State private var format = OutputFormat.last
-    @State private var depth = SaveSettings.bitDepth(for: OutputFormat.last)
-    @State private var quality = SaveSettings.lastQuality
-
-    static let qualities = [100, 95, 90, 85, 80, 70, 60]
 
     var body: some View {
+        // Read as they stand at each drawing: the save panel and an order change them too. Each choice moves
+        // `revision`, which draws Print again.
+        let format = OutputFormat.last, depth = SaveSettings.bitDepth(for: format), quality = SaveSettings.quality(for: format)
+        let sharpening = OutputSharpening.remembered
+        let order = LabOrder.current(space: model.previewSpace)
         InkSection(title: "File") {
+            ChoiceRow(title: "Order", items: LabOrder.allCases.map { .option($0.title, tag: $0.rawValue) }, selection: order?.rawValue ?? "Your own",
+                      help: "What the lab hands back: a proof for a screen, the scan to keep, the file for paper. Sets the choices below; each can still change.") { tag in
+                guard let next = LabOrder(rawValue: tag) else { return }
+                next.remember()
+                if model.previewSpace != next.colorSpace { model.choosePreviewSpace(next.colorSpace) }
+                revision += 1
+            }
+            HintText(order?.detail ?? "Your own choices: pick an order to start from one of the lab’s.")
             ChoiceRow(title: "Format", items: OutputFormat.allCases.map { .option(Self.name($0), tag: $0.rawValue) }, selection: format.rawValue,
                       help: "The file the export makes") { tag in
                 guard let next = OutputFormat(rawValue: tag) else { return }
-                format = next; OutputFormat.last = next; depth = SaveSettings.bitDepth(for: next); revision += 1
+                OutputFormat.last = next; revision += 1
             }
             if format == .png || format == .tiff {
                 ChoiceRow(title: "Bit depth", items: [.option("8 bits", tag: "8"), .option("16 bits", tag: "16")], selection: "\(depth)",
-                          help: "16 bits keep the finest tones; 8 bits are smaller") { tag in
+                          help: "8 bits are what a lab prints from. 16 bits keep the finest tones for retouching elsewhere, in a file about three times larger.") { tag in
                     let next = Int(tag) ?? 8
-                    depth = next; SaveSettings.setBitDepth(next, for: format); revision += 1
+                    SaveSettings.setBitDepth(next, for: format); revision += 1
                 }
             } else {
-                ChoiceRow(title: "Quality", items: Self.qualities.map { .option("\($0)", tag: "\($0)") }, selection: "\(quality)",
-                          help: "Higher keeps more detail, in a larger file") { tag in
-                    let next = Int(tag) ?? 95
-                    quality = next; SaveSettings.lastQuality = next; revision += 1
+                let choices = format == .heif ? SaveSettings.heifQualities : SaveSettings.jpegQualities
+                ChoiceRow(title: "Quality", items: choices.map { .option("\($0)", tag: "\($0)") }, selection: "\(quality)",
+                          help: format == .heif ? "Higher keeps more detail, in a larger file. HEIF stops at 95: above it the file doubles for nothing the eye sees."
+                                                : "Higher keeps more detail, in a larger file. Above 95 the file grows a lot for little the eye sees.") { tag in
+                    let next = Int(tag) ?? SaveSettings.defaultJPEGQuality
+                    SaveSettings.setQuality(next, for: format); revision += 1
                 }
+            }
+            ChoiceRow(title: "Sharpen for", items: OutputSharpening.allCases.map { .option($0.title, tag: $0.rawValue) }, selection: sharpening.rawValue,
+                      changed: sharpening != .none,
+                      help: "Sharpens the finished file for where it’s shown, after it’s sized: lightly for a screen, more for paper.") { tag in
+                guard let next = OutputSharpening(rawValue: tag) else { return }
+                OutputSharpening.remembered = next; revision += 1
             }
         }
     }

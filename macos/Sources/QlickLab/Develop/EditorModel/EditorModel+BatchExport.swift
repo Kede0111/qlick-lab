@@ -76,6 +76,8 @@ extension EditorModel {
             default: "\(what) Reference is the most precise; about half a minute for each large photo.\(extras)"
             }
         }
+        // Qlick Lab: one photograph, the open one: the message ends with its file's estimated weight.
+        if single, targets[0] == sourceItem, photographSize != .zero { picker.photograph = photographSize; picker.refreshMessage() }
         rows?.changed = { [weak picker] in picker?.refreshMessage() }
         picker.formatChanged = { [weak picker, weak rows] in
             if let picker { chosenFormat = picker.format }
@@ -103,6 +105,7 @@ extension EditorModel {
             var options = BatchOptions(format: picker.format.rawValue, engine: engine.rawValue, edge: size.edge.rawValue, pixels: size.pixels,
                                        bitDepth: save.bitDepth, colorSpace: save.colorSpace, jpegQuality: save.jpegQuality,
                                        lowMemory: self.lowMemoryExport)
+            options.saveSettings = save
             // The save panel asked before replacing.
             if let rows { options.naming = rows.naming; options.custom = rows.custom; options.existing = rows.existing } else { options.existing = .replace }
             Task { await self.exportBatch(targets, to: folder, options: options, named: single ? url.lastPathComponent : nil) }
@@ -196,6 +199,9 @@ extension EditorModel {
                 item.needsMatch = matchable(item.state)
             }
             item.fileName = options.fileName(name: Self.batchName(target, title: title), film: item.state.film)
+            // Qlick Lab: what its file will say of its development.
+            let recipe = target == open ? appliedPreset.flatMap { url in presets.first { $0.url == url }?.name } : restores[target]?.recipe
+            item.xmp = labXMP(state: item.state, summary: library.summary(for: target), recipe: recipe, photo: photo, metadata: .all)
             return item
         }
         let names = BatchNames.unique(items.map(\.fileName))
@@ -291,7 +297,8 @@ extension EditorModel {
         do {
             try await job.run(paths: paths, scratch: scratch, source: photo, destination: destination, state: exportState,
                               crop: state.crop.cropped ? state.crop : nil, border: state.border.exported(for: state.crop.size(of: size ?? .zero)),
-                              size: options.size, save: options.save, engine: options.exportEngine, rating: item.rating)
+                              size: options.size, save: options.save, engine: options.exportEngine, xmp: batchXMP(item, state: state, save: options.save))
+            ExportEstimate.recordLater(destination, save: options.save)
             item.status = .done; item.written = destination; item.reason = nil
         } catch is CancellationError {
             return item
@@ -299,6 +306,15 @@ extension EditorModel {
             return failed(error.localizedDescription)
         }
         return item
+    }
+
+    /// A batch photograph's XMP, with its film and paper as it develops (`state`) and the metadata `save` keeps.
+    func batchXMP(_ item: BatchItem, state: EditState, save: SaveSettings) -> LabXMP {
+        var xmp = item.xmp ?? LabXMP(rating: item.rating, photo: item.item.photoFile)
+        let scanned = state.params["io.scan_film"].bool
+        xmp.film = filmName(state.film); xmp.paper = scanned ? nil : paperName(state.paper)
+        xmp.personal = save.metadata != .none
+        return xmp
     }
 
     /// Solves Match camera brightness for a batch photograph in the batch's

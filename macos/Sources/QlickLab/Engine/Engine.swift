@@ -380,8 +380,9 @@ final class EngineClient: @unchecked Sendable {
     }
 }
 
-/// Export writes to a sibling temporary file. Cancel/failure leaves an existing
-/// destination untouched; a successful render is committed with an atomic rename.
+/// Export: the engine writes in the lab's scratch folder, on the Mac's own disk; the finished file is written once
+/// beside the destination, hidden, and renamed onto it (`ExportFinisher.deliver`). Cancel/failure leaves an existing
+/// destination untouched.
 @MainActor final class ExportJob {
     private var process: Process?
     private var cancelled = false
@@ -389,22 +390,21 @@ final class EngineClient: @unchecked Sendable {
 
     /// Develops `source` at full resolution with `state`, cropping and
     /// straightening to `crop`, adding `border`, fitting to `size`, and
-    /// encoding with `save`, with `engine`. A `rating` is embedded as
-    /// `xmp:Rating` afterwards, leaving the pixels as the exporter wrote them.
+    /// encoding with `save`, with `engine`. `xmp` (the film, the paper, the
+    /// stars…) is embedded afterwards, leaving the pixels as the exporter
+    /// wrote them.
     @discardableResult
-    func run(paths: EnginePaths, scratch: ScratchSpace, source: URL, destination: URL, state: EditState, crop: CropSettings? = nil, border: BorderSettings?, size: ExportSize = .full, save: SaveSettings = SaveSettings(), engine: ExportEngine = .reference, rating: Int? = nil) async throws -> ExportOutcome {
+    func run(paths: EnginePaths, scratch: ScratchSpace, source: URL, destination: URL, state: EditState, crop: CropSettings? = nil, border: BorderSettings?, size: ExportSize = .full, save: SaveSettings = SaveSettings(), engine: ExportEngine = .reference, xmp: LabXMP? = nil) async throws -> ExportOutcome {
         let fm = FileManager.default
         let executable = try engine.executable(in: paths)
         let work = scratch.directory.appendingPathComponent("export-\(UUID().uuidString)")
         try fm.createDirectory(at: work, withIntermediateDirectories: true)
-        // Qlick Lab: the engine's file, then the finished one (`ExportFinisher`): a HEIF is a TIFF first.
-        let finishing = ExportFinisher.needed(save, destination: destination)
-        let written = ExportFinisher.engineFile(for: destination)
-        let staging = written
-        temporaryFiles = [work, written]
-        var record = ExportRecord(staging: staging.path, exporter: ExportRecord.resolvedPath(executable))
+        // Qlick Lab: the engine's file, in the scratch folder (a HEIF is a TIFF first), then the finished one.
+        let written = ExportFinisher.engineFile(for: destination, in: work)
+        temporaryFiles = [work]
+        var record = ExportRecord(staging: written.path, exporter: ExportRecord.resolvedPath(executable))
         try record.write(to: work)
-        defer { try? fm.removeItem(at: work); try? fm.removeItem(at: written); process = nil; temporaryFiles = [] }
+        defer { try? fm.removeItem(at: work); process = nil; temporaryFiles = [] }
         let params = work.appendingPathComponent("params.json")
         try JSONEncoder().encode(state.params).write(to: params)
         let logURL = work.appendingPathComponent("export.log")
@@ -439,17 +439,7 @@ final class EngineClient: @unchecked Sendable {
             let hint = engine == .fast ? " If the GPU ran out of memory, export with Reference (CPU, 64-bit) instead." : ""
             throw EngineError(message: "Export failed.\(hint)\n\(diagnostic.isEmpty ? "Unknown exporter error" : String(diagnostic.suffix(4000)))")
         }
-        if finishing {
-            let output = destination.deletingLastPathComponent().appendingPathComponent(".qlick-\(UUID().uuidString).\(destination.pathExtension)")
-            temporaryFiles.append(output)
-            defer { try? fm.removeItem(at: output) }
-            try await Task.detached(priority: .userInitiated) { try ExportFinisher.finish(written, as: destination, into: output, save: save) }.value
-            if let rating { try? ExportRating.embed(rating, in: output) }
-            guard rename(output.path, destination.path) == 0 else { throw EngineError(message: "Could not move the completed export to \(destination.path): \(String(cString: strerror(errno)))") }
-            return ExportOutcome(fellBackToCPU: engine == .fast && !ExportEngine.ranOnGPU(log: diagnostic))
-        }
-        if let rating { try ExportRating.embed(rating, in: staging) }
-        guard rename(staging.path, destination.path) == 0 else { throw EngineError(message: "Could not move the completed export to \(destination.path): \(String(cString: strerror(errno)))") }
+        try await Task.detached(priority: .userInitiated) { try ExportFinisher.deliver(written, to: destination, save: save, xmp: xmp) }.value
         return ExportOutcome(fellBackToCPU: engine == .fast && !ExportEngine.ranOnGPU(log: diagnostic))
     }
 

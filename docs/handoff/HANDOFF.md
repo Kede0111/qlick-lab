@@ -6,8 +6,9 @@ under about 120 lines. History lives in `git log`, `CHANGELOG.md` and the docs. 
 
 ## State (2026-11-24)
 
-- **0.2.0 is released** (tag `v0.2.0`, rebuilt once on e3af094 with the panels' fix, same version). `main` holds
-  everything; the old development branches are gone. Installed in /Applications from `main` (build 6).
+- **0.2.1** (`scripts/version`). On 2026-11-24 Quentin had every waiting branch merged into `main` and pushed, still
+  0.2.1 (no new release): Auto White Balance per photograph (PR #8), Import's Type menu, Library on the photograph in
+  hand, lighter exports. Installed in /Applications from that `main`.
 - **Updates are on** (Sparkle 2.10, EdDSA): every build but the Dev copies carries `SUFeedURL`
   (`releases/latest/download/appcast.xml`) and `SUPublicEDKey`. `scripts/make_dmg.sh` signs with the key in Quentin's
   login Keychain. **Every release attaches both the DMG and `appcast.xml`**, or installed apps see nothing new.
@@ -51,6 +52,30 @@ the photograph was opened from, the photograph ringed and scrolled into view, in
 left in (its overview, Import): `LabState.choose`. Tried off screen with `drive.sh` (a Roll, a Box, from Print) and
 built as Qlick Lab Dev in the worktree's `dist/`.
 
+## Merged: lighter exports (2026-11-24)
+
+From the export audit (deck https://claude.ai/artifact/RjgD4g4SMuC6oGH9MZPTqi; his HEIF at quality 100 weighed 140 MB
+for a 72 MB M11 DNG). Measured on that DNG, grain on: HEIF 90 38 MB, JPEG 92 23 MB, TIFF 8-bit 113 MB, 16-bit 317 MB.
+- Engine (`spektrafilm-io/src/save.rs`, `metadata.rs`): TIFF is Deflate + horizontal predictor (lossless, parallel
+  strips); every file carries a print resolution (`SaveOptions.ppi`, 300 by default: TIFF/EXIF XResolution, JPEG JFIF,
+  PNG pHYs) and `Software` "Qlick Lab <version>" (`SaveOptions.software`; QLab can pass its own). CLI `--ppi`, `--software`.
+- App: `SaveSettings` holds `heifQuality` (90, at most 95: Apple's encoder goes near lossless above) apart from
+  `jpegQuality` (92), `ppi`, and is Codable (a batch journal keeps all of it in `BatchOptions.saveSettings`: batches
+  used to drop sharpening and metadata). First format JPEG, TIFF starts at 8 bits.
+- Pipeline (`ExportFinisher.deliver`): the engine writes in the scratch folder (local disk), then finishing (HEIF,
+  sharpening, metadata) and the lab's XMP, written once to a hidden file beside the destination, renamed onto it.
+  Fast exports of HEIF or sharpened files now use the preview too (6 s for a 60 MP HEIF).
+- `LabXMP`: inside the file only (no sidecar): `qlick:Film`, `qlick:Paper`, `qlick:Recipe`, `xmp:Rating`,
+  CreatorTool, keywords/title/caption, and creator/rights from the photograph's import `.xmp`; Metadata › None keeps
+  only the lab's fields. ImageIO copies the image bytes (PNG gets an iTXt chunk). `ExportRating.embed` uses it.
+- Print: File › Order (`Print/LabOrder.swift`: Proof JPEG 90 2048 px sRGB screen-sharpened; Scan HEIF 90 full P3;
+  Print TIFF 8-bit full sRGB 300 ppi glossy), per-format Quality lists, Sharpen for; Image Size › Resolution and
+  "Prints at" (cm). The line over Export and the save panel end with the estimated weight (`ExportEstimate`: table
+  measured on the M11 file, then learned from this Mac's exports).
+- Measured, not done: a better JPEG encoder (optimised Huffman gains 2 % on grain; mozjpeg would add a C dependency).
+- Known: a sharpened JPEG goes through Core Image, which writes 4:2:0 (the engine's own JPEG is 4:4:4).
+- Automation: `exportas <path> [fast]` (Print's choices), `order proof|scan|print`.
+
 ## Next, after that (none started)
 
 - Swift 6: strict concurrency is `complete` as warnings; one left (`stillWanted` in
@@ -78,8 +103,9 @@ built as Qlick Lab Dev in the worktree's `dist/`.
   fresh one; only a restart of the Mac clears the dead one. Use `lsappinfo`, never `pgrep`, in scripts
   (`install.sh` does). Cause not yet known: a `sudo spindump <pid>` before restarting would show the kernel's wait.
 - Measure speed under a bundle id of its own: `CFFIXED_USER_HOME` doesn't separate preferences.
-- Tests known to fail together, not alone: the export tests crash xctest in `Support.swift:61` (`NSApp` nil when the
-  donation timer fires); `testBatchExportsEachPhotographWithItsOwnEdits` needs the `spektrafilm-f64` helper built.
+- The whole Swift suite runs together now (the donation question no longer touches a missing `NSApp`);
+  `testBatchExportsEachPhotographWithItsOwnEdits` needs the `spektrafilm-f64` helper built
+  (`cargo build --release -p spektrafilm-cli --features precision-f64 --bin spektrafilm-f64`).
 - Generated Swift from Rust: `Develop/BorderGeometry.swift` (`QLICK_UPDATE_GENERATED=1 cargo test -p spektrafilm-io
   border_geometry`); command names are checked against `crates/spektrafilm-native/commands.txt`.
 - Not to do: rewrite the app in Rust.

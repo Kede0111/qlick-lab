@@ -1254,6 +1254,8 @@ final class LibraryFormatTests: XCTestCase {
 
         let files = ["a_\(film).png", "b_kodak_portra_400.png", "c_\(newFilm).png"].map { out.appendingPathComponent($0) }
         XCTAssertEqual(files.map(ExportRating.read), [3, 4, nil])
+        // Each file says, inside it, which film developed it.
+        XCTAssertEqual(files.map { LabXMP.read($0)["qlick:Film"] != nil }, [true, true, true])
         // b's match solved and stored with its edits; c gets no sidecar.
         let match = try store.read(photo: b)?.variants.first?.edits?["brightnessMatch"]
         XCTAssertEqual(match?["ev"].double.isFinite, true, "solved: \(String(describing: match))")

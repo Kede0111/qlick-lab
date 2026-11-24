@@ -388,12 +388,30 @@ struct ImageSizeSection: View {
             // Verbatim, so pixel counts read like the status bar's, without grouping.
             ReadoutRow(title: "Developed", value: photograph == .zero ? "—" : "\(Int(photograph.width)) × \(Int(photograph.height)) · \(ImageSize.megapixels(photograph)) MP",
                        help: "The photograph as the film develops it, cropped, before rotation and the border.")
+            // Qlick Lab: the print's resolution, written in the file; it changes no pixel, only the size it prints at.
+            let ppi = SaveSettings.ppi
+            ChoiceRow(title: "Resolution", items: SaveSettings.resolutions.map { .option("\($0) ppi", tag: "\($0)") }, selection: "\(ppi)",
+                      changed: ppi != SaveSettings.defaultPPI,
+                      help: "Written in the file for a lab or a page layout: the size the print comes out at. Changes no pixel.") { tag in
+                SaveSettings.ppi = Int(tag) ?? SaveSettings.defaultPPI; revision += 1
+            }
+            let printed = size.fitted(photograph)
+            ReadoutRow(title: "Prints at", value: printed == .zero ? "—" : Self.printSize(printed, ppi: ppi),
+                       help: "The print’s size at this resolution, before the border.")
             if ImageSize.exceedsLimit(working: working, source: source) {
                 HintText(ImageSize.limitMessage(working: working), warning: true)
             } else if model.previewScale < 1, model.image != nil {
                 HintText("The preview shows \(EditorModel.percent(model.previewScale)) of these pixels. Exports develop all of them; inspect grain in an exported file.")
             }
         }
+    }
+}
+
+extension ImageSizeSection {
+    /// "80.7 × 53.6 cm": `pixels` at `ppi`.
+    static func printSize(_ pixels: CGSize, ppi: Int) -> String {
+        let cm = { (px: CGFloat) in (Double(px) / Double(max(ppi, 1)) * 2.54).formatted(.number.precision(.fractionLength(1))) }
+        return "\(cm(pixels.width)) × \(cm(pixels.height)) cm"
     }
 }
 
@@ -1203,27 +1221,28 @@ struct ExportFoot: View {
         .overlay(alignment: .top) { InkRule() }
     }
 
-    /// "3984 × 2656 · JPEG 95 · sRGB": the photograph's size, then the
-    /// format and colour space the save panel will offer first.
-    static func summary(photo: CGSize, format: OutputFormat = .last, quality: Int = SaveSettings.lastQuality, chosenSpace: Int = SaveSettings.chosenSpace,
+    /// "3984 × 2656 · JPEG 92 · sRGB · ≈ 8 MB": the photograph's size,
+    /// then the format and colour space the save panel will offer first, and
+    /// the file's estimated weight.
+    static func summary(photo: CGSize, format: OutputFormat = .last, quality: Int? = nil, chosenSpace: Int = SaveSettings.chosenSpace,
                         fit: ExportSize = .last) -> String {
         let depth = SaveSettings.bitDepth(for: format)
+        let quality = quality ?? SaveSettings.quality(for: format)
         let kind = switch format {
         case .jpeg: "JPEG \(quality)"
         case .png: "PNG \(depth)-bit"
         case .tiff: "TIFF \(depth)-bit"
-        case .heif: "HEIF 10-bit \(quality)"
+        case .heif: "HEIF \(quality)"
         }
         let space = SaveSettings.colorSpaces[SaveSettings.effectiveSpace(chosenSpace, bitDepth: format == .jpeg ? 8 : depth)]
         // Qlick Lab: the size the export fits it to (Print's File › Size), never enlarged.
-        var fitted = photo
-        if photo != .zero, fit.edge != .full {
-            let edge = fit.edge == .long ? max(photo.width, photo.height) : min(photo.width, photo.height)
-            let scale = min(1, CGFloat(fit.pixels) / max(edge, 1))
-            fitted = CGSize(width: (photo.width * scale).rounded(), height: (photo.height * scale).rounded())
-        }
+        let fitted = fit.fitted(photo)
         let size = photo == .zero ? nil : "\(Int(fitted.width)) × \(Int(fitted.height))"
-        return ([size, kind, space].compactMap { $0 }).joined(separator: " · ")
+        var save = SaveSettings.remembered
+        save.bitDepth = depth
+        if format == .heif { save.heifQuality = quality } else if format == .jpeg { save.jpegQuality = quality }
+        let weight = ExportEstimate.text(format: format, save: save, pixels: fitted).map { "≈ \($0)" }
+        return ([size, kind, space, weight].compactMap { $0 }).joined(separator: " · ")
     }
 }
 
