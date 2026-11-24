@@ -54,6 +54,14 @@ final class ImportPlanTests: XCTestCase {
         XCTAssertNil(frames[2].companion)
     }
 
+    func testFileTypesCountAPairInBoth() {
+        let frames = ImportFrame.frames(from: [file("/c/L1.DNG"), file("/c/L1.JPG"), file("/c/L2.ARW"), file("/c/IMG.jpeg"), file("/c/S.tif"), file("/c/P.heic")])
+        let counts = ImportFileType.counts(of: frames)
+        XCTAssertEqual(counts.map(\.type), [.raw, .jpeg, .heif, .tiff])
+        XCTAssertEqual(counts.map(\.count), [2, 2, 1, 1])
+        XCTAssertEqual(frames.filter { $0.holds(.jpeg) }.map(\.file.name), ["IMG.jpeg", "L1.DNG"])
+    }
+
     func testBurstsAreRunsOfFramesSecondsApart() {
         let times = ["10:00:00", "10:00:01", "10:00:02", "10:00:30", "10:05:00", "10:05:02"].map { CaptureTime(exif: "2026:09:19 \($0)") }
         XCTAssertEqual(ImportBursts.groups(times, gap: 2), [0..<3, 4..<6])

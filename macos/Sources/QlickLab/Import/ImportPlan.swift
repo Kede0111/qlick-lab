@@ -81,6 +81,13 @@ struct ImportFrame: Identifiable, Hashable, Sendable {
     /// The time it's filed by: its own, else its file's date.
     var time: CaptureTime? { captured ?? file.modified.map { CaptureTime(file: $0) } }
     var dateFromFile: Bool { captured == nil && file.modified != nil }
+    /// Qlick Lab: the kinds of file it holds: a RAW with its JPEG is both.
+    var types: Set<ImportFileType> {
+        var types: Set = [ImportFileType(file)]
+        if let companion { types.insert(ImportFileType(companion)) }
+        return types
+    }
+    func holds(_ type: ImportFileType) -> Bool { types.contains(type) }
 
     /// Pairs a folder's listing: a RAW and a JPEG of the same name in the same folder are one photograph.
     static func frames(from files: [ImportFile]) -> [ImportFrame] {
@@ -95,6 +102,38 @@ struct ImportFrame: Identifiable, Hashable, Sendable {
         }
         for file in files where !file.isRaw && !taken.contains(file.url) { frames.append(ImportFrame(file: file)) }
         return frames.sorted { $0.file.url.path.localizedStandardCompare($1.file.url.path) == .orderedAscending }
+    }
+}
+
+/// Qlick Lab: the kinds of file a source holds, as the import's Type menu sorts them, in the menu's order.
+enum ImportFileType: String, CaseIterable, Sendable {
+    case raw, jpeg, heif, tiff, png, other
+    var title: String {
+        switch self {
+        case .raw: "RAW"
+        case .jpeg: "JPEG"
+        case .heif: "HEIF"
+        case .tiff: "TIFF"
+        case .png: "PNG"
+        case .other: "Other"
+        }
+    }
+    init(_ file: ImportFile) {
+        if file.isRaw { self = .raw; return }
+        switch file.ext.lowercased() {
+        case "jpg", "jpeg": self = .jpeg
+        case "heic", "heif", "hif": self = .heif
+        case "tif", "tiff": self = .tiff
+        case "png": self = .png
+        default: self = .other
+        }
+    }
+
+    /// The kinds in `frames` with how many frames hold each, in the menu's order; a RAW + JPEG pair counts in both.
+    static func counts(of frames: [ImportFrame]) -> [(type: ImportFileType, count: Int)] {
+        var counts: [ImportFileType: Int] = [:]
+        for frame in frames { for type in frame.types { counts[type, default: 0] += 1 } }
+        return allCases.compactMap { type in counts[type].map { (type, $0) } }
     }
 }
 

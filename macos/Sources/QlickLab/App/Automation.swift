@@ -385,6 +385,9 @@ import AppKit
             case "eject": session.options.ejectAfter = argument != "0"
             case "view": if let view = ImportView(rawValue: argument) { session.view = view }
             case "filter": if let filter = ImportFilter(rawValue: argument) { session.filter = filter }
+            // import type raw|jpeg|…|all: the grid shows that kind alone; import only raw|jpeg|…|all checks it alone.
+            case "type": session.fileType = ImportFileType(rawValue: argument)
+            case "only": session.importOnly(ImportFileType(rawValue: argument))
             case "style": if let style = ImportProgressStyle(rawValue: argument) { session.progressStyle = style }
             case "click": if let index = Int(argument), session.shown.indices.contains(index) { session.click(session.shown[index].id, command: words.contains("cmd"), shift: words.contains("shift")) }
             case "select": if words.count == 3, let from = Int(words[1]), let to = Int(words[2]), session.shown.indices.contains(from), session.shown.indices.contains(to) {

@@ -42,6 +42,9 @@ The interface is organised in three main parts; everything belongs to one of the
   (a central toggle at the top), which shows what is selected in the Archives and Boxes.
 - **Print**: export.
 
+Import sorts what a source holds by kind of file (the "Type:" menu beside "Show:": RAW, JPEG, TIFF…), and each frame
+keeps its own check: a menu or a button may check and uncheck many at once, never replace the checks.
+
 The look: minimal and premium, red / white / greys, in the spirit of Leica (inspiration only, no Leica marks), and
 shared with QLab (`Kede0111/QLab`) so the two apps can merge later. The photographs on disk are never moved or
 deleted by the app (import may create folders; the one exception is "Remove rejected", behind a clear confirmation).
