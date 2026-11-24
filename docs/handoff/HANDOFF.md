@@ -4,7 +4,7 @@ A snapshot for the next agent, not a log: **rewrite it** at the end of each phas
 under about 120 lines. History lives in `git log`, `CHANGELOG.md` and the docs. Read it, then `CLAUDE.md` and
 `docs/architecture.md`.
 
-## State (2026-11-23)
+## State (2026-11-24)
 
 - **0.2.0 is released** (tag `v0.2.0`, rebuilt once on e3af094 with the panels' fix, same version). `main` holds
   everything; the old development branches are gone. Installed in /Applications from `main` (build 6).
@@ -34,6 +34,16 @@ and `PhoneRecipesPanel.swift` (the Recipes room's iPhone section; the last excha
 Edit Recipe, Auto White Balance / Auto Exposure and Apply Recipe's Develop groups are on main (`Recipes/RecipeParts.swift`,
 `EditorModel.labAuto`, `PresetLibrary.replace` stamps a new revision). Not done: combining two recipes.
 Next: show which engine revision a file names when it differs from the lab's own.
+
+## Done, not merged: Import's Type menu (branch `claude/project-thread-5m0xxy`, local, committed 2026-11-24)
+
+Beside "Show:", a "Type:" menu appears when the source holds more than one kind of file (`ImportFileType`:
+RAW, JPEG, HEIF, TIFF, PNG, Other; a RAW + JPEG pair counts in both). Show narrows the grid to one kind on top of
+the Show filter (`ImportSession.fileType`); Import › "RAW Only" checks every frame holding that kind and unchecks the
+rest (`importOnly`), and with pairs also sets the panel's RAW + JPEG choice (RAW only / JPEG only; Every Type: both).
+The per-frame checks stay as they are. Automation: `import type raw|all`, `import only raw|all`.
+Tried in the Dev copy. HEIF isn't read by the lab yet (`PhotoFolder.extensions`), so it never appears today.
+Not pushed or merged: wait for Quentin's word.
 
 ## Next, after that (none started)
 

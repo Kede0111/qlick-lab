@@ -201,6 +201,29 @@ private struct ImportToolbar: View {
             }
             .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
             .help("Which frames are shown")
+            // Qlick Lab: the kinds of file, when the source holds more than one: show one kind, or import it alone.
+            if session.fileTypes.count > 1 {
+                Menu {
+                    Section("Show") {
+                        typeButton("All Types", on: session.fileType == nil) { session.fileType = nil }
+                        ForEach(session.fileTypes, id: \.type) { entry in
+                            typeButton("\(entry.type.title) · \(entry.count)", on: session.fileType == entry.type) { session.fileType = entry.type }
+                        }
+                    }
+                    Section("Import") {
+                        ForEach(session.fileTypes, id: \.type) { entry in
+                            Button("\(entry.type.title) Only") { session.importOnly(entry.type) }
+                                .help("Checks every \(entry.type.title) of the source and unchecks the rest")
+                        }
+                        Button("Every Type") { session.importOnly(nil) }
+                            .help("Checks every frame of the source again, whatever its kind")
+                    }
+                } label: {
+                    Label("Type: \(session.fileType?.title ?? "All")", systemImage: "doc.on.doc").font(Theme.caps(12))
+                }
+                .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
+                .help("The kinds of file in the source: show one, or import one alone")
+            }
             Text(counts(session)).font(Theme.value(11.5)).foregroundStyle(Theme.dim).lineLimit(1).truncationMode(.tail).layoutPriority(-1)
             if !session.datesReady, !session.scanning {
                 HStack(spacing: 5) {
@@ -234,6 +257,10 @@ private struct ImportToolbar: View {
         .frame(height: 44)
         .background(Color(white: 0.04))
         .overlay(alignment: .bottom) { Rectangle().fill(Color.white.opacity(0.06)).frame(height: 1) }
+    }
+
+    private func typeButton(_ title: String, on: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) { if on { Label(title, systemImage: "checkmark") } else { Text(title) } }
     }
 
     private func counts(_ session: ImportSession) -> String {

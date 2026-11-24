@@ -238,6 +238,10 @@ enum ImportProgressStyle: String, CaseIterable, Sendable {
     private(set) var current: URL?
     @ObservationIgnored private var anchor: URL?
     var filter = ImportFilter.all { didSet { if filter != oldValue { refreshShown() } } }
+    /// Qlick Lab: the one kind of file the grid shows (nil: every kind), on top of `filter`.
+    var fileType: ImportFileType? { didSet { if fileType != oldValue { refreshShown() } } }
+    /// Qlick Lab: the kinds of file in the source, with how many frames hold each (`ImportFileType.counts`).
+    private(set) var fileTypes: [(type: ImportFileType, count: Int)] = []
     var view = ImportView.grid
     var cellSize: Double = UserDefaults.standard.object(forKey: "qlick.importCell") as? Double ?? 190 {
         didSet { UserDefaults.standard.set(cellSize, forKey: "qlick.importCell") }
@@ -320,7 +324,7 @@ enum ImportProgressStyle: String, CaseIterable, Sendable {
         scan?.cancel()
         self.source = source
         frames = []; index = [:]; shown = []; known = []; bursts = [:]; twins = [:]; unreadable = []
-        excluded = []; marks = [:]; selected = []; current = nil; anchor = nil
+        excluded = []; marks = [:]; selected = []; current = nil; anchor = nil; fileType = nil; fileTypes = []
         stopDeveloping(); developed = [:]; developedOrder = []
         // A development from QLab is what's looked at; the camera's preview is beside it on request.
         if source.kind == .phone { splitBefore = false }
@@ -498,7 +502,10 @@ enum ImportProgressStyle: String, CaseIterable, Sendable {
     }
 
     func refreshShown() {
+        fileTypes = ImportFileType.counts(of: frames)
+        if let fileType, !fileTypes.contains(where: { $0.type == fileType }) { self.fileType = nil; return }
         let kept = frames.filter { frame in
+            if let fileType, !frame.holds(fileType) { return false }
             let mark = marks[frame.id]
             switch filter {
             case .all: return true
@@ -610,6 +617,23 @@ enum ImportProgressStyle: String, CaseIterable, Sendable {
     }
     func setIncluded(_ on: Bool, _ ids: [URL]) {
         for id in ids { if on { excluded.remove(id) } else { excluded.insert(id) } }
+        if filter == .checked { refreshShown() }
+        replan()
+    }
+    /// Qlick Lab: checks every frame holding a file of `type` and unchecks the others, across the whole source. With
+    /// RAW + JPEG pairs, RAW or JPEG also says which of the two is copied. Nil checks every frame, both of a pair.
+    func importOnly(_ type: ImportFileType?) {
+        for frame in frames {
+            if type.map(frame.holds) ?? true { excluded.remove(frame.id) } else { excluded.insert(frame.id) }
+        }
+        if frames.contains(where: { $0.companion != nil }) {
+            switch type {
+            case .raw: options.pairs = .rawOnly
+            case .jpeg: options.pairs = .jpegOnly
+            case nil: options.pairs = .both
+            default: break
+            }
+        }
         if filter == .checked { refreshShown() }
         replan()
     }
