@@ -439,6 +439,13 @@ struct SheetOptions: Codable, Equatable, Sendable {
             lastRoom[.library] = .contactSheet
             return
         }
+        // Qlick Lab: from the Lab or Print, the Library opens on the photograph in hand: the contact sheet of the
+        // Folder, Box or Archive it was opened from, the photograph lit and scrolled into view (the sheet reveals
+        // the current frame), wherever the Library was left (its overview, Import).
+        if next == .library, model.source != nil, !model.sourceDeleted, workspace == .develop || workspace == .print {
+            show(.contactSheet, in: .library)
+            return
+        }
         show(lastRoom[next] ?? next.firstRoom, in: next)
     }
 

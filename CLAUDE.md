@@ -45,6 +45,9 @@ The interface is organised in three main parts; everything belongs to one of the
 Import sorts what a source holds by kind of file (the "Type:" menu beside "Show:": RAW, JPEG, TIFF…), and each frame
 keeps its own check: a menu or a button may check and uncheck many at once, never replace the checks.
 
+From the Lab or Print, going to the Library (⌘1) shows the contact sheet holding the photograph in hand (its Folder,
+Box or Archive), that photograph selected and in view: moving between the parts never loses the photograph.
+
 The look: minimal and premium, red / white / greys, in the spirit of Leica (inspiration only, no Leica marks), and
 shared with QLab (`Kede0111/QLab`) so the two apps can merge later. The photographs on disk are never moved or
 deleted by the app (import may create folders; the one exception is "Remove rejected", behind a clear confirmation).

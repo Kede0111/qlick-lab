@@ -35,7 +35,7 @@ Edit Recipe, Auto White Balance / Auto Exposure and Apply Recipe's Develop group
 `EditorModel.labAuto`, `PresetLibrary.replace` stamps a new revision). Not done: combining two recipes.
 Next: show which engine revision a file names when it differs from the lab's own.
 
-## Done, not merged: Import's Type menu (branch `claude/project-thread-5m0xxy`, local, committed 2026-11-24)
+## Merged: Import's Type menu (2026-11-24)
 
 Beside "Show:", a "Type:" menu appears when the source holds more than one kind of file (`ImportFileType`:
 RAW, JPEG, HEIF, TIFF, PNG, Other; a RAW + JPEG pair counts in both). Show narrows the grid to one kind on top of
@@ -43,7 +43,13 @@ the Show filter (`ImportSession.fileType`); Import › "RAW Only" checks every f
 rest (`importOnly`), and with pairs also sets the panel's RAW + JPEG choice (RAW only / JPEG only; Every Type: both).
 The per-frame checks stay as they are. Automation: `import type raw|all`, `import only raw|all`.
 Tried in the Dev copy. HEIF isn't read by the lab yet (`PhotoFolder.extensions`), so it never appears today.
-Not pushed or merged: wait for Quentin's word.
+
+## Merged: Library opens on the photograph in hand (2026-11-24)
+
+From Develop or Print, Library (⌘1, the title band's selector) opens the contact sheet of the Folder, Box or Archive
+the photograph was opened from, the photograph ringed and scrolled into view, instead of the room the Library was
+left in (its overview, Import): `LabState.choose`. Tried off screen with `drive.sh` (a Roll, a Box, from Print) and
+built as Qlick Lab Dev in the worktree's `dist/`.
 
 ## Next, after that (none started)
 
