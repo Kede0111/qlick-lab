@@ -35,6 +35,14 @@ Edit Recipe, Auto White Balance / Auto Exposure and Apply Recipe's Develop group
 `EditorModel.labAuto`, `PresetLibrary.replace` stamps a new revision). Not done: combining two recipes.
 Next: show which engine revision a file names when it differs from the lab's own.
 
+## In progress: Library opens on the photograph in hand (branch `claude/project-thread-4yjbnp`, worktree `.worktrees/library-context`, committed, not merged, 2026-11-24)
+
+From Develop or Print, Library (⌘1, the title band's selector) opens the contact sheet of the Folder, Box or Archive
+the photograph was opened from, the photograph ringed and scrolled into view, instead of the room the Library was
+left in (its overview, Import): `LabState.choose`. Tried off screen with `drive.sh` (a Roll, a Box, from Print) and
+built as Qlick Lab Dev in the worktree's `dist/`. Committed on his word; not pushed, not merged. Other work in flight on
+other branches (Import's Type menu, the export audit): see the main checkout's HANDOFF.
+
 ## Next, after that (none started)
 
 - Swift 6: strict concurrency is `complete` as warnings; one left (`stillWanted` in
